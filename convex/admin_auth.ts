@@ -1,6 +1,7 @@
 import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { verifyPassword } from "./encryption";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -21,7 +22,7 @@ export const adminLogin = mutation({
   handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("email"), args.email))
+      .withIndex("email", (q) => q.eq("email", args.email))
       .first();
 
     if (!user || user.role !== "admin") {
@@ -36,12 +37,14 @@ export const adminLogin = mutation({
       return { status: "locked" as const, message: `Account locked for ${minutesLeft} more minutes` };
     }
 
-    // 2. Verify Password (Mocking hash comparison)
-    const isValid = user.adminPasswordHash === "MOCK_HASH_" + args.password;
+    // 2. Verify Password
+    const isValid = user.adminPasswordHash
+      ? await verifyPassword(args.password, user.adminPasswordHash)
+      : false;
 
     if (!isValid) {
       const failedAttempts = (user.adminFailedLoginAttempts || 0) + 1;
-      const patch: any = { adminFailedLoginAttempts: failedAttempts };
+      const patch: Record<string, unknown> = { adminFailedLoginAttempts: failedAttempts };
       
       if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
         patch.adminLockedUntil = now + LOCKOUT_MS;
@@ -118,13 +121,12 @@ export const verifyAdmin2FA = mutation({
   handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("email"), args.email))
+      .withIndex("email", (q) => q.eq("email", args.email))
       .first();
 
     if (!user || !user.adminTwoFactorEnabled) throw new Error("2FA not active");
 
-    // In a real app, verify TOTP code with user.adminTwoFactorSecret
-    const isValidCode = args.code === "123456" || user.adminBackupCodes?.includes(args.code);
+    const isValidCode = user.adminBackupCodes?.includes(args.code);
 
     if (!isValidCode) {
       return { success: false, message: "Invalid 2FA code" };
@@ -154,9 +156,10 @@ export const verifyAdmin2FA = mutation({
 });
 
 export const getAdminSessions = query({
-  args: {},
-  handler: async (ctx) => {
-    // In real app, check context for authenticated admin
+  args: { sessionId: v.id("user_sessions") },
+  handler: async (ctx, args) => {
+    const session = await ctx.db.get(args.sessionId);
+    if (!session) throw new Error("Unauthorized");
     return await ctx.db.query("user_sessions").collect();
   },
 });

@@ -43,10 +43,7 @@ export const runDailyTaxDeduction = internalMutation({
     // or calculate based on today's approved payments platform fees.
     const startOfDay = new Date().setHours(0, 0, 0, 0);
     const payments = await ctx.db.query("payment_verifications")
-        .filter(q => q.and(
-            q.eq(q.field("status"), "approved"),
-            q.gte(q.field("verifiedAt"), startOfDay)
-        ))
+        .withIndex("by_status_and_verifiedAt", (q) => q.eq("status", "approved").gte("verifiedAt", startOfDay))
         .collect();
     
     const totalRevenue = payments.reduce((acc, p) => acc + p.amount, 0);

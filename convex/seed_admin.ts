@@ -1,6 +1,7 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { hashPassword } from "./encryption";
 
 /**
  * SEED ADMIN ACCOUNT
@@ -19,7 +20,7 @@ export const seed = mutation({
     // 1. Check if admin already exists to prevent accidental re-seeding
     const existing = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("email"), "admin@dutchkem.com"))
+      .withIndex("email", (q) => q.eq("email", "admin@dutchkem.com"))
       .first();
 
     if (existing) {
@@ -40,13 +41,13 @@ export const seed = mutation({
     }
 
     // 4. Create Admin User
-    // Note: In production, we'd use a real hash. For this sandbox, we'll store a mock-secure version.
+    const passwordHash = await hashPassword(password);
     await ctx.db.insert("users", {
       email: "admin@dutchkem.com",
       name: "Super Admin",
       role: "admin",
       balance: 0,
-      adminPasswordHash: "SECURE_" + password, // Simulation
+      adminPasswordHash: passwordHash,
       adminBackupCodes: backupCodes,
       adminTwoFactorEnabled: false,
       adminFailedLoginAttempts: 0,

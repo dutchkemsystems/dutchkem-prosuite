@@ -25,7 +25,7 @@ export const seedHolidays = internalMutation({
       const end_ts = new Date(h.end).getTime() + (24 * 60 * 60 * 1000) - 1;
 
       const existing = await ctx.db.query("holiday_discounts")
-        .filter(q => q.eq(q.field("name"), h.name))
+        .withIndex("by_name", (q) => q.eq("name", h.name))
         .first();
 
       if (!existing) {
@@ -51,7 +51,7 @@ export const refreshActiveDiscounts = mutation({
     const now = Date.now();
     const holidays = await ctx.db.query("holiday_discounts").collect();
     
-    let highestDiscount: any = null;
+    let highestDiscount: { percent: number; banner_icon: string; banner_text: string; code: string; type: string; start_date: number; end_date: number } | null = null;
 
     for (const h of holidays) {
       const active = now >= h.start_date && now <= h.end_date;

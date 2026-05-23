@@ -23,7 +23,10 @@ export const verifyPayment = internalMutation({
   }),
   handler: async (ctx, args) => {
     // 1. Signature Verification (HMAC-SHA256 simulation)
-    const encryptionKey = process.env.KORA_ENCRYPTION_KEY || "test_key";
+    const encryptionKey = process.env.KORA_ENCRYPTION_KEY;
+    if (!encryptionKey) {
+      return { status: "rejected", confidenceScore: 0 };
+    }
     const isValidSignature = args.signature !== "" && !!encryptionKey;
     
     let confidenceScore = 100;

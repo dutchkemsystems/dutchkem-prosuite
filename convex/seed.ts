@@ -1,5 +1,6 @@
-import { mutation, internalMutation } from "./_generated/server";
+import { mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { hashPassword } from "./encryption";
 
 export const seedAdmin = mutation({
   args: {
@@ -11,11 +12,12 @@ export const seedAdmin = mutation({
       .withIndex("email", (q) => q.eq("email", "admin@dutchkem.com"))
       .first();
 
+    const passwordHash = await hashPassword(args.password);
     if (existing) {
       console.log("Admin exists, updating hash");
       await ctx.db.patch(existing._id, {
-        adminPasswordHash: "MOCK_HASH_" + args.password,
-        role: "admin", // Ensure role is correct
+        adminPasswordHash: passwordHash,
+        role: "admin",
       });
       return existing._id;
     }
@@ -26,7 +28,7 @@ export const seedAdmin = mutation({
       role: "admin",
       balance: 0,
       referralCode: "ADMIN001",
-      adminPasswordHash: "MOCK_HASH_" + args.password,
+      adminPasswordHash: passwordHash,
     });
 
     // Note: In a real @convex-dev/auth setup, passwords are stored in the `auth_passwords` table

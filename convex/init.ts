@@ -1,5 +1,6 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { hashPassword } from "./encryption";
 
 export const setupAdminAccount = mutation({
   args: {},
@@ -8,15 +9,14 @@ export const setupAdminAccount = mutation({
     const adminEmail = "admin@dutchkem.com";
     const existing = await ctx.db
       .query("users")
-      .filter((q) => q.eq(q.field("email"), adminEmail))
+      .withIndex("email", (q) => q.eq("email", adminEmail))
       .first();
 
     const password = Array.from(crypto.getRandomValues(new Uint8Array(16)))
       .map((b) => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[b % 62])
       .join("");
     
-    // In a real app, use bcrypt. For this simulation, we'll store a mock hash.
-    const passwordHash = "MOCK_HASH_" + password; 
+    const passwordHash = await hashPassword(password);
 
     const backupCodes = Array.from({ length: 10 }, () => 
       Math.random().toString(36).substring(2, 10).toUpperCase()

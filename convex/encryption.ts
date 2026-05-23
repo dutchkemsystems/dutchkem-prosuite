@@ -70,6 +70,62 @@ export async function encryptWeb(text: string, keyHex: string) {
 /**
  * Decrypts text encrypted with AES-256-GCM (Web Crypto)
  */
+/**
+ * Hashes a password using PBKDF2-SHA-256 (Web Crypto)
+ * Returns a hex-encoded string containing: salt:hash
+ */
+export async function hashPassword(password: string): Promise<string> {
+  const salt = globalThis.crypto.getRandomValues(new Uint8Array(16));
+  const key = await globalThis.crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    { name: "PBKDF2" },
+    false,
+    ["deriveBits"],
+  );
+  const hash = await globalThis.crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt,
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    key,
+    256,
+  );
+  const saltHex = Array.from(salt).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const hashHex = Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `${saltHex}:${hashHex}`;
+}
+
+/**
+ * Verifies a password against a PBKDF2 hash created by hashPassword
+ */
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
+  const [saltHex, hashHex] = stored.split(":");
+  if (!saltHex || !hashHex) return false;
+  const salt = new Uint8Array(saltHex.match(/.{1,2}/g)!.map((b) => parseInt(b, 16)));
+  const key = await globalThis.crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    { name: "PBKDF2" },
+    false,
+    ["deriveBits"],
+  );
+  const hash = await globalThis.crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt,
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    key,
+    256,
+  );
+  const computedHex = Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return computedHex === hashHex;
+}
+
 export async function decryptWeb(encryptedHex: string, ivHex: string, tagHex: string, keyHex: string) {
     const keyBytes = hexToUint8Array(keyHex);
     const iv = hexToUint8Array(ivHex);

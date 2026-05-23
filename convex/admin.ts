@@ -1,13 +1,13 @@
 import { query, mutation, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 
 // Helper for shared logic
-async function fetchSweepSettings(ctx: any) {
+async function fetchSweepSettings(ctx: import("./_generated/server").QueryCtx) {
     const settings = await ctx.db.query("system_config").collect();
-    const config: Record<string, any> = {};
-    settings.forEach((s: any) => config[s.key] = s.value);
+    const config: Record<string, unknown> = {};
+    settings.forEach((s) => config[s.key] = s.value);
 
     return {
         enabled: config.DAILY_SWEEP_ENABLED ?? true,
@@ -29,7 +29,7 @@ async function fetchSweepSettings(ctx: any) {
 /**
  * Helper for admin security
  */
-async function verifyAdminAccess(ctx: any, args: { sessionId: Id<"user_sessions">, ip?: string }) {
+async function verifyAdminAccess(ctx: { db: import("./_generated/server").QueryCtx["db"] }, args: { sessionId: Id<"user_sessions">, ip?: string }) {
     const session = await ctx.db.get(args.sessionId);
     if (!session || !session.isCurrent || !session.isTwoFactorVerified) {
         throw new Error("2FA Required for administration");
@@ -113,12 +113,12 @@ export const getEarningsSummary = query({
         const startOfMonth = now - (30 * 24 * 60 * 60 * 1000);
 
         const verifications = await ctx.db.query("payment_verifications")
-            .filter(q => q.eq(q.field("status"), "approved"))
+            .withIndex("by_status", (q) => q.eq("status", "approved"))
             .collect();
 
         const mainWallet = await ctx.db.query("system_wallets").withIndex("by_type", q => q.eq("type", "main")).unique();
 
-        const calculateEarnings = (items: any[]) => {
+        const calculateEarnings = (items: { amount: number }[]) => {
             const revenue = items.reduce((acc, i) => acc + i.amount, 0);
             const fee = revenue * 0.15;
             return { revenue, fee, share: revenue - fee };
@@ -321,7 +321,7 @@ export const getFlaggedTransactions = query({
   handler: async (ctx) => {
     return await ctx.db
       .query("payment_verifications")
-      .filter(q => q.eq(q.field("status"), "manual_review"))
+      .withIndex("by_status", (q) => q.eq("status", "manual_review"))
       .order("desc")
       .collect();
   },
@@ -369,7 +369,7 @@ export const getAuditLogs = query({
 export const getFreelancerOverview = query({
   args: {},
   handler: async (ctx) => {
-    const freelancers = await ctx.db.query("users").filter(q => q.eq(q.field("role"), "freelancer")).collect();
+    const freelancers = await ctx.db.query("users").withIndex("by_role", (q) => q.eq("role", "freelancer")).collect();
     const jobs = await ctx.db.query("jobs").collect();
     
     return {

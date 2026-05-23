@@ -35,7 +35,8 @@ export default defineSchema({
   })
     .index("email", ["email"])
     .index("phone", ["phone"])
-    .index("referralCode", ["referralCode"]),
+    .index("referralCode", ["referralCode"])
+    .index("by_role", ["role"]),
 
   jobs: defineTable({
     freelancerId: v.id("users"),
@@ -158,7 +159,8 @@ export default defineSchema({
     end_date: v.number(),   // timestamp
     is_active: v.boolean(),
     type: v.union(v.literal("holiday"), v.literal("seasonal")),
-  }).index("by_active", ["is_active"]),
+  }).index("by_active", ["is_active"])
+    .index("by_name", ["name"]),
 
   agent_services: defineTable({
     agent_id: v.string(), // e.g., "A1"
@@ -167,7 +169,8 @@ export default defineSchema({
     icon: v.string(),
     added_at: v.number(),
     category: v.optional(v.string()),
-  }).index("by_agent", ["agent_id"]),
+  }).index("by_agent", ["agent_id"])
+    .index("by_added_at", ["added_at"]),
 
   service_updates: defineTable({
     cycle: v.string(), // "SPRING_2026", etc.
@@ -249,7 +252,9 @@ export default defineSchema({
     agentId: v.optional(v.string()),
     service: v.optional(v.string()),
     userId: v.optional(v.id("users")),
-  }).index("by_reference", ["reference"]),
+  }).index("by_reference", ["reference"])
+    .index("by_status", ["status"])
+    .index("by_status_and_verifiedAt", ["status", "verifiedAt"]),
 
   model_status: defineTable({
     modelName: v.string(),
@@ -329,7 +334,8 @@ export default defineSchema({
     error: v.optional(v.string()),
     externalId: v.optional(v.string()), // ID from Postiz/etc.
   }).index("by_status", ["status"])
-    .index("by_scheduled", ["scheduledFor"]),
+    .index("by_scheduled", ["scheduledFor"])
+    .index("by_status_and_scheduled", ["status", "scheduledFor"]),
 
   guardian_tests: defineTable({
     testName: v.string(),

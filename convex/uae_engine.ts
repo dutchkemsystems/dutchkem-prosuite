@@ -26,7 +26,7 @@ export const getSystemStatus = query({
     }
 
     const pendingServices = await ctx.db.query("agent_services")
-      .filter(q => q.eq(q.field("added_at"), 0)) // Mock for "to be added"
+      .withIndex("by_added_at", (q) => q.eq("added_at", 0))
       .collect();
 
     if (pendingServices.length > 0) {
@@ -59,7 +59,7 @@ export const generateAdminManualTask = mutation({
   },
   handler: async (ctx, args) => {
     // 1. Verify Admin
-    const user = await ctx.db.query("users").filter(q => q.eq(q.field("role"), "admin")).first();
+    const user = await ctx.db.query("users").withIndex("by_role", (q) => q.eq("role", "admin")).first();
     if (!user) throw new Error("Unauthorized");
 
     // 2. Log Task

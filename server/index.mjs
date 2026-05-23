@@ -4,7 +4,10 @@ import cors from 'cors';
 const app = express();
 const PORT = 3001;
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  methods: ['GET', 'POST'],
+}));
 app.use(express.json());
 
 app.get('/api/health', (req, res) => {

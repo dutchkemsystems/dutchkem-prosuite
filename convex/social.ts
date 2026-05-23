@@ -105,8 +105,7 @@ export const getPendingPosts = internalQuery({
   args: { now: v.number() },
   handler: async (ctx, { now }) => {
     return await ctx.db.query("social_posts")
-      .withIndex("by_status", q => q.eq("status", "scheduled"))
-      .filter(q => q.lte(q.field("scheduledFor"), now))
+      .withIndex("by_status_and_scheduled", q => q.eq("status", "scheduled").lte("scheduledFor", now))
       .collect();
   },
 });

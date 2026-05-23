@@ -3,10 +3,6 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 
-// const KORA_PUBLIC_KEY = "pk_test_Vv97eew7pEjujQKiSd4vpbuoLKwv2TokEHk4859v";
-// const KORA_SECRET_KEY = "sk_test_JasuoWcs5wQADRRpJ35qv8fPpgWUNbxZfkQBUrTm";
-// const KORA_ENCRYPTION_KEY = "Nt6TcK1sTQiETDuDsqAzCfsYDmWfkF9k";
-
 /**
  * Handle Auto-Renewals and Retries (Triggered by Cron)
  */
