@@ -83,6 +83,7 @@ export const attemptCharge = internalAction({
  */
 export const getSubscriptionsForRenewal = internalQuery({
   args: { now: v.number() },
+  returns: v.any(),
   handler: async (ctx, { now }) => {
     return await ctx.db
       .query("subscriptions")
@@ -93,6 +94,7 @@ export const getSubscriptionsForRenewal = internalQuery({
 
 export const getSubscriptionsForRetry = internalQuery({
   args: { now: v.number() },
+  returns: v.any(),
   handler: async (ctx, { now }) => {
     return await ctx.db
       .query("subscriptions")
@@ -103,16 +105,19 @@ export const getSubscriptionsForRetry = internalQuery({
 
 export const getSubscription = internalQuery({
   args: { subscriptionId: v.id("subscriptions") },
+  returns: v.any(),
   handler: async (ctx, { subscriptionId }) => await ctx.db.get(subscriptionId),
 });
 
 export const getUser = internalQuery({
   args: { userId: v.id("users") },
+  returns: v.any(),
   handler: async (ctx, { userId }) => await ctx.db.get(userId),
 });
 
 export const handleSuccessfulRenewal = internalMutation({
   args: { subscriptionId: v.id("subscriptions") },
+  returns: v.null(),
   handler: async (ctx, { subscriptionId }) => {
     const sub = await ctx.db.get(subscriptionId);
     if (!sub) return;
@@ -145,6 +150,7 @@ export const handleSuccessfulRenewal = internalMutation({
 
 export const handleFailedRenewal = internalMutation({
   args: { subscriptionId: v.id("subscriptions") },
+  returns: v.null(),
   handler: async (ctx, { subscriptionId }) => {
     const sub = await ctx.db.get(subscriptionId);
     if (!sub) return;
@@ -189,6 +195,7 @@ export const handleFailedRenewal = internalMutation({
  */
 export const requestRefund = mutation({
   args: { subscriptionId: v.id("subscriptions"), reason: v.string() },
+  returns: v.any(),
   handler: async (ctx, { subscriptionId, reason }) => {
     const sub = await ctx.db.get(subscriptionId);
     if (!sub) throw new Error("Subscription not found");

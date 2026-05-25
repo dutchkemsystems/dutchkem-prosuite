@@ -101,8 +101,8 @@ export function createReliableAgent(name: string, instructions: string, primaryM
         }
       }
       
-      const emergencyMsg = "I apologize, but I'm experiencing unusually high traffic right now. Please try again in a moment, or try a different request. My team has been notified.";
-      return emergencyMsg;
+      console.error(`[Guardian AI] All ${agents.length} models failed for ${name}`);
+      return;
     }
   };
 }

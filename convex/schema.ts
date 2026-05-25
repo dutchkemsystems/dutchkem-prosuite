@@ -207,6 +207,7 @@ export default defineSchema({
 
   user_sessions: defineTable({
     userId: v.id("users"),
+    userType: v.union(v.literal("client"), v.literal("admin")),
     device: v.string(),
     location: v.string(),
     ip: v.string(),
@@ -214,8 +215,19 @@ export default defineSchema({
     lastActive: v.number(),
     isCurrent: v.boolean(),
     isTwoFactorVerified: v.optional(v.boolean()),
+    deviceInfo: v.object({
+      userAgent: v.string(),
+      deviceType: v.optional(v.string()),
+      browser: v.optional(v.string()),
+      os: v.optional(v.string()),
+    }),
+    refreshToken: v.optional(v.string()),
+    isRevoked: v.boolean(),
+    expiresAt: v.number(),
   }).index("by_user", ["userId"])
-    .index("by_fingerprint", ["fingerprint"]),
+    .index("by_fingerprint", ["fingerprint"])
+    .index("by_user_type", ["userType"])
+    .index("by_refresh_token", ["refreshToken"]),
 
   api_keys: defineTable({
     userId: v.id("users"),
@@ -233,6 +245,42 @@ export default defineSchema({
     userAgent: v.string(),
     createdAt: v.number(),
   }).index("by_user", ["userId"]),
+
+  failed_logins: defineTable({
+    userId: v.optional(v.id("users")),
+    email: v.string(),
+    ipAddress: v.string(),
+    attemptTime: v.number(),
+    success: v.boolean(),
+  }).index("by_email", ["email"])
+    .index("by_ip", ["ipAddress"])
+    .index("by_time", ["attemptTime"]),
+
+  admin_audit_log: defineTable({
+    adminId: v.id("users"),
+    action: v.string(),
+    targetType: v.optional(v.string()),
+    targetId: v.optional(v.id("users")),
+    changes: v.optional(v.any()),
+    ipAddress: v.string(),
+    userAgent: v.string(),
+    timestamp: v.number(),
+  }).index("by_admin", ["adminId"])
+    .index("by_action", ["action"])
+    .index("by_timestamp", ["timestamp"]),
+
+  admin_2fa: defineTable({
+    adminId: v.id("users"),
+    secret: v.string(),
+    backupCodes: v.array(v.string()),
+    isEnabled: v.boolean(),
+  }).index("by_admin", ["adminId"]),
+
+  ip_whitelist: defineTable({
+    adminId: v.id("users"),
+    ipAddresses: v.array(v.string()),
+    description: v.optional(v.string()),
+  }).index("by_admin", ["adminId"]),
 
   fraud_monitoring: defineTable({
     userId: v.id("users"),
@@ -275,6 +323,15 @@ export default defineSchema({
     description: v.optional(v.string()),
     updatedAt: v.number(),
   }).index("by_key", ["key"]),
+
+  feature_flags: defineTable({
+    key: v.string(),
+    enabled: v.boolean(),
+    label: v.string(),
+    description: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"])
+    .index("by_enabled", ["enabled"]),
 
   ai_agents: defineTable({
     name: v.string(),
@@ -323,6 +380,72 @@ export default defineSchema({
     date: v.string(), // YYYY-MM
   }).index("by_user", ["userId"]),
 
+  book_projects: defineTable({
+    userId: v.id("users"),
+    subscriptionTier: v.union(v.literal("Basic"), v.literal("Pro"), v.literal("Enterprise")),
+    status: v.union(v.literal("draft"), v.literal("in_progress"), v.literal("review"), v.literal("published"), v.literal("archived")),
+    manuscript: v.object({
+      title: v.string(),
+      subtitle: v.optional(v.string()),
+      authorName: v.string(),
+      authorBio: v.optional(v.string()),
+      description: v.string(),
+      keywords: v.array(v.string()),
+      categories: v.array(v.string()),
+      trimSize: v.string(),
+      pageCount: v.number(),
+      interiorType: v.string(),
+      bleedSetting: v.string(),
+      coverType: v.string(),
+    }),
+    coverFiles: v.array(v.object({
+      type: v.string(),
+      fileUrl: v.string(),
+      fileName: v.string(),
+      uploadedAt: v.number(),
+    })),
+    interiorFiles: v.array(v.object({
+      type: v.string(),
+      fileUrl: v.string(),
+      fileName: v.string(),
+      uploadedAt: v.number(),
+    })),
+    kdpMetadata: v.object({
+      kdpAccountEmail: v.string(),
+      publishingRole: v.string(),
+      imprintName: v.optional(v.string()),
+      isbnOption: v.string(),
+      pricingTiers: v.array(v.string()),
+    }),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_subscription_tier", ["subscriptionTier"])
+    .index("by_status", ["status"]),
+
+  book_royalties: defineTable({
+    userId: v.id("users"),
+    projectId: v.id("book_projects"),
+    csvDataUrl: v.optional(v.string()),
+    dashboardData: v.object({
+      totalSold: v.number(),
+      totalRevenue: v.number(),
+      averagePrice: v.number(),
+      returns: v.number(),
+      penaltyCharges: v.number(),
+      netRoyalties: v.number(),
+      monthlyTrend: v.array(v.object({
+        month: v.string(),
+        sales: v.number(),
+        revenue: v.number(),
+      })),
+    }),
+    month: v.string(),
+    year: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_project", ["projectId"])
+    .index("by_month_year", ["month", "year"]),
+
   social_posts: defineTable({
     agentId: v.string(),
     platform: v.string(), // "X", "LinkedIn", "Facebook", etc.
@@ -364,7 +487,33 @@ export default defineSchema({
     cycle: v.string(),
     version: v.string(),
     status: v.union(v.literal("applied"), v.literal("failed"), v.literal("rolled_back")),
-    snapshot: v.any(), // JSON snapshot of catalog before update
+    snapshot: v.any(),
     timestamp: v.number(),
   }).index("by_cycle", ["cycle"]),
+
+  charity_wallet: defineTable({
+    balance: v.number(),
+    totalSetAsideLifetime: v.number(),
+    totalTransferred: v.number(),
+    lastDeductionDate: v.optional(v.number()),
+    lastTransferDate: v.optional(v.number()),
+    currentMonth: v.string(),
+    monthlyEarningsSoFar: v.number(),
+    dailyDeductionAmount: v.number(),
+    daysInMonth: v.number(),
+    isPaused: v.boolean(),
+  }),
+
+  charity_transactions: defineTable({
+    type: v.union(v.literal("DAILY_DEDUCTION"), v.literal("MONTHLY_TRANSFER")),
+    amount: v.number(),
+    balanceBefore: v.number(),
+    balanceAfter: v.number(),
+    date: v.number(),
+    monthlyEarnings: v.number(),
+    dailyDeductionAmount: v.optional(v.number()),
+    status: v.union(v.literal("completed"), v.literal("failed")),
+    reference: v.optional(v.string()),
+    notes: v.optional(v.string()),
+  }).index("by_date", ["date"]),
 });

@@ -6,6 +6,7 @@ import { useAuthActions } from "@convex-dev/auth/react"
 import { api } from "../../../convex/_generated/api"
 import { useState, useEffect } from "react"
 import { CompanyLogo } from "~/components/CompanyLogo";
+import { useSocket } from "~/lib/socket";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line
 } from 'recharts';
@@ -30,12 +31,18 @@ function AdminDashboardPage() {
     } else {
       setAdminToken(token);
     }
-  }, [isLoading]);
+  }, [isLoading, navigate]);
 
   const { data } = useSuspenseQuery(convexQuery(api.admin.getAdminStats, {}));
   const { data: earnings } = useSuspenseQuery(convexQuery(api.admin.getEarningsSummary, {}));
   const { data: recentTxs } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, {}));
   const { data: uaeStatus } = useSuspenseQuery(convexQuery(api.uae_engine.getSystemStatus, {}));
+  const { data: adminProfile } = useSuspenseQuery(convexQuery(api.admin.getAdminProfile, {}));
+  const { data: upgradeStatus } = useSuspenseQuery(convexQuery(api.admin.getUpgradeStatus, {}));
+  const { data: freelancers } = useSuspenseQuery(convexQuery(api.admin.getFreelancerOverview, {}));
+
+  // Real-time socket connection
+  const { connected: wsConnected } = useSocket(adminToken);
 
   // Browser Notification Logic
   const [lastTxId, setLastTxId] = useState<string | null>(null);
@@ -90,7 +97,9 @@ function AdminDashboardPage() {
           <AdminTab active={activeTab === "agents"} onClick={() => setActiveTab("agents")} icon="🤖" label="Agent Health" />
           <AdminTab active={activeTab === "discounts"} onClick={() => setActiveTab("discounts")} icon="📅" label="Holiday Logic" />
           <AdminTab active={activeTab === "updates"} onClick={() => setActiveTab("updates")} icon="🔄" label="Service Evolution" />
+          <AdminTab active={activeTab === "freelancers"} onClick={() => setActiveTab("freelancers")} icon="👥" label="Freelancers" />
           <AdminTab active={activeTab === "audit"} onClick={() => setActiveTab("audit")} icon="📜" label="Audit Trail" />
+          <AdminTab active={activeTab === "charity"} onClick={() => setActiveTab("charity")} icon="🕊️" label="Charity / Tithe" />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -111,14 +120,17 @@ function AdminDashboardPage() {
                     {uaeStatus.status}
                 </span>
              </div>
+             {upgradeStatus && (
+               <>
+                 <div className="h-6 w-px bg-slate-800"></div>
+                 <div className="flex items-center gap-2">
+                   <span>{upgradeStatus.statusIndicator}</span>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{upgradeStatus.currentStatus}</span>
+                 </div>
+               </>
+             )}
           </div>
-          <div className="flex items-center gap-6">
-             <div className="text-right hidden sm:block">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Entropy Pulse</p>
-                <p className="text-xs text-white font-bold">{new Date().toLocaleTimeString()}</p>
-             </div>
-             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-red-600 flex items-center justify-center text-white font-black">SA</div>
-          </div>
+          <AdminProfileCard profile={adminProfile} />
         </header>
 
         <div className="p-10 space-y-12 max-w-[1800px] mx-auto w-full pb-32">
@@ -130,9 +142,11 @@ function AdminDashboardPage() {
           {activeTab === "payouts" && <DailySweepStatusPanel />}
           {activeTab === "security" && <SecurityHubPanel />}
           {activeTab === "agents" && <AgentHealthMatrix data={data} />}
+          {activeTab === "freelancers" && <FreelancerPanel data={freelancers} />}
           {activeTab === "audit" && <AuditTrailPanel />}
           {activeTab === "discounts" && <HolidayDiscountsPanel />}
           {activeTab === "updates" && <AutoUpdatesPanel />}
+          {activeTab === "charity" && <CharityDashboardPanel />}
         </div>
         <Footer />
       </main>
@@ -192,7 +206,7 @@ function ManualAgentTaskPanel() {
                   type="email" 
                   value={userEmail}
                   onChange={(e) => setUserEmail(e.target.value)}
-                  placeholder="admin@test.com"
+                  placeholder="user@example.com"
                   className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-white font-bold"
                 />
               </div>
@@ -527,10 +541,10 @@ function RecentTransactions() {
       <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl animate-in fade-in duration-700">
          <div className="p-10 border-b border-slate-800 flex justify-between items-center">
             <h2 className="text-xl font-black uppercase tracking-tighter">Live Transaction Ledger</h2>
-            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                <span className="text-[9px] font-black text-emerald-500 uppercase">WebSocket Active</span>
-            </div>
+             <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                 <span className={`w-2 h-2 ${wsConnected ? 'bg-emerald-500' : 'bg-red-500'} rounded-full animate-pulse`}></span>
+                 <span className="text-[9px] font-black uppercase">{wsConnected ? 'WebSocket Active' : 'Reconnecting...'}</span>
+             </div>
          </div>
          <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -646,7 +660,7 @@ function SecurityHubPanel() {
       if (!confirm("Are you sure you want to rotate the AES-256-GCM encryption keys? This is an institutional grade security protocol.")) return;
       const sessionId = localStorage.getItem("admin_session_token") as any;
       try {
-         await rotateKeys({ adminEmail: "admin@dutchkem.com", sessionId });
+         await rotateKeys({ sessionId });
          alert("Key rotation initialized. All sensitive data is now shielded by the new entropy pool.");
       } catch (err: any) { alert(err.message); }
    };
@@ -896,6 +910,284 @@ function UpdateCycleItem({ label, date, status, color }: any) {
         <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{date}</p>
       </div>
       <span className={`px-4 py-1 rounded-full text-[8px] font-black uppercase border ${color === 'orange' ? 'bg-orange-500/10 text-orange-500 border-orange-500/20' : 'bg-slate-800 text-slate-500 border-white/5'}`}>{status}</span>
+    </div>
+  );
+}
+
+function AdminProfileCard({ profile }: { profile: any }) {
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  if (!profile) return null;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setShowDropdown(!showDropdown)}
+        className="flex items-center gap-4 pl-6 border-l border-slate-800 group"
+      >
+        <div className="text-right hidden sm:block">
+          <p className="text-sm font-black text-white leading-none">{profile.name}</p>
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{profile.email}</p>
+        </div>
+        <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-orange-600 to-red-600 flex items-center justify-center text-white font-black text-lg shadow-lg group-hover:scale-105 transition-transform">
+          {profile.name?.[0] || 'A'}
+        </div>
+      </button>
+
+      {showDropdown && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)}></div>
+          <div className="absolute right-0 top-full mt-4 w-80 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="p-6 border-b border-slate-800 bg-gradient-to-br from-orange-900/10 to-slate-900">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-orange-600 to-red-600 flex items-center justify-center text-white font-black text-2xl shadow-lg">
+                  {profile.name?.[0] || 'A'}
+                </div>
+                <div>
+                  <p className="text-lg font-black text-white">{profile.name}</p>
+                  <p className="text-xs text-slate-400">{profile.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 bg-orange-500/10 border border-orange-500/20 rounded-full text-[8px] font-black text-orange-500 uppercase tracking-widest">{profile.role}</span>
+                {profile.lastLogin && (
+                  <span className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Last login: {new Date(profile.lastLogin).toLocaleDateString()}</span>
+                )}
+              </div>
+            </div>
+            <div className="p-4 space-y-1">
+              <ProfileAction label="🔑 Change Password" />
+              <ProfileAction label="🛡️ Enable 2FA" />
+              <ProfileAction label="📋 IP Whitelist" />
+              <div className="border-t border-slate-800 my-2"></div>
+              <ProfileAction label="🚪 Sign Out" className="text-red-400 hover:bg-red-500/10" />
+            </div>
+            <div className="px-4 pb-4">
+              <div className="p-3 bg-slate-950 rounded-xl border border-white/5 text-center">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Login Count</p>
+                <p className="text-sm font-black text-white">{profile.loginCount}</p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ProfileAction({ label, className }: { label: string; className?: string }) {
+  return (
+    <button className={`w-full text-left px-4 py-3 text-xs font-bold text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition-all ${className || ''}`}>
+      {label}
+    </button>
+  );
+}
+
+function FreelancerPanel({ data }: { data: any }) {
+  const stats = data || { total: 0, pendingApplications: 0, autoApprovedWeek: 0, autoRejectedWeek: 0, totalPaidMonth: 0, avgEarnings: 0 };
+  return (
+    <div className="space-y-8 animate-in fade-in duration-700">
+      <div className="bg-slate-900 border border-slate-800 rounded-[3rem] p-10 shadow-2xl">
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-xl font-black uppercase tracking-tighter">Freelancer Management</h2>
+          <div className="flex gap-3">
+            <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all">Review Pending ({stats.pendingApplications})</button>
+            <button className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl font-black text-xs uppercase tracking-widest transition-all">View All</button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="p-6 bg-slate-950 rounded-2xl border border-slate-800">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Total Freelancers</p>
+            <p className="text-3xl font-black text-white">{stats.total.toLocaleString()}</p>
+          </div>
+          <div className="p-6 bg-slate-950 rounded-2xl border border-slate-800">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Auto-Approved (Week)</p>
+            <p className="text-3xl font-black text-emerald-500">{stats.autoApprovedWeek}</p>
+          </div>
+          <div className="p-6 bg-slate-950 rounded-2xl border border-slate-800">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Total Paid (Month)</p>
+            <p className="text-3xl font-black text-white">₦{(stats.totalPaidMonth / 1e6).toFixed(1)}M</p>
+          </div>
+          <div className="p-6 bg-slate-950 rounded-2xl border border-slate-800">
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Avg Earnings</p>
+            <p className="text-3xl font-black text-amber-500">₦{stats.avgEarnings.toLocaleString()}</p>
+          </div>
+        </div>
+      </div>
+      <div className="bg-slate-900 border border-slate-800 rounded-[3rem] p-10 shadow-2xl">
+        <h3 className="text-lg font-black uppercase tracking-tighter mb-6">Pending Applications ({stats.pendingApplications})</h3>
+        <div className="text-center py-12 text-slate-600 font-black text-sm">Freelancer application list with proficiency scores will appear here.</div>
+      </div>
+    </div>
+  );
+}
+
+function CharityDashboardPanel() {
+  const { data: charity } = useSuspenseQuery(convexQuery(api.charity.getCharityAdminStats, {}));
+  const { data: settings } = useSuspenseQuery(convexQuery(api.admin.getSweepSettings, {}));
+  const transferNow = useAction(api.charity.manualCharityTransfer);
+  const togglePause = useMutation(api.charity.toggleCharityPause);
+  const [transferring, setTransferring] = useState(false);
+  const [toggling, setToggling] = useState(false);
+
+  const wallet = charity.wallet;
+  const adminSession = localStorage.getItem('admin_session_token');
+
+  const handleManualTransfer = async () => {
+    const amount = wallet?.balance || 0;
+    if (!amount) { alert("Charity wallet is empty."); return; }
+    if (!confirm(`Transfer ₦${amount.toLocaleString()} to charity account?`)) return;
+    if (!adminSession) { alert("No admin session"); return; }
+    setTransferring(true);
+    try {
+      const result = await transferNow({ sessionId: adminSession });
+      alert(`Transfer initiated: ₦${result.amount.toLocaleString()} (ref: ${result.reference})`);
+    } catch (err: any) { alert(err.message); }
+    setTransferring(false);
+  };
+
+  const handleTogglePause = async () => {
+    if (!adminSession) { alert("No admin session"); return; }
+    setToggling(true);
+    try {
+      await togglePause({ paused: !wallet?.isPaused, sessionId: adminSession });
+    } catch (err: any) { alert(err.message); }
+    setToggling(false);
+  };
+
+  return (
+    <div className="space-y-10 animate-in fade-in duration-700">
+      <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-600/5 blur-[80px]"></div>
+        <div className="relative z-10 space-y-8">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="space-y-2">
+              <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Charity / Tithe Management</h2>
+              <p className="text-sm font-black text-amber-500 uppercase tracking-widest">10% of Platform Earnings • Monthly Auto-Transfer</p>
+            </div>
+            <div className="flex gap-4">
+              <button
+                onClick={handleTogglePause}
+                disabled={toggling}
+                className={`px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                  wallet?.isPaused
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl shadow-emerald-600/20'
+                    : 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                {toggling ? "Updating..." : wallet?.isPaused ? "▶ Resume Deductions" : "⏸ Pause Deductions"}
+              </button>
+              <button
+                onClick={handleManualTransfer}
+                disabled={transferring || !wallet?.balance}
+                className="px-8 py-4 bg-amber-600 hover:bg-amber-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-amber-600/20 disabled:opacity-50"
+              >
+                {transferring ? "Transferring..." : "Manual Transfer Now"}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <MetricCard label="Charity Balance" value={`₦${(wallet?.balance || 0).toLocaleString()}`} icon="🕊️" color="amber" subValue={wallet?.isPaused ? "PAUSED" : "Active"} />
+            <MetricCard label="Monthly Earnings" value={`₦${(wallet?.monthlyEarningsSoFar || 0).toLocaleString()}`} icon="💰" color="emerald" subValue={`${wallet?.currentMonth || ''}`} />
+            <MetricCard label="Monthly Target (10%)" value={`₦${((wallet?.monthlyEarningsSoFar || 0) * 0.10).toLocaleString()}`} icon="🎯" color="blue" />
+            <MetricCard label="Lifetime Set Aside" value={`₦${(wallet?.totalSetAsideLifetime || 0).toLocaleString()}`} icon="📈" color="indigo" subValue={`Transferred: ₦${(wallet?.totalTransferred || 0).toLocaleString()}`} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-slate-950 p-6 rounded-2xl border border-white/5">
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Daily Deduction</p>
+              <p className="text-xl font-black text-white">₦{(wallet?.dailyDeductionAmount || 0).toFixed(2)}</p>
+            </div>
+            <div className="bg-slate-950 p-6 rounded-2xl border border-white/5">
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Days in Month</p>
+              <p className="text-xl font-black text-white">{wallet?.daysInMonth || 0}</p>
+            </div>
+            <div className="bg-slate-950 p-6 rounded-2xl border border-white/5">
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Last Deduction</p>
+              <p className="text-xl font-black text-white">
+                {wallet?.lastDeductionDate ? new Date(wallet.lastDeductionDate).toLocaleDateString() : "N/A"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">
+        <h3 className="text-xl font-black uppercase tracking-tighter text-white mb-8">Charity Transaction Ledger</h3>
+        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+          {charity.transactions.map((tx: any) => (
+            <div key={tx._id} className="flex justify-between items-center p-6 bg-slate-950 rounded-2xl border border-white/5 group">
+              <div className="flex items-center gap-4">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-lg ${
+                  tx.type === 'DAILY_DEDUCTION' ? 'bg-amber-500/10' : 'bg-emerald-500/10'
+                }`}>
+                  {tx.type === 'DAILY_DEDUCTION' ? '📅' : '💸'}
+                </div>
+                <div>
+                  <p className="text-sm font-black text-white">
+                    {tx.type === 'DAILY_DEDUCTION' ? 'Daily Deduction' : 'Monthly Transfer'}
+                  </p>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                    {new Date(tx.date).toLocaleString()}
+                    {tx.reference ? ` • ${tx.reference}` : ''}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className={`text-sm font-black ${tx.status === 'failed' ? 'text-red-500' : 'text-emerald-500'}`}>
+                  {tx.status === 'failed' ? 'FAILED' : `₦${tx.amount.toLocaleString()}`}
+                </p>
+                <p className="text-[9px] text-slate-600 font-bold">Balance: ₦{tx.balanceAfter.toLocaleString()}</p>
+              </div>
+            </div>
+          ))}
+          {charity.transactions.length === 0 && (
+            <div className="text-center py-20 text-slate-600 font-bold uppercase tracking-widest italic opacity-30">No transactions yet</div>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">
+        <h3 className="text-xl font-black uppercase tracking-tighter text-white mb-6">Configuration</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-slate-950 p-6 rounded-2xl border border-white/5 space-y-4">
+            <div className="flex justify-between text-[10px] font-black">
+              <span className="text-slate-500 uppercase">Auto-Deduction</span>
+              <span className={wallet?.isPaused ? 'text-red-500' : 'text-emerald-500'}>{wallet?.isPaused ? 'PAUSED' : 'ACTIVE'}</span>
+            </div>
+            <div className="flex justify-between text-[10px] font-black">
+              <span className="text-slate-500 uppercase">Monthly Percent</span>
+              <span className="text-white">10%</span>
+            </div>
+            <div className="flex justify-between text-[10px] font-black">
+              <span className="text-slate-500 uppercase">Schedule (Daily)</span>
+              <span className="text-white">00:00 WAT</span>
+            </div>
+            <div className="flex justify-between text-[10px] font-black">
+              <span className="text-slate-500 uppercase">Monthly Transfer</span>
+              <span className="text-white">Last Day • 23:59 WAT</span>
+            </div>
+          </div>
+          <div className="bg-slate-950 p-6 rounded-2xl border border-white/5 space-y-4">
+            <div className="flex justify-between text-[10px] font-black">
+              <span className="text-slate-500 uppercase">Bank</span>
+              <span className="text-white">Palmpay / OPay</span>
+            </div>
+            <div className="flex justify-between text-[10px] font-black">
+              <span className="text-slate-500 uppercase">Account Number</span>
+              <span className="text-white">8121161202</span>
+            </div>
+            <div className="flex justify-between text-[10px] font-black">
+              <span className="text-slate-500 uppercase">Account Name</span>
+              <span className="text-white">Oladotun Alabi</span>
+            </div>
+            <button className="w-full py-3 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-400 hover:bg-white hover:text-slate-950 transition-all mt-2">
+              Change Account Details (2FA)
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

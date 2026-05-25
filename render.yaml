@@ -1,0 +1,116 @@
+# Render Blueprint — Backend (Express + Convex)
+services:
+  - type: web
+    name: dutchkem-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node index.mjs
+    plan: free
+    envVars:
+      - key: VITE_CONVEX_URL
+        sync: false
+      - key: JWT_SECRET_CLIENT
+        sync: false
+      - key: JWT_SECRET_ADMIN
+        sync: false
+      - key: REFRESH_SECRET
+        sync: false
+
+      # 💳 Kora Pay (payments + payouts)
+      - key: KORA_PUBLIC_KEY
+        sync: false
+      - key: KORA_SECRET_KEY
+        sync: false
+      - key: KORA_ENCRYPTION_KEY
+        sync: false
+      - key: KORA_PAY_WEBHOOK_SECRET
+        sync: false
+
+      # 🤖 NVIDIA NIM AI
+      - key: NVIDIA_NIM_API_KEY
+        sync: false
+
+      # 📱 Termii SMS (OTP)
+      - key: TERMII_API_KEY
+        sync: false
+      - key: TERMII_SENDER_ID
+        value: Dutchkem
+
+      # 📧 Email (Resend — admin alerts, OTP)
+      - key: RESEND_API_KEY
+        sync: false
+      - key: FROM_EMAIL
+        value: security@dutchkem.com
+      - key: ALERT_EMAIL
+        value: admin@dutchkem.com
+
+      # 🔐 Encryption (required for payout decryption)
+      - key: ENCRYPTION_KEY
+        sync: false
+
+      # 🌐 Frontend
+      - key: FRONTEND_URL
+        sync: false
+
+      # ⚙️ Server
+      - key: PORT
+        value: 3001
+      - key: NODE_ENV
+        value: production
+
+      # 🔄 Auth Migration
+      - key: AUTH_MIGRATION_PHASE
+        value: cleanup
+      - key: AUTH_MIGRATION_ADMIN_KEY
+        sync: false
+      - key: NEW_AUTH_ENABLED
+        value: "true"
+
+      # 📱 Social Media (Postiz)
+      - key: POSTIZ_CLIENT_ID
+        sync: false
+      - key: POSTIZ_CLIENT_SECRET
+        sync: false
+      - key: POSTIZ_API_BASE
+        value: https://api.postiz.com/v1
+      - key: POSTIZ_WEBHOOK_SECRET
+        sync: false
+
+      # 🏦 Daily Sweep (encrypted destination override)
+      - key: DAILY_SWEEP_ACCOUNT_NUMBER_ENCRYPTED
+        sync: false
+      - key: DAILY_SWEEP_ACCOUNT_NAME_ENCRYPTED
+        sync: false
+      - key: DAILY_SWEEP_BANK_CODE
+        sync: false
+      - key: DAILY_SWEEP_BANK_NAME
+        sync: false
+      - key: DAILY_SWEEP_IV
+        sync: false
+      - key: DAILY_SWEEP_TAG
+        sync: false
+
+      # 🔑 Google OAuth
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        value: https://dutchkem-api.onrender.com/auth/google/callback
+
+      # 🕊️ Charity / Tithe Deduction
+      - key: CHARITY_ENABLED
+        value: "true"
+      - key: CHARITY_MONTHLY_PERCENT
+        value: "10"
+      - key: CHARITY_BANK_CODE
+        value: "999999"
+      - key: CHARITY_ACCOUNT_NUMBER
+        value: "8121161202"
+      - key: CHARITY_ACCOUNT_NAME
+        value: "Oladotun Alabi"
+      - key: CHARITY_AUTO_TRANSFER_DAY
+        value: "last"
+      - key: CHARITY_AUTO_TRANSFER_TIME
+        value: "23:59"

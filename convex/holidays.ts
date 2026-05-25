@@ -2,22 +2,33 @@ import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
 /**
+ * Nigerian Public Holidays (auto-applies 25% discount on all)
+ */
+export const NIGERIAN_HOLIDAYS = [
+  { name: "New Year", date: "01-01", discount: 25 },
+  { name: "Workers' Day", date: "05-01", discount: 25 },
+  { name: "Independence Day", date: "10-01", discount: 25 },
+  { name: "Christmas", date: "12-25", discount: 25 },
+  { name: "Boxing Day", date: "12-26", discount: 25 },
+];
+
+/**
  * SEED 2026 HOLIDAYS
  */
 export const seedHolidays = internalMutation({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     const holidays = [
-      { name: "New Year's Day", code: "NY2026", percent: 25, banner_icon: "🎉", banner_text: "Happy 2026! Use code: NY2026 for 25% OFF", start: "2026-01-01", end: "2026-01-01", type: "holiday" },
-      { name: "Good Friday", code: "EASTER20", percent: 20, banner_icon: "🐣", banner_text: "Easter Savings! Use code: EASTER20 for 20% OFF", start: "2026-04-03", end: "2026-04-03", type: "holiday" },
-      { name: "Easter Monday", code: "EASTER20", percent: 20, banner_icon: "🐣", banner_text: "Easter Savings! Use code: EASTER20 for 20% OFF", start: "2026-04-06", end: "2026-04-06", type: "holiday" },
-      { name: "Workers' Day", code: "WORKERS15", percent: 15, banner_icon: "👷", banner_text: "Happy Workers' Day! Use code: WORKERS15 for 15% OFF", start: "2026-05-01", end: "2026-05-01", type: "holiday" },
-      { name: "Democracy Day", code: "DEMOCRACY15", percent: 15, banner_icon: "🇳🇬", banner_text: "Democracy Day Special! Use code: DEMOCRACY15 for 15% OFF", start: "2026-06-12", end: "2026-06-12", type: "holiday" },
-      { name: "Independence Day", code: "NIGERIA25", percent: 25, banner_icon: "🇳🇬", banner_text: "Proudly Nigerian! Use code: NIGERIA25 for 25% OFF", start: "2026-10-01", end: "2026-10-01", type: "holiday" },
-      { name: "Christmas Day", code: "MERRY25", percent: 30, banner_icon: "🎄", banner_text: "Christmas Special! Use code: MERRY25 for 30% OFF", start: "2026-12-25", end: "2026-12-25", type: "holiday" },
-      { name: "Boxing Day", code: "BOXING25", percent: 25, banner_icon: "🎁", banner_text: "Boxing Day! Use code: BOXING25 for 25% OFF", start: "2026-12-26", end: "2026-12-26", type: "holiday" },
-      { name: "New Year's Eve", code: "NY2026", percent: 20, banner_icon: "🎉", banner_text: "Happy 2026! Use code: NY2026 for 20% OFF", start: "2026-12-31", end: "2026-12-31", type: "holiday" },
-      { name: "Black Friday", code: "BF35", percent: 35, banner_icon: "🔥", banner_text: "BLACK FRIDAY! Use code: BF35 for 35% OFF", start: "2026-11-25", end: "2026-11-30", type: "seasonal" },
+      { name: "New Year", code: "NY25", percent: 25, banner_icon: "🎉", banner_text: "🎉 New Year Special! 25% OFF with code: NY25", start: "2026-01-01", end: "2026-01-01", type: "holiday" },
+      { name: "Workers' Day", code: "WORKERS25", percent: 25, banner_icon: "👷", banner_text: "👷 Happy Workers' Day! 25% OFF with code: WORKERS25", start: "2026-05-01", end: "2026-05-01", type: "holiday" },
+      { name: "Independence Day", code: "NIGERIA25", percent: 25, banner_icon: "🇳🇬", banner_text: "🇳🇬 Independence Day! 25% OFF with code: NIGERIA25", start: "2026-10-01", end: "2026-10-01", type: "holiday" },
+      { name: "Christmas", code: "XMAS25", percent: 25, banner_icon: "🎄", banner_text: "🎄 Merry Christmas! 25% OFF with code: XMAS25", start: "2026-12-25", end: "2026-12-25", type: "holiday" },
+      { name: "Boxing Day", code: "BOXING25", percent: 25, banner_icon: "🎁", banner_text: "🎁 Boxing Day! 25% OFF with code: BOXING25", start: "2026-12-26", end: "2026-12-26", type: "holiday" },
+      { name: "Good Friday", code: "EASTER20", percent: 20, banner_icon: "🐣", banner_text: "🐣 Easter Savings! 20% OFF with code: EASTER20", start: "2026-04-03", end: "2026-04-03", type: "holiday" },
+      { name: "Easter Monday", code: "EASTER20", percent: 20, banner_icon: "🐣", banner_text: "🐣 Easter Savings! 20% OFF with code: EASTER20", start: "2026-04-06", end: "2026-04-06", type: "holiday" },
+      { name: "Democracy Day", code: "DEMOC15", percent: 15, banner_icon: "🇳🇬", banner_text: "🇳🇬 Democracy Day! 15% OFF with code: DEMOC15", start: "2026-06-12", end: "2026-06-12", type: "holiday" },
+      { name: "Black Friday", code: "BF35", percent: 35, banner_icon: "🔥", banner_text: "🔥 BLACK FRIDAY! 35% OFF with code: BF35", start: "2026-11-25", end: "2026-11-30", type: "seasonal" },
     ];
 
     for (const h of holidays) {
@@ -47,6 +58,7 @@ export const seedHolidays = internalMutation({
 
 export const refreshActiveDiscounts = mutation({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     const now = Date.now();
     const holidays = await ctx.db.query("holiday_discounts").collect();
@@ -67,8 +79,9 @@ export const refreshActiveDiscounts = mutation({
     }
 
     const config = await ctx.db.query("system_config").withIndex("by_key", q => q.eq("key", "ACTIVE_DISCOUNT")).first();
+    const discount = highestDiscount as any;
     const value = highestDiscount ? {
-      id: highestDiscount._id,
+      id: discount._id,
       percent: highestDiscount.percent,
       code: highestDiscount.code,
       banner_text: highestDiscount.banner_text,
@@ -86,6 +99,7 @@ export const refreshActiveDiscounts = mutation({
 
 export const getActiveDiscount = query({
   args: {},
+  returns: v.any(),
   handler: async (ctx) => {
     const config = await ctx.db.query("system_config").withIndex("by_key", q => q.eq("key", "ACTIVE_DISCOUNT")).first();
     return config?.value || null;
@@ -94,6 +108,7 @@ export const getActiveDiscount = query({
 
 export const listHolidays = query({
   args: {},
+  returns: v.any(),
   handler: async (ctx) => {
     return await ctx.db.query("holiday_discounts").order("asc").collect();
   }

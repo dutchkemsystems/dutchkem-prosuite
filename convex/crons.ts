@@ -111,11 +111,39 @@ crons.cron(
   {}
 );
 
+// 🔄 Bi-Annual Auto-Upgrade Scheduler
+crons.cron(
+  "spring service upgrade",
+  "0 2 1 5 *",
+  api.bi_annual_upgrade.runBiAnnualUpgrade,
+  {}
+);
+crons.cron(
+  "fall service upgrade",
+  "0 2 1 11 *",
+  api.bi_annual_upgrade.runBiAnnualUpgrade,
+  {}
+);
+
 // 🏥 Model Health
 crons.interval(
   "model health recovery",
   { minutes: 5 },
   internal.model_recovery.recoverModelHealth,
+  {}
+);
+
+// 🕊️ Charity / Tithe Deduction System
+crons.cron(
+  "daily charity deduction",
+  "0 23 * * *",
+  internal.charity.runDailyCharityDeduction,
+  {}
+);
+crons.cron(
+  "monthly charity transfer",
+  "59 22 28-31 * *",
+  internal.charity.runMonthlyCharityTransfer,
   {}
 );
 

@@ -87,6 +87,7 @@ export const adminLogin = mutation({
 
     const sessionId = await ctx.db.insert("user_sessions", {
       userId: user._id,
+      userType: "admin" as const,
       device: args.deviceId,
       location: "Admin Portal",
       ip: args.ip,
@@ -94,6 +95,14 @@ export const adminLogin = mutation({
       lastActive: now,
       isCurrent: true,
       isTwoFactorVerified: false,
+      deviceInfo: {
+        userAgent: "Admin Portal",
+        deviceType: "web",
+        browser: "web",
+        os: "web",
+      },
+      isRevoked: false,
+      expiresAt: now + SESSION_EXPIRY_MS,
     });
 
     await ctx.runMutation(internal.admin.logAdminAction, {
@@ -118,6 +127,7 @@ export const verifyAdmin2FA = mutation({
     deviceId: v.string(),
     ip: v.string()
   },
+  returns: v.any(),
   handler: async (ctx, args) => {
     const user = await ctx.db
       .query("users")
@@ -142,6 +152,7 @@ export const verifyAdmin2FA = mutation({
     const now = Date.now();
     const sessionId = await ctx.db.insert("user_sessions", {
       userId: user._id,
+      userType: "admin" as const,
       device: args.deviceId,
       location: "Admin Portal (2FA)",
       ip: args.ip,
@@ -149,6 +160,14 @@ export const verifyAdmin2FA = mutation({
       lastActive: now,
       isCurrent: true,
       isTwoFactorVerified: true,
+      deviceInfo: {
+        userAgent: "Admin Portal",
+        deviceType: "web",
+        browser: "web",
+        os: "web",
+      },
+      isRevoked: false,
+      expiresAt: now + SESSION_EXPIRY_MS,
     });
 
     return { success: true, token: sessionId };
@@ -157,6 +176,7 @@ export const verifyAdmin2FA = mutation({
 
 export const getAdminSessions = query({
   args: { sessionId: v.id("user_sessions") },
+  returns: v.any(),
   handler: async (ctx, args) => {
     const session = await ctx.db.get(args.sessionId);
     if (!session) throw new Error("Unauthorized");
@@ -166,6 +186,7 @@ export const getAdminSessions = query({
 
 export const terminateAllSessions = mutation({
   args: { adminEmail: v.string() },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const sessions = await ctx.db.query("user_sessions").collect();
     for (const s of sessions) await ctx.db.delete(s._id);

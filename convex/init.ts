@@ -33,13 +33,15 @@ export const setupAdminAccount = mutation({
         adminTwoFactorEnabled: false,
       });
       
-      console.log("=========================================");
-      console.log("CRITICAL: ADMIN ACCOUNT CREATED");
-      console.log("Email: " + adminEmail);
-      console.log("Password: " + password);
-      console.log("Backup Codes: " + backupCodes.join(", "));
-      console.log("STORE THESE IN A SECURE PASSWORD MANAGER");
-      console.log("=========================================");
+      if (process.env.NODE_ENV !== 'production') {
+        console.log("=========================================");
+        console.log("CRITICAL: ADMIN ACCOUNT CREATED");
+        console.log("Email: " + adminEmail);
+        console.log("Password: " + password);
+        console.log("Backup Codes: " + backupCodes.join(", "));
+        console.log("STORE THESE IN A SECURE PASSWORD MANAGER");
+        console.log("=========================================");
+      }
     }
 
     return { email: adminEmail, password, backupCodes };

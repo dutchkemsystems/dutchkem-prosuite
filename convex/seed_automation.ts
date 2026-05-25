@@ -4,6 +4,7 @@ import { internal, api } from "./_generated/api";
 
 export const seedAutomation = internalMutation({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     // 1. Seed Holidays
     await ctx.runMutation(internal.holidays.seedHolidays, {});

@@ -2,13 +2,14 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import { useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
+import { getDeviceFingerprint } from '~/lib/fingerprint'
 
 export const Route = createFileRoute('/admin/login')({
   component: AdminLoginPage,
 })
 
 function AdminLoginPage() {
-  const [email, setEmail] = useState('admin@dutchkem.com')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [stage, setStage] = useState<'login' | '2fa'>('login')
   const [error, setError] = useState('')
@@ -37,12 +38,13 @@ function AdminLoginPage() {
     if (lockoutTime > 0) return
     setLoading(true)
     setError('')
+    const deviceInfo = getDeviceFingerprint();
     try {
       const result = await login({ 
         email, 
         password, 
-        deviceId: navigator.userAgent,
-        ip: '127.0.0.1' // In production, backend handles IP
+        deviceId: deviceInfo.fingerprint,
+        deviceInfo,
       })
       
       if (result.status === 'success') {
@@ -67,12 +69,12 @@ function AdminLoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
+    const deviceInfo = getDeviceFingerprint();
     try {
       const result = await verify2FA({ 
         email, 
         code, 
-        deviceId: navigator.userAgent,
-        ip: '127.0.0.1' 
+        deviceId: deviceInfo.fingerprint,
       })
       if (result.success) {
         localStorage.setItem('admin_session_token', result.token!)
@@ -117,11 +119,13 @@ function AdminLoginPage() {
                 <label className="text-[10px] uppercase font-black text-slate-500 tracking-[0.3em] flex items-center gap-2">
                    <span className="w-1.5 h-1.5 bg-red-600 rounded-full"></span> 📧 Email Address
                 </label>
-                <input 
+                 <input 
                   type="email" 
                   value={email}
-                  readOnly
-                  className="w-full bg-slate-950 border-2 border-slate-800 rounded-2xl px-6 py-5 text-white font-black text-lg focus:outline-none focus:border-red-600 transition-all opacity-80 cursor-not-allowed"
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-slate-950 border-2 border-slate-800 rounded-2xl px-6 py-5 text-white font-black text-lg focus:outline-none focus:border-red-600 transition-all placeholder:text-slate-800"
+                  placeholder="admin@dutchkem.com"
+                  autoFocus
                 />
               </div>
               
@@ -135,7 +139,6 @@ function AdminLoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-slate-950 border-2 border-slate-800 rounded-2xl px-6 py-5 text-white font-black text-lg focus:outline-none focus:border-red-600 transition-all placeholder:text-slate-800"
                   placeholder="••••••••••••••••"
-                  autoFocus
                 />
               </div>
 

@@ -3,6 +3,7 @@ import { v } from "convex/values";
 
 export const generateReceipt = query({
   args: { amount: v.number(), plan: v.string(), name: v.string(), date: v.number() },
+  returns: v.any(),
   handler: async (ctx, args) => {
     return {
       company: "Dutchkem Ventures Prosuite NG+",

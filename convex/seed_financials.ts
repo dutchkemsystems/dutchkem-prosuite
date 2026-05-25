@@ -8,6 +8,7 @@ import { encryptWeb } from "./encryption";
  */
 export const seedFinancials = internalMutation({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     const encryptionKey = process.env.ENCRYPTION_KEY;
     if (!encryptionKey) {

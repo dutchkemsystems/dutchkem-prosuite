@@ -1,8 +1,10 @@
 import { mutation } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { v } from "convex/values";
+import { api, internal } from "./_generated/api";
 
 export default mutation({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     // 1. Seed initial services for all agents
     await ctx.runMutation(internal.updates.seedInitialServices, {});

@@ -35,10 +35,10 @@ export const sendMessage = mutation({
       });
       
       // Save the fixed assistant response
-      await components.agent.answer(ctx, {
+      await (academicAgent.agents[0] as any).answer(ctx, {
         threadId,
         promptMessageId: messageId,
-        assistantId: academicAgent.agents[0].id,
+        assistantId: (academicAgent.agents[0] as any).agentId ?? "academic-writer",
         text: KDP_REPLY,
       });
       
@@ -61,6 +61,7 @@ export const sendMessage = mutation({
 
 export const generateResponse = internalAction({
   args: { promptMessageId: v.string(), threadId: v.string() },
+  returns: v.null(),
   handler: async (ctx, { promptMessageId, threadId }) => {
     const userId = await getAuthUserId(ctx);
     await academicAgent.streamWithFallback(
@@ -78,6 +79,7 @@ export const listMessages = query({
     paginationOpts: paginationOptsValidator,
     streamArgs: vStreamArgs,
   },
+  returns: v.any(),
   handler: async (ctx, args) => {
     const streams = await syncStreams(ctx, components.agent, args);
     const paginated = await listUIMessages(ctx, components.agent, args);

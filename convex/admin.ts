@@ -50,6 +50,7 @@ async function verifyAdminAccess(ctx: { db: import("./_generated/server").QueryC
  */
 export const getAdminStats = query({
   args: {},
+  returns: v.any(),
   handler: async (ctx) => {
     const now = Date.now();
     const dayAgo = now - (24 * 60 * 60 * 1000);
@@ -106,6 +107,7 @@ export const getAdminStats = query({
  */
 export const getEarningsSummary = query({
     args: {},
+    returns: v.any(),
     handler: async (ctx) => {
         const now = Date.now();
         const startOfDay = new Date().setHours(0, 0, 0, 0);
@@ -139,6 +141,7 @@ export const getEarningsSummary = query({
  */
 export const getSweepSettings = query({
     args: {},
+    returns: v.any(),
     handler: async (ctx) => {
         return await fetchSweepSettings(ctx);
     }
@@ -146,6 +149,7 @@ export const getSweepSettings = query({
 
 export const getSweepSettingsInternal = internalQuery({
     args: {},
+    returns: v.any(),
     handler: async (ctx) => {
         return await fetchSweepSettings(ctx);
     }
@@ -166,6 +170,7 @@ export const updateSweepSettings = mutation({
         adminEmail: v.string(),
         sessionId: v.id("user_sessions")
     },
+    returns: v.null(),
     handler: async (ctx, args) => {
         const session = await ctx.db.get(args.sessionId);
         if (!session || !session.isCurrent || !session.isTwoFactorVerified) {
@@ -199,6 +204,7 @@ export const updateSweepSettings = mutation({
  */
 export const getSystemConfig = query({
     args: {},
+    returns: v.any(),
     handler: async (ctx) => {
         return await ctx.db.query("system_config").collect();
     }
@@ -206,6 +212,7 @@ export const getSystemConfig = query({
 
 export const updateSystemConfig = mutation({
     args: { key: v.string(), value: v.any(), adminEmail: v.string(), sessionId: v.id("user_sessions") },
+    returns: v.null(),
     handler: async (ctx, args) => {
         // Security check
         const session = await ctx.db.get(args.sessionId);
@@ -240,6 +247,7 @@ export const broadcastNotification = mutation({
         adminEmail: v.string(), 
         sessionId: v.id("user_sessions") 
     },
+    returns: v.null(),
     handler: async (ctx, args) => {
         const session = await ctx.db.get(args.sessionId);
         if (!session || !session.isCurrent || !session.isTwoFactorVerified) {
@@ -247,7 +255,7 @@ export const broadcastNotification = mutation({
         }
 
         await ctx.db.insert("notifications", {
-            userId: undefined, // Broadcast
+            // Broadcast to all — omit userId
             title: args.title,
             message: args.message,
             type: args.type,
@@ -275,6 +283,7 @@ export const manualPayout = mutation({
         adminEmail: v.string(),
         sessionId: v.id("user_sessions")
     },
+    returns: v.object({ success: v.boolean() }),
     handler: async (ctx, args) => {
         const session = await ctx.db.get(args.sessionId);
         if (!session || !session.isCurrent || !session.isTwoFactorVerified) {
@@ -318,6 +327,7 @@ export const manualPayout = mutation({
  */
 export const getFlaggedTransactions = query({
   args: {},
+  returns: v.any(),
   handler: async (ctx) => {
     return await ctx.db
       .query("payment_verifications")
@@ -332,6 +342,7 @@ export const getFlaggedTransactions = query({
  */
 export const getDailySweeps = query({
     args: {},
+    returns: v.any(),
     handler: async (ctx) => {
         return await ctx.db.query("daily_sweeps").order("desc").take(30);
     }
@@ -342,6 +353,7 @@ export const getDailySweeps = query({
  */
 export const getRecentTransactions = query({
   args: {},
+  returns: v.any(),
   handler: async (ctx) => {
       return await ctx.db
         .query("payment_verifications")
@@ -355,6 +367,7 @@ export const getRecentTransactions = query({
  */
 export const getAuditLogs = query({
   args: {},
+  returns: v.any(),
   handler: async (ctx) => {
     return await ctx.db
       .query("audit_logs")
@@ -368,6 +381,7 @@ export const getAuditLogs = query({
  */
 export const getFreelancerOverview = query({
   args: {},
+  returns: v.any(),
   handler: async (ctx) => {
     const freelancers = await ctx.db.query("users").withIndex("by_role", (q) => q.eq("role", "freelancer")).collect();
     const jobs = await ctx.db.query("jobs").collect();
@@ -390,6 +404,7 @@ export const getFreelancerOverview = query({
  */
 export const getReferralOverview = query({
     args: {},
+    returns: v.any(),
     handler: async (ctx) => {
         return {
             totalReferrers: 2847,
@@ -430,6 +445,7 @@ export const logAdminAction = internalMutation({
  */
 export const listAllUsers = query({
   args: {},
+  returns: v.any(),
   handler: async (ctx) => {
     return await ctx.db.query("users").order("desc").collect();
   },
@@ -442,6 +458,7 @@ export const manualOverrideTransaction = mutation({
     adminEmail: v.string(),
     sessionId: v.id("user_sessions")
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     // Security: Verify session and 2FA
     const session = await ctx.db.get(args.sessionId);
@@ -473,6 +490,7 @@ export const manualOverrideTransaction = mutation({
 
 export const terminateSession = mutation({
     args: { sessionId: v.id("user_sessions"), adminEmail: v.string() },
+    returns: v.null(),
     handler: async (ctx, args) => {
         await ctx.db.delete(args.sessionId);
         await ctx.runMutation(internal.admin.logAdminAction, {
@@ -486,6 +504,7 @@ export const terminateSession = mutation({
 
 export const archiveBeneficiary = mutation({
     args: { id: v.id("beneficiaries"), adminEmail: v.string(), sessionId: v.id("user_sessions") },
+    returns: v.null(),
     handler: async (ctx, args) => {
         const session = await ctx.db.get(args.sessionId);
         if (!session || !session.isCurrent || !session.isTwoFactorVerified) {
@@ -503,6 +522,7 @@ export const archiveBeneficiary = mutation({
 
 export const getAgentServices = query({
   args: { agentId: v.string() },
+  returns: v.any(),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("agent_services")
@@ -513,15 +533,16 @@ export const getAgentServices = query({
 
 export const getTaxWalletStats = query({
     args: {},
+    returns: v.any(),
     handler: async (ctx) => {
         const taxWallet = await ctx.db.query("system_wallets").withIndex("by_type", q => q.eq("type", "tax")).unique();
-        const history = await ctx.db.query("tax_transactions").order("desc").take(10).collect();
-        const interest = await ctx.db.query("interest_earnings").order("desc").take(5).collect();
+        const history = await ctx.db.query("tax_transactions").order("desc").take(10);
+        const interest = await ctx.db.query("interest_earnings").order("desc").take(5);
 
         return {
             balance: taxWallet?.balance ?? 0,
-            interestEarned: interest.reduce((acc, i) => acc + i.interest_earned, 0),
-            history: history.map(h => ({
+            interestEarned: interest.reduce((acc: number, i: any) => acc + i.interest_earned, 0),
+            history: history.map((h: any) => ({
                 amount: h.amount,
                 type: h.type,
                 date: new Date(h.date).toLocaleDateString()
@@ -532,6 +553,7 @@ export const getTaxWalletStats = query({
 
 export const rotateEncryptionKeys = mutation({
     args: { adminEmail: v.string(), sessionId: v.id("user_sessions") },
+    returns: v.any(),
     handler: async (ctx, args) => {
         const session = await ctx.db.get(args.sessionId);
         if (!session || !session.isCurrent || !session.isTwoFactorVerified) {
@@ -549,4 +571,42 @@ export const rotateEncryptionKeys = mutation({
         
         return { success: true, nextRotation: Date.now() + (90 * 24 * 60 * 60 * 1000) };
     }
+});
+
+export const getAdminProfile = query({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const configs = await ctx.db.query("system_config").collect();
+    const configMap: Record<string, any> = {};
+    configs.forEach(c => { configMap[c.key] = c.value; });
+
+    return {
+      name: process.env.ADMIN_NAME || "Super Admin",
+      email: "admin@dutchkem.com",
+      role: "Super Admin",
+      lastLogin: configMap.ADMIN_LAST_LOGIN
+        ? new Date(configMap.ADMIN_LAST_LOGIN as number).toISOString()
+        : null,
+      loginCount: (configMap.ADMIN_LOGIN_COUNT as number) || 0,
+    };
+  },
+});
+
+export const getUpgradeStatus = query({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const flag = await ctx.db.query("feature_flags")
+      .withIndex("by_key", q => q.eq("key", "auto_upgrade_enabled"))
+      .first();
+
+    const enabled = flag?.enabled === true;
+
+    return {
+      autoUpgradeEnabled: enabled,
+      currentStatus: enabled ? "System current" : "Updates pending",
+      statusIndicator: enabled ? "🟢" : "🔴",
+    };
+  },
 });

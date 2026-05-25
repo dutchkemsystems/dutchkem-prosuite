@@ -4,23 +4,47 @@ import { api } from "../../convex/_generated/api";
 import { useMutation } from "convex/react";
 import { useState } from "react";
 
-export function KDPRoyaltyDashboard({ userId }: { userId: any }) {
-  const { data: royalties } = useSuspenseQuery(convexQuery(api.kdp_agent.getRoyalties, { userId }));
-  const importRoyalties = useMutation(api.kdp_agent.importRoyalties);
+export function KDPRoyaltyDashboard({ userId: _userId }: { userId: any }) {
+  const { data: projects } = useSuspenseQuery(convexQuery(api.kdp_agent.listBookProjects, {}));
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const { data: royalties } = useSuspenseQuery(
+    convexQuery(api.kdp_agent.getBookRoyalties, { projectId: selectedProjectId ?? "_" }),
+    { enabled: !!selectedProjectId }
+  );
+  const setRoyaltyData = useMutation(api.kdp_agent.setBookRoyaltyData);
 
-  const total = royalties.reduce((acc, r) => acc + r.amount, 0);
+  const totalRevenue = (royalties ?? []).reduce((acc, r) => acc + r.dashboardData.totalRevenue, 0);
+  const totalSold = (royalties ?? []).reduce((acc, r) => acc + r.dashboardData.totalSold, 0);
+  const netRoyalties = (royalties ?? []).reduce((acc, r) => acc + r.dashboardData.netRoyalties, 0);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !selectedProjectId) return;
 
-    // Simulate CSV parsing
-    const mockData = [
-      { bookTitle: "Passive Income Guide", amount: 150.50, currency: "USD", date: "2026-04" },
-      { bookTitle: "Passive Income Guide", amount: 210.20, currency: "USD", date: "2026-05" },
-    ];
+    const mockDashboardData = {
+      totalSold: 342,
+      totalRevenue: 4850.75,
+      averagePrice: 14.18,
+      returns: 12,
+      penaltyCharges: 45.00,
+      netRoyalties: 4805.75,
+      monthlyTrend: [
+        { month: "2026-01", sales: 45, revenue: 675.00 },
+        { month: "2026-02", sales: 52, revenue: 780.00 },
+        { month: "2026-03", sales: 68, revenue: 1020.00 },
+        { month: "2026-04", sales: 71, revenue: 1065.00 },
+        { month: "2026-05", sales: 106, revenue: 1310.75 },
+      ],
+    };
 
-    await importRoyalties({ userId, data: mockData });
+    const now = new Date();
+    await setRoyaltyData({
+      projectId: selectedProjectId,
+      csvDataUrl: URL.createObjectURL(file),
+      dashboardData: mockDashboardData,
+      month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+      year: now.getFullYear(),
+    });
   };
 
   return (
@@ -31,46 +55,89 @@ export function KDPRoyaltyDashboard({ userId }: { userId: any }) {
           <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Real-time earnings from your KDP dashboard</p>
         </div>
         <div className="flex flex-col items-end">
-          <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Total Royalties</p>
-          <p className="text-3xl font-black text-emerald-500 tracking-tighter">${total.toLocaleString()}</p>
+          <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Net Royalties</p>
+          <p className="text-3xl font-black text-emerald-500 tracking-tighter">${netRoyalties.toLocaleString()}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="p-6 bg-slate-950 rounded-2xl border border-white/5 space-y-4">
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Import KDP Report (CSV)</p>
-          <input 
-            type="file" 
-            accept=".csv" 
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StatBox label="Total Sold" value={totalSold.toLocaleString()} />
+        <StatBox label="Total Revenue" value={`$${totalRevenue.toLocaleString()}`} />
+        <StatBox label="Avg Price" value={`$${totalSold > 0 ? (totalRevenue / totalSold).toFixed(2) : "0.00"}`} />
+        <StatBox label="Payout Status" value="Pending" pulse />
+      </div>
+
+      <div className="p-6 bg-slate-950 rounded-2xl border border-white/5 space-y-4">
+        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Select Project & Import KDP Report</p>
+        <div className="flex gap-4">
+          <select
+            value={selectedProjectId ?? ""}
+            onChange={e => setSelectedProjectId(e.target.value || null)}
+            className="flex-1 px-4 py-3 bg-slate-900 border border-white/10 rounded-xl text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+          >
+            <option value="">-- Select a book project --</option>
+            {projects.map(p => (
+              <option key={p._id} value={p._id}>{p.manuscript.title}</option>
+            ))}
+          </select>
+          <input
+            type="file"
+            accept=".csv"
             onChange={handleFileUpload}
-            className="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-slate-800 file:text-slate-100 hover:file:bg-slate-700 cursor-pointer"
+            disabled={!selectedProjectId}
+            className="w-full max-w-xs text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-slate-800 file:text-slate-100 hover:file:bg-slate-700 cursor-pointer disabled:opacity-50"
           />
         </div>
-        <div className="p-6 bg-slate-950 rounded-2xl border border-white/5 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Payout Status</p>
-            <p className="text-sm font-bold text-white mt-1">Pending Transfer</p>
-          </div>
-          <span className="w-3 h-3 bg-orange-500 rounded-full animate-pulse"></span>
-        </div>
       </div>
 
-      <div className="space-y-4">
-        {royalties.map((r, i) => (
-          <div key={i} className="flex justify-between items-center p-4 bg-slate-950 rounded-2xl border border-white/5 transition-all hover:border-indigo-500/30">
-            <div>
-              <p className="text-sm font-black text-white">{r.bookTitle}</p>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{r.date}</p>
+      {royalties && royalties.length > 0 && (
+        <div className="space-y-6">
+          <h4 className="text-sm font-black text-white uppercase tracking-tighter">Monthly Breakdown</h4>
+
+          {royalties[0]?.dashboardData.monthlyTrend.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {royalties[0].dashboardData.monthlyTrend.map((m, i) => (
+                <div key={i} className="p-4 bg-slate-950 rounded-2xl border border-white/5">
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{m.month}</p>
+                  <p className="text-lg font-black text-emerald-500 mt-1">${m.revenue.toLocaleString()}</p>
+                  <p className="text-[9px] font-bold text-slate-500">{m.sales} sold</p>
+                </div>
+              ))}
             </div>
-            <p className="font-black text-emerald-500 tracking-tighter">+${r.amount.toLocaleString()}</p>
-          </div>
-        ))}
-        {royalties.length === 0 && (
-          <div className="text-center py-10 opacity-30">
-            <p className="text-[10px] font-black uppercase tracking-widest">No royalty data found</p>
-          </div>
-        )}
+          )}
+
+          {royalties.map((r, i) => (
+            <div key={i} className="flex justify-between items-center p-4 bg-slate-950 rounded-2xl border border-white/5 transition-all hover:border-indigo-500/30">
+              <div>
+                <p className="text-sm font-black text-white">{r.month} {r.year}</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{r.dashboardData.totalSold} units sold</p>
+              </div>
+              <div className="text-right">
+                <p className="font-black text-emerald-500 tracking-tighter">+${r.dashboardData.netRoyalties.toLocaleString()}</p>
+                <p className="text-[9px] text-slate-500 font-bold">returns: {r.dashboardData.returns}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {(!royalties || royalties.length === 0) && (
+        <div className="text-center py-10 opacity-30">
+          <p className="text-[10px] font-black uppercase tracking-widest">No royalty data found. Import a CSV report.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatBox({ label, value, pulse }: { label: string; value: string; pulse?: boolean }) {
+  return (
+    <div className="p-6 bg-slate-950 rounded-2xl border border-white/5 flex items-center justify-between">
+      <div>
+        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{label}</p>
+        <p className="text-sm font-bold text-white mt-1">{value}</p>
       </div>
+      {pulse && <span className="w-3 h-3 bg-orange-500 rounded-full animate-pulse"></span>}
     </div>
   );
 }

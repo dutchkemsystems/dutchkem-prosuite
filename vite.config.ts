@@ -16,4 +16,11 @@ export default defineConfig({
     tanstackStart(),
     viteReact(),
   ],
+  build: {
+    target: 'esnext',
+    minify: 'esbuild',
+
+    sourcemap: false,
+    chunkSizeWarningLimit: 1000,
+  },
 })

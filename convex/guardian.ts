@@ -137,6 +137,7 @@ export const logSecurityEvent = internalMutation({
 
 export const updateSystemWallets = internalMutation({
     args: { amount: v.number(), userId: v.id("users") },
+    returns: v.null(),
     handler: async (ctx, args) => {
         const platformFee = args.amount * 0.15;
         const freelancerShare = args.amount * 0.85;

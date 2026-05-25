@@ -9,6 +9,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 
 export const runFullDiagnosis = internalAction({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     console.log("[GUARDIAN] Initiating full system diagnosis...");
 
@@ -37,6 +38,7 @@ export const runFullDiagnosis = internalAction({
 
 export const testAgents = internalAction({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     const agents = ["A1", "A2", "A13"]; // Representative sample
     for (const aid of agents) {
@@ -75,6 +77,7 @@ export const testAgents = internalAction({
 
 export const testPaymentGateways = internalAction({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     try {
       // Mocking Kora Secret Key Validation
@@ -97,6 +100,7 @@ export const testPaymentGateways = internalAction({
 
 export const testSecurityLayers = internalAction({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     try {
       // Test string encryption/decryption
@@ -131,6 +135,7 @@ export const testSecurityLayers = internalAction({
 
 export const testDatabaseHealth = internalAction({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     // Convex ensures connection, but we validate schema consistency
     await ctx.runMutation(internal.guardian_watch.logTest, {
@@ -143,6 +148,7 @@ export const testDatabaseHealth = internalAction({
 
 export const testTaxIntegrity = internalAction({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     const status = await ctx.runQuery(api.tax.getTaxStatus, {});
     const mismatch = false; // logic to check if tax_wallet balance matches history
@@ -165,6 +171,7 @@ export const testTaxIntegrity = internalAction({
 
 export const testHolidaySync = internalAction({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     await ctx.runMutation(internal.guardian_watch.logTest, {
       testName: "Global Holiday API Sync",
@@ -176,6 +183,7 @@ export const testHolidaySync = internalAction({
 
 export const testFrontendHealth = internalAction({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     try {
       // Mocking a headless ping to homepage
@@ -204,6 +212,7 @@ export const logTest = internalMutation({
     latency: v.optional(v.number()),
     errorMessage: v.optional(v.string()),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.insert("guardian_tests", {
       ...args,
@@ -220,6 +229,7 @@ export const applyFix = internalMutation({
     category: v.string(),
     fixAction: v.string(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.insert("guardian_tests", {
       testName: args.testName,
@@ -244,10 +254,11 @@ export const applyFix = internalMutation({
 
 export const getGuardianLogs = query({
   args: { category: v.optional(v.string()) },
+  returns: v.any(),
   handler: async (ctx, args) => {
-    let q = ctx.db.query("guardian_tests");
+    let q: any = ctx.db.query("guardian_tests");
     if (args.category) {
-      q = q.withIndex("by_category", (query) => query.eq("category", args.category as any));
+      q = q.withIndex("by_category", (query: any) => query.eq("category", args.category));
     }
     return await q.order("desc").take(50);
   },

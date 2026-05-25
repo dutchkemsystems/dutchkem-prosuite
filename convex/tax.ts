@@ -34,6 +34,7 @@ function calculateAnnualTax(annualEarnings: number) {
  */
 export const runDailyTaxDeduction = internalMutation({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     // 1. Get today's earnings (Main Wallet)
     const mainWallet = await ctx.db.query("system_wallets").withIndex("by_type", q => q.eq("type", "main")).first();
@@ -87,6 +88,7 @@ export const runDailyTaxDeduction = internalMutation({
  */
 export const runDailyInterestAccrual = internalMutation({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     const taxWallet = await ctx.db.query("system_wallets").withIndex("by_type", q => q.eq("type", "tax")).first();
     const mainWallet = await ctx.db.query("system_wallets").withIndex("by_type", q => q.eq("type", "main")).first();
@@ -124,6 +126,7 @@ export const runDailyInterestAccrual = internalMutation({
  */
 export const getTaxStatus = query({
     args: {},
+    returns: v.any(),
     handler: async (ctx) => {
         const wallet = await ctx.db.query("tax_wallet").first();
         const recentTransactions = await ctx.db.query("tax_transactions")

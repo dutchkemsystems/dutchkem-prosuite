@@ -12,6 +12,7 @@ const UPDATES = {
       { agent_id: "A1", name: "Research Gap Identifier", description: "Find unexplored areas in your field of study.", icon: "🧩" },
       { agent_id: "A1", name: "Automated Reference Formatting", description: "20+ styles including APA, MLA, and Chicago.", icon: "📑" },
       { agent_id: "A1", name: "Plagiarism Prediction", description: "Predict similarity scores before official submission.", icon: "🛡️" },
+      { agent_id: "A1", name: "Amazon KDP Publishing Service", description: "Full-service Amazon KDP book publishing with manuscript, cover, and interior file management.", icon: "📚" },
       
       { agent_id: "A3", name: "AI Video Description Generator", description: "SEO-optimized descriptions for your video content.", icon: "📹" },
       { agent_id: "A3", name: "YouTube Thumbnail A/B Tester", description: "Predict which thumbnail will perform better.", icon: "🖼️" },
@@ -60,6 +61,7 @@ const UPDATES = {
  */
 export const seedInitialServices = internalMutation({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     const agents = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A15"];
     
@@ -93,6 +95,7 @@ export const seedInitialServices = internalMutation({
  */
 export const runServiceUpdates = mutation({
   args: { forceCycle: v.optional(v.string()) }, // Manually trigger specific cycle if provided
+  returns: v.null(),
   handler: async (ctx, args) => {
     const now = Date.now();
     
@@ -141,6 +144,7 @@ export const runServiceUpdates = mutation({
  */
 export const getAgentServices = query({
   args: { agent_id: v.string() },
+  returns: v.any(),
   handler: async (ctx, args) => {
     return await ctx.db.query("agent_services")
       .withIndex("by_agent", q => q.eq("agent_id", args.agent_id))

@@ -28,6 +28,7 @@ export const recoverModelHealth = internalAction({
 
 export const getDownModels = internalQuery({
   args: {},
+  returns: v.any(),
   handler: async (ctx) => {
     return await ctx.db
       .query("model_status")
@@ -38,6 +39,7 @@ export const getDownModels = internalQuery({
 
 export const updateModelStatus = internalMutation({
   args: { modelName: v.string(), status: v.union(v.literal("healthy"), v.literal("degraded"), v.literal("down")) },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("model_status")

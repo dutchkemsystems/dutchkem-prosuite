@@ -10,8 +10,8 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { KDPProjectHub } from '../components/KDPProjectHub';
-import { KDPRoyaltyDashboard } from '../components/KDPRoyaltyDashboard';
+import { KDPProjectHub } from '~/components/KDPProjectHub';
+import { KDPRoyaltyDashboard } from '~/components/KDPRoyaltyDashboard';
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -21,15 +21,12 @@ function DashboardPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const { signOut } = useAuthActions();
   const navigate = useNavigate();
-  const { data } = useSuspenseQuery(convexQuery(api.dashboard.getDashboardData, {}));
-  const [activeTab, setActiveTab] = useState("overview");
-  const [modal, setModal] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       navigate({ to: '/auth' });
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, navigate]);
 
   if (isLoading) {
     return (
@@ -38,6 +35,10 @@ function DashboardPage() {
       </div>
     );
   }
+
+  const { data } = useSuspenseQuery(convexQuery(api.dashboard.getDashboardData, {}));
+  const [activeTab, setActiveTab] = useState("overview");
+  const [modal, setModal] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row overflow-hidden">

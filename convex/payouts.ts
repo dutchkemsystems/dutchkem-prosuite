@@ -20,6 +20,7 @@ export const executeSecurePayout = internalAction({
         })),
         referencePrefix: v.string()
     },
+    returns: v.any(),
     handler: async (ctx, args) => {
         let accountNumberEnc, accountNameEnc, iv, tag, bankName;
 
@@ -79,7 +80,7 @@ export const executeSecurePayout = internalAction({
                 bankName: bankName,
                 accountMasked: logAccountMasked,
                 reference: koraReference,
-                status: "completed"
+                status: "completed",
             });
 
             // 6. Notify Admin (Mock)
@@ -110,16 +111,17 @@ export const runDailySweep = internalAction({
 
         // 2. Calculate Balance
         const stats = await ctx.runQuery(internal.payouts.calculateSweepBalance);
-        if (stats.balance < settings.minimumAmount) return null;
+        if (stats.balance < (settings.minimumAmount as number)) return null;
 
         // 3. Security Check: 2FA for > ₦500,000
         if (stats.balance > 500000 && !args.forceApproved) {
             console.warn(`[SWEEP] Large payout (₦${stats.balance}) requires admin 2FA approval. Payout paused.`);
             // In a real app, this would trigger a 2FA request to the admin via push/SMS
-            await ctx.runMutation(api.uae_engine.broadcastNotification, {
-                title: "⚠️ High Value Sweep Pending",
-                message: `A daily sweep of ₦${stats.balance.toLocaleString()} is waiting for 2FA approval.`,
-                type: "security"
+            await ctx.runMutation(internal.admin.logAdminAction, {
+                adminEmail: "system@dutchkem.com",
+                action: "HIGH_VALUE_SWEEP_PENDING",
+                details: `A daily sweep of ₦${stats.balance.toLocaleString()} is waiting for 2FA approval.`,
+                ip: "system"
             });
             return null;
         }
@@ -146,7 +148,7 @@ export const runDailySweep = internalAction({
             };
         } else {
             const beneficiaries = await ctx.runQuery(api.payouts.getBeneficiaries);
-            const target = beneficiaries.find(b => b.isDefault) || beneficiaries[0];
+            const target = beneficiaries.find((b: any) => b.isDefault) || beneficiaries[0];
             if (!target) {
                 console.error("[SWEEP] No encrypted beneficiary configured.");
                 return null;
@@ -183,8 +185,50 @@ export const runDailySweep = internalAction({
     }
 });
 
+export const getBeneficiaryInternal = internalQuery({
+    args: { id: v.id("beneficiaries") },
+    returns: v.any(),
+    handler: async (ctx, args) => {
+        return await ctx.db.get(args.id);
+    }
+});
+
+export const getBeneficiaries = query({
+    args: {},
+    returns: v.any(),
+    handler: async (ctx) => {
+        return await ctx.db.query("beneficiaries").order("desc").collect();
+    }
+});
+
+export const logSecurePayoutResult = internalMutation({
+    args: {
+        amount: v.number(),
+        status: v.string(),
+        reference: v.string(),
+        bankName: v.string(),
+        accountMasked: v.string(),
+    },
+    returns: v.null(),
+    handler: async (ctx, args) => {
+        await ctx.db.insert("daily_sweeps", {
+            sweep_id: `PAY_${Date.now()}`,
+            date: new Date().toISOString().split('T')[0],
+            amount: args.amount,
+            balance_before: 0,
+            balance_after: 0,
+            status: args.status as "pending" | "completed" | "failed",
+            kora_reference: args.reference,
+            timestamp: Date.now(),
+            notes: `Payout to ${args.bankName} - ${args.accountMasked}`
+        });
+        return null;
+    }
+});
+
 export const calculateSweepBalance = internalQuery({
     args: {},
+    returns: v.any(),
     handler: async (ctx) => {
         const wallet = await ctx.db.query("system_wallets").withIndex("by_type", q => q.eq("type", "main")).unique();
         return { balance: wallet?.balance ?? 0 };
@@ -193,6 +237,7 @@ export const calculateSweepBalance = internalQuery({
 
 export const logSweepSuccess = internalMutation({
     args: { amount: v.number(), reference: v.string(), date: v.string() },
+    returns: v.null(),
     handler: async (ctx, args) => {
         await ctx.db.insert("daily_sweeps", {
             sweep_id: `SWP_${Date.now()}`,

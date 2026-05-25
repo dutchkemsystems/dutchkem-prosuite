@@ -30,7 +30,7 @@ export function getRouter() {
       context: { queryClient },
       scrollRestoration: true,
       defaultPreloadStaleTime: 0, // Let React Query handle all caching
-      defaultErrorComponent: (err) => <p>{err.error.stack}</p>,
+      defaultErrorComponent: () => <div className="min-h-screen flex items-center justify-center bg-slate-950"><p className="text-red-500 font-black text-xl">An unexpected error occurred. Please try again.</p></div>,
       defaultNotFoundComponent: () => <p>not found</p>,
       Wrap: ({ children }) => (
         <ConvexAuthProvider client={convexQueryClient.convexClient}>

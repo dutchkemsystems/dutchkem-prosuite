@@ -6,6 +6,7 @@ export const seedAdmin = mutation({
   args: {
     password: v.string(),
   },
+  returns: v.any(),
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("users")

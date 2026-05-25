@@ -10,6 +10,7 @@ import { generateText } from "ai";
 
 export const generateAndSchedulePost = internalAction({
   args: { agentId: v.string() },
+  returns: v.null(),
   handler: async (ctx, { agentId }) => {
     const nvidia = createOpenAI({
       apiKey: process.env.NVIDIA_NIM_API_KEY,
@@ -49,6 +50,7 @@ export const generateAndSchedulePost = internalAction({
 
 export const saveScheduledPost = internalMutation({
   args: { agentId: v.string(), platform: v.string(), content: v.string(), scheduledFor: v.number() },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.insert("social_posts", {
       ...args,
@@ -59,6 +61,7 @@ export const saveScheduledPost = internalMutation({
 
 export const processScheduledPosts = internalAction({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     const now = Date.now();
     const posts = await ctx.runQuery(internal.social.getPendingPosts, { now });
@@ -103,6 +106,7 @@ export const processScheduledPosts = internalAction({
 
 export const getPendingPosts = internalQuery({
   args: { now: v.number() },
+  returns: v.any(),
   handler: async (ctx, { now }) => {
     return await ctx.db.query("social_posts")
       .withIndex("by_status_and_scheduled", q => q.eq("status", "scheduled").lte("scheduledFor", now))
@@ -112,6 +116,7 @@ export const getPendingPosts = internalQuery({
 
 export const markPostSuccess = internalMutation({
   args: { postId: v.id("social_posts"), externalId: v.string() },
+  returns: v.null(),
   handler: async (ctx, { postId, externalId }) => {
     await ctx.db.patch(postId, {
       status: "posted",
@@ -123,6 +128,7 @@ export const markPostSuccess = internalMutation({
 
 export const markPostFailed = internalMutation({
   args: { postId: v.id("social_posts"), error: v.string() },
+  returns: v.null(),
   handler: async (ctx, { postId, error }) => {
     await ctx.db.patch(postId, {
       status: "failed",
@@ -135,8 +141,9 @@ export const markPostFailed = internalMutation({
  * SOCIAL CRON HELPERS
  */
 
-export const rotateSocialAgents = mutation({
+export const rotateSocialAgents = internalMutation({
   args: {},
+  returns: v.any(),
   handler: async (ctx) => {
     const agents = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A15"];
     
@@ -159,6 +166,7 @@ export const rotateSocialAgents = mutation({
 
 export const getSocialStats = query({
   args: {},
+  returns: v.any(),
   handler: async (ctx) => {
     const posts = await ctx.db.query("social_posts").collect();
     return {
