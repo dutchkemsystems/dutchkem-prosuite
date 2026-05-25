@@ -3,7 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
 import { useConvexAuth, useMutation, useAction } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
-import { api } from "../../../convex/_generated/api"
+import { api, internal } from "../../../convex/_generated/api"
 import { useState, useEffect } from "react"
 import { CompanyLogo } from "~/components/CompanyLogo";
 import { useSocket } from "~/lib/socket";
@@ -323,7 +323,7 @@ function TaxDashboardPanel() {
 
 function SocialEnginePanel() {
   const { data: stats } = useSuspenseQuery(convexQuery(api.social.getSocialStats, {}));
-  const rotateSocial = useMutation(api.social.rotateSocialAgents);
+  const rotateSocial = useMutation(internal.social.rotateSocialAgents);
   const [rotating, setRotating] = useState(false);
 
   const handleRotate = async () => {
@@ -392,7 +392,7 @@ function SocialEnginePanel() {
 
 function GuardianWatchPanel() {
   const { data: logs } = useSuspenseQuery(convexQuery(api.guardian_watch.getGuardianLogs, {}));
-  const runDiagnosis = useAction(api.guardian_watch.runFullDiagnosis);
+  const runDiagnosis = useAction(internal.guardian_watch.runFullDiagnosis);
   const [running, setRunning] = useState(false);
 
   const handleRun = async () => {
@@ -583,7 +583,7 @@ function DailySweepStatusPanel() {
    const { data: sweeps } = useSuspenseQuery(convexQuery(api.admin.getDailySweeps, {}));
    const { data: earnings } = useSuspenseQuery(convexQuery(api.admin.getEarningsSummary, {}));
    
-   const triggerSweep = useAction(api.payouts.runDailySweep);
+   const triggerSweep = useAction(internal.payouts.runDailySweep);
    const [sweeping, setSweeping] = useState(false);
 
    const handleManualSweep = async () => {

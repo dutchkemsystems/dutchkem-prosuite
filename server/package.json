@@ -14,17 +14,13 @@
   "type": "commonjs",
   "dependencies": {
     "convex": "^1.39.1",
-    "convex": "^1.39.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "epub-gen": "^0.1.0",
     "express": "^5.2.1",
     "express-rate-limit": "^7.5.0",
-    "express-validator": "^7.2.1",
     "helmet": "^8.2.0",
     "jose": "^6.0.10",
-    "mongo-sanitize": "^1.1.0",
-    "node-fetch": "^3.3.2",
     "resend": "^6.12.3",
     "socket.io": "^4.8.3"
   }

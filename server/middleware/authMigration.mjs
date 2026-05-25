@@ -247,7 +247,12 @@ export class AuthMigration {
 
   async _fallbackOldAuth(email, password, req, res) {
     const convex = req.app.locals.convex;
-    return await this._handleOldAuth(email, password, req, res, convex);
+    const result = await this._handleOldAuth(email, password, req, res, convex);
+    if (!res.headersSent) {
+      if (result.error) return res.status(401).json({ error: result.error });
+      return res.json({ useLegacy: true, message: result.message || 'Authenticated via legacy system' });
+    }
+    return result;
   }
 
   // ── Background Testing (Phase 1) ──

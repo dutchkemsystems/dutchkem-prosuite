@@ -126,7 +126,7 @@ export const changePassword = mutation({
     if (!user) return { success: false, error: "User not found" };
 
     if (user.adminPasswordHash) {
-      const valid = verifyPassword(currentPassword, user.adminPasswordHash);
+      const valid = await verifyPassword(currentPassword, user.adminPasswordHash);
       if (!valid) return { success: false, error: "Current password is incorrect" };
     }
 

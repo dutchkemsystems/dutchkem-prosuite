@@ -192,12 +192,7 @@ http.route({
   }),
 });
 
-// ... (Rest of the generate routes should remain)
-// For brevity, I'm omitting them but in a real edit I would keep them or use EditFile to append.
-// Actually, I'll use EditFile to be safe and only add the new routes.
 
-// Re-writing the whole file since I already have it mostly here.
-// I'll just restore the other agents.
 
 http.route({
   path: "/api/agents/a2/generate",

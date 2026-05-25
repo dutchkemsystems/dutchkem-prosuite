@@ -1,5 +1,5 @@
 {
-  "name": "cto-new",
+  "name": "dutchkem-prosuite",
   "private": true,
   "sideEffects": false,
   "type": "module",
@@ -24,7 +24,9 @@
     "convex-helpers": "^0.1.118",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "framer-motion": "^12.40.0",
     "jose": "^6.2.3",
+    "lucide-react": "^1.16.0",
     "opencode-ai": "^1.15.10",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
@@ -32,6 +34,8 @@
     "recharts": "^3.8.1",
     "resend": "^6.12.3",
     "socket.io-client": "^4.8.3",
+    "tailwind-merge": "^3.6.0",
+    "vite-plugin-singlefile": "^2.3.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -46,6 +50,7 @@
     "prettier": "^3.8.3",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
-    "vite": "^8.0.14"
+    "vite": "^8.0.14",
+    "vite-tsconfig-paths": "^6.1.1"
   }
 }

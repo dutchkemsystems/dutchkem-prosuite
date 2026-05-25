@@ -9,11 +9,11 @@ export const startKDPProject = mutation({
   args: { title: v.string() },
   returns: v.any(),
   handler: async (ctx, { title }) => {
-    const userId = await ctx.db.query("users").first(); // Simplified for demo, should use auth
+    const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("User not found");
 
     const projectId = await ctx.db.insert("kdp_projects", {
-      userId: userId._id,
+      userId,
       title,
       status: "planning",
       assets: {},

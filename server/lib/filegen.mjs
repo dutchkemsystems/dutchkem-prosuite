@@ -16,7 +16,9 @@ export async function generateEpub(title, author, content, outputPath) {
 }
 
 export function generatePdfContent(manuscript) {
-  const escaped = manuscript.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const title = typeof manuscript === 'object' ? (manuscript.title || 'Untitled') : 'Generated Content';
+  const content = typeof manuscript === 'object' ? (manuscript.content || manuscript.body || '') : manuscript;
+  const escaped = content.replace(/</g, '&lt;').replace(/>/g, '&gt;');
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
   body { font-family: serif; max-width: 600px; margin: auto; padding: 40px; line-height: 1.6; }

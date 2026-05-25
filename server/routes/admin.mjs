@@ -62,10 +62,16 @@ router.post('/change-password', adminAuth, async (req, res) => {
 // POST /api/admin/enable-2fa
 router.post('/enable-2fa', adminAuth, async (req, res) => {
   try {
+    const convex = convexClient(req);
     const secret = randomBytes(20).toString('base64').replace(/[+/=]/g, '').slice(0, 16);
     const qrUrl = `otpauth://totp/Dutchkem:admin?secret=${secret}&issuer=Dutchkem`;
 
-    res.json({ secret, qrUrl, message: 'Scan QR with Google Authenticator' });
+    await convex.mutation('api.auth_helpers:setupAdmin2FA', {
+      adminId: req.adminId,
+      secret,
+    });
+
+    res.json({ secret, qrUrl, message: 'Scan QR with Google Authenticator. 2FA is now enabled.' });
   } catch (err) {
     console.error('[ADMIN] enable-2fa error:', err);
     res.status(500).json({ error: err.message });
