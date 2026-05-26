@@ -193,12 +193,3 @@ function ChatInput({ threadId }: { threadId: string }) {
     </form>
   );
 }
-
-function QuickAction({ icon, text }: { icon: string, text: string }) {
-  return (
-    <button className="flex items-center gap-2 p-3 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:bg-slate-800 hover:border-slate-600 transition-all text-left text-xs font-medium text-slate-300">
-      <span className="text-base">{icon}</span>
-      {text}
-    </button>
-  );
-}

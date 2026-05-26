@@ -1,10 +1,9 @@
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { useAuthActions } from "@convex-dev/auth/react"
 import { CompanyLogo } from './CompanyLogo'
 
 export function AgentHeader({ agentName }: { agentName: string }) {
   const { signOut } = useAuthActions();
-  const navigate = useNavigate();
 
   return (
     <header className="h-24 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-900/80 backdrop-blur-xl sticky top-0 z-50">
