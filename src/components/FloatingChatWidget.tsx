@@ -1,24 +1,24 @@
 import { useState, useRef, useEffect } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { convexQuery, convexMutation } from "@convex-dev/react-query";
-import { api } from "~/../convex/_generated/api";
-import { useConvexAuth } from "@convex-dev/auth/react";
+import { useQuery } from "@tanstack/react-query";
+import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
+import { api } from "../../convex/_generated/api";
+import { useConvexAuth } from "convex/react";
 
 export function FloatingChatWidget() {
   const { isAuthenticated } = useConvexAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [_sessionId, setSessionId] = useState<string | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
   const [agentType, setAgentType] = useState<"sales" | "support">("support");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const createChat = useMutation(convexMutation(api.chatbot.createChatSession as any));
-  const sendMessage = useMutation(convexMutation(api.chatbot.sendMessage as any));
+  const createChat = useConvexMutation(api.chatbot.createChatSession as any);
+  const sendMessage = useConvexMutation(api.chatbot.sendMessage as any);
 
   const chatHistory = useQuery(
     chatId ? convexQuery(api.chatbot.getChatHistory, { chatId: chatId as any }) : null
-  );
+  ) as any;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -82,7 +82,7 @@ export function FloatingChatWidget() {
     );
   }
 
-  const messages = chatHistory?.data?.chat?.messages || [];
+  const messages = (chatHistory as any)?.data?.chat?.messages || [];
 
   return (
     <div className="fixed bottom-6 right-6 z-50 w-80 sm:w-96">
@@ -204,43 +204,6 @@ function QuickReply({ text, onClick }: { text: string; onClick: () => void }) {
     >
       {text}
     </button>
-  );
-}
-
-// Leaderboard widget for client dashboard
-export function LeaderboardWidget() {
-  const leaderboard = useQuery(
-    convexQuery(api.leaderboard.getLeaderboard, { period: "monthly", limit: 5 })
-  );
-
-  return (
-    <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
-      <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-        <span>🏆</span> Top Agents This Month
-      </h4>
-      <div className="space-y-2">
-        {leaderboard.data?.slice(0, 5).map((entry, idx) => (
-          <div key={entry._id} className="flex items-center gap-3">
-            <span className="text-lg">
-              {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}.`}
-            </span>
-            <div className="flex-1">
-              <p className="text-sm text-white">{entry.userName || "Agent"}</p>
-              <div className="w-full bg-slate-700 rounded-full h-1.5 mt-1">
-                <div
-                  className="bg-blue-500 h-1.5 rounded-full"
-                  style={{ width: `${(entry.score / 100) * 100}%` }}
-                />
-              </div>
-            </div>
-            <span className="text-xs text-slate-400">{entry.score} pts</span>
-          </div>
-        ))}
-        {leaderboard.data?.length === 0 && (
-          <p className="text-xs text-slate-400">No rankings yet</p>
-        )}
-      </div>
-    </div>
   );
 }
 

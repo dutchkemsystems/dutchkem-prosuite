@@ -1,4 +1,5 @@
 import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
 
 let io = null;
 
@@ -17,11 +18,21 @@ export function initRealtime(httpServer) {
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) return next(new Error('Authentication required'));
-    next();
+
+    try {
+      const payload = jwt.verify(token, process.env.JWT_SECRET_ADMIN || process.env.JWT_SECRET_CLIENT);
+      socket.data.userType = payload.type || 'client';
+      socket.data.userId = payload.sub;
+      next();
+    } catch {
+      next(new Error('Invalid or expired token'));
+    }
   });
 
   io.on('connection', (socket) => {
-    socket.join('admin');
+    if (socket.data.userType === 'admin') {
+      socket.join('admin');
+    }
     socket.emit('connected', { timestamp: Date.now() });
   });
 

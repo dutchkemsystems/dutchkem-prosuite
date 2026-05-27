@@ -70,7 +70,7 @@ export const executeSecurePayout = internalAction({
             
             // 4. IMMEDIATELY clear sensitive data
             const logAccountMasked = maskAccountNumber(accountNumber);
-            const logNameMasked = maskAccountName(accountName);
+            const _logNameMasked = maskAccountName(accountName);
             accountNumber = null;
             accountName = null;
 
@@ -264,8 +264,8 @@ export const logSweepSuccess = internalMutation({
 export const runFreelancerPayouts = internalAction({
     args: {},
     returns: v.null(),
-    handler: async (ctx) => {
-        console.log("[PAYOUT] Weekly freelancer payouts engine active.");
+handler: async (_ctx) => {
+    console.log("[PAYOUT] Weekly freelancer payouts engine active.");
         return null;
     }
 });
@@ -273,8 +273,8 @@ export const runFreelancerPayouts = internalAction({
 export const runReferralPayouts = internalAction({
     args: {},
     returns: v.null(),
-    handler: async (ctx) => {
-        console.log("[PAYOUT] Weekly referral payouts engine active.");
+handler: async (_ctx) => {
+    console.log("[PAYOUT] Weekly referral payouts engine active.");
         return null;
     }
 });

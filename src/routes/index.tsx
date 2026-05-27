@@ -108,7 +108,7 @@ function TestimonialCard({ author, role, content }: { author: string, role: stri
     <div className="p-12 bg-white rounded-[3rem] shadow-2xl shadow-slate-200/50 border border-slate-100 hover:border-orange-500/30 transition-all group relative overflow-hidden">
        <div className="absolute top-10 right-12 text-6xl text-slate-50 font-serif leading-none select-none">“</div>
        <div className="flex gap-1 text-orange-400 mb-8">
-          {"★★★★★".split("").map((s, i) => <span key={i} className="text-xl">★</span>)}
+          {"★★★★★".split("").map((_s, i) => <span key={i} className="text-xl">★</span>)}
        </div>
        <p className="text-xl text-slate-700 font-bold tracking-tight leading-relaxed mb-10 relative z-10 italic">
           {content}

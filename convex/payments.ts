@@ -199,17 +199,29 @@ export const requestRefund = mutation({
   handler: async (ctx, { subscriptionId, reason }) => {
     const sub = await ctx.db.get(subscriptionId);
     if (!sub) throw new Error("Subscription not found");
-    
-    // Policy Check: 14-day money back
+
+    const userId = (await ctx.auth.getUserIdentity())?.subject;
+    if (!userId || sub.userId !== userId) {
+      throw new Error("Unauthorized: you can only refund your own subscriptions");
+    }
+
     const isWithin14Days = Date.now() - sub._creationTime < 14 * 24 * 60 * 60 * 1000;
     if (!isWithin14Days) {
         throw new Error("Refund period (14 days) has expired.");
     }
 
+    const refundAmounts: Record<string, number> = {
+      weekly: 2000,
+      monthly: 8000,
+      quarterly: 25000,
+      yearly: 80000,
+    };
+    const amount = refundAmounts[sub.plan] || 0;
+
     await ctx.db.insert("refunds", {
       userId: sub.userId,
       paymentReference: `REF-${Math.random().toString(36).substring(7).toUpperCase()}`,
-      amount: 0, // In reality, fetch from original transaction
+      amount,
       status: "pending",
       reason,
       createdAt: Date.now(),

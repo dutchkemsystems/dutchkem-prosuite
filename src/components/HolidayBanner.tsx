@@ -4,7 +4,7 @@ import { api } from "../../convex/_generated/api";
 import { useState, useEffect } from "react";
 
 export function HolidayBanner() {
-  const { data: discount } = useSuspenseQuery(convexQuery(api.holidays.getActiveDiscount, {}));
+  const { data: discount } = useSuspenseQuery(convexQuery(api.holidays.getActiveDiscount, {})) as any;
   const [isVisible, setIsVisible] = useState(true);
   const [timeLeft, setTimeLeft] = useState("");
 

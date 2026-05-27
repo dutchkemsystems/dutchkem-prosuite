@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
-import { api } from "~/../convex/_generated/api";
+import { api } from "../../convex/_generated/api";
 
 // Feature 1: AI Chatbot Panel
 function ChatbotPanel() {
@@ -477,7 +477,7 @@ function ReportBuilderPanel() {
 // Feature 8: Agent Performance Panel
 function AgentPerformancePanel() {
   const [period, setPeriod] = useState<"daily" | "weekly" | "monthly">("weekly");
-  const agents = useSuspenseQuery(convexQuery(api.agent_performance.getAllAgentPerformance, { period }));
+  const agents = useSuspenseQuery(convexQuery(api.agent_performance.getAllAgentPerformance, { period })) as any;
 
   return (
     <div className="space-y-4">
@@ -541,8 +541,8 @@ function AgentPerformancePanel() {
 
 // Feature 9: Geo-Tracking Panel
 function GeoTrackingPanel() {
-  const locations = useSuspenseQuery(convexQuery(api.geo_tracking.getAllClientLocations, {}));
-  const stats = useSuspenseQuery(convexQuery(api.geo_tracking.getLocationStats, {}));
+  const locations = useSuspenseQuery(convexQuery(api.geo_tracking.getAllClientLocations, {})) as any;
+  const stats = useSuspenseQuery(convexQuery(api.geo_tracking.getLocationStats, {})) as any;
 
   return (
     <div className="space-y-4">
@@ -591,11 +591,11 @@ function GeoTrackingPanel() {
 
 // Feature 10: CRM Hygiene Panel
 function CRMHygienePanel() {
-  const [showScan, setShowScan] = useState(false);
-  const summary = useSuspenseQuery(convexQuery(api.crm_hygiene.getHygieneSummary, {}));
-  const reports = useSuspenseQuery(convexQuery(api.crm_hygiene.getHygieneReports, { limit: 10 }));
-  const runScan = useMutation(convexMutation(api.crm_hygiene.runHygieneScan as any));
-  const resolveIssue = useMutation(convexMutation(api.crm_hygiene.resolveHygieneIssue as any));
+  const [_showScan, setShowScan] = useState(false);
+  const summary = useSuspenseQuery(convexQuery(api.crm_hygiene.getHygieneSummary, {})) as any;
+  const reports = useSuspenseQuery(convexQuery(api.crm_hygiene.getHygieneReports, { limit: 10 })) as any;
+  const runScan = useConvexMutation(api.crm_hygiene.runHygieneScan as any);
+  const resolveIssue = useConvexMutation(api.crm_hygiene.resolveHygieneIssue as any);
 
   return (
     <div className="space-y-4">

@@ -58,9 +58,10 @@ export const runDailyTaxDeduction = internalMutation({
 
     // 3. Move from Main Wallet to Tax Wallet
     const taxWallet = await ctx.db.query("system_wallets").withIndex("by_type", q => q.eq("type", "tax")).first();
-    
+    if (!taxWallet) throw new Error("Tax wallet not found");
+
     await ctx.db.patch(mainWallet._id, { balance: mainWallet.balance - dailyTax, lastUpdated: Date.now() });
-    await ctx.db.patch(taxWallet!._id, { balance: taxWallet!.balance + dailyTax, lastUpdated: Date.now() });
+    await ctx.db.patch(taxWallet._id, { balance: taxWallet.balance + dailyTax, lastUpdated: Date.now() });
 
     // 4. Log Transaction
     await ctx.db.insert("tax_transactions", {

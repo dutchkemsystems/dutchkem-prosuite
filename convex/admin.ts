@@ -403,9 +403,9 @@ export const getFreelancerOverview = query({
  * ADMIN SECTION: REFERRAL OVERVIEW
  */
 export const getReferralOverview = query({
-    args: {},
-    returns: v.any(),
-    handler: async (ctx) => {
+  args: {},
+  returns: v.any(),
+  handler: async (_ctx) => {
         return {
             totalReferrers: 2847,
             totalPaidLifetime: 47200000,

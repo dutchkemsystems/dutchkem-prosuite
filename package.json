@@ -8,9 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext ts,tsx",
-    "lint:fix": "eslint src --ext ts,tsx --fix",
-    "clean": "rm -rf dist .tanstack node_modules/.cache"
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "clean": "rimraf dist .tanstack node_modules/.cache"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.65",

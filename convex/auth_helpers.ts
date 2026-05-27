@@ -169,8 +169,8 @@ export const lockAdminAccount = mutation({
 export const updateLastLogin = mutation({
   args: { userId: v.id("users"), ip: v.string() },
   returns: v.null(),
-  handler: async (ctx, { userId, ip }) => {
-    const user = await ctx.db.get(userId);
+  handler: async (ctx, { userId, ip: _ip }) => {
+    const _user = await ctx.db.get(userId);
     await ctx.db.patch(userId, {
       adminLastLoginAt: Date.now(),
       adminFailedLoginAttempts: 0,
@@ -359,13 +359,9 @@ export const verifyAdminTOTP = mutation({
       }
     }
 
-    // Verify TOTP via speakeasy-like algorithm (server-side)
-    // In production, use speakeasy: speakeasy.totp.verify({ secret: twoFactor.secret, encoding: 'base32', token: totpCode })
-    // For now, accept the code if it matches a format pattern
-    if (totpCode.length === 6 && /^\d{6}$/.test(totpCode)) {
-      return true;
-    }
-
+    // In production, verify TOTP using a proper library like speakeasy:
+    // speakeasy.totp.verify({ secret: twoFactor.secret, encoding: 'base32', token: totpCode })
+    // For now, reject all TOTP attempts until proper verification is implemented
     return false;
   },
 });
@@ -456,7 +452,7 @@ export const updateIpWhitelist = mutation({
 export const verifyEmail = mutation({
   args: { token: v.string() },
   returns: v.any(),
-  handler: async (ctx, { token }) => {
+  handler: async (_ctx, { token }) => {
     // In production, look up the verification token and mark email as verified.
     // For now, return success if token looks valid.
     if (!token || token.length < 10) return { success: false, error: "Invalid token" };

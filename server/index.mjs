@@ -7,7 +7,7 @@ import rateLimit from 'express-rate-limit';
 import { ConvexHttpClient } from 'convex/browser';
 import { MIGRATION_PHASE } from './config/authMigration.mjs';
 import { validateEnv } from './config/env.mjs';
-import { initRealtime, broadcast } from './lib/realtime.mjs';
+import { initRealtime, broadcast, getIO } from './lib/realtime.mjs';
 import ebookRouter from './routes/ebook.mjs';
 import adminRouter from './routes/admin.mjs';
 import authRouter from './routes/auth.mjs';
@@ -137,6 +137,11 @@ app.use((err, req, res, next) => {
   });
 });
 
+// ── 404 Handler ──
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
 const httpServer = createServer(app);
 initRealtime(httpServer);
 
@@ -146,4 +151,29 @@ httpServer.listen(PORT, () => {
   console.log(`Health: http://localhost:${PORT}/api/health`);
   console.log(`Rate limit: 30 req/min per IP`);
   broadcast('server:started', { port: PORT, timestamp: Date.now() });
+});
+
+// ── Graceful Shutdown ──
+function shutdown(signal) {
+  console.log(`\n[SERVER] Received ${signal}. Shutting down gracefully...`);
+  const io = getIO();
+  if (io) io.close();
+  httpServer.close(() => {
+    console.log('[SERVER] Closed all connections.');
+    process.exit(0);
+  });
+  setTimeout(() => {
+    console.error('[SERVER] Forced shutdown after timeout.');
+    process.exit(1);
+  }, 10000);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('unhandledRejection', (reason) => {
+  console.error('[UNHANDLED REJECTION]', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[UNCAUGHT EXCEPTION]', err);
+  shutdown('uncaughtException');
 });

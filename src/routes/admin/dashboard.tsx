@@ -511,6 +511,7 @@ function MetricCard({ label, value, icon, color, subValue }: any) {
     emerald: "from-emerald-500/20 to-emerald-600/5 border-emerald-500/20 text-emerald-500",
     amber: "from-amber-500/20 to-amber-600/5 border-amber-500/20 text-amber-500",
     indigo: "from-indigo-500/20 to-indigo-600/5 border-indigo-500/20 text-indigo-500",
+    teal: "from-teal-500/20 to-teal-600/5 border-teal-500/20 text-teal-500",
   };
   return (
     <div className={`p-8 bg-gradient-to-br ${colors[color]} border rounded-[2.5rem] shadow-2xl hover:scale-[1.02] transition-all relative overflow-hidden group`}>
@@ -543,10 +544,6 @@ function RecentTransactions() {
       <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl animate-in fade-in duration-700">
          <div className="p-10 border-b border-slate-800 flex justify-between items-center">
             <h2 className="text-xl font-black uppercase tracking-tighter">Live Transaction Ledger</h2>
-             <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                 <span className={`w-2 h-2 ${wsConnected ? 'bg-emerald-500' : 'bg-red-500'} rounded-full animate-pulse`}></span>
-                 <span className="text-[9px] font-black uppercase">{wsConnected ? 'WebSocket Active' : 'Reconnecting...'}</span>
-             </div>
          </div>
          <div className="overflow-x-auto">
             <table className="w-full text-left">

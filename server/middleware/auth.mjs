@@ -138,8 +138,10 @@ export async function adminIpCheck(req, res, next) {
       }
     }
     next();
-  } catch {
-    next();
+  } catch (err) {
+    // On error, deny access rather than granting it
+    console.error('[ADMIN_IP_CHECK] Error checking IP whitelist:', err.message);
+    return res.status(403).json({ error: 'Unable to verify IP access' });
   }
 }
 

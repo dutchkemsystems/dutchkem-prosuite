@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Socket } from 'socket.io-client';
 
-const SOCKET_URL = (import.meta as any).env.VITE_CONVEX_URL
-  ? (import.meta as any).env.VITE_CONVEX_URL.replace('http://', 'http://').replace('https://', 'https://')
-  : 'http://localhost:3001';
+const SOCKET_URL = (import.meta as any).env.VITE_SERVER_URL || 'http://localhost:3001';
 
 export function useSocket(token: string) {
   const socketRef = useRef<Socket | null>(null);

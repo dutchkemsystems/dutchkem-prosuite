@@ -3,7 +3,7 @@ import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
 
 export function AgentServices({ agentId, onSelect }: { agentId: string, onSelect: (name: string) => void }) {
-  const { data: services } = useSuspenseQuery(convexQuery(api.updates.getAgentServices, { agent_id: agentId }));
+  const { data: services } = useSuspenseQuery(convexQuery(api.updates.getAgentServices, { agent_id: agentId })) as any;
 
   const isNew = (timestamp: number) => {
     const thirtyDays = 30 * 24 * 60 * 60 * 1000;
