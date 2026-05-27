@@ -13,7 +13,12 @@ export default defineConfig({
   },
   plugins: [
     tailwindcss(),
-    tanstackStart(),
+    tanstackStart({
+      // Use server mode for Vercel — generates .vercel/output
+      server: {
+        presets: [],
+      },
+    }),
     viteReact(),
   ],
   build: {
