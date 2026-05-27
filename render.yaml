@@ -3,9 +3,8 @@ services:
   - type: web
     name: dutchkem-api
     runtime: node
-    rootDir: server
-    buildCommand: npm install
-    startCommand: node index.mjs
+    buildCommand: cd server && npm install
+    startCommand: cd server && node index.mjs
     plan: free
     envVars:
       - key: VITE_CONVEX_URL
