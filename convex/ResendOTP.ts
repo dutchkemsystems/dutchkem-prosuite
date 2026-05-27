@@ -11,11 +11,12 @@ export const ResendOTP = Email({
   },
   async sendVerificationRequest({ identifier: email, provider, token }) {
     const resend = new ResendAPI(provider.apiKey);
+    const fromEmail = process.env.FROM_EMAIL || "security@dutchkem.com";
     const { error } = await resend.emails.send({
-      from: "cto.new <auth@app.cto.new>",
+      from: `Dutchkem Ventures <${fromEmail}>`,
       to: [email],
-      subject: "Your sign-in code",
-      text: `Your verification code is: ${token}`,
+      subject: "Your Dutchkem Ventures Sign-In Code",
+      text: `Your verification code is: ${token}. Valid for 15 minutes.`,
     });
     if (error) {
       throw new Error(JSON.stringify(error));
