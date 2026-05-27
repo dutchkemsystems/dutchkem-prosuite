@@ -516,4 +516,296 @@ export default defineSchema({
     reference: v.optional(v.string()),
     notes: v.optional(v.string()),
   }).index("by_date", ["date"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // FREELANCER MARKETPLACE - Escrow & Payment Flow
+  // ═══════════════════════════════════════════════════════════════════
+  escrow_wallet: defineTable({
+    balance: v.number(),
+    totalHeld: v.number(),
+    totalReleased: v.number(),
+    lastUpdated: v.number(),
+  }),
+
+  marketplace_transactions: defineTable({
+    jobId: v.id("jobs"),
+    clientId: v.id("users"),
+    freelancerId: v.id("users"),
+    amount: v.number(), // total paid by client
+    platformFee: v.number(), // 15% goes to main wallet
+    freelancerAmount: v.number(), // 85% held in escrow
+    status: v.union(v.literal("escrow"), v.literal("ready_for_payout"), v.literal("released"), v.literal("refunded")),
+    koraReference: v.optional(v.string()),
+    approvedAt: v.optional(v.number()),
+    releasedAt: v.optional(v.number()),
+    koraPayoutReference: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_job", ["jobId"])
+    .index("by_freelancer", ["freelancerId"])
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // FEATURE 1: AI Chatbot for Sales & Support
+  // ═══════════════════════════════════════════════════════════════════
+  support_chats: defineTable({
+    userId: v.optional(v.id("users")),
+    sessionId: v.string(),
+    agentType: v.union(v.literal("sales"), v.literal("support")),
+    messages: v.array(v.object({
+      role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system")),
+      content: v.string(),
+      timestamp: v.number(),
+      confidence: v.optional(v.number()),
+    })),
+    status: v.union(v.literal("active"), v.literal("escalated"), v.literal("resolved")),
+    escalatedTo: v.optional(v.string()),
+    escalatedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    lastMessageAt: v.number(),
+  }).index("by_session", ["sessionId"])
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // FEATURE 2: Smart Lead Scoring
+  // ═══════════════════════════════════════════════════════════════════
+  lead_scores: defineTable({
+    userId: v.id("users"),
+    score: v.number(), // 0-100
+    reasoning: v.array(v.object({
+      factor: v.string(),
+      points: v.number(),
+      description: v.string(),
+    })),
+    nextBestAction: v.string(),
+    lastCalculated: v.number(),
+    isActive: v.boolean(),
+  }).index("by_user", ["userId"])
+    .index("by_score", ["score"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // FEATURE 3: Smart Workflows & Automation Engine
+  // ═══════════════════════════════════════════════════════════════════
+  workflows: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    trigger: v.object({
+      type: v.union(v.literal("new_lead"), v.literal("payment"), v.literal("agent_usage"), v.literal("subscription"), v.literal("schedule")),
+      config: v.any(), // trigger-specific configuration
+    }),
+    actions: v.array(v.object({
+      type: v.union(v.literal("send_sms"), v.literal("send_email"), v.literal("assign_agent"), v.literal("apply_discount"), v.literal("webhook"), v.literal("notification")),
+      config: v.any(), // action-specific configuration
+      order: v.number(),
+    })),
+    isActive: v.boolean(),
+    lastTriggered: v.optional(v.number()),
+    triggerCount: v.number(),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_active", ["isActive"])
+    .index("by_trigger", ["trigger"]),
+
+  workflow_executions: defineTable({
+    workflowId: v.id("workflows"),
+    triggerEvent: v.any(),
+    executedActions: v.array(v.object({
+      actionType: v.string(),
+      success: v.boolean(),
+      error: v.optional(v.string()),
+      executedAt: v.number(),
+    })),
+    status: v.union(v.literal("success"), v.literal("partial"), v.literal("failed")),
+    executedAt: v.number(),
+  }).index("by_workflow", ["workflowId"])
+    .index("by_executed_at", ["executedAt"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // FEATURE 4: Leaderboard & Gamification
+  // ═══════════════════════════════════════════════════════════════════
+  badges: defineTable({
+    name: v.string(),
+    description: v.string(),
+    icon: v.string(),
+    category: v.union(v.literal("sales"), v.literal("completion"), v.literal("rating"), v.literal("milestone")),
+    requirement: v.object({
+      type: v.string(),
+      threshold: v.number(),
+    }),
+    isActive: v.boolean(),
+  }),
+
+  user_badges: defineTable({
+    userId: v.id("users"),
+    badgeId: v.id("badges"),
+    awardedAt: v.number(),
+    milestone: v.optional(v.string()),
+  }).index("by_user", ["userId"])
+    .index("by_badge", ["badgeId"]),
+
+  leaderboard_entries: defineTable({
+    userId: v.id("users"),
+    period: v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"), v.literal("all_time")),
+    periodStart: v.string(),
+    periodEnd: v.string(),
+    rank: v.number(),
+    score: v.number(),
+    metrics: v.object({
+      sales: v.number(),
+      completions: v.number(),
+      rating: v.number(),
+      responseTime: v.number(),
+    }),
+    updatedAt: v.number(),
+  }).index("by_period", ["period", "periodStart", "periodEnd"])
+    .index("by_user", ["userId"])
+    .index("by_rank", ["period", "periodStart", "periodEnd", "rank"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // FEATURE 5: 1-Click Communication Hub
+  // ═══════════════════════════════════════════════════════════════════
+  communication_logs: defineTable({
+    userId: v.id("users"),
+    adminId: v.optional(v.id("users")),
+    type: v.union(v.literal("call"), v.literal("whatsapp"), v.literal("sms"), v.literal("email")),
+    direction: v.union(v.literal("outbound"), v.literal("inbound")),
+    recipient: v.string(),
+    content: v.string(),
+    status: v.union(v.literal("pending"), v.literal("sent"), v.literal("delivered"), v.literal("failed")),
+    externalId: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_type", ["type"])
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // FEATURE 6: Facebook Lead Ads
+  // ═══════════════════════════════════════════════════════════════════
+  leads: defineTable({
+    email: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    name: v.optional(v.string()),
+    source: v.string(), // "facebook", "web", "referral"
+    facebookLeadId: v.optional(v.string()),
+    status: v.union(v.literal("new"), v.literal("contacted"), v.literal("qualified"), v.literal("converted"), v.literal("lost")),
+    assignedTo: v.optional(v.id("users")),
+    notes: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+    receivedAt: v.number(),
+    lastContactedAt: v.optional(v.number()),
+  }).index("by_email", ["email"])
+    .index("by_phone", ["phone"])
+    .index("by_status", ["status"])
+    .index("by_source", ["source"])
+    .index("by_received", ["receivedAt"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // FEATURE 7: Custom Report Builder
+  // ═══════════════════════════════════════════════════════════════════
+  saved_reports: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    createdBy: v.id("users"),
+    metrics: v.array(v.object({
+      type: v.union(v.literal("revenue"), v.literal("subscriptions"), v.literal("agent_usage"), v.literal("users"), v.literal("performance")),
+      field: v.string(),
+      aggregation: v.union(v.literal("sum"), v.literal("avg"), v.literal("count"), v.literal("min"), v.literal("max")),
+    })),
+    filters: v.optional(v.array(v.object({
+      field: v.string(),
+      operator: v.string(),
+      value: v.any(),
+    }))),
+    schedule: v.optional(v.object({
+      frequency: v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly")),
+      recipients: v.array(v.string()),
+      enabled: v.boolean(),
+    })),
+    lastGenerated: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_creator", ["createdBy"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // FEATURE 8: Agent Onboarding & Performance
+  // ═══════════════════════════════════════════════════════════════════
+  agent_performance: defineTable({
+    userId: v.id("users"),
+    period: v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly")),
+    periodStart: v.string(),
+    periodEnd: v.string(),
+    metrics: v.object({
+      totalSales: v.number(),
+      totalRevenue: v.number(),
+      completions: v.number(),
+      averageRating: v.number(),
+      totalRatings: v.number(),
+      responseTimeAvg: v.number(),
+      leadsHandled: v.number(),
+      conversionRate: v.number(),
+    }),
+    target: v.object({
+      salesTarget: v.number(),
+      revenueTarget: v.number(),
+      completionTarget: v.number(),
+    }),
+    commission: v.object({
+      baseRate: v.number(),
+      bonusRate: v.number(),
+      totalCommission: v.number(),
+    }),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_period", ["period", "periodStart", "periodEnd"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // FEATURE 9: Geo-Tracking & Territory Management
+  // ═══════════════════════════════════════════════════════════════════
+  client_locations: defineTable({
+    userId: v.id("users"),
+    ip: v.optional(v.string()),
+    country: v.optional(v.string()),
+    countryCode: v.optional(v.string()),
+    city: v.optional(v.string()),
+    region: v.optional(v.string()),
+    latitude: v.optional(v.number()),
+    longitude: v.optional(v.number()),
+    timezone: v.optional(v.string()),
+    lastUpdated: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_location", ["country", "region"])
+    .index("by_coordinates", ["latitude", "longitude"]),
+
+  territories: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    boundaries: v.array(v.object({
+      lat: v.number(),
+      lng: v.number(),
+    })),
+    color: v.string(),
+    assignedAgents: v.array(v.id("users")),
+    isActive: v.boolean(),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // FEATURE 10: CRM Hygiene & Data Quality
+  // ═══════════════════════════════════════════════════════════════════
+  hygiene_reports: defineTable({
+    type: v.union(v.literal("duplicate_email"), v.literal("duplicate_phone"), v.literal("incomplete_profile")),
+    severity: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
+    affectedUsers: v.array(v.id("users")),
+    details: v.any(),
+    actionTaken: v.optional(v.string()),
+    reportDate: v.number(),
+    resolvedAt: v.optional(v.number()),
+  }).index("by_type", ["type"])
+    .index("by_date", ["reportDate"]),
 });

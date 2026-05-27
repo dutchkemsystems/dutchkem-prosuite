@@ -4,6 +4,14 @@ import { internal, api } from "./_generated/api";
 const crons = cronJobs();
 
 // 💰 Financials & Payouts
+// Freelancer Marketplace: escrow payouts every Friday 2 PM
+crons.cron(
+  "freelancer marketplace payouts",
+  "0 14 * * 5",
+  internal.marketplace.runMarketplacePayouts,
+  {}
+);
+// Legacy: still run existing freelancer payout logic
 crons.cron(
   "freelancer weekly payouts",
   "0 14 * * 5",
@@ -34,6 +42,14 @@ crons.cron(
   "daily interest accrual",
   "59 22 * * *",
   internal.tax.runDailyInterestAccrual,
+  {}
+);
+
+// 🏛️ Freelancer Marketplace: Daily Platform-Fee Sweep (11 PM)
+crons.cron(
+  "daily platform fee sweep",
+  "0 23 * * *",
+  internal.marketplace.runDailyPlatformSweep,
   {}
 );
 
@@ -144,6 +160,62 @@ crons.cron(
   "monthly charity transfer",
   "59 22 28-31 * *",
   internal.charity.runMonthlyCharityTransfer,
+  {}
+);
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW: Feature Automation (Lead Scoring, Workflows, Leaderboard, Hygiene)
+// ═══════════════════════════════════════════════════════════════════
+
+// 🎯 Lead Scoring - Calculate scores nightly
+crons.cron(
+  "calculate lead scores",
+  "0 2 * * *", // 2 AM daily
+  internal.lead_scoring.calculateAllLeadScores,
+  {}
+);
+
+// ⚙️ Workflows - Evaluate scheduled workflows every hour
+crons.interval(
+  "evaluate workflows",
+  { hours: 1 },
+  internal.workflows.evaluateWorkflows,
+  {}
+);
+
+// 🏆 Leaderboard - Calculate rankings at midnight
+crons.cron(
+  "calculate daily leaderboard",
+  "0 0 * * *", // Midnight daily
+  internal.leaderboard.calculateLeaderboard,
+  { period: "daily" }
+);
+crons.cron(
+  "calculate weekly leaderboard",
+  "0 0 * * 1", // Monday midnight
+  internal.leaderboard.calculateLeaderboard,
+  { period: "weekly" }
+);
+crons.cron(
+  "calculate monthly leaderboard",
+  "0 0 1 * *", // 1st of month midnight
+  internal.leaderboard.calculateLeaderboard,
+  { period: "monthly" }
+);
+
+// 📊 Reports - Process scheduled reports every hour
+crons.interval(
+  "process scheduled reports",
+  { hours: 1 },
+  internal.reports.processScheduledReports,
+  {}
+);
+
+// 🧹 CRM Hygiene - Weekly scan (Sunday 3 AM)
+crons.cron(
+  "crm hygiene scan",
+  "0 3 * * 0", // Sunday 3 AM
+  internal.crm_hygiene.runHygieneScan,
   {}
 );
 

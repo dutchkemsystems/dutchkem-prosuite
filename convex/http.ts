@@ -500,4 +500,86 @@ http.route({
   }),
 });
 
+// ─── Freelancer Marketplace API ───
+
+// POST /api/marketplace/jobs/:id/approve
+http.route({
+  path: "/api/marketplace/jobs/approve",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const body = await req.json();
+    const { transactionId, clientId } = body;
+
+    if (!transactionId || !clientId) {
+      return new Response(JSON.stringify({ error: "Missing transactionId or clientId" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    await ctx.runMutation(internal.marketplace.approveJob, {
+      transactionId: transactionId,
+      clientId: clientId,
+    });
+
+    return new Response(JSON.stringify({ success: true, message: "Work approved. Payout scheduled for Friday 2 PM." }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
+// GET /api/admin/marketplace/escrow
+http.route({
+  path: "/api/admin/marketplace/escrow",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const balance = await ctx.runQuery(internal.marketplace.getEscrowBalance);
+    return new Response(JSON.stringify(balance), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
+// GET /api/admin/marketplace/pending-payout
+http.route({
+  path: "/api/admin/marketplace/pending-payout",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const pending = await ctx.runQuery(internal.marketplace.getPendingFridayPayout);
+    return new Response(JSON.stringify(pending), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
+// GET /api/admin/marketplace/payouts
+http.route({
+  path: "/api/admin/marketplace/payouts",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const limit = Number(req.url.searchParams.get("limit")) || 50;
+    const payouts = await ctx.runQuery(internal.marketplace.getPayoutHistory, { limit });
+    return new Response(JSON.stringify(payouts), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
+// GET /api/admin/marketplace/stats
+http.route({
+  path: "/api/admin/marketplace/stats",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const stats = await ctx.runQuery(internal.marketplace.getMarketplaceStats);
+    return new Response(JSON.stringify(stats), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
 export default http;
