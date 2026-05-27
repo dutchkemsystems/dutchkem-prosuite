@@ -1,6 +1,5 @@
-import { internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { internalMutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { internal, api } from "./_generated/api";
 
 const TAX_BRACKETS = [
   { up_to: 300000, rate: 0.07 },   // 7% on first ₦300k

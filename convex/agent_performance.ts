@@ -1,6 +1,5 @@
-import { mutation, query, internalAction } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
 
 // Feature 8: Agent Onboarding & Performance Dashboard
 

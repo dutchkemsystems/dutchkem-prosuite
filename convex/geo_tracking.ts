@@ -1,4 +1,4 @@
-import { mutation, query, internalAction } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 // Feature 9: Geo-Tracking & Territory Management

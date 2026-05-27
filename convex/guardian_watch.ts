@@ -1,7 +1,6 @@
-import { internalAction, internalMutation, mutation, query, internalQuery, action } from "./_generated/server";
+import { internalAction, internalMutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
-import { createOpenAI } from "@ai-sdk/openai";
 
 /**
  * GUARDIAN WATCH: SELF-HEALING SYSTEM

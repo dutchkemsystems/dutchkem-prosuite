@@ -1,5 +1,3 @@
-import { v } from "convex/values";
-
 // We use Web Crypto API (supported in both Convex V8 and Node runtimes)
 // No "use node" needed if we use globalThis.crypto
 

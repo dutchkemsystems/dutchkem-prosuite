@@ -1,7 +1,7 @@
-import { internalAction, internalMutation, internalQuery, mutation, query, action } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, query, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
-import { encryptWeb, decryptWeb, maskAccountNumber, maskAccountName } from "./encryption";
+import { decryptWeb, maskAccountNumber, maskAccountName } from "./encryption";
 
 /**
  * SECURE PAYOUT EXECUTION

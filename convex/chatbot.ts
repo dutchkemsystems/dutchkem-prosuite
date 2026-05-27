@@ -100,7 +100,7 @@ export const sendMessage = mutation({
     }
 
     return {
-      response: response.message,
+      response: (response as any).message,
       confidence,
       shouldEscalate,
     };

@@ -1,6 +1,5 @@
-import { mutation, query, internalMutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { hashPassword, verifyPassword } from "./encryption";
 
 // ─── Rate Limiting / Failed Logins ───

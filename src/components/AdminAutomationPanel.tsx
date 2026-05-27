@@ -1,14 +1,13 @@
 import { useState } from "react";
-import { useSuspenseQuery, useMutation } from "@tanstack/react-query";
-import { convexQuery, convexMutation } from "@convex-dev/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
 import { api } from "~/../convex/_generated/api";
-import type { Id } from "~/../convex/_generated/dataModel";
 
 // Feature 1: AI Chatbot Panel
 function ChatbotPanel() {
   const [selectedTab, setSelectedTab] = useState<"active" | "logs" | "settings">("active");
-  const chats = useSuspenseQuery(convexQuery(api.chatbot.getActiveChats, {}));
-  const resolveChat = useMutation(convexMutation(api.chatbot.resolveChat));
+  const chats = useSuspenseQuery(convexQuery(api.chatbot.getActiveChats, {})) as any;
+  const resolveChat = useConvexMutation(api.chatbot.resolveChat);
 
   return (
     <div className="space-y-4">
@@ -83,7 +82,7 @@ function ChatbotPanel() {
 // Feature 2: Lead Scoring Panel
 function LeadScoringPanel() {
   const [timeFilter, setTimeFilter] = useState<"day" | "week" | "month" | "all">("all");
-  const leads = useSuspenseQuery(convexQuery(api.lead_scoring.getTopLeads, { limit: 20 }));
+  const leads = useSuspenseQuery(convexQuery(api.lead_scoring.getTopLeads, { limit: 20 })) as any;
 
   return (
     <div className="space-y-4">
@@ -142,8 +141,8 @@ function LeadScoringPanel() {
 // Feature 3: Workflows Panel
 function WorkflowsPanel() {
   const [showCreate, setShowCreate] = useState(false);
-  const workflows = useSuspenseQuery(convexQuery(api.workflows.getWorkflows, {}));
-  const toggleWorkflow = useMutation(convexMutation(api.workflows.updateWorkflow));
+  const workflows = useSuspenseQuery(convexQuery(api.workflows.getWorkflows, {})) as any;
+  const toggleWorkflow = useConvexMutation(api.workflows.updateWorkflow);
 
   return (
     <div className="space-y-4">
@@ -203,8 +202,8 @@ function WorkflowsPanel() {
 // Feature 4: Leaderboard Panel
 function LeaderboardPanel() {
   const [period, setPeriod] = useState<"daily" | "weekly" | "monthly" | "all_time">("weekly");
-  const leaderboard = useSuspenseQuery(convexQuery(api.leaderboard.getLeaderboard, { period, limit: 10 }));
-  const calculateLeaderboard = useMutation(convexMutation(api.leaderboard.calculateLeaderboard as any));
+  const leaderboard = useSuspenseQuery(convexQuery(api.leaderboard.getLeaderboard, { period, limit: 10 })) as any;
+  const calculateLeaderboard = useConvexMutation(api.leaderboard.calculateLeaderboard);
 
   return (
     <div className="space-y-4">
@@ -266,8 +265,8 @@ function CommunicationPanel() {
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
   const [method, setMethod] = useState<"sms" | "whatsapp" | "call">("sms");
-  const stats = useSuspenseQuery(convexQuery(api.communication.getCommunicationStats, {}));
-  const sendSms = useMutation(convexMutation(api.communication.sendSms as any));
+  const stats = useSuspenseQuery(convexQuery(api.communication.getCommunicationStats, {})) as any;
+  const sendSms = useConvexMutation(api.communication.sendSms);
 
   const handleSend = () => {
     if (!phone || !message) return;
@@ -337,9 +336,9 @@ function CommunicationPanel() {
 // Feature 6: Facebook Leads Panel
 function FacebookLeadsPanel() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
-  const leads = useSuspenseQuery(convexQuery(api.facebook_leads.getLeads, { status: statusFilter as any }));
-  const updateStatus = useMutation(convexMutation(api.facebook_leads.updateLeadStatus as any));
-  const stats = useSuspenseQuery(convexQuery(api.facebook_leads.getLeadStats, {}));
+  const leads = useSuspenseQuery(convexQuery(api.facebook_leads.getLeads, { status: statusFilter as any })) as any;
+  const updateStatus = useConvexMutation(api.facebook_leads.updateLeadStatus);
+  const stats = useSuspenseQuery(convexQuery(api.facebook_leads.getLeadStats, {})) as any;
 
   return (
     <div className="space-y-4">
@@ -402,8 +401,8 @@ function FacebookLeadsPanel() {
 // Feature 7: Report Builder Panel
 function ReportBuilderPanel() {
   const [reportName, setReportName] = useState("");
-  const reports = useSuspenseQuery(convexQuery(api.reports.getReports, {}));
-  const generateReport = useMutation(convexMutation(api.reports.generateReport as any));
+  const reports = useSuspenseQuery(convexQuery(api.reports.getReports, {})) as any;
+  const generateReport = useConvexMutation(api.reports.generateReport);
 
   const metricTypes = ["revenue", "subscriptions", "agent_usage", "users", "performance"] as const;
 
