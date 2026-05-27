@@ -1,5 +1,5 @@
 import { Server } from 'socket.io';
-import jwt from 'jsonwebtoken';
+import { jwtVerify } from 'jose';
 
 let io = null;
 
@@ -15,12 +15,15 @@ export function initRealtime(httpServer) {
     pingTimeout: 20000,
   });
 
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) return next(new Error('Authentication required'));
 
     try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET_ADMIN || process.env.JWT_SECRET_CLIENT);
+      const secret = new TextEncoder().encode(
+        process.env.JWT_SECRET_ADMIN || process.env.JWT_SECRET_CLIENT
+      );
+      const { payload } = await jwtVerify(token, secret);
       socket.data.userType = payload.type || 'client';
       socket.data.userId = payload.sub;
       next();
