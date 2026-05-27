@@ -70,3 +70,65 @@ export const seed = mutation({
     };
   },
 });
+
+/**
+ * RESET ADMIN PASSWORD
+ * Use this to reset the admin password when locked out.
+ * npx convex run seed_admin:resetPassword
+ */
+export const resetPassword = mutation({
+  args: {},
+  returns: v.object({
+    email: v.string(),
+    password: v.string(),
+    backupCodes: v.array(v.string()),
+    message: v.string()
+  }),
+  handler: async (ctx) => {
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", "admin@dutchkem.com"))
+      .first();
+
+    if (!existing) {
+      throw new Error("Admin account not found. Run seed first.");
+    }
+
+    // Generate new secure random password
+    const charset = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*";
+    let password = "";
+    for (let i = 0; i < 16; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+
+    // Generate 10 new backup codes
+    const backupCodes = [];
+    for (let i = 0; i < 10; i++) {
+      backupCodes.push(Math.random().toString(36).substring(2, 10).toUpperCase());
+    }
+
+    // Update admin user
+    const passwordHash = await hashPassword(password);
+    await ctx.db.patch(existing._id, {
+      adminPasswordHash: passwordHash,
+      adminBackupCodes: backupCodes,
+      adminFailedLoginAttempts: 0,
+      adminLockedUntil: undefined,
+    });
+
+    // Log security event
+    await ctx.runMutation(internal.guardian.logSecurityEvent, {
+      action: "ADMIN_PASSWORD_RESET",
+      details: "Admin password and backup codes reset via emergency recovery",
+      ip: "internal",
+      userAgent: "System Recovery",
+    });
+
+    return {
+      email: "admin@dutchkem.com",
+      password,
+      backupCodes,
+      message: "NEW CREDENTIALS GENERATED. SAVE THEM IMMEDIATELY. OLD PASSWORD IS NOW INVALID."
+    };
+  },
+});
