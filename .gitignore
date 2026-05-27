@@ -20,15 +20,19 @@ server/.env.*
 logs/
 *.log
 npm-debug.log*
+convex-dev*.log
 .env.sentry-build-plugin
 .DS_Store
 .cache
 .vercel
 .output
 .nitro
+
 # TanStack Router cache
 .tanstack/
 .tanstack/tmp/
+
+# Build output
 dist/
 dist-ssr/
 /build/
@@ -58,5 +62,3 @@ coverage/
 .vscode/
 *.swp
 *.swo
-
-.vercel

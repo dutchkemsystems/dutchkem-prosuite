@@ -1,0 +1,11 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://dutchkem-prosuite-app.vercel.app/sitemap.xml
+
+# Disallow admin and API paths
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /api/
