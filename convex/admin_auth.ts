@@ -12,7 +12,7 @@ export const adminLogin = mutation({
     email: v.string(), 
     password: v.string(),
     deviceId: v.string(),
-    ip: v.string()
+    ip: v.optional(v.string()),
   },
   returns: v.object({ 
     status: v.union(v.literal("success"), v.literal("2fa_required"), v.literal("locked"), v.literal("failed")),
@@ -20,6 +20,7 @@ export const adminLogin = mutation({
     token: v.optional(v.string()) 
   }),
   handler: async (ctx, args) => {
+    const clientIp = args.ip || "unknown";
     const user = await ctx.db
       .query("users")
       .withIndex("email", (q) => q.eq("email", args.email))
@@ -56,8 +57,8 @@ export const adminLogin = mutation({
       await ctx.runMutation(internal.admin.logAdminAction, {
         adminEmail: args.email,
         action: "LOGIN_FAILURE",
-        details: `Failed attempt ${failedAttempts} from IP ${args.ip}`,
-        ip: args.ip,
+        details: `Failed attempt ${failedAttempts} from IP ${clientIp}`,
+        ip: clientIp,
       });
 
       return { status: "failed" as const, message: "Invalid credentials" };
@@ -85,12 +86,12 @@ export const adminLogin = mutation({
       await ctx.db.delete(session._id);
     }
 
-    const sessionId = await ctx.db.insert("user_sessions", {
+    const sessionId =     await ctx.db.insert("user_sessions", {
       userId: user._id,
       userType: "admin" as const,
       device: args.deviceId,
       location: "Admin Portal",
-      ip: args.ip,
+      ip: clientIp,
       fingerprint: args.deviceId,
       lastActive: now,
       isCurrent: true,
@@ -108,8 +109,8 @@ export const adminLogin = mutation({
     await ctx.runMutation(internal.admin.logAdminAction, {
       adminEmail: args.email,
       action: "LOGIN_SUCCESS",
-      details: `Successful login from ${args.ip}`,
-      ip: args.ip,
+      details: `Successful login from ${clientIp}`,
+      ip: clientIp,
     });
 
     return { 
@@ -125,10 +126,11 @@ export const verifyAdmin2FA = mutation({
     email: v.string(), 
     code: v.string(),
     deviceId: v.string(),
-    ip: v.string()
+    ip: v.optional(v.string())
   },
   returns: v.any(),
   handler: async (ctx, args) => {
+    const clientIp = args.ip || "unknown";
     const user = await ctx.db
       .query("users")
       .withIndex("email", (q) => q.eq("email", args.email))
@@ -155,7 +157,7 @@ export const verifyAdmin2FA = mutation({
       userType: "admin" as const,
       device: args.deviceId,
       location: "Admin Portal (2FA)",
-      ip: args.ip,
+      ip: clientIp,
       fingerprint: args.deviceId,
       lastActive: now,
       isCurrent: true,
