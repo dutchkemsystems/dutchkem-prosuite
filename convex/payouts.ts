@@ -1,4 +1,4 @@
-import { internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, mutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { encryptWeb, decryptWeb, maskAccountNumber, maskAccountName } from "./encryption";
@@ -99,7 +99,7 @@ export const executeSecurePayout = internalAction({
 /**
  * SECURE DAILY SWEEP LOGIC (Refactored for Env Vars & 2FA)
  */
-export const runDailySweep = internalAction({
+export const runDailySweep = action({
     args: { retryCount: v.optional(v.number()), forceApproved: v.optional(v.boolean()) },
     returns: v.null(),
     handler: async (ctx, args) => {

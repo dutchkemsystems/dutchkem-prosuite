@@ -10,7 +10,7 @@ export const createReport = mutation({
     description: v.optional(v.string()),
     createdBy: v.id("users"),
     metrics: v.array(v.object({
-      type: v.union(v.literal("revenue"), v.literal("subscriptions"), v.literal("agent_usage"), v_literal("users"), v.literal("performance")),
+      type: v.union(v.literal("revenue"), v.literal("subscriptions"), v.literal("agent_usage"), v.literal("users"), v.literal("performance")),
       field: v.string(),
       aggregation: v.union(v.literal("sum"), v.literal("avg"), v.literal("count"), v.literal("min"), v.literal("max")),
     })),

@@ -114,17 +114,17 @@ export const toggleAutoUpgrade = mutation({
   args: { enabled: v.boolean() },
   returns: v.any(),
   handler: async (ctx, { enabled }) => {
-    const existing = await ctx.db.query("system_config")
+    const existing = await ctx.db.query("feature_flags")
       .withIndex("by_key", q => q.eq("key", "auto_upgrade_enabled"))
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { value: enabled, updatedAt: Date.now() });
+      await ctx.db.patch(existing._id, { enabled, updatedAt: Date.now() });
     } else {
-      await ctx.db.insert("system_config", {
+      await ctx.db.insert("feature_flags", {
         key: "auto_upgrade_enabled",
-        value: enabled,
-        description: "Enable/disable bi-annual automatic service upgrades",
+        enabled,
+        label: "Auto Upgrade Enabled",
         updatedAt: Date.now(),
       });
     }

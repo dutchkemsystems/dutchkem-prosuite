@@ -30,10 +30,8 @@ export const getDownModels = internalQuery({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    return await ctx.db
-      .query("model_status")
-      .filter((q) => q.neq(q.field("status"), "healthy"))
-      .collect();
+    const allModels = await ctx.db.query("model_status").collect();
+    return allModels.filter(m => m.status !== "healthy");
   },
 });
 

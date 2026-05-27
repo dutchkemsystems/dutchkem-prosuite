@@ -141,7 +141,7 @@ export const markPostFailed = internalMutation({
  * SOCIAL CRON HELPERS
  */
 
-export const rotateSocialAgents = internalMutation({
+export const rotateSocialAgents = mutation({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {

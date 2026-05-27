@@ -1,4 +1,4 @@
-import { internalAction, internalMutation, mutation, query, internalQuery } from "./_generated/server";
+import { internalAction, internalMutation, mutation, query, internalQuery, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -7,7 +7,7 @@ import { createOpenAI } from "@ai-sdk/openai";
  * GUARDIAN WATCH: SELF-HEALING SYSTEM
  */
 
-export const runFullDiagnosis = internalAction({
+export const runFullDiagnosis = action({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
