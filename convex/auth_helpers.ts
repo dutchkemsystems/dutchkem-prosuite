@@ -348,9 +348,9 @@ export const verifyAdminTOTP = mutation({
     const twoFactor = await ctx.db.query("admin_2fa").withIndex("by_admin", q => q.eq("adminId", adminId)).first();
     if (!twoFactor) return false;
 
-    // Check backup codes first
+    // Check backup codes first (8+ chars)
     if (totpCode.length >= 8) {
-      const idx = twoFactor.backupCodes.indexOf(totpCode);
+      const idx = twoFactor.backupCodes.indexOf(totpCode.toUpperCase());
       if (idx !== -1) {
         const codes = [...twoFactor.backupCodes];
         codes.splice(idx, 1);
@@ -359,12 +359,76 @@ export const verifyAdminTOTP = mutation({
       }
     }
 
-    // In production, verify TOTP using a proper library like speakeasy:
-    // speakeasy.totp.verify({ secret: twoFactor.secret, encoding: 'base32', token: totpCode })
-    // For now, reject all TOTP attempts until proper verification is implemented
+    // Verify TOTP using HMAC-SHA1 (RFC 6238)
+    // Standard TOTP: 6 digits, 30-second window, SHA-1
+    if (totpCode.length === 6 && /^\d{6}$/.test(totpCode)) {
+      const secret = twoFactor.secret;
+      const window = 1; // Allow 1 step before/after (30s tolerance)
+      const timeStep = Math.floor(Date.now() / 30000);
+      
+      for (let i = -window; i <= window; i++) {
+        const computed = await computeTOTP(secret, timeStep + i);
+        if (computed === totpCode) {
+          return true;
+        }
+      }
+    }
+
     return false;
   },
 });
+
+// TOTP computation using Web Crypto API (RFC 6238 / RFC 4226)
+async function computeTOTP(secret: string, timeStep: number): Promise<string> {
+  // Convert base32 secret to bytes
+  const secretBytes = base32Decode(secret);
+  
+  // Encode time step as 8-byte big-endian
+  const timeBuffer = new ArrayBuffer(8);
+  const timeView = new DataView(timeBuffer);
+  timeView.setUint32(4, timeStep, false);
+  
+  // Import key for HMAC-SHA1
+  const key = await globalThis.crypto.subtle.importKey(
+    "raw",
+    secretBytes,
+    { name: "HMAC", hash: "SHA-1" },
+    false,
+    ["sign"]
+  );
+  
+  // Sign the time step
+  const signature = await globalThis.crypto.subtle.sign("HMAC", key, timeBuffer);
+  const hash = new Uint8Array(signature);
+  
+  // Dynamic truncation (RFC 4226)
+  const offset = hash[19] & 0x0f;
+  const code = (
+    ((hash[offset] & 0x7f) << 24) |
+    ((hash[offset + 1] & 0xff) << 16) |
+    ((hash[offset + 2] & 0xff) << 8) |
+    (hash[offset + 3] & 0xff)
+  ) % 1000000;
+  
+  return code.toString().padStart(6, '0');
+}
+
+// Base32 decode (RFC 4648)
+function base32Decode(input: string): Uint8Array {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const cleaned = input.toUpperCase().replace(/[^A-Z2-7]/g, '');
+  let bits = "";
+  for (const char of cleaned) {
+    const val = alphabet.indexOf(char);
+    if (val === -1) continue;
+    bits += val.toString(2).padStart(5, '0');
+  }
+  const bytes = new Uint8Array(Math.floor(bits.length / 8));
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(bits.substr(i * 8, 8), 2);
+  }
+  return bytes;
+}
 
 export const setupAdmin2FA = mutation({
   args: { adminId: v.id("users"), secret: v.string() },
