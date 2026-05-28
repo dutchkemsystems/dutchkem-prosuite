@@ -68,8 +68,19 @@ function ChatContainer({ threadId }: { threadId: string }) {
     { threadId },
     { initialNumItems: 50, stream: true },
   );
+  const sendMessage = useMutation(api.wellness_chat.sendMessage).withOptimisticUpdate(
+    optimisticallySendMessage(api.wellness_chat.listMessages),
+  );
   
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const handleQuickAction = async (text: string) => {
+    try {
+      await sendMessage({ threadId, prompt: text });
+    } catch (error) {
+      console.error("Failed to send:", error);
+    }
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -100,10 +111,10 @@ function ChatContainer({ threadId }: { threadId: string }) {
               <p className="text-slate-400 font-medium leading-relaxed text-sm">Your journey to a healthier you starts here. I'm ready to build your meal plan, design your workout, or help you manage stress.</p>
             </div>
             <div className="grid grid-cols-2 gap-3 w-full">
-              <QuickAction icon="🥗" text="7-Day Meal Plan" />
-              <QuickAction icon="💪" text="Home Workout" />
-              <QuickAction icon="🌙" text="Better Sleep" />
-              <QuickAction icon="🧘" text="Stress Relief" />
+              <QuickAction icon="🥗" text="7-Day Meal Plan" onClick={() => handleQuickAction("Create a healthy 7-day meal plan for me")} />
+              <QuickAction icon="💪" text="Home Workout" onClick={() => handleQuickAction("Design a home workout routine for me")} />
+              <QuickAction icon="🌙" text="Better Sleep" onClick={() => handleQuickAction("Help me improve my sleep habits and create a bedtime routine")} />
+              <QuickAction icon="🧘" text="Stress Relief" onClick={() => handleQuickAction("Give me stress relief techniques and a relaxation plan")} />
             </div>
           </div>
         )}
@@ -165,7 +176,11 @@ function ChatInput({ threadId }: { threadId: string }) {
     if (!input.trim()) return;
     const prompt = input;
     setInput("");
-    await sendMessage({ threadId, prompt });
+    try {
+      await sendMessage({ threadId, prompt });
+    } catch (error) {
+      console.error("Failed to send:", error);
+    }
   };
 
   return (
@@ -187,9 +202,9 @@ function ChatInput({ threadId }: { threadId: string }) {
   );
 }
 
-function QuickAction({ icon, text }: { icon: string, text: string }) {
+function QuickAction({ icon, text, onClick }: { icon: string, text: string, onClick?: () => void }) {
   return (
-    <button className="flex items-center gap-3 p-4 bg-slate-900/50 border border-slate-800 rounded-xl hover:bg-slate-900 hover:border-slate-700 transition-all text-left text-xs font-bold text-slate-400 uppercase tracking-tight">
+    <button onClick={onClick} className="flex items-center gap-3 p-4 bg-slate-900/50 border border-slate-800 rounded-xl hover:bg-slate-900 hover:border-slate-700 transition-all text-left text-xs font-bold text-slate-400 uppercase tracking-tight">
       <span className="text-xl">{icon}</span>
       {text}
     </button>

@@ -141,8 +141,19 @@ function ChatContainer({ threadId }: { threadId: string }) {
     { threadId },
     { initialNumItems: 50, stream: true },
   );
+  const sendMessage = useMutation(api.video_chat.sendMessage).withOptimisticUpdate(
+    optimisticallySendMessage(api.video_chat.listMessages),
+  );
   
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const handleQuickAction = async (text: string) => {
+    try {
+      await sendMessage({ threadId, prompt: text });
+    } catch (error) {
+      console.error("Failed to send:", error);
+    }
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -176,10 +187,10 @@ function ChatContainer({ threadId }: { threadId: string }) {
               <p className="text-slate-500 font-bold leading-relaxed text-lg uppercase tracking-widest">Digital Workforce Engine v2.0 • NVIDIA Cluster Active</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-              <QuickAction icon="🎬" title="Video Editing" desc="Shorts, Cinematic, Pro" />
-              <QuickAction icon="🎙️" title="Voice & Dubbing" desc="Cloning, Lip-sync, Expert" />
-              <QuickAction icon="🎨" title="Animation" desc="2D/3D, Anime, Series" />
-              <QuickAction icon="🌍" title="Translation" desc="50+ Languages, Subtitles" />
+              <QuickAction icon="🎬" title="Video Editing" desc="Shorts, Cinematic, Pro" onClick={() => handleQuickAction("I need video editing services for my project")} />
+              <QuickAction icon="🎙️" title="Voice & Dubbing" desc="Cloning, Lip-sync, Expert" onClick={() => handleQuickAction("I need voice dubbing or voice cloning services")} />
+              <QuickAction icon="🎨" title="Animation" desc="2D/3D, Anime, Series" onClick={() => handleQuickAction("I need animation services for my video project")} />
+              <QuickAction icon="🌍" title="Translation" desc="50+ Languages, Subtitles" onClick={() => handleQuickAction("I need translation and subtitle services for my video")} />
             </div>
           </div>
         )}
@@ -262,7 +273,11 @@ function ChatInput({ threadId }: { threadId: string }) {
     if (!input.trim()) return;
     const prompt = input;
     setInput("");
-    await sendMessage({ threadId, prompt });
+    try {
+      await sendMessage({ threadId, prompt });
+    } catch (error) {
+      console.error("Failed to send:", error);
+    }
   };
 
   return (
@@ -285,9 +300,9 @@ function ChatInput({ threadId }: { threadId: string }) {
   );
 }
 
-function QuickAction({ icon, title, desc }: { icon: string, title: string, desc: string }) {
+function QuickAction({ icon, title, desc, onClick }: { icon: string, title: string, desc: string, onClick?: () => void }) {
   return (
-    <button className="flex flex-col items-center gap-2 p-8 bg-slate-900/50 border-2 border-slate-800 rounded-[2rem] hover:bg-slate-900 hover:border-orange-500/50 transition-all text-center group cursor-pointer shadow-xl">
+    <button onClick={onClick} className="flex flex-col items-center gap-2 p-8 bg-slate-900/50 border-2 border-slate-800 rounded-[2rem] hover:bg-slate-900 hover:border-orange-500/50 transition-all text-center group cursor-pointer shadow-xl">
       <span className="text-4xl mb-2 group-hover:scale-110 transition-transform">{icon}</span>
       <span className="text-sm font-black text-white uppercase tracking-widest">{title}</span>
       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">{desc}</span>

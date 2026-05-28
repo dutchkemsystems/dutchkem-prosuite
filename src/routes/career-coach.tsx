@@ -68,8 +68,19 @@ function ChatContainer({ threadId }: { threadId: string }) {
     { threadId },
     { initialNumItems: 50, stream: true },
   );
+  const sendMessage = useMutation(api.career_chat.sendMessage).withOptimisticUpdate(
+    optimisticallySendMessage(api.career_chat.listMessages),
+  );
   
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const handleQuickAction = async (text: string) => {
+    try {
+      await sendMessage({ threadId, prompt: text });
+    } catch (error) {
+      console.error("Failed to send:", error);
+    }
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -100,10 +111,10 @@ function ChatContainer({ threadId }: { threadId: string }) {
               <p className="text-slate-400">Optimize your professional brand. I'm ready to craft your CV, polish your LinkedIn, or prep you for that big interview.</p>
             </div>
             <div className="grid grid-cols-2 gap-3 w-full">
-              <QuickAction icon="📝" text="Revamp My CV" />
-              <QuickAction icon="👔" text="Mock Interview" />
-              <QuickAction icon="🔗" text="LinkedIn Audit" />
-              <QuickAction icon="📈" text="Search Strategy" />
+              <QuickAction icon="📝" text="Revamp My CV" onClick={() => handleQuickAction("Help me revamp my CV for a better job application")} />
+              <QuickAction icon="👔" text="Mock Interview" onClick={() => handleQuickAction("Let's do a mock interview to prepare me for job interviews")} />
+              <QuickAction icon="🔗" text="LinkedIn Audit" onClick={() => handleQuickAction("Audit and optimize my LinkedIn profile")} />
+              <QuickAction icon="📈" text="Search Strategy" onClick={() => handleQuickAction("Help me develop a job search strategy")} />
             </div>
           </div>
         )}
@@ -165,7 +176,11 @@ function ChatInput({ threadId }: { threadId: string }) {
     if (!input.trim()) return;
     const prompt = input;
     setInput("");
-    await sendMessage({ threadId, prompt });
+    try {
+      await sendMessage({ threadId, prompt });
+    } catch (error) {
+      console.error("Failed to send:", error);
+    }
   };
 
   return (
@@ -187,9 +202,9 @@ function ChatInput({ threadId }: { threadId: string }) {
   );
 }
 
-function QuickAction({ icon, text }: { icon: string, text: string }) {
+function QuickAction({ icon, text, onClick }: { icon: string, text: string, onClick?: () => void }) {
   return (
-    <button className="flex items-center gap-2 p-3 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:bg-slate-800 hover:border-slate-600 transition-all text-left text-xs font-medium text-slate-300">
+    <button onClick={onClick} className="flex items-center gap-2 p-3 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:bg-slate-800 hover:border-slate-600 transition-all text-left text-xs font-medium text-slate-300">
       <span className="text-base">{icon}</span>
       {text}
     </button>

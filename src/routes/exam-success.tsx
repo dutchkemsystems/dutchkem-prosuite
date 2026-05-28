@@ -68,8 +68,19 @@ function ChatContainer({ threadId }: { threadId: string }) {
     { threadId },
     { initialNumItems: 50, stream: true },
   );
+  const sendMessage = useMutation(api.exam_career_chat.sendMessage).withOptimisticUpdate(
+    optimisticallySendMessage(api.exam_career_chat.listMessages),
+  );
   
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const handleQuickAction = async (text: string) => {
+    try {
+      await sendMessage({ threadId, prompt: text });
+    } catch (error) {
+      console.error("Failed to send:", error);
+    }
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -101,10 +112,10 @@ function ChatContainer({ threadId }: { threadId: string }) {
               <p className="text-slate-500 text-sm mt-2 font-medium">Specialized in JAMB/WAEC prep, ATS CVs, and global study strategies.</p>
             </div>
             <div className="grid grid-cols-2 gap-3 w-full">
-              <QuickAction icon="📝" text="JAMB Practice" />
-              <QuickAction icon="📄" text="Revamp My CV" />
-              <QuickAction icon="🎓" text="Study Abroad" />
-              <QuickAction icon="👔" text="Interview Prep" />
+              <QuickAction icon="📝" text="JAMB Practice" onClick={() => handleQuickAction("Help me practice JAMB exam questions")} />
+              <QuickAction icon="📄" text="Revamp My CV" onClick={() => handleQuickAction("Help me revamp my CV for better job applications")} />
+              <QuickAction icon="🎓" text="Study Abroad" onClick={() => handleQuickAction("Guide me on studying abroad opportunities and applications")} />
+              <QuickAction icon="👔" text="Interview Prep" onClick={() => handleQuickAction("Prepare me for job interviews with mock questions")} />
             </div>
           </div>
         )}
@@ -166,7 +177,11 @@ function ChatInput({ threadId }: { threadId: string }) {
     if (!input.trim()) return;
     const prompt = input;
     setInput("");
-    await sendMessage({ threadId, prompt });
+    try {
+      await sendMessage({ threadId, prompt });
+    } catch (error) {
+      console.error("Failed to send:", error);
+    }
   };
 
   return (
@@ -188,9 +203,9 @@ function ChatInput({ threadId }: { threadId: string }) {
   );
 }
 
-function QuickAction({ icon, text }: { icon: string, text: string }) {
+function QuickAction({ icon, text, onClick }: { icon: string, text: string, onClick?: () => void }) {
   return (
-    <button className="flex items-center gap-3 p-4 bg-slate-900/50 border border-slate-800 rounded-xl hover:bg-slate-900 hover:border-slate-700 transition-all text-left text-xs font-bold text-slate-400 uppercase tracking-tight">
+    <button onClick={onClick} className="flex items-center gap-3 p-4 bg-slate-900/50 border border-slate-800 rounded-xl hover:bg-slate-900 hover:border-slate-700 transition-all text-left text-xs font-bold text-slate-400 uppercase tracking-tight">
       <span className="text-xl">{icon}</span>
       {text}
     </button>
