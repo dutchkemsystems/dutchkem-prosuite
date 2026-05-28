@@ -86,7 +86,14 @@ function PhoneAuthForm() {
       await signIn("termii-otp", formData);
       setStep("otp");
     } catch (err: any) {
-      setError("Failed to send verification code. Please try again.");
+      const msg = err?.message || String(err || '');
+      if (msg.includes('TERMII') || msg.includes('termii') || msg.includes('API Key')) {
+        setError("SMS service temporarily unavailable. Please contact support or try again later.");
+      } else if (msg.includes('network') || msg.includes('fetch')) {
+        setError("Network error. Check your connection and try again.");
+      } else {
+        setError("Failed to send verification code. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
