@@ -956,6 +956,7 @@ function UpdateCycleItem({ label, date, status, color }: any) {
 
 function AdminProfileCard({ profile }: { profile: any }) {
   const [showDropdown, setShowDropdown] = useState(false);
+  const [modal, setModal] = useState<"password" | "2fa" | "ip" | null>(null);
 
   if (!profile) return null;
 
@@ -996,11 +997,11 @@ function AdminProfileCard({ profile }: { profile: any }) {
               </div>
             </div>
             <div className="p-4 space-y-1">
-              <ProfileAction label="🔑 Change Password" />
-              <ProfileAction label="🛡️ Enable 2FA" />
-              <ProfileAction label="📋 IP Whitelist" />
+              <ProfileAction label="🔑 Change Password" onClick={() => { setShowDropdown(false); setModal("password"); }} />
+              <ProfileAction label="🛡️ Enable 2FA" onClick={() => { setShowDropdown(false); setModal("2fa"); }} />
+              <ProfileAction label="📋 IP Whitelist" onClick={() => { setShowDropdown(false); setModal("ip"); }} />
               <div className="border-t border-slate-800 my-2"></div>
-              <ProfileAction label="🚪 Sign Out" className="text-red-400 hover:bg-red-500/10" />
+              <ProfileAction label="🚪 Sign Out" className="text-red-400 hover:bg-red-500/10" onClick={() => { setShowDropdown(false); localStorage.removeItem('admin_session_token'); window.location.href = '/admin/login'; }} />
             </div>
             <div className="px-4 pb-4">
               <div className="p-3 bg-slate-950 rounded-xl border border-white/5 text-center">
@@ -1011,15 +1012,172 @@ function AdminProfileCard({ profile }: { profile: any }) {
           </div>
         </>
       )}
+
+      {modal === "password" && <ChangePasswordModal onClose={() => setModal(null)} />}
+      {modal === "2fa" && <Enable2FAModal onClose={() => setModal(null)} adminId={profile.email} />}
+      {modal === "ip" && <IPWhitelistModal onClose={() => setModal(null)} />}
     </div>
   );
 }
 
-function ProfileAction({ label, className }: { label: string; className?: string }) {
+function ProfileAction({ label, className, onClick }: { label: string; className?: string; onClick?: () => void }) {
   return (
-    <button className={`w-full text-left px-4 py-3 text-xs font-bold text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition-all ${className || ''}`}>
+    <button onClick={onClick} className={`w-full text-left px-4 py-3 text-xs font-bold text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition-all ${className || ''}`}>
       {label}
     </button>
+  );
+}
+
+function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  const [current, setCurrent] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const changePass = useMutation(api.auth_helpers.changePassword);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (newPass.length < 16) { setError("Password must be at least 16 characters"); return; }
+    if (!/(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*])/.test(newPass)) { setError("Password must include uppercase, lowercase, number, and special character"); return; }
+    if (newPass !== confirm) { setError("Passwords do not match"); return; }
+    setLoading(true);
+    try {
+      const result = await changePass({ userId: "qs78rg7f0atw8s794tpwqnndnn87g9f5" as any, currentPassword: current, newPassword: newPass });
+      if (result?.success) { setSuccess(true); setTimeout(() => window.location.href = '/admin/login', 3000); }
+      else { setError(result?.error || "Failed to change password"); }
+    } catch (err: any) { setError(err?.message || "Failed to change password"); }
+    setLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+        <h3 className="text-xl font-black text-white mb-6">Change Password</h3>
+        {success ? (
+          <div className="text-center py-8"><p className="text-emerald-500 font-bold">Password changed successfully. Redirecting to login...</p></div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <input type="password" value={current} onChange={e => setCurrent(e.target.value)} placeholder="Current Password" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white font-bold text-sm" required />
+            <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="New Password (min 16 chars)" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white font-bold text-sm" required />
+            <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Confirm New Password" className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white font-bold text-sm" required />
+            {error && <p className="text-red-500 text-xs font-bold">{error}</p>}
+            <div className="flex gap-3">
+              <button type="button" onClick={onClose} className="flex-1 py-3 bg-slate-800 text-slate-400 rounded-xl font-bold text-sm">Cancel</button>
+              <button type="submit" disabled={loading} className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold text-sm disabled:opacity-50">{loading ? "Saving..." : "Save Password"}</button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Enable2FAModal({ onClose, adminId }: { onClose: () => void; adminId: string }) {
+  const [code, setCode] = useState("");
+  const [secret] = useState(() => Array.from({ length: 32 }, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 62)]).join(""));
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [enabled, setEnabled] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const setup2FA = useMutation(api.auth_helpers.setupAdmin2FA);
+
+  const handleEnable = async () => {
+    if (code.length !== 6) { setError("Enter the 6-digit code from your authenticator"); return; }
+    setLoading(true);
+    try {
+      const result = await setup2FA({ adminId: adminId as any, secret });
+      if (result?.backupCodes) { setBackupCodes(result.backupCodes); setEnabled(true); }
+    } catch (err: any) { setError(err?.message || "Failed to enable 2FA"); }
+    setLoading(false);
+  };
+
+  const qrUrl = `otpauth://totp/DutchkemProsuite:${adminId}?secret=${secret}&issuer=DutchkemProsuite`;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <h3 className="text-xl font-black text-white mb-6">Enable Two-Factor Authentication</h3>
+        {enabled ? (
+          <div className="space-y-4">
+            <p className="text-emerald-500 font-bold text-sm">2FA enabled successfully!</p>
+            <div className="bg-slate-950 p-4 rounded-xl border border-white/5">
+              <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Backup Codes (save these)</p>
+              <div className="grid grid-cols-2 gap-2">{backupCodes.map((c, i) => <p key={i} className="text-xs font-mono text-white">{c}</p>)}</div>
+            </div>
+            <button onClick={onClose} className="w-full py-3 bg-orange-600 text-white rounded-xl font-bold text-sm">Done</button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-slate-400 text-xs">Scan this QR code with Google Authenticator:</p>
+            <div className="bg-white p-4 rounded-xl text-center"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`} alt="2FA QR" className="mx-auto" /></div>
+            <div className="bg-slate-950 p-3 rounded-xl"><p className="text-[10px] text-slate-500 uppercase mb-1">Manual Secret</p><p className="text-xs font-mono text-white break-all">{secret}</p></div>
+            <input type="text" value={code} onChange={e => setCode(e.target.value)} placeholder="Enter 6-digit code" maxLength={6} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white font-bold text-sm text-center tracking-[0.5em]" />
+            {error && <p className="text-red-500 text-xs font-bold">{error}</p>}
+            <div className="flex gap-3">
+              <button type="button" onClick={onClose} className="flex-1 py-3 bg-slate-800 text-slate-400 rounded-xl font-bold text-sm">Cancel</button>
+              <button onClick={handleEnable} disabled={loading || code.length !== 6} className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold text-sm disabled:opacity-50">{loading ? "Enabling..." : "Enable 2FA"}</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function IPWhitelistModal({ onClose }: { onClose: () => void }) {
+  const [ips, setIps] = useState<string[]>(["127.0.0.1"]);
+  const [newIp, setNewIp] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const updateIPs = useMutation(api.auth_helpers.updateIpWhitelist);
+
+  const handleAdd = () => {
+    if (!newIp.trim()) return;
+    if (ips.includes(newIp.trim())) return;
+    setIps([...ips, newIp.trim()]);
+    setNewIp("");
+  };
+
+  const handleRemove = (ip: string) => setIps(ips.filter(i => i !== ip));
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      await updateIPs({ adminId: "qs78rg7f0atw8s794tpwqnndnn87g9f5" as any, ipAddresses: ips, description: "Admin IP whitelist" });
+      setSuccess(true);
+    } catch {}
+    setLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+        <h3 className="text-xl font-black text-white mb-6">IP Whitelist</h3>
+        {success ? (
+          <div className="text-center py-8"><p className="text-emerald-500 font-bold">IP whitelist saved successfully!</p><button onClick={onClose} className="mt-4 px-6 py-2 bg-orange-600 text-white rounded-xl font-bold text-sm">Done</button></div>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-2 max-h-40 overflow-y-auto">{ips.map(ip => (
+              <div key={ip} className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-white/5">
+                <span className="text-xs font-mono text-white">{ip}</span>
+                <button onClick={() => handleRemove(ip)} className="text-red-500 text-xs font-bold hover:underline">Remove</button>
+              </div>
+            ))}</div>
+            <div className="flex gap-2">
+              <input type="text" value={newIp} onChange={e => setNewIp(e.target.value)} placeholder="Add IP address" className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 text-white font-bold text-sm" />
+              <button onClick={handleAdd} className="px-4 py-3 bg-slate-800 text-white rounded-xl font-bold text-sm">Add</button>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={onClose} className="flex-1 py-3 bg-slate-800 text-slate-400 rounded-xl font-bold text-sm">Cancel</button>
+              <button onClick={handleSave} disabled={loading} className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold text-sm disabled:opacity-50">{loading ? "Saving..." : "Save"}</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
