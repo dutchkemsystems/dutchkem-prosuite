@@ -1,24 +1,16 @@
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import { defineConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
+import tsconfigPaths from 'vite-tsconfig-paths'
 
 export default defineConfig({
   server: {
     port: 3000,
     allowedHosts: true,
   },
-  resolve: {
-    tsconfigPaths: true,
-  },
   plugins: [
     tailwindcss(),
-    tanstackStart({
-      // Use server mode for Vercel — generates .vercel/output
-      server: {
-        presets: [],
-      },
-    }),
+    tsconfigPaths(),
     viteReact(),
   ],
   build: {
@@ -26,5 +18,6 @@ export default defineConfig({
     minify: 'esbuild',
     sourcemap: false,
     chunkSizeWarningLimit: 1000,
+    outDir: 'dist/client',
   },
 })
