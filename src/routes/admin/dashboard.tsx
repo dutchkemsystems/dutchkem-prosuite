@@ -63,7 +63,8 @@ function AdminDashboardPage() {
 
   const handleLogout = async () => {
     localStorage.removeItem('admin_session_token');
-    await authSignOut();
+    setAdminToken(null);
+    try { await authSignOut(); } catch {}
     navigate({ to: '/admin/login' });
   };
 
@@ -164,6 +165,45 @@ function ManualAgentTaskPanel() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [taskOutput, setTaskOutput] = useState<any>(null);
 
+  const agents = [
+    { id: "A1", name: "Academic Pro", icon: "🎓" },
+    { id: "A2", name: "Business Pro", icon: "💼" },
+    { id: "A3", name: "Content Pro", icon: "✍️" },
+    { id: "A4", name: "Career Pro", icon: "📄" },
+    { id: "A5", name: "Personal Shopper", icon: "🛍️" },
+    { id: "A6", name: "Exam Pro", icon: "📝" },
+    { id: "A7", name: "Finance Pro", icon: "💰" },
+    { id: "A8", name: "MediaStudio Pro", icon: "🎬" },
+    { id: "A9", name: "Wellness Pro", icon: "🏥" },
+    { id: "A10", name: "Home Services", icon: "🧹" },
+    { id: "A11", name: "Language Tutor", icon: "🗣️" },
+    { id: "A12", name: "Travel Planner", icon: "✈️" },
+    { id: "A13", name: "ServiceMart NG", icon: "🚀" },
+    { id: "A14", name: "Translation Hub", icon: "🗣️📝" },
+    { id: "A15", name: "Event Planner", icon: "🎉" },
+  ];
+
+  const agentServices: Record<string, string[]> = {
+    A1: ["Thesis Writing", "Research Papers", "Dissertation Support", "Literature Review", "Data Analysis", "Academic Editing", "Citation Formatting", "Plagiarism Check", "Abstract Writing", "Case Study Analysis"],
+    A2: ["Business Plan", "Financial Model", "Pitch Deck", "Market Research", "Competitor Analysis", "GTM Strategy", "Revenue Projection", "Investor Memo", "SWOT Analysis", "Business Valuation"],
+    A3: ["SEO Blog Posts", "Social Media Content", "Sales Copy", "Email Campaigns", "Website Copy", "Product Descriptions", "Newsletter Content", "Video Scripts", "Ad Copy", "Brand Voice Guide"],
+    A4: ["CV/Resume Writing", "LinkedIn Optimization", "Cover Letter", "Interview Prep", "Career Strategy", "ATS Optimization", "Portfolio Review", "Salary Negotiation", "Executive Bio", "Personal Branding"],
+    A5: ["Price Comparison", "Product Research", "Deal Finding", "Purchase Recommendations", "Budget Shopping", "Bulk Sourcing", "Vendor Vetting", "Quality Assessment", "Shipping Optimization", "Return Assistance"],
+    A6: ["PMP Prep", "CFA Study Guide", "AWS Certification", "GRE Preparation", "GMAT Training", "JAMB/WAEC Prep", "Study Schedule", "Practice Tests", "Concept Reviews", "Exam Strategy"],
+    A7: ["Budget Planning", "Savings Strategy", "Investment Advice", "Debt Management", "Tax Planning", "Retirement Planning", "Insurance Review", "Cash Flow Analysis", "Wealth Building", "Financial Literacy"],
+    A8: ["Video Editing", "2D Animation", "3D Animation", "Voiceover Recording", "Script Writing", "Storyboard Creation", "Motion Graphics", "Sound Design", "Color Grading", "Film Production"],
+    A9: ["Meal Plans", "Workout Routines", "Weight Management", "Nutrition Coaching", "Mental Wellness", "Sleep Optimization", "Stress Management", "Fitness Tracking", "Health Assessments", "Lifestyle Coaching"],
+    A10: ["Cleaning Schedules", "Home Organization", "Maintenance Planning", "Decluttering", "Seasonal Cleaning", "Deep Cleaning", "Move-in/Move-out", "Storage Solutions", "Home Inventory", "Service Booking"],
+    A11: ["Language Tutoring", "Conversation Practice", "Grammar Lessons", "Vocabulary Building", "Pronunciation Guide", "Cultural Context", "Business Language", "Travel Phrases", "Exam Prep", "Translation Practice"],
+    A12: ["Trip Planning", "Itinerary Creation", "Budget Planning", "Hotel Recommendations", "Flight Booking", "Activity Suggestions", "Travel Insurance", "Visa Guidance", "Packing Lists", "Local Guides"],
+    A13: ["JAMB Preparation", "WAEC/NECO Prep", "University Applications", "Scholarship Search", "Career Counseling", "Skill Assessment", "Interview Coaching", "Resume Building", "Job Search", "Freelancing Guide"],
+    A14: ["Document Translation", "Website Localization", "Business Translation", "Legal Translation", "Medical Translation", "Technical Translation", "Certified Translation", "Multilingual Content", "Localization QA", "Terminology Management"],
+    A15: ["Wedding Planning", "Corporate Events", "Birthday Parties", "Conference Planning", "Venue Selection", "Catering Coordination", "Decor Design", "Entertainment Booking", "Budget Management", "Vendor Management"],
+  };
+
+  const selectedAgent = agents.find(a => a.id === agentId);
+  const currentServices = agentServices[agentId] || [];
+
   const { data: services } = useSuspenseQuery(convexQuery(api.admin.getAgentServices, { agentId }));
   const { data: logs } = useSuspenseQuery(convexQuery(api.uae_engine.getManualTaskLogs, {}));
   const generateTask = useMutation(api.uae_engine.generateAdminManualTask);
@@ -173,8 +213,8 @@ function ManualAgentTaskPanel() {
     if (!prompt) return;
     setIsGenerating(true);
     try {
-      const result = await generateTask({ agentId, serviceId: serviceId || services[0]?.name || "General", prompt, userEmail });
-      // Poll for completion or just show in logs
+      const result = await generateTask({ agentId, serviceId: serviceId || "General", prompt, userEmail });
+      setTaskOutput(result);
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -194,11 +234,11 @@ function ManualAgentTaskPanel() {
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Select Agent</label>
                 <select 
                   value={agentId} 
-                  onChange={(e) => setAgentId(e.target.value)}
+                  onChange={(e) => { setAgentId(e.target.value); setServiceId(""); }}
                   className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-white font-bold"
                 >
-                  {Array.from({ length: 15 }, (_, i) => `A${i + 1}`).map(id => (
-                    <option key={id} value={id}>Agent {id}</option>
+                  {agents.map(a => (
+                    <option key={a.id} value={a.id}>{a.icon} {a.id} — {a.name}</option>
                   ))}
                 </select>
               </div>
@@ -215,14 +255,15 @@ function ManualAgentTaskPanel() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Target Service</label>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Target Service / Task</label>
               <select 
                 value={serviceId} 
                 onChange={(e) => setServiceId(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-white font-bold"
               >
-                {services.map((s: any) => (
-                  <option key={s._id} value={s.name}>{s.name}</option>
+                <option value="">— Select a service —</option>
+                {currentServices.map((s) => (
+                  <option key={s} value={s}>{s}</option>
                 ))}
               </select>
             </div>
@@ -233,17 +274,17 @@ function ManualAgentTaskPanel() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 rows={4}
-                placeholder="Enter exact override command..."
+                placeholder={`Describe the task for ${selectedAgent?.name || 'Agent'}...`}
                 className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-white font-bold"
               />
             </div>
 
             <button 
               type="submit"
-              disabled={isGenerating}
+              disabled={isGenerating || !prompt}
               className="w-full py-5 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-orange-600/20 disabled:opacity-50"
             >
-              {isGenerating ? "Executing UAE Command..." : "Generate Manual Task"}
+              {isGenerating ? "Executing UAE Command..." : `Generate Task — ${selectedAgent?.name || 'Agent'}`}
             </button>
           </form>
         </div>

@@ -63,7 +63,7 @@ function DashboardPage() {
           </nav>
         </div>
         <div className="mt-auto p-6 border-t border-slate-800">
-          <button onClick={() => void signOut()} className="flex items-center gap-2 text-slate-400 hover:text-red-400 transition-colors w-full text-left p-2">
+          <button onClick={async () => { try { await signOut(); } catch {} navigate({ to: '/auth' }); }} className="flex items-center gap-2 text-slate-400 hover:text-red-400 transition-colors w-full text-left p-2">
             <span>🚪</span> Sign Out
           </button>
         </div>
