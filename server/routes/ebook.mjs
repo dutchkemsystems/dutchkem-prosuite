@@ -5,6 +5,7 @@ import { join } from 'path';
 import { writeFile, unlink, readFile } from 'fs/promises';
 import { cacheGet, cacheSet } from '../lib/cache.mjs';
 import { userAuth } from '../middleware/auth.mjs';
+import { generatePdfContent } from '../lib/filegen.mjs';
 
 const router = Router();
 
@@ -142,9 +143,10 @@ router.post('/generate-files', userAuth, async (req, res) => {
 
     // Generate EPUB in temp directory
     const tmpDir = tmpdir();
-    const epubPath = join(tmpDir, `${projectId}.epub`);
-    const htmlPath = join(tmpDir, `${projectId}.html`);
-    const pdfPath = join(tmpDir, `${projectId}.pdf`);
+    const safeTitle = title.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 50);
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const epubPath = join(tmpDir, `Dutchkem_${safeTitle}_${dateStr}.epub`);
+    const htmlPath = join(tmpDir, `Dutchkem_${safeTitle}_${dateStr}.html`);
 
     await ePub({
       title,
@@ -152,20 +154,18 @@ router.post('/generate-files', userAuth, async (req, res) => {
       output: epubPath,
       content: [
         {
-          title: 'Chapter 1',
-          data: `<h1>${title}</h1><p>${content.replace(/\n/g, '</p><p>')}</p>`,
+          title: title,
+          data: `<h1 style="text-align:center;font-family:Georgia,serif;font-size:28px;color:#800000;">${title}</h1>
+<p style="text-align:center;font-family:Georgia,serif;font-size:14px;color:#666;">by ${author}</p>
+<hr style="border:1px solid #D4AF37;margin:30px auto;width:50%;"/>
+${content.split('\n\n').map(p => `<p style="font-family:Georgia,serif;font-size:12pt;line-height:1.8;text-indent:1.5em;text-align:justify;">${p.replace(/\n/g, '<br/>')}</p>`).join('\n')}`,
         },
       ],
     });
 
-    // Generate HTML (convertible to PDF via headless browser in production)
-    const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>${title}</title>
-<style>body{font-family:serif;max-width:600px;margin:auto;padding:40px;line-height:1.6}
-h1{text-align:center;margin-bottom:30px}p{text-indent:1.5em;margin:0.5em 0}</style>
-</head><body><h1>${title}</h1>
-${content.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br/>')}</p>`).join('\n')}
-</body></html>`;
+    // Generate professional HTML
+    const html = generatePdfContent({ title, author, content });
+    await writeFile(htmlPath, html, 'utf-8');
     await writeFile(htmlPath, html, 'utf-8');
 
     // Read EPUB as base64 for serving
