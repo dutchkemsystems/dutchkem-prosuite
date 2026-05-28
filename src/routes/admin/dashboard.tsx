@@ -7,6 +7,9 @@ import { api, internal } from "../../../convex/_generated/api"
 import { useState, useEffect } from "react"
 import { CompanyLogo } from "~/components/CompanyLogo";
 import { useSocket } from "~/lib/socket";
+import { LiveFeed } from "~/components/LiveFeed";
+import { LiveCharts } from "~/components/LiveCharts";
+import { PaymentMonitor } from "~/components/PaymentMonitor";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line
 } from 'recharts';
@@ -89,6 +92,9 @@ function AdminDashboardPage() {
         
         <nav className="p-4 space-y-1 flex-grow overflow-y-auto custom-scrollbar">
           <AdminTab active={activeTab === "overview"} onClick={() => setActiveTab("overview")} icon="📊" label="Overview" />
+          <AdminTab active={activeTab === "live-feed"} onClick={() => setActiveTab("live-feed")} icon="📡" label="Live Feed" />
+          <AdminTab active={activeTab === "live-charts"} onClick={() => setActiveTab("live-charts")} icon="📈" label="Live Charts" />
+          <AdminTab active={activeTab === "payments"} onClick={() => setActiveTab("payments")} icon="💳" label="Payments" />
           <AdminTab active={activeTab === "manual-task"} onClick={() => setActiveTab("manual-task")} icon="⚡" label="Manual Task" />
           <AdminTab active={activeTab === "social"} onClick={() => setActiveTab("social")} icon="📣" label="Social Engine" />
           <AdminTab active={activeTab === "guardian"} onClick={() => setActiveTab("guardian")} icon="🛡️" label="Guardian Watch" />
@@ -137,6 +143,9 @@ function AdminDashboardPage() {
 
         <div className="p-10 space-y-12 max-w-[1800px] mx-auto w-full pb-32">
           {activeTab === "overview" && <StatsOverview data={data} earnings={earnings} uaeStatus={uaeStatus} />}
+          {activeTab === "live-feed" && <LiveFeed />}
+          {activeTab === "live-charts" && <LiveCharts />}
+          {activeTab === "payments" && <PaymentMonitor />}
           {activeTab === "manual-task" && <ManualAgentTaskPanel />}
           {activeTab === "social" && <SocialEnginePanel />}
           {activeTab === "guardian" && <GuardianWatchPanel />}
