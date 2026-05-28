@@ -86,8 +86,8 @@ function sanitize(obj) {
 }
 app.use((req, res, next) => {
   if (req.body) req.body = sanitize(req.body);
-  if (req.query) req.query = sanitize(req.query);
-  if (req.params) req.params = sanitize(req.params);
+  if (req.query) Object.assign(req.query, sanitize({ ...req.query }));
+  if (req.params) Object.assign(req.params, sanitize({ ...req.params }));
   next();
 });
 
