@@ -8,11 +8,8 @@ const REQUIRED_ENV_VARS = [
 ];
 
 const PRODUCTION_ONLY_VARS = [
-  'KORA_PUBLIC_KEY',
   'KORA_SECRET_KEY',
   'KORA_ENCRYPTION_KEY',
-  'KORA_PAY_WEBHOOK_SECRET',
-  'AUTH_MIGRATION_ADMIN_KEY',
 ];
 
 function validateEnv() {

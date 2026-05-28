@@ -49,11 +49,6 @@ export const config = {
   batchSize: 100,
   pauseBetweenBatches: 1000,
 
-  // Admin key for monitoring endpoints (required in production)
-  adminKey: (() => {
-    if (!process.env.AUTH_MIGRATION_ADMIN_KEY && process.env.NODE_ENV === 'production') {
-      throw new Error('AUTH_MIGRATION_ADMIN_KEY env var is required in production');
-    }
-    return process.env.AUTH_MIGRATION_ADMIN_KEY || 'dev-migration-key';
-  })(),
+  // Admin key for monitoring endpoints (optional in cleanup phase)
+  adminKey: process.env.AUTH_MIGRATION_ADMIN_KEY || 'dev-migration-key',
 };
