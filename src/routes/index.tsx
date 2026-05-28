@@ -77,10 +77,10 @@ function PriceCard({ title, price, features, isFeatured, savings }: { title: str
               ₦{price}
             </span>
           )}
-          <div className="flex items-baseline gap-2">
-             <span className="text-4xl font-black text-slate-950 tracking-tighter">₦</span>
-             <span className="text-8xl font-black text-slate-950 tracking-tighter">{discountedPrice.toLocaleString()}</span>
-             <span className="text-sm font-black text-slate-400 uppercase tracking-widest">/month</span>
+          <div className="flex items-baseline gap-1 sm:gap-2">
+             <span className="text-2xl sm:text-4xl font-black text-slate-950 tracking-tighter">₦</span>
+             <span className="text-4xl sm:text-6xl lg:text-8xl font-black text-slate-950 tracking-tighter">{discountedPrice.toLocaleString()}</span>
+             <span className="text-xs sm:text-sm font-black text-slate-400 uppercase tracking-widest">/month</span>
           </div>
         </div>
         <div className="w-full space-y-7 mb-20 flex-grow text-left">

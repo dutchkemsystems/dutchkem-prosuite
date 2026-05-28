@@ -21,6 +21,8 @@ function DashboardPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const { signOut } = useAuthActions();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -37,15 +39,25 @@ function DashboardPage() {
   }
 
   const { data } = useSuspenseQuery(convexQuery(api.dashboard.getDashboardData, {}));
-  const [activeTab, setActiveTab] = useState("overview");
   const [modal, setModal] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row overflow-hidden">
+      {/* Mobile Header */}
+      <div className="md:hidden flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800 sticky top-0 z-30">
+        <Link to="/" className="flex items-center gap-3">
+          <CompanyLogo className="w-10 h-10" />
+          <span className="font-black text-xs tracking-tighter uppercase text-white">ProSuite</span>
+        </Link>
+        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-12 h-12 flex items-center justify-center rounded-xl bg-slate-800 text-white" aria-label="Toggle menu">
+          {sidebarOpen ? '✕' : '☰'}
+        </button>
+      </div>
+
       {/* Navigation Sidebar */}
-      <aside className="w-full md:w-64 bg-slate-900 border-r border-slate-800 flex-shrink-0 z-20 flex flex-col">
-        <div className="p-6">
-          <Link to="/" className="flex items-center gap-3 mb-10 group">
+      <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:static top-0 left-0 h-full md:h-auto w-72 md:w-64 bg-slate-900 border-r border-slate-800 flex-shrink-0 z-20 flex flex-col transition-transform duration-300 md:transition-none`}>
+        <div className="p-4 md:p-6">
+          <Link to="/" className="hidden md:flex items-center gap-3 mb-8 group">
             <CompanyLogo className="w-12 h-12" />
             <div className="flex flex-col">
               <span className="font-black text-[10px] tracking-tighter uppercase leading-none text-white">Ventures ProSuite NG+</span>
@@ -53,17 +65,17 @@ function DashboardPage() {
             </div>
           </Link>
           <nav className="space-y-1">
-            <TabButton active={activeTab === "overview"} onClick={() => setActiveTab("overview")} icon="📊" label="Overview" />
-            <TabButton active={activeTab === "subscriptions"} onClick={() => setActiveTab("subscriptions")} icon="💳" label="Subscriptions" />
-            <TabButton active={activeTab === "kdp"} onClick={() => setActiveTab("kdp")} icon="📖" label="KDP Publishing" />
-            <TabButton active={activeTab === "projects"} onClick={() => setActiveTab("projects")} icon="📁" label="Projects" />
-            <TabButton active={activeTab === "referrals"} onClick={() => setActiveTab("referrals")} icon="🤝" label="Referrals" />
-            <TabButton active={activeTab === "security"} onClick={() => setActiveTab("security")} icon="🛡️" label="Security" />
-            <TabButton active={activeTab === "settings"} onClick={() => setActiveTab("settings")} icon="⚙️" label="Settings" />
+            <TabButton active={activeTab === "overview"} onClick={() => { setActiveTab("overview"); setSidebarOpen(false); }} icon="📊" label="Overview" />
+            <TabButton active={activeTab === "subscriptions"} onClick={() => { setActiveTab("subscriptions"); setSidebarOpen(false); }} icon="💳" label="Subscriptions" />
+            <TabButton active={activeTab === "kdp"} onClick={() => { setActiveTab("kdp"); setSidebarOpen(false); }} icon="📖" label="KDP Publishing" />
+            <TabButton active={activeTab === "projects"} onClick={() => { setActiveTab("projects"); setSidebarOpen(false); }} icon="📁" label="Projects" />
+            <TabButton active={activeTab === "referrals"} onClick={() => { setActiveTab("referrals"); setSidebarOpen(false); }} icon="🤝" label="Referrals" />
+            <TabButton active={activeTab === "security"} onClick={() => { setActiveTab("security"); setSidebarOpen(false); }} icon="🛡️" label="Security" />
+            <TabButton active={activeTab === "settings"} onClick={() => { setActiveTab("settings"); setSidebarOpen(false); }} icon="⚙️" label="Settings" />
           </nav>
         </div>
-        <div className="mt-auto p-6 border-t border-slate-800">
-          <button onClick={async () => { try { await signOut(); } catch {} navigate({ to: '/auth' }); }} className="flex items-center gap-2 text-slate-400 hover:text-red-400 transition-colors w-full text-left p-2">
+        <div className="mt-auto p-4 md:p-6 border-t border-slate-800">
+          <button onClick={async () => { setSidebarOpen(false); try { await signOut(); } catch {} navigate({ to: '/auth' }); }} className="flex items-center gap-2 text-slate-400 hover:text-red-400 transition-colors w-full text-left p-2">
             <span>🚪</span> Sign Out
           </button>
         </div>

@@ -211,7 +211,7 @@ export function Receipt({ transactionId, amount, service, agent, date, status, c
               <label className="flex items-start gap-4 cursor-pointer">
                 <input 
                   type="checkbox" 
-                  className="mt-1 w-5 h-5 accent-orange-500 rounded"
+                  className="mt-1 w-6 h-6 accent-orange-500 rounded"
                   onChange={handleConfirm}
                 />
                 <div>

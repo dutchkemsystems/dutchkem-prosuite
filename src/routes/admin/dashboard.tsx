@@ -118,7 +118,7 @@ function AdminDashboardPage() {
       </aside>
 
       <main className="flex-grow overflow-y-auto h-screen flex flex-col bg-slate-950">
-        <header className="px-10 py-8 border-b border-slate-800 bg-slate-950/80 backdrop-blur-xl sticky top-0 z-10 flex justify-between items-center">
+        <header className="px-4 md:px-10 py-4 md:py-8 border-b border-slate-800 bg-slate-950/80 backdrop-blur-xl sticky top-0 z-10 flex justify-between items-center">
           <div className="flex items-center gap-6">
              <h1 className="text-2xl font-black uppercase tracking-tighter text-white tracking-widest">UAE ENGINE CONTROL</h1>
              <div className="h-6 w-px bg-slate-800"></div>
@@ -141,7 +141,7 @@ function AdminDashboardPage() {
           <AdminProfileCard profile={adminProfile} />
         </header>
 
-        <div className="p-10 space-y-12 max-w-[1800px] mx-auto w-full pb-32">
+        <div className="p-4 md:p-10 space-y-8 md:space-y-12 max-w-[1800px] mx-auto w-full pb-32">
           {activeTab === "overview" && <StatsOverview data={data} earnings={earnings} uaeStatus={uaeStatus} />}
           {activeTab === "live-feed" && <LiveFeed />}
           {activeTab === "live-charts" && <LiveCharts />}
