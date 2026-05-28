@@ -7,40 +7,106 @@ export function CompanyLogo({ className = "w-16 h-16", showText = false }: Compa
   return (
     <div className={`relative flex items-center gap-4 ${className.includes('w-') ? '' : 'w-fit'}`}>
       <div className={`relative ${className} group`}>
-        {/* Ornate Gold Frame (Baroque style scrolls/leaves approximation) */}
-        <div className="absolute inset-[-10%] rounded-[20%] border-[3px] border-[#D4AF37] opacity-80 blur-[0.5px]"></div>
-        <div className="absolute inset-[-5%] rounded-[15%] border-[2px] border-[#FFD700] shadow-[0_0_15px_rgba(212,175,55,0.4)]"></div>
-        
-        {/* Baroque Scrolls (Stylized) */}
-        <div className="absolute -top-2 -left-2 w-6 h-6 border-t-2 border-l-2 border-[#D4AF37] rounded-tl-full rotate-12"></div>
-        <div className="absolute -top-2 -right-2 w-6 h-6 border-t-2 border-r-2 border-[#D4AF37] rounded-tr-full -rotate-12"></div>
-        <div className="absolute -bottom-2 -left-2 w-6 h-6 border-b-2 border-l-2 border-[#D4AF37] rounded-bl-full -rotate-12"></div>
-        <div className="absolute -bottom-2 -right-2 w-6 h-6 border-b-2 border-r-2 border-[#D4AF37] rounded-br-full rotate-12"></div>
+        <svg viewBox="0 0 200 240" className="w-full h-full drop-shadow-2xl" xmlns="http://www.w3.org/2000/svg">
+          {/* Outer ornate frame */}
+          <defs>
+            <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#8B0000" />
+              <stop offset="50%" stopColor="#A52A2A" />
+              <stop offset="100%" stopColor="#800000" />
+            </linearGradient>
+            <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#D4AF37" />
+              <stop offset="50%" stopColor="#FFD700" />
+              <stop offset="100%" stopColor="#B8860B" />
+            </linearGradient>
+            <linearGradient id="roseGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#F5E6D3" />
+              <stop offset="50%" stopColor="#E8D5B7" />
+              <stop offset="100%" stopColor="#DEC4A0" />
+            </linearGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+              <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
 
-        {/* The Shield */}
-        <div className="relative w-full h-full bg-[#800000] rounded-b-[40%] rounded-t-[10%] border-2 border-[#D4AF37] flex items-center justify-center overflow-hidden shadow-2xl shadow-black/50">
-          {/* Subtle gold inner border */}
-          <div className="absolute inset-1 border border-[#D4AF37]/30 rounded-b-[38%] rounded-t-[8%]"></div>
+          {/* Ornate outer frame - baroque style */}
+          <path d="M100 5 L170 30 L190 80 L185 140 L170 180 L140 210 L100 230 L60 210 L30 180 L15 140 L10 80 L30 30 Z" 
+                fill="url(#goldGrad)" stroke="#B8860B" strokeWidth="2" filter="url(#glow)"/>
           
-          {/* Roses (Stylized) */}
-          <div className="absolute top-1 left-1 text-[10px] animate-pulse">🌹</div>
-          <div className="absolute top-1 right-1 text-[10px] animate-pulse delay-75">🌹</div>
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[12px]">🌹</div>
-          <div className="absolute top-1/2 left-0 -translate-y-1/2 text-[8px] opacity-70">🌸</div>
-          <div className="absolute top-1/2 right-0 -translate-y-1/2 text-[8px] opacity-70">🌸</div>
+          {/* Inner shield */}
+          <path d="M100 15 L162 38 L180 82 L176 135 L162 172 L135 200 L100 218 L65 200 L38 172 L24 135 L20 82 L38 38 Z" 
+                fill="url(#shieldGrad)" stroke="#D4AF37" strokeWidth="1.5"/>
+          
+          {/* Gold inner border */}
+          <path d="M100 22 L155 42 L172 82 L168 130 L155 165 L132 192 L100 208 L68 192 L45 165 L32 130 L28 82 L45 42 Z" 
+                fill="none" stroke="#D4AF37" strokeWidth="0.8" opacity="0.5"/>
 
-          {/* Shield Text */}
-          <div className="z-10 text-center px-2">
-             <span className="block text-[6px] font-serif font-bold text-[#D4AF37] uppercase tracking-tighter leading-none mb-0.5">Dutchkem</span>
-             <span className="block text-[5px] font-serif text-[#FFD700] uppercase tracking-widest leading-none">Ventures</span>
-          </div>
+          {/* Top rose */}
+          <ellipse cx="100" cy="28" rx="18" ry="14" fill="url(#roseGrad)" stroke="#C4A882" strokeWidth="0.5"/>
+          <path d="M92 28 Q100 18 108 28 Q100 22 92 28" fill="#E8D5B7" opacity="0.7"/>
+          <path d="M88 32 Q100 20 112 32" fill="none" stroke="#C4A882" strokeWidth="0.5"/>
           
-          {/* Metallic Sheen */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-black/20 pointer-events-none"></div>
-        </div>
-        
-        {/* Photorealistic Cream Roses (Emoji representation for now) */}
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xl drop-shadow-md">🌹</div>
+          {/* Top leaves */}
+          <path d="M78 20 Q85 10 95 18" fill="#2D5016" opacity="0.8"/>
+          <path d="M122 20 Q115 10 105 18" fill="#2D5016" opacity="0.8"/>
+          <path d="M72 28 Q80 18 88 25" fill="#3A6B1E" opacity="0.6"/>
+          <path d="M128 28 Q120 18 112 25" fill="#3A6B1E" opacity="0.6"/>
+
+          {/* Left rose */}
+          <ellipse cx="35" cy="110" rx="14" ry="12" fill="url(#roseGrad)" stroke="#C4A882" strokeWidth="0.5"/>
+          <path d="M28 110 Q35 100 42 110 Q35 104 28 110" fill="#E8D5B7" opacity="0.7"/>
+          
+          {/* Left leaves */}
+          <path d="M22 95 Q30 85 38 92" fill="#2D5016" opacity="0.8"/>
+          <path d="M18 105 Q25 95 33 100" fill="#3A6B1E" opacity="0.6"/>
+          <path d="M20 125 Q28 118 35 122" fill="#2D5016" opacity="0.7"/>
+
+          {/* Right rose */}
+          <ellipse cx="165" cy="110" rx="14" ry="12" fill="url(#roseGrad)" stroke="#C4A882" strokeWidth="0.5"/>
+          <path d="M158 110 Q165 100 172 110 Q165 104 158 110" fill="#E8D5B7" opacity="0.7"/>
+          
+          {/* Right leaves */}
+          <path d="M178 95 Q170 85 162 92" fill="#2D5016" opacity="0.8"/>
+          <path d="M182 105 Q175 95 167 100" fill="#3A6B1E" opacity="0.6"/>
+          <path d="M180 125 Q172 118 165 122" fill="#2D5016" opacity="0.7"/>
+
+          {/* Bottom center rose */}
+          <ellipse cx="100" cy="198" rx="16" ry="13" fill="url(#roseGrad)" stroke="#C4A882" strokeWidth="0.5"/>
+          <path d="M92 198 Q100 188 108 198 Q100 192 92 198" fill="#E8D5B7" opacity="0.7"/>
+          
+          {/* Bottom leaves */}
+          <path d="M78 205 Q88 195 95 200" fill="#2D5016" opacity="0.8"/>
+          <path d="M122 205 Q112 195 105 200" fill="#2D5016" opacity="0.8"/>
+          <path d="M72 195 Q82 188 90 192" fill="#3A6B1E" opacity="0.6"/>
+          <path d="M128 195 Q118 188 110 192" fill="#3A6B1E" opacity="0.6"/>
+
+          {/* Baroque scrollwork left */}
+          <path d="M45 60 Q35 55 30 65 Q25 75 35 78 Q28 82 22 78" fill="none" stroke="#D4AF37" strokeWidth="1.2" opacity="0.7"/>
+          <path d="M42 155 Q32 160 28 150 Q24 140 34 138" fill="none" stroke="#D4AF37" strokeWidth="1" opacity="0.6"/>
+          
+          {/* Baroque scrollwork right */}
+          <path d="M155 60 Q165 55 170 65 Q175 75 165 78 Q172 82 178 78" fill="none" stroke="#D4AF37" strokeWidth="1.2" opacity="0.7"/>
+          <path d="M158 155 Q168 160 172 150 Q176 140 166 138" fill="none" stroke="#D4AF37" strokeWidth="1" opacity="0.6"/>
+
+          {/* Text - Dutchkem */}
+          <text x="100" y="105" textAnchor="middle" fontFamily="Georgia, serif" fontSize="22" fontWeight="bold" fill="#D4AF37" filter="url(#glow)">
+            Dutchkem
+          </text>
+          
+          {/* Text - Ventures */}
+          <text x="100" y="135" textAnchor="middle" fontFamily="Georgia, serif" fontSize="18" fill="#FFD700" letterSpacing="2">
+            Ventures
+          </text>
+
+          {/* Metallic sheen overlay */}
+          <path d="M100 15 L162 38 L180 82 L176 135 L162 172 L135 200 L100 218 L68 192 L45 165 L32 130 L28 82 L45 42 Z" 
+                fill="url(#shieldGrad)" opacity="0.1"/>
+          
+          {/* Subtle highlight */}
+          <ellipse cx="85" cy="70" rx="30" ry="20" fill="white" opacity="0.05"/>
+        </svg>
       </div>
       
       {showText && (

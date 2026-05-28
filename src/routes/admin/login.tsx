@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { getDeviceFingerprint } from '~/lib/fingerprint'
+import { CompanyLogo } from '~/components/CompanyLogo'
 
 export const Route = createFileRoute('/admin/login')({
   component: AdminLoginPage,
@@ -98,10 +99,8 @@ function AdminLoginPage() {
               <h2 className="text-sm font-black uppercase tracking-[0.6em] text-slate-400">ADMIN LOGIN — Dutchkem Ventures</h2>
            </div>
            
-           <div className="py-12 space-y-4">
-              <div className="w-24 h-24 bg-red-600 rounded-[2.5rem] mx-auto flex items-center justify-center text-white text-5xl font-black shadow-[0_0_80px_rgba(220,38,38,0.3)] animate-pulse">
-                🔐
-              </div>
+           <div className="py-12 space-y-4 flex flex-col items-center">
+              <CompanyLogo className="w-32 h-32" />
               <div>
                  <h1 className="text-4xl font-black tracking-tighter uppercase text-white">ADMIN PORTAL</h1>
                  <p className="text-red-500 font-black uppercase tracking-[0.4em] text-[10px]">Restricted Access Only</p>

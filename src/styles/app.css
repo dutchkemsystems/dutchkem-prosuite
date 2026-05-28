@@ -93,3 +93,22 @@
 .timeline-connector {
   @apply absolute top-1/2 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-slate-800 to-transparent;
 }
+
+/* Print styles for receipts */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt,
+  #receipt * {
+    visibility: visible;
+  }
+  #receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    box-shadow: none;
+    border-radius: 0;
+  }
+}
