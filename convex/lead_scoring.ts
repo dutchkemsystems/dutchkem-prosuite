@@ -1,4 +1,4 @@
-import { mutation, query, internalAction } from "./_generated/server";
+import { mutation, query, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -200,11 +200,11 @@ export const getTopLeads = query({
 });
 
 // Internal queries used by the scoring engine
-export const getUserForScoring = internalAction({
+export const getUserForScoring = internalQuery({
   args: { userId: v.id("users") },
   returns: v.any(),
   handler: async (ctx, args) => {
-    return await ctx.runQuery(internal.lead_scoring._getUser, { userId: args.userId });
+    return await ctx.db.get(args.userId);
   },
 });
 
