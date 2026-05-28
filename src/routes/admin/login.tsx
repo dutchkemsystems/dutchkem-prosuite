@@ -44,7 +44,6 @@ function AdminLoginPage() {
         email, 
         password, 
         deviceId: deviceInfo.fingerprint,
-        deviceInfo,
       })
       
       if (result.status === 'success') {
@@ -59,7 +58,7 @@ function AdminLoginPage() {
         setError(result.message)
       }
     } catch (err: any) {
-      setError("SECURITY VIOLATION: Unauthorized Access Attempt")
+      setError(err?.message || "Login failed. Please check your credentials.")
     } finally {
       setLoading(false)
     }
