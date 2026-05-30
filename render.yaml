@@ -77,7 +77,37 @@ services:
         sync: false
       - key: POSTIZ_API_BASE
         value: https://api.postiz.com/v1
+      - key: POSTIZ_API_KEY
+        sync: false
+      - key: POSTIZ_API_URL
+        value: https://api.postiz.com
       - key: POSTIZ_WEBHOOK_SECRET
+        sync: false
+
+      # 🔗 Social Platform OAuth
+      - key: TWITTER_CLIENT_ID
+        sync: false
+      - key: TWITTER_CLIENT_SECRET
+        sync: false
+      - key: LINKEDIN_CLIENT_ID
+        sync: false
+      - key: LINKEDIN_CLIENT_SECRET
+        sync: false
+      - key: FACEBOOK_APP_ID
+        sync: false
+      - key: FACEBOOK_APP_SECRET
+        sync: false
+      - key: INSTAGRAM_APP_ID
+        sync: false
+      - key: INSTAGRAM_APP_SECRET
+        sync: false
+      - key: THREADS_APP_ID
+        sync: false
+      - key: THREADS_APP_SECRET
+        sync: false
+      - key: YOUTUBE_CLIENT_ID
+        sync: false
+      - key: YOUTUBE_CLIENT_SECRET
         sync: false
 
       # 🏦 Daily Sweep (encrypted destination override)
