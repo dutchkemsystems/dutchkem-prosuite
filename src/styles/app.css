@@ -93,6 +93,29 @@
   animation: wave 20s linear infinite;
 }
 
+@keyframes loading-bar {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+.animate-loading-bar {
+  animation: loading-bar 1.5s ease-in-out forwards;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
 .timeline-connector {
   @apply absolute top-1/2 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-slate-800 to-transparent;
 }

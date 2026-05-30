@@ -219,4 +219,21 @@ crons.cron(
   {}
 );
 
+// ☁️ Cloud Memory & Self-Healing System
+// Auto-backup system every 6 hours
+crons.interval(
+  "auto backup system",
+  { hours: 6 },
+  internal.cloud_memory.autoBackupSystem,
+  {}
+);
+
+// Self-healing check every 30 minutes
+crons.interval(
+  "self-healing check",
+  { minutes: 30 },
+  internal.cloud_memory.runSelfHealing,
+  {}
+);
+
 export default crons;

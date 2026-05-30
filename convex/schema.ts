@@ -308,6 +308,7 @@ export default defineSchema({
     modelName: v.string(),
     status: v.union(v.literal("healthy"), v.literal("degraded"), v.literal("down")),
     lastFailureAt: v.optional(v.number()),
+    lastCheckedAt: v.optional(v.number()),
     failureCount: v.number(),
   }).index("by_model", ["modelName"]),
 
@@ -459,6 +460,20 @@ export default defineSchema({
   }).index("by_status", ["status"])
     .index("by_scheduled", ["scheduledFor"])
     .index("by_status_and_scheduled", ["status", "scheduledFor"]),
+
+  social_platforms: defineTable({
+    platform: v.string(), // "x", "linkedin", "facebook", "instagram", "threads", etc.
+    accessToken: v.optional(v.string()),
+    refreshToken: v.optional(v.string()),
+    isConnected: v.boolean(),
+    connectedAt: v.optional(v.number()),
+    lastSyncAt: v.optional(v.number()),
+    postsCount: v.number(),
+    followersCount: v.number(),
+    username: v.optional(v.string()),
+    profileUrl: v.optional(v.string()),
+  }).index("by_platform", ["platform"])
+    .index("by_connected", ["isConnected"]),
 
   guardian_tests: defineTable({
     testName: v.string(),
@@ -808,4 +823,17 @@ export default defineSchema({
     resolvedAt: v.optional(v.number()),
   }).index("by_type", ["type"])
     .index("by_date", ["reportDate"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // CLOUD MEMORY & SELF-HEALING SYSTEM
+  // ═══════════════════════════════════════════════════════════════════
+  system_backups: defineTable({
+    backupType: v.string(), // "schema_config", "auth_config", "social_config", etc.
+    data: v.any(),
+    description: v.string(),
+    createdAt: v.number(),
+    status: v.union(v.literal("active"), v.literal("archived"), v.literal("deleted")),
+    checksum: v.string(),
+  }).index("by_type_and_time", ["backupType", "createdAt"])
+    .index("by_status", ["status"]),
 });

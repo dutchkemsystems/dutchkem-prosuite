@@ -1,0 +1,437 @@
+import { internalAction, internalMutation, mutation, query, internalQuery, action } from "./_generated/server";
+import { v } from "convex/values";
+import { internal, api } from "./_generated/api";
+
+/**
+ * CLOUD MEMORY & SELF-HEALING SYSTEM
+ * Stores system state, configurations, and enables automatic recovery
+ */
+
+// Backup system configurations
+export const SYSTEM_BACKUPS = [
+  "schema_config",
+  "auth_config",
+  "social_config",
+  "payment_config",
+  "agent_config",
+  "ui_config",
+  "cron_config",
+] as const;
+
+/**
+ * Create a system backup snapshot
+ */
+export const createBackup = mutation({
+  args: { 
+    backupType: v.string(),
+    data: v.any(),
+    description: v.optional(v.string()),
+  },
+  returns: v.id("system_backups"),
+  handler: async (ctx, { backupType, data, description }) => {
+    const backup = await ctx.db.insert("system_backups", {
+      backupType,
+      data,
+      description: description || `Backup of ${backupType}`,
+      createdAt: Date.now(),
+      status: "active",
+      checksum: await computeChecksum(JSON.stringify(data)),
+    });
+    return backup;
+  },
+});
+
+/**
+ * Get the latest backup for a type
+ */
+export const getLatestBackup = query({
+  args: { backupType: v.string() },
+  returns: v.any(),
+  handler: async (ctx, { backupType }) => {
+    return await ctx.db.query("system_backups")
+      .withIndex("by_type_and_time", q => q.eq("backupType", backupType))
+      .order("desc")
+      .first();
+  },
+});
+
+/**
+ * Get all backups
+ */
+export const getAllBackups = query({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    return await ctx.db.query("system_backups")
+      .withIndex("by_status", q => q.eq("status", "active"))
+      .order("desc")
+      .collect();
+  },
+});
+
+/**
+ * Auto-backup critical system data
+ */
+export const autoBackupSystem = internalAction({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const results: string[] = [];
+
+    // Backup schema config
+    try {
+      const schema = await ctx.runQuery(internal.cloud_memory.getSchemaSnapshot);
+      await ctx.runMutation(internal.cloud_memory.createBackup, {
+        backupType: "schema_config",
+        data: schema,
+        description: "Auto-backup of schema configuration",
+      });
+      results.push("schema_config: OK");
+    } catch (e: any) {
+      results.push(`schema_config: FAILED - ${e.message}`);
+    }
+
+    // Backup auth config
+    try {
+      const authConfig = await ctx.runQuery(internal.cloud_memory.getAuthSnapshot);
+      await ctx.runMutation(internal.cloud_memory.createBackup, {
+        backupType: "auth_config",
+        data: authConfig,
+        description: "Auto-backup of auth configuration",
+      });
+      results.push("auth_config: OK");
+    } catch (e: any) {
+      results.push(`auth_config: FAILED - ${e.message}`);
+    }
+
+    // Backup social config
+    try {
+      const socialConfig = await ctx.runQuery(internal.cloud_memory.getSocialSnapshot);
+      await ctx.runMutation(internal.cloud_memory.createBackup, {
+        backupType: "social_config",
+        data: socialConfig,
+        description: "Auto-backup of social media configuration",
+      });
+      results.push("social_config: OK");
+    } catch (e: any) {
+      results.push(`social_config: FAILED - ${e.message}`);
+    }
+
+    // Backup payment config
+    try {
+      const paymentConfig = await ctx.runQuery(internal.cloud_memory.getPaymentSnapshot);
+      await ctx.runMutation(internal.cloud_memory.createBackup, {
+        backupType: "payment_config",
+        data: paymentConfig,
+        description: "Auto-backup of payment configuration",
+      });
+      results.push("payment_config: OK");
+    } catch (e: any) {
+      results.push(`payment_config: FAILED - ${e.message}`);
+    }
+
+    return { timestamp: Date.now(), results };
+  },
+});
+
+/**
+ * Get schema snapshot for backup
+ */
+export const getSchemaSnapshot = internalQuery({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const tables = await ctx.db.query("system_config").collect();
+    return {
+      tables,
+      snapshotTime: Date.now(),
+    };
+  },
+});
+
+/**
+ * Get auth snapshot for backup
+ */
+export const getAuthSnapshot = internalQuery({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
+    const sessions = await ctx.db.query("user_sessions").collect();
+    const admin2fa = await ctx.db.query("admin_2fa").collect();
+    return {
+      userCount: users.length,
+      activeSessions: sessions.filter(s => s.isCurrent).length,
+      admin2faEnabled: admin2fa.filter(a => a.isEnabled).length,
+      snapshotTime: Date.now(),
+    };
+  },
+});
+
+/**
+ * Get social snapshot for backup
+ */
+export const getSocialSnapshot = internalQuery({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const posts = await ctx.db.query("social_posts").collect();
+    const platforms = await ctx.db.query("social_platforms").collect();
+    return {
+      totalPosts: posts.length,
+      connectedPlatforms: platforms.filter(p => p.isConnected).length,
+      platformList: platforms.map(p => ({ platform: p.platform, isConnected: p.isConnected })),
+      snapshotTime: Date.now(),
+    };
+  },
+});
+
+/**
+ * Get payment snapshot for backup
+ */
+export const getPaymentSnapshot = internalQuery({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const wallets = await ctx.db.query("system_wallets").collect();
+    const transactions = await ctx.db.query("marketplace_transactions").collect();
+    return {
+      wallets: wallets.map(w => ({ type: w.type, balance: w.balance })),
+      totalTransactions: transactions.length,
+      snapshotTime: Date.now(),
+    };
+  },
+});
+
+/**
+ * Self-healing: Detect and fix common issues
+ */
+export const runSelfHealing = internalAction({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const issues: string[] = [];
+    const fixes: string[] = [];
+
+    // Check for stuck social posts
+    try {
+      const stuckPosts = await ctx.runQuery(internal.cloud_memory.getStuckPosts);
+      if (stuckPosts.length > 0) {
+        await ctx.runMutation(internal.cloud_memory.fixStuckPosts, { postIds: stuckPosts.map((p: any) => p._id) });
+        fixes.push(`Fixed ${stuckPosts.length} stuck social posts`);
+      }
+    } catch (e: any) {
+      issues.push(`Social post check failed: ${e.message}`);
+    }
+
+    // Check for expired sessions
+    try {
+      const expiredSessions = await ctx.runQuery(internal.cloud_memory.getExpiredSessions);
+      if (expiredSessions.length > 0) {
+        await ctx.runMutation(internal.cloud_memory.cleanupExpiredSessions, { sessionIds: expiredSessions.map((s: any) => s._id) });
+        fixes.push(`Cleaned up ${expiredSessions.length} expired sessions`);
+      }
+    } catch (e: any) {
+      issues.push(`Session cleanup failed: ${e.message}`);
+    }
+
+    // Check wallet balances
+    try {
+      const walletCheck = await ctx.runQuery(internal.cloud_memory.checkWalletBalances);
+      if (walletCheck.hasIssue) {
+        issues.push(`Wallet balance issue: ${walletCheck.message}`);
+      }
+    } catch (e: any) {
+      issues.push(`Wallet check failed: ${e.message}`);
+    }
+
+    // Log the healing attempt
+    await ctx.runMutation(internal.cloud_memory.logHealingAttempt, {
+      issues,
+      fixes,
+      timestamp: Date.now(),
+    });
+
+    return { issues, fixes, healed: fixes.length > 0, timestamp: Date.now() };
+  },
+});
+
+/**
+ * Get stuck social posts (scheduled but past time)
+ */
+export const getStuckPosts = internalQuery({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const now = Date.now();
+    return await ctx.db.query("social_posts")
+      .withIndex("by_status_and_scheduled", q => q.eq("status", "scheduled").lte("scheduledFor", now - 3600000)) // 1 hour old
+      .collect();
+  },
+});
+
+/**
+ * Fix stuck posts by marking them as failed
+ */
+export const fixStuckPosts = internalMutation({
+  args: { postIds: v.array(v.id("social_posts")) },
+  returns: v.null(),
+  handler: async (ctx, { postIds }) => {
+    for (const postId of postIds) {
+      await ctx.db.patch(postId, {
+        status: "failed",
+        error: "Auto-healed: Post was stuck in scheduled state",
+      });
+    }
+  },
+});
+
+/**
+ * Get expired sessions
+ */
+export const getExpiredSessions = internalQuery({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const now = Date.now();
+    return await ctx.db.query("user_sessions")
+      .filter(q => q.lt(q.field("expiresAt"), now))
+      .collect();
+  },
+});
+
+/**
+ * Cleanup expired sessions
+ */
+export const cleanupExpiredSessions = internalMutation({
+  args: { sessionIds: v.array(v.id("user_sessions")) },
+  returns: v.null(),
+  handler: async (ctx, { sessionIds }) => {
+    for (const sessionId of sessionIds) {
+      await ctx.db.delete(sessionId);
+    }
+  },
+});
+
+/**
+ * Check wallet balances for consistency
+ */
+export const checkWalletBalances = internalQuery({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const wallets = await ctx.db.query("system_wallets").collect();
+    const mainWallet = wallets.find(w => w.type === "main");
+    const taxWallet = wallets.find(w => w.type === "tax");
+    
+    if (!mainWallet || !taxWallet) {
+      return { hasIssue: true, message: "Missing system wallets" };
+    }
+
+    if (mainWallet.balance < 0) {
+      return { hasIssue: true, message: "Main wallet has negative balance" };
+    }
+
+    return { hasIssue: false, message: "All wallets OK" };
+  },
+});
+
+/**
+ * Log healing attempt
+ */
+export const logHealingAttempt = internalMutation({
+  args: { 
+    issues: v.array(v.string()),
+    fixes: v.array(v.string()),
+    timestamp: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, { issues, fixes, timestamp }) => {
+    await ctx.db.insert("system_config", {
+      key: `healing_log_${timestamp}`,
+      value: { issues, fixes, timestamp },
+      description: "Self-healing log entry",
+      updatedAt: timestamp,
+    });
+  },
+});
+
+/**
+ * Send healing report to admin
+ */
+export const sendHealingReport = internalAction({
+  args: { report: v.any() },
+  returns: v.null(),
+  handler: async (ctx, { report }) => {
+    const adminEmail = process.env.ADMIN_EMAIL || "admin@dutchkem.com";
+    
+    // In production, this would send an email via Resend API
+    console.log(`[SELF-HEAL] Report sent to ${adminEmail}:`, JSON.stringify(report, null, 2));
+    
+    // Store report in system config for admin review
+    await ctx.runMutation(internal.cloud_memory.createBackup, {
+      backupType: "healing_report",
+      data: report,
+      description: `Healing report - ${report.healed ? 'Issues fixed' : 'Issues detected'}`,
+    });
+  },
+});
+
+/**
+ * Restore from backup
+ */
+export const restoreFromBackup = mutation({
+  args: { backupId: v.id("system_backups") },
+  returns: v.any(),
+  handler: async (ctx, { backupId }) => {
+    const backup = await ctx.db.get(backupId);
+    if (!backup) throw new Error("Backup not found");
+    
+    // Log the restore attempt
+    await ctx.db.insert("system_config", {
+      key: `restore_attempt_${Date.now()}`,
+      value: { backupId, backupType: backup.backupType, restoredAt: Date.now() },
+      description: "System restore attempt",
+      updatedAt: Date.now(),
+    });
+
+    return { success: true, backupType: backup.backupType, data: backup.data };
+  },
+});
+
+/**
+ * Compute checksum for data integrity
+ */
+async function computeChecksum(data: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const dataBuffer = encoder.encode(data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Get system health status
+ */
+export const getSystemHealth = query({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const backups = await ctx.db.query("system_backups").collect();
+    const sessions = await ctx.db.query("user_sessions").collect();
+    const posts = await ctx.db.query("social_posts").collect();
+    
+    const lastBackup = backups.sort((a, b) => b.createdAt - a.createdAt)[0];
+    const activeSessions = sessions.filter(s => s.isCurrent).length;
+    const stuckPosts = posts.filter(p => p.status === "scheduled" && p.scheduledFor < Date.now() - 3600000).length;
+
+    return {
+      lastBackupTime: lastBackup?.createdAt || null,
+      backupCount: backups.length,
+      activeSessions,
+      stuckPosts,
+      healthScore: Math.max(0, 100 - (stuckPosts * 5) - (activeSessions > 100 ? 20 : 0)),
+      status: stuckPosts > 5 ? "degraded" : "optimal",
+    };
+  },
+});

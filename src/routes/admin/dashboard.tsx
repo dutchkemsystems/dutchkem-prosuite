@@ -108,6 +108,7 @@ function AdminDashboardPage() {
           <AdminTab active={activeTab === "audit"} onClick={() => setActiveTab("audit")} icon="📜" label="Audit Trail" />
           <AdminTab active={activeTab === "charity"} onClick={() => setActiveTab("charity")} icon="🕊️" label="Charity / Tithe" />
           <AdminTab active={activeTab === "marketplace"} onClick={() => setActiveTab("marketplace")} icon="🏪" label="Freelancer Marketplace" />
+          <AdminTab active={activeTab === "cloud-memory"} onClick={() => setActiveTab("cloud-memory")} icon="☁️" label="Cloud Memory" />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -159,6 +160,7 @@ function AdminDashboardPage() {
           {activeTab === "updates" && <AutoUpdatesPanel />}
           {activeTab === "charity" && <CharityDashboardPanel />}
           {activeTab === "marketplace" && <FreelancerMarketplacePanel />}
+          {activeTab === "cloud-memory" && <CloudMemoryPanel />}
         </div>
         <Footer />
       </main>
@@ -375,13 +377,38 @@ function TaxDashboardPanel() {
 
 function SocialEnginePanel() {
   const { data: stats } = useSuspenseQuery(convexQuery(api.social.getSocialStats, {}));
+  const { data: platforms } = useSuspenseQuery(convexQuery(api.social.getConnectedPlatforms, {}));
+  const { data: analytics } = useSuspenseQuery(convexQuery(api.social.getPlatformAnalytics, {}));
   const rotateSocial = useMutation(internal.social.rotateSocialAgents);
+  const generateOAuth = useMutation(api.social.generateOAuthUrl);
+  const disconnectPlatform = useMutation(api.social.disconnectPlatform);
   const [rotating, setRotating] = useState(false);
+  const [connecting, setConnecting] = useState<string | null>(null);
+  const [activeSubTab, setActiveSubTab] = useState<"platforms" | "analytics" | "posts">("platforms");
 
   const handleRotate = async () => {
     setRotating(true);
     await rotateSocial({});
     setRotating(false);
+  };
+
+  const handleConnect = async (platformId: string) => {
+    setConnecting(platformId);
+    try {
+      const redirectUri = `${window.location.origin}/admin/social-callback`;
+      const result = await generateOAuth({ platform: platformId, redirectUri });
+      if (result?.authUrl) {
+        window.open(result.authUrl, '_blank', 'width=600,height=700');
+      }
+    } catch (err: any) {
+      alert(err.message);
+    }
+    setConnecting(null);
+  };
+
+  const handleDisconnect = async (platformId: string) => {
+    if (!confirm(`Disconnect ${platformId}? Auto-posting to this platform will stop.`)) return;
+    await disconnectPlatform({ platform: platformId });
   };
 
   return (
@@ -392,7 +419,7 @@ function SocialEnginePanel() {
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Automated Social Engine</h2>
-              <p className="text-sm font-black text-orange-500 uppercase tracking-widest mt-1">NVIDIA NIM + Postiz Multi-Platform Bridge</p>
+              <p className="text-sm font-black text-orange-500 uppercase tracking-widest mt-1">OAuth Connection + AI Auto-Posting</p>
             </div>
             <button
               onClick={handleRotate}
@@ -410,32 +437,153 @@ function SocialEnginePanel() {
             <MetricCard label="Failed" value={stats.failed} icon="⚠️" color="red" />
           </div>
 
-          <div className="bg-slate-950 p-10 rounded-[2.5rem] border border-white/5">
-            <h3 className="text-lg font-black text-white uppercase tracking-tighter mb-8">Pulse History</h3>
-            <div className="space-y-4">
-              {stats.history.map((p: any) => (
-                <div key={p._id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-slate-900 rounded-3xl border border-white/5 gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-slate-950 rounded-2xl flex items-center justify-center text-xl">{p.platform === 'X' ? '𝕏' : '📱'}</div>
-                    <div>
-                      <p className="text-sm font-bold text-white line-clamp-1 max-w-md">{p.content}</p>
-                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">{p.agentId} • {new Date(p.scheduledFor).toLocaleString()}</p>
-                    </div>
-                  </div>
-                  <span className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
-                    p.status === 'posted' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                    p.status === 'failed' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                    'bg-indigo-500/10 text-indigo-500 border-indigo-500/20'
-                  }`}>
-                    {p.status}
-                  </span>
-                </div>
-              ))}
-              {stats.history.length === 0 && (
-                <div className="text-center py-20 text-slate-600 font-bold uppercase tracking-widest italic opacity-30">Waiting for first pulse...</div>
-              )}
-            </div>
+          {/* Sub-tabs */}
+          <div className="flex gap-2 bg-slate-950 p-2 rounded-2xl border border-white/5">
+            <button
+              onClick={() => setActiveSubTab("platforms")}
+              className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                activeSubTab === "platforms" ? "bg-orange-600 text-white" : "text-slate-500 hover:bg-slate-800"
+              }`}
+            >
+              Connected Platforms
+            </button>
+            <button
+              onClick={() => setActiveSubTab("analytics")}
+              className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                activeSubTab === "analytics" ? "bg-orange-600 text-white" : "text-slate-500 hover:bg-slate-800"
+              }`}
+            >
+              Platform Analytics
+            </button>
+            <button
+              onClick={() => setActiveSubTab("posts")}
+              className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                activeSubTab === "posts" ? "bg-orange-600 text-white" : "text-slate-500 hover:bg-slate-800"
+              }`}
+            >
+              Post History
+            </button>
           </div>
+
+          {/* Connected Platforms Tab */}
+          {activeSubTab === "platforms" && (
+            <div className="space-y-6">
+              <div className="bg-slate-950 p-10 rounded-[2.5rem] border border-white/5">
+                <h3 className="text-lg font-black text-white uppercase tracking-tighter mb-8">Connect via OAuth</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {platforms?.map((p: any) => (
+                    <div key={p.id} className={`p-6 rounded-2xl border transition-all ${
+                      p.isConnected 
+                        ? 'bg-emerald-500/5 border-emerald-500/20' 
+                        : 'bg-slate-900 border-white/5 hover:border-slate-700'
+                    }`}>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{p.icon}</span>
+                          <div>
+                            <p className="text-sm font-black text-white">{p.name}</p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                              {p.isConnected ? "Connected" : "Not Connected"}
+                            </p>
+                          </div>
+                        </div>
+                        <span className={`w-3 h-3 rounded-full ${p.isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'}`}></span>
+                      </div>
+                      {p.isConnected ? (
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-[9px] font-bold">
+                            <span className="text-slate-500 uppercase">Posts</span>
+                            <span className="text-white">{p.postsCount}</span>
+                          </div>
+                          <div className="flex justify-between text-[9px] font-bold">
+                            <span className="text-slate-500 uppercase">Followers</span>
+                            <span className="text-white">{p.followersCount.toLocaleString()}</span>
+                          </div>
+                          <button
+                            onClick={() => handleDisconnect(p.id)}
+                            className="w-full mt-3 py-2 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all"
+                          >
+                            Disconnect
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleConnect(p.id)}
+                          disabled={connecting === p.id}
+                          className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-600/20 disabled:opacity-50"
+                        >
+                          {connecting === p.id ? "Connecting..." : "Connect OAuth"}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Platform Analytics Tab */}
+          {activeSubTab === "analytics" && (
+            <div className="space-y-6">
+              <div className="bg-slate-950 p-10 rounded-[2.5rem] border border-white/5">
+                <h3 className="text-lg font-black text-white uppercase tracking-tighter mb-8">Platform Performance</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  <MetricCard label="Total Leads" value={analytics?.totalLeads || 0} icon="📊" color="blue" />
+                  <MetricCard label="Total Users" value={analytics?.totalUsers || 0} icon="👥" color="emerald" />
+                  <MetricCard label="Total Revenue" value={`₦${(analytics?.totalRevenue || 0).toLocaleString()}`} icon="💰" color="amber" />
+                </div>
+                <div className="space-y-4">
+                  {analytics?.platforms?.filter((p: any) => p.leads > 0 || p.registrations > 0).map((p: any) => (
+                    <div key={p.platform} className="flex items-center justify-between p-6 bg-slate-900 rounded-2xl border border-white/5">
+                      <div className="flex items-center gap-4">
+                        <span className="text-2xl">{p.icon}</span>
+                        <div>
+                          <p className="text-sm font-black text-white">{p.name}</p>
+                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                            {p.leads} leads • {p.registrations} registered • {p.conversions} converted
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-black text-emerald-500">₦{(p.revenue || 0).toLocaleString()}</p>
+                        <p className="text-[9px] text-slate-600 font-bold">Revenue</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Post History Tab */}
+          {activeSubTab === "posts" && (
+            <div className="bg-slate-950 p-10 rounded-[2.5rem] border border-white/5">
+              <h3 className="text-lg font-black text-white uppercase tracking-tighter mb-8">Pulse History</h3>
+              <div className="space-y-4">
+                {stats.history.map((p: any) => (
+                  <div key={p._id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-slate-900 rounded-3xl border border-white/5 gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-slate-950 rounded-2xl flex items-center justify-center text-xl">{p.platform === 'X' ? '𝕏' : '📱'}</div>
+                      <div>
+                        <p className="text-sm font-bold text-white line-clamp-1 max-w-md">{p.content}</p>
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">{p.agentId} • {new Date(p.scheduledFor).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <span className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
+                      p.status === 'posted' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                      p.status === 'failed' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                      'bg-indigo-500/10 text-indigo-500 border-indigo-500/20'
+                    }`}>
+                      {p.status}
+                    </span>
+                  </div>
+                ))}
+                {stats.history.length === 0 && (
+                  <div className="text-center py-20 text-slate-600 font-bold uppercase tracking-widest italic opacity-30">Waiting for first pulse...</div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1503,6 +1651,161 @@ function FreelancerMarketplacePanel() {
           {(!payoutHistory || payoutHistory.length === 0) && (
             <div className="text-center py-20 text-slate-600 font-bold uppercase tracking-widest italic opacity-30">No payouts yet</div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CloudMemoryPanel() {
+  const { data: health } = useSuspenseQuery(convexQuery(api.cloud_memory.getSystemHealth, {}));
+  const { data: backups } = useSuspenseQuery(convexQuery(api.cloud_memory.getAllBackups, {}));
+  const runSelfHealing = useAction(internal.cloud_memory.runSelfHealing);
+  const autoBackup = useAction(internal.cloud_memory.autoBackupSystem);
+  const [healing, setHealing] = useState(false);
+  const [backing, setBacking] = useState(false);
+  const [lastHealingResult, setLastHealingResult] = useState<any>(null);
+
+  const handleSelfHealing = async () => {
+    setHealing(true);
+    try {
+      const result = await runSelfHealing({});
+      setLastHealingResult(result);
+    } catch (err: any) {
+      alert(err.message);
+    }
+    setHealing(false);
+  };
+
+  const handleAutoBackup = async () => {
+    setBacking(true);
+    try {
+      await autoBackup({});
+      alert("System backup initiated successfully!");
+    } catch (err: any) {
+      alert(err.message);
+    }
+    setBacking(false);
+  };
+
+  return (
+    <div className="space-y-10 animate-in fade-in duration-700">
+      <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-600/5 blur-[80px]"></div>
+        <div className="relative z-10 space-y-10">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Cloud Memory & Self-Healing</h2>
+              <p className="text-sm font-black text-cyan-500 uppercase tracking-widest mt-1">Automatic Backup • Error Detection • Auto-Recovery</p>
+            </div>
+            <div className="flex gap-4">
+              <button
+                onClick={handleAutoBackup}
+                disabled={backing}
+                className="px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-cyan-600/20 disabled:opacity-50"
+              >
+                {backing ? "Backing Up..." : "Manual Backup"}
+              </button>
+              <button
+                onClick={handleSelfHealing}
+                disabled={healing}
+                className="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-emerald-600/20 disabled:opacity-50"
+              >
+                {healing ? "Healing..." : "Run Self-Healing"}
+              </button>
+            </div>
+          </div>
+
+          {/* Health Status */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <MetricCard label="System Health" value={`${health?.healthScore || 100}%`} icon="🛡️" color={health?.status === 'optimal' ? 'emerald' : 'amber'} subValue={health?.status === 'optimal' ? 'OPTIMAL' : 'DEGRADED'} />
+            <MetricCard label="Active Backups" value={health?.backupCount || 0} icon="☁️" color="cyan" subValue="Auto-synced" />
+            <MetricCard label="Active Sessions" value={health?.activeSessions || 0} icon="👥" color="blue" />
+            <MetricCard label="Stuck Posts" value={health?.stuckPosts || 0} icon="⚠️" color={health?.stuckPosts > 0 ? 'red' : 'emerald'} subValue={health?.stuckPosts > 0 ? 'Needs attention' : 'All clear'} />
+          </div>
+
+          {/* Last Healing Result */}
+          {lastHealingResult && (
+            <div className={`p-8 rounded-3xl border ${
+              lastHealingResult.healed 
+                ? 'bg-emerald-500/5 border-emerald-500/20' 
+                : 'bg-slate-950 border-white/5'
+            }`}>
+              <h3 className="text-lg font-black text-white uppercase tracking-tighter mb-4">
+                {lastHealingResult.healed ? '✅ Issues Fixed' : '🔍 Healing Complete'}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Issues Found</p>
+                  {lastHealingResult.issues.length === 0 ? (
+                    <p className="text-sm text-emerald-500 font-bold">No issues detected</p>
+                  ) : (
+                    lastHealingResult.issues.map((issue: string, i: number) => (
+                      <p key={i} className="text-sm text-amber-500 font-bold">• {issue}</p>
+                    ))
+                  )}
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Fixes Applied</p>
+                  {lastHealingResult.fixes.length === 0 ? (
+                    <p className="text-sm text-slate-500 font-bold">No fixes needed</p>
+                  ) : (
+                    lastHealingResult.fixes.map((fix: string, i: number) => (
+                      <p key={i} className="text-sm text-emerald-500 font-bold">✓ {fix}</p>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Backup History */}
+          <div className="bg-slate-950 p-10 rounded-[2.5rem] border border-white/5">
+            <h3 className="text-lg font-black text-white uppercase tracking-tighter mb-8">Backup History</h3>
+            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+              {backups?.slice(0, 20).map((backup: any) => (
+                <div key={backup._id} className="flex justify-between items-center p-6 bg-slate-900 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-cyan-500/10 rounded-2xl flex items-center justify-center text-lg">☁️</div>
+                    <div>
+                      <p className="text-sm font-black text-white">{backup.backupType.replace(/_/g, ' ').toUpperCase()}</p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                        {new Date(backup.createdAt).toLocaleString()} • {backup.description}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-full text-[8px] font-black uppercase">
+                      {backup.status}
+                    </span>
+                    <p className="text-[8px] text-slate-600 font-mono mt-1">{backup.checksum.slice(0, 12)}...</p>
+                  </div>
+                </div>
+              ))}
+              {(!backups || backups.length === 0) && (
+                <div className="text-center py-20 text-slate-600 font-bold uppercase tracking-widest italic opacity-30">No backups yet</div>
+              )}
+            </div>
+          </div>
+
+          {/* System Features */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="p-8 bg-slate-950 rounded-3xl border border-white/5 text-center">
+              <div className="text-4xl mb-4">🔄</div>
+              <h4 className="text-sm font-black text-white uppercase tracking-widest mb-2">Auto-Backup</h4>
+              <p className="text-[10px] text-slate-500 font-bold">System backups every 6 hours to cloud storage</p>
+            </div>
+            <div className="p-8 bg-slate-950 rounded-3xl border border-white/5 text-center">
+              <div className="text-4xl mb-4">🛡️</div>
+              <h4 className="text-sm font-black text-white uppercase tracking-widest mb-2">Self-Healing</h4>
+              <p className="text-[10px] text-slate-500 font-bold">Automatic error detection and recovery every 30 min</p>
+            </div>
+            <div className="p-8 bg-slate-950 rounded-3xl border border-white/5 text-center">
+              <div className="text-4xl mb-4">📧</div>
+              <h4 className="text-sm font-black text-white uppercase tracking-widest mb-2">Email Reports</h4>
+              <p className="text-[10px] text-slate-500 font-bold">Healing reports sent to admin email automatically</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
