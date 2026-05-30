@@ -5,9 +5,12 @@ import {
 } from '@tanstack/react-router'
 import * as React from 'react'
 import type { QueryClient } from '@tanstack/react-query'
-import { HolidayBanner } from '~/components/HolidayBanner'
 import { Navbar } from '~/components/Navbar'
 import { Footer } from '~/components/Footer'
+
+const HolidayBanner = React.lazy(() =>
+  import('~/components/HolidayBanner').then(m => ({ default: m.HolidayBanner }))
+)
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -29,7 +32,9 @@ function RootComponent() {
 
   return (
     <>
-      <HolidayBanner />
+      <React.Suspense fallback={null}>
+        <HolidayBanner />
+      </React.Suspense>
       {!isDashboard && <Navbar />}
       <div className={!isDashboard ? "pt-20" : ""}>
         <Outlet />

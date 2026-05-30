@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Component, type ReactNode } from "react";
 import { Authenticated, Unauthenticated } from "convex/react";
 import { CompanyLogo } from "~/components/CompanyLogo";
 
@@ -8,30 +8,56 @@ export const Route = createFileRoute('/auth')({
   component: AuthPage,
 })
 
-function AuthPage() {
-  const navigate = useNavigate();
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4 relative overflow-hidden">
-      {/* Decorative background */}
-      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,theme(colors.indigo.900/20),transparent)] pointer-events-none"></div>
-      
-      <div className="max-w-md w-full relative z-10">
-        <div className="text-center mb-10 flex flex-col items-center">
-          <CompanyLogo className="w-32 h-32 mb-6" />
-          <h1 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">ProSuite NG+</h1>
-          <p className="text-slate-400 font-medium">Verify your identity to access the portal</p>
+class AuthErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean}> {
+  constructor(props: {children: ReactNode}) {
+    super(props)
+    this.state = { hasError: false }
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4">
+          <div className="max-w-md w-full bg-slate-900 border border-slate-800 p-10 rounded-[2.5rem] shadow-2xl text-center">
+            <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center text-amber-500 text-4xl mx-auto mb-6 border border-amber-500/20">⚠️</div>
+            <h2 className="text-2xl font-black text-white mb-4 uppercase tracking-tight">Connection Issue</h2>
+            <p className="text-slate-400 text-sm mb-8">Unable to connect to authentication service. Please check your internet connection and try again.</p>
+            <button onClick={() => window.location.reload()} className="w-full py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all">
+              Retry Connection
+            </button>
+          </div>
         </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
-        <Unauthenticated>
-          <PhoneAuthForm />
-        </Unauthenticated>
+function AuthPage() {
+  return (
+    <AuthErrorBoundary>
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,theme(colors.indigo.900/20),transparent)] pointer-events-none"></div>
+        
+        <div className="max-w-md w-full relative z-10">
+          <div className="text-center mb-10 flex flex-col items-center">
+            <CompanyLogo className="w-32 h-32 mb-6" />
+            <h1 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">ProSuite NG+</h1>
+            <p className="text-slate-400 font-medium">Verify your identity to access the portal</p>
+          </div>
 
-        <Authenticated>
-          <AuthenticatedRedirect />
-        </Authenticated>
+          <Unauthenticated>
+            <PhoneAuthForm />
+          </Unauthenticated>
+
+          <Authenticated>
+            <AuthenticatedRedirect />
+          </Authenticated>
+        </div>
       </div>
-    </div>
+    </AuthErrorBoundary>
   )
 }
 
@@ -40,7 +66,7 @@ function AuthenticatedRedirect() {
   
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigate({ to: '/dashboard' });
+      window.location.href = '/dashboard';
     }, 1500);
     return () => clearTimeout(timer);
   }, []);
@@ -72,7 +98,6 @@ function PhoneAuthForm() {
     const formData = new FormData(e.currentTarget);
     const phoneValue = formData.get("phone") as string;
     
-    // Simple validation
     if (!phoneValue.match(/^\+?[0-9]{10,15}$/)) {
       setError("Please enter a valid telephone number (e.g. +234...)");
       setIsLoading(false);
@@ -82,7 +107,6 @@ function PhoneAuthForm() {
     setPhone(phoneValue);
 
     try {
-      // Use the termii-otp provider we created
       await signIn("termii-otp", formData);
       setStep("otp");
     } catch (err: any) {
@@ -107,7 +131,6 @@ function PhoneAuthForm() {
     
     try {
       await signIn("termii-otp", formData);
-      // Redirect happens automatically via Authenticated wrapper
     } catch (err: any) {
       setError("Invalid or expired code. Please check and try again.");
     } finally {
@@ -200,7 +223,7 @@ function PhoneAuthForm() {
         
         <button 
           type="button" 
-          onClick={() => setStep("phone")}
+          onClick={() => { setStep("phone"); setError(""); }}
           className="w-full text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] hover:text-slate-300 transition-colors"
         >
           Change Telephone Number
