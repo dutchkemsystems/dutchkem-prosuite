@@ -28,6 +28,7 @@ import type * as certification_chat from "../certification_chat.js";
 import type * as charity from "../charity.js";
 import type * as chatbot from "../chatbot.js";
 import type * as classification from "../classification.js";
+import type * as cloud_memory from "../cloud_memory.js";
 import type * as communication from "../communication.js";
 import type * as content_agent from "../content_agent.js";
 import type * as content_chat from "../content_chat.js";
@@ -113,6 +114,7 @@ declare const fullApi: ApiFromModules<{
   charity: typeof charity;
   chatbot: typeof chatbot;
   classification: typeof classification;
+  cloud_memory: typeof cloud_memory;
   communication: typeof communication;
   content_agent: typeof content_agent;
   content_chat: typeof content_chat;

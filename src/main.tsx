@@ -9,11 +9,11 @@ import { routeTree } from './routeTree.gen'
 import '~/styles/app.css'
 
 const CONVEX_URL = import.meta.env.VITE_CONVEX_URL
-if (!CONVEX_URL) {
-  console.error('missing envar VITE_CONVEX_URL')
+if (!CONVEX_URL || CONVEX_URL === 'https://your-project.convex.cloud') {
+  console.error('VITE_CONVEX_URL is missing or is the placeholder value')
 }
 
-const convexQueryClient = new ConvexQueryClient(CONVEX_URL)
+const convexQueryClient = new ConvexQueryClient(CONVEX_URL || 'https://placeholder.convex.cloud')
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,6 +21,7 @@ const queryClient = new QueryClient({
       queryKeyHashFn: convexQueryClient.hashFn(),
       queryFn: convexQueryClient.queryFn(),
       gcTime: 5000,
+      retry: false,
     },
   },
 })

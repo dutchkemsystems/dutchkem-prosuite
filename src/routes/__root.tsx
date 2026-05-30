@@ -8,15 +8,23 @@ import type { QueryClient } from '@tanstack/react-query'
 import { Navbar } from '~/components/Navbar'
 import { Footer } from '~/components/Footer'
 
-const HolidayBanner = React.lazy(() =>
-  import('~/components/HolidayBanner').then(m => ({ default: m.HolidayBanner }))
-)
-
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
 }>()({
   component: RootComponent,
 })
+
+function HolidayBannerWrapper() {
+  const [mod, setMod] = React.useState<any>(null)
+  React.useEffect(() => {
+    import('~/components/HolidayBanner')
+      .then(m => setMod(() => m.HolidayBanner))
+      .catch(() => {})
+  }, [])
+  if (!mod) return null
+  const Banner = mod
+  return <Banner />
+}
 
 function RootComponent() {
   const location = useLocation()
@@ -32,9 +40,7 @@ function RootComponent() {
 
   return (
     <>
-      <React.Suspense fallback={null}>
-        <HolidayBanner />
-      </React.Suspense>
+      <HolidayBannerWrapper />
       {!isDashboard && <Navbar />}
       <div className={!isDashboard ? "pt-20" : ""}>
         <Outlet />
