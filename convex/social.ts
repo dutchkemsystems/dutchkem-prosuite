@@ -233,8 +233,6 @@ export const disconnectPlatform = mutation({
   args: { platform: v.string() },
   returns: v.null(),
   handler: async (ctx, { platform }) => {
-    const identity = await ctx.auth.getUserIdentity();
-    
     const existing = await ctx.db.query("social_platforms")
       .withIndex("by_platform", q => q.eq("platform", platform))
       .first();

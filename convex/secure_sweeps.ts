@@ -1,6 +1,5 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
 
 /**
  * SECURE SWEEPS - Daily Auto Sweep with Auto/Manual/Pause Controls
@@ -167,9 +166,7 @@ export const performSweep = mutation({
       });
 
       // Add to owner's sweep wallet (beneficiary)
-      const beneficiaries = await ctx.db.query("beneficiaries")
-        .withIndex("by_user", q => q.eq("userId", mainWallet._id))
-        .collect();
+      const beneficiaries = await ctx.db.query("beneficiaries").collect();
       
       const defaultBeneficiary = beneficiaries.find(b => b.isDefault) || beneficiaries[0];
       

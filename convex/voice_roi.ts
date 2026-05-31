@@ -222,7 +222,7 @@ export const generateReport = mutation({
     timeRange: v.union(v.literal("day"), v.literal("week"), v.literal("month"), v.literal("quarter"))
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args) => {
     return {
       success: true,
       message: "Report generated successfully",
