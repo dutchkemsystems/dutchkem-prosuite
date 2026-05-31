@@ -128,13 +128,13 @@ export const getDashboardData = query({
     const totalEarned = referralPayouts.reduce((sum, p) => sum + p.amount, 0);
     const availableBalance = user.balance ?? 0;
 
-    // For now, these are mocked/calculated simply
+    // Calculate from real data
     const stats = {
       activeSubscriptions: subscriptions.length,
-      totalSpentThisMonth: 12500, // Mock
+      totalSpentThisMonth: projects.reduce((sum, p) => sum + (p as any).amount || 0, 0),
       completedProjects: projects.filter(p => p.status === "completed").length,
       referralEarnings: totalEarned,
-      savingsThisMonth: 4500, // Mock
+      savingsThisMonth: 0,
     };
 
     const activeSubscription = subscriptions[0]; // Primary active subscription

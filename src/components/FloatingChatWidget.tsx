@@ -26,7 +26,7 @@ export function FloatingChatWidget() {
 
   const startChat = async (type: "sales" | "support") => {
     const result = await createChat({ 
-      userId: isAuthenticated ? undefined : undefined,
+      userId: user?._id,
       agentType: type 
     });
     setSessionId(result.sessionId);

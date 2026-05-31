@@ -91,13 +91,13 @@ function PriceCard({ title, price, features, isFeatured, savings }: { title: str
             </div>
           ))}
         </div>
-        <button className={`w-full py-7 rounded-[2rem] font-black text-[11px] uppercase tracking-[0.4em] transition-all shadow-xl ${
+        <Link to="/auth" className={`block w-full py-7 rounded-[2rem] font-black text-[11px] uppercase tracking-[0.4em] transition-all shadow-xl text-center ${
           isFeatured 
             ? 'bg-slate-950 text-white hover:bg-black active:scale-95 shadow-slate-900/20' 
             : 'bg-slate-100 text-slate-950 hover:bg-slate-200 shadow-slate-200/50'
         }`}>
           GET STARTED NOW
-        </button>
+        </Link>
       </div>
     </div>
   )

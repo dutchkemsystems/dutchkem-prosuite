@@ -130,12 +130,6 @@ export function KDPProjectHub({ userId: _userId }: { userId: any }) {
                   {COVER_TYPES.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </FormField>
-              <FormField label="Cover / Interior">
-                <select value={coverType} onChange={e => setCoverType(e.target.value)} className="w-full px-4 py-3 bg-slate-950 border border-white/10 rounded-xl text-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                  <option value="Matte">Matte Cover</option>
-                  <option value="Glossy">Glossy Cover</option>
-                </select>
-              </FormField>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

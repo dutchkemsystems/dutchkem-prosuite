@@ -144,14 +144,18 @@ export const runDailyCharityDeduction = internalMutation({
 export const executeCharityPayout = internalAction({
   args: { amount: v.number() },
   returns: v.any(),
-  handler: async (ctx, args) => {
-    const bankCode = process.env.CHARITY_BANK_CODE || "999999";
-    const accountNumber = process.env.CHARITY_ACCOUNT_NUMBER || "8121161202";
-    const accountName = process.env.CHARITY_ACCOUNT_NAME || "Oladotun Alabi";
+  handler: async (_ctx, args) => {
+    const bankCode = process.env.CHARITY_BANK_CODE;
+    const accountNumber = process.env.CHARITY_ACCOUNT_NUMBER;
+    const accountName = process.env.CHARITY_ACCOUNT_NAME;
+
+    if (!bankCode || !accountNumber || !accountName) {
+      throw new Error("CHARITY_BANK_CODE, CHARITY_ACCOUNT_NUMBER, and CHARITY_ACCOUNT_NAME must be set in environment variables");
+    }
 
     const koraReference = `CHARITY_${Date.now()}`;
     console.log(
-      `[KORA] Disbursing ₦${args.amount.toFixed(2)} to ${accountName} (${accountNumber}) via bank ${bankCode} for charity/tithe — ref: ${koraReference}`,
+      `[KORA] Disbursing ₦${args.amount.toFixed(2)} to charity account via bank ${bankCode} — ref: ${koraReference}`,
     );
 
     const result = { success: true, reference: koraReference };

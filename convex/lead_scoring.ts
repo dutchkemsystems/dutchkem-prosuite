@@ -208,14 +208,6 @@ export const getUserForScoring = internalQuery({
   },
 });
 
-export const _getUser = query({
-  args: { userId: v.id("users") },
-  returns: v.any(),
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.userId);
-  },
-});
-
 export const getUserSubscriptions = query({
   args: { userId: v.id("users") },
   returns: v.array(v.any()),

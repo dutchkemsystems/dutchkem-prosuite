@@ -60,13 +60,15 @@ export const generateAdminManualTask = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    // 1. Verify Admin
-    const user = await ctx.db.query("users").withIndex("by_role", (q) => q.eq("role", "admin")).first();
-    if (!user) throw new Error("Unauthorized");
+    // 1. Verify Admin - check the actual caller is an admin
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized: not authenticated");
+    const caller = await ctx.db.get(identity.subject as any);
+    if (!caller || !("role" in caller) || caller.role !== "admin") throw new Error("Unauthorized: admin access required");
 
     // 2. Log Task
     const taskId = await ctx.db.insert("admin_task_log", {
-      adminId: user._id,
+      adminId: caller._id as any,
       agentId: args.agentId,
       userEmail: args.userEmail,
       serviceId: args.serviceId,

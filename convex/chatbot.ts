@@ -1,6 +1,5 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
 
 // Feature 1: AI Chatbot for Sales & Support
 
@@ -57,12 +56,42 @@ export const sendMessage = mutation({
     };
 
     // Get AI response based on agent type
-    // For now, generate a simple response. In production, this would call the NVIDIA agents.
-    const responseText = chat.agentType === "sales"
-      ? `Thanks for your interest in our services! I'd be happy to help you find the right solution. Could you tell me more about what you're looking for?`
-      : `Hello! I'm here to help with any support issues you're experiencing. Let me know what you need assistance with.`;
+    // In production, this would call the AI agent with the conversation history
+    let responseText: string;
+    let confidence: number;
     
-    const confidence = 85;
+    if (chat.agentType === "sales") {
+      // Simple keyword-based routing for sales
+      const lowerContent = args.content.toLowerCase();
+      if (lowerContent.includes("price") || lowerContent.includes("cost") || lowerContent.includes("plan")) {
+        responseText = "We offer flexible plans starting from ₦2,000/week. Our Standard plan includes access to all AI agents, while the KDP plan is tailored for authors. Would you like me to walk you through the options?";
+        confidence = 90;
+      } else if (lowerContent.includes("agent") || lowerContent.includes("service")) {
+        responseText = "We have 15+ specialized AI agents including Academic Writer, Business Consultant, Career Coach, Content Writer, and more. Each is trained for specific tasks. What kind of help are you looking for?";
+        confidence = 88;
+      } else if (lowerContent.includes("help") || lowerContent.includes("what")) {
+        responseText = "I'm here to help you find the right AI solution! We offer writing, consulting, coaching, and many other professional services powered by AI. What's your main need?";
+        confidence = 85;
+      } else {
+        responseText = "Thanks for your interest! I'd be happy to help you find the right solution. Could you tell me more about what you're looking for?";
+        confidence = 75;
+      }
+    } else {
+      const lowerContent = args.content.toLowerCase();
+      if (lowerContent.includes("refund") || lowerContent.includes("money back")) {
+        responseText = "We offer a 14-day refund policy for all subscriptions. If you're not satisfied, I can help you initiate a refund request. Would you like to proceed?";
+        confidence = 92;
+      } else if (lowerContent.includes("error") || lowerContent.includes("issue") || lowerContent.includes("problem")) {
+        responseText = "I'm sorry you're experiencing an issue. Could you describe the problem in more detail? I'll do my best to help resolve it or escalate to our technical team if needed.";
+        confidence = 85;
+      } else if (lowerContent.includes("cancel")) {
+        responseText = "I can help you cancel your subscription. Just to let you know, you'll retain access until the end of your current billing period. Would you like me to proceed?";
+        confidence = 88;
+      } else {
+        responseText = "Hello! I'm here to help with any support issues you're experiencing. Let me know what you need assistance with.";
+        confidence = 80;
+      }
+    }
     const shouldEscalate = confidence < 70;
 
     // Add assistant response

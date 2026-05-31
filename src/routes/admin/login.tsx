@@ -165,9 +165,9 @@ function AdminLoginPage() {
               </button>
 
               <div className="flex justify-between items-center pt-4 px-2">
-                 <button type="button" className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-colors">Forgot password?</button>
+                 <button type="button" onClick={() => alert('Password reset请联系系统管理员')} className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-colors">Forgot password?</button>
                  <span className="w-px h-3 bg-slate-800"></span>
-                 <button type="button" className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-colors">Need backup code?</button>
+                 <button type="button" onClick={() => alert('Backup code authentication请联系系统管理员')} className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white transition-colors">Need backup code?</button>
               </div>
             </form>
           ) : (

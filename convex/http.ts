@@ -529,11 +529,29 @@ http.route({
   }),
 });
 
+// Helper: verify admin session from bearer token
+async function verifyAdminToken(req: Request): Promise<string | null> {
+  const authHeader = req.headers.get("authorization") || "";
+  const token = authHeader.replace("Bearer ", "");
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    if (payload.role !== "admin") return null;
+    return payload.sub || null;
+  } catch {
+    return null;
+  }
+}
+
 // GET /api/admin/marketplace/escrow
 http.route({
   path: "/api/admin/marketplace/escrow",
   method: "GET",
   handler: httpAction(async (ctx, req) => {
+    const adminId = await verifyAdminToken(req);
+    if (!adminId) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+    }
     const balance = await ctx.runQuery(internal.marketplace.getEscrowBalance);
     return new Response(JSON.stringify(balance), {
       status: 200,
@@ -547,6 +565,10 @@ http.route({
   path: "/api/admin/marketplace/pending-payout",
   method: "GET",
   handler: httpAction(async (ctx, req) => {
+    const adminId = await verifyAdminToken(req);
+    if (!adminId) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+    }
     const pending = await ctx.runQuery(internal.marketplace.getPendingFridayPayout);
     return new Response(JSON.stringify(pending), {
       status: 200,
@@ -560,6 +582,10 @@ http.route({
   path: "/api/admin/marketplace/payouts",
   method: "GET",
   handler: httpAction(async (ctx, req) => {
+    const adminId = await verifyAdminToken(req);
+    if (!adminId) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+    }
     const limit = Number(req.url.searchParams.get("limit")) || 50;
     const payouts = await ctx.runQuery(internal.marketplace.getPayoutHistory, { limit });
     return new Response(JSON.stringify(payouts), {
@@ -574,6 +600,10 @@ http.route({
   path: "/api/admin/marketplace/stats",
   method: "GET",
   handler: httpAction(async (ctx, req) => {
+    const adminId = await verifyAdminToken(req);
+    if (!adminId) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+    }
     const stats = await ctx.runQuery(internal.marketplace.getMarketplaceStats);
     return new Response(JSON.stringify(stats), {
       status: 200,

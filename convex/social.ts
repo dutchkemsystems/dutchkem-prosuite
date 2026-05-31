@@ -409,13 +409,35 @@ export const markPostFailed = internalMutation({
  * SOCIAL CRON HELPERS
  */
 
-export const rotateSocialAgents = mutation({
+export const rotateSocialAgents = internalMutation({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
     const agents = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A15"];
     
     // Simple rotation: check last post
+    const lastPost = await ctx.db.query("social_posts")
+      .order("desc")
+      .first();
+    
+    let nextIndex = 0;
+    if (lastPost) {
+      const lastIndex = agents.indexOf(lastPost.agentId);
+      nextIndex = (lastIndex + 1) % agents.length;
+    }
+
+    const nextAgentId = agents[nextIndex];
+    await ctx.scheduler.runAfter(0, internal.social.generateAndSchedulePost, { agentId: nextAgentId });
+    return nextAgentId;
+  },
+});
+
+export const rotateSocialAgentsManual = mutation({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const agents = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A15"];
+    
     const lastPost = await ctx.db.query("social_posts")
       .order("desc")
       .first();

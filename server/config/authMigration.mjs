@@ -49,6 +49,6 @@ export const config = {
   batchSize: 100,
   pauseBetweenBatches: 1000,
 
-  // Admin key for monitoring endpoints (optional in cleanup phase)
-  adminKey: process.env.AUTH_MIGRATION_ADMIN_KEY || 'dev-migration-key',
+  // Admin key for monitoring endpoints (must be set in production)
+  adminKey: process.env.AUTH_MIGRATION_ADMIN_KEY,
 };

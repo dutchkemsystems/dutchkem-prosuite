@@ -52,9 +52,9 @@ export function HolidayBanner() {
             <p className="font-mono font-black text-sm">{timeLeft}</p>
           </div>
           
-          <button className="bg-white text-orange-600 px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-orange-50 transition-all shadow-xl active:scale-95 whitespace-nowrap">
+          <a href="/auth" className="bg-white text-orange-600 px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-orange-50 transition-all shadow-xl active:scale-95 whitespace-nowrap">
             Shop Now →
-          </button>
+          </a>
           
           <button 
             onClick={() => setIsVisible(false)}

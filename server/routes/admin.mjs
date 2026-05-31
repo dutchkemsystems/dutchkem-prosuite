@@ -47,11 +47,26 @@ router.post('/change-password', adminAuth, async (req, res) => {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ error: 'currentPassword and newPassword required' });
     }
-    if (newPassword.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    if (newPassword.length < 16) {
+      return res.status(400).json({ error: 'Password must be at least 16 characters' });
+    }
+    if (!/(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*])/.test(newPassword)) {
+      return res.status(400).json({ error: 'Password must include uppercase, lowercase, number, and special character' });
     }
 
-    // In production: verify current password hash + update with new hash
+    // Delegate password change to Convex mutation via auth_helpers
+    const convex = convexClient(req);
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    await convex.mutation('api.auth_helpers.changePassword', {
+      userId,
+      currentPassword,
+      newPassword,
+    });
+
     res.json({ success: true, message: 'Password changed successfully' });
   } catch (err) {
     console.error('[ADMIN] change-password error:', err);

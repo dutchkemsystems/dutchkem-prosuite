@@ -379,7 +379,7 @@ function SocialEnginePanel() {
   const { data: stats } = useSuspenseQuery(convexQuery(api.social.getSocialStats, {}));
   const { data: platforms } = useSuspenseQuery(convexQuery(api.social.getConnectedPlatforms, {}));
   const { data: analytics } = useSuspenseQuery(convexQuery(api.social.getPlatformAnalytics, {}));
-  const rotateSocial = useMutation(internal.social.rotateSocialAgents);
+  const rotateSocial = useMutation(api.social.rotateSocialAgentsManual);
   const generateOAuth = useMutation(api.social.generateOAuthUrl);
   const disconnectPlatform = useMutation(api.social.disconnectPlatform);
   const [rotating, setRotating] = useState(false);
@@ -1170,9 +1170,9 @@ function AdminProfileCard({ profile }: { profile: any }) {
         </>
       )}
 
-      {modal === "password" && <ChangePasswordModal onClose={() => setModal(null)} />}
+      {modal === "password" && <ChangePasswordModal onClose={() => setModal(null)} adminId={profile._id} />}
       {modal === "2fa" && <Enable2FAModal onClose={() => setModal(null)} adminId={profile.email} />}
-      {modal === "ip" && <IPWhitelistModal onClose={() => setModal(null)} />}
+      {modal === "ip" && <IPWhitelistModal onClose={() => setModal(null)} adminId={profile._id} />}
     </div>
   );
 }
@@ -1185,7 +1185,7 @@ function ProfileAction({ label, className, onClick }: { label: string; className
   );
 }
 
-function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+function ChangePasswordModal({ onClose, adminId }: { onClose: () => void; adminId: string }) {
   const [current, setCurrent] = useState("");
   const [newPass, setNewPass] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -1202,7 +1202,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     if (newPass !== confirm) { setError("Passwords do not match"); return; }
     setLoading(true);
     try {
-      const result = await changePass({ userId: "qs78rg7f0atw8s794tpwqnndnn87g9f5" as any, currentPassword: current, newPassword: newPass });
+      const result = await changePass({ userId: adminId as any, currentPassword: current, newPassword: newPass });
       if (result?.success) { setSuccess(true); setTimeout(() => window.location.href = '/admin/login', 3000); }
       else { setError(result?.error || "Failed to change password"); }
     } catch (err: any) { setError(err?.message || "Failed to change password"); }
@@ -1284,7 +1284,7 @@ function Enable2FAModal({ onClose, adminId }: { onClose: () => void; adminId: st
   );
 }
 
-function IPWhitelistModal({ onClose }: { onClose: () => void }) {
+function IPWhitelistModal({ onClose, adminId }: { onClose: () => void; adminId: string }) {
   const [ips, setIps] = useState<string[]>(["127.0.0.1"]);
   const [newIp, setNewIp] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1303,7 +1303,7 @@ function IPWhitelistModal({ onClose }: { onClose: () => void }) {
   const handleSave = async () => {
     setLoading(true);
     try {
-      await updateIPs({ adminId: "qs78rg7f0atw8s794tpwqnndnn87g9f5" as any, ipAddresses: ips, description: "Admin IP whitelist" });
+      await updateIPs({ adminId: adminId as any, ipAddresses: ips, description: "Admin IP whitelist" });
       setSuccess(true);
     } catch {}
     setLoading(false);
@@ -1630,7 +1630,7 @@ function FreelancerMarketplacePanel() {
                 </div>
                 <div>
                   <p className="text-sm font-black text-white">
-                    ₹{tx.freelancerAmount?.toLocaleString()} {tx.status === 'released' ? 'Released' : 'In Escrow'}
+                    ₦{tx.freelancerAmount?.toLocaleString()} {tx.status === 'released' ? 'Released' : 'In Escrow'}
                   </p>
                   <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
                     {tx.status} • {new Date(tx.createdAt).toLocaleDateString()}

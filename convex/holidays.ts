@@ -2,17 +2,6 @@ import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
 /**
- * Nigerian Public Holidays (auto-applies 25% discount on all)
- */
-export const NIGERIAN_HOLIDAYS = [
-  { name: "New Year", date: "01-01", discount: 25 },
-  { name: "Workers' Day", date: "05-01", discount: 25 },
-  { name: "Independence Day", date: "10-01", discount: 25 },
-  { name: "Christmas", date: "12-25", discount: 25 },
-  { name: "Boxing Day", date: "12-26", discount: 25 },
-];
-
-/**
  * SEED 2026 HOLIDAYS
  */
 export const seedHolidays = internalMutation({

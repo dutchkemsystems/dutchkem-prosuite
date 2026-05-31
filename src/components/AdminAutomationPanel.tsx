@@ -203,15 +203,14 @@ function WorkflowsPanel() {
 function LeaderboardPanel() {
   const [period, setPeriod] = useState<"daily" | "weekly" | "monthly" | "all_time">("weekly");
   const leaderboard = useSuspenseQuery(convexQuery(api.leaderboard.getLeaderboard, { period, limit: 10 })) as any;
-  const calculateLeaderboard = useConvexMutation(api.leaderboard.calculateLeaderboard);
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h4 className="text-lg font-semibold text-white">Agent Leaderboard</h4>
         <button
-          onClick={() => calculateLeaderboard({ period })}
-          className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded-lg"
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors"
         >
           Recalculate Now
         </button>
@@ -402,7 +401,6 @@ function FacebookLeadsPanel() {
 function ReportBuilderPanel() {
   const [reportName, setReportName] = useState("");
   const reports = useSuspenseQuery(convexQuery(api.reports.getReports, {})) as any;
-  const generateReport = useConvexMutation(api.reports.generateReport);
 
   const metricTypes = ["revenue", "subscriptions", "agent_usage", "users", "performance"] as const;
 

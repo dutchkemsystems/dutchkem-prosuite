@@ -124,7 +124,17 @@ export const getAgentStats = query({
     let totalCompletions = 0;
     let totalRating = 0;
     let totalRatings = 0;
-    let pendingCommission = 0;
+
+    // Fetch all payouts once (avoid N+1)
+    const allPaidPayouts = await ctx.db
+      .query("payouts")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+    const totalPaid = allPaidPayouts
+      .filter(p => p.type === "freelancer")
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    let totalCommission = 0;
 
     for (const entry of perfEntries) {
       totalSales += entry.metrics.totalSales;
@@ -132,18 +142,7 @@ export const getAgentStats = query({
       totalCompletions += entry.metrics.completions;
       totalRating += entry.metrics.averageRating * entry.metrics.totalRatings;
       totalRatings += entry.metrics.totalRatings;
-      
-      // Commission not yet paid would be pending
-      const paidPayouts = await ctx.db
-        .query("payouts")
-        .withIndex("by_user", (q) => q.eq("userId", args.userId))
-        .collect();
-      
-      const totalPaid = paidPayouts
-        .filter(p => p.type === "freelancer")
-        .reduce((sum, p) => sum + p.amount, 0);
-      
-      pendingCommission = entry.commission.totalCommission - totalPaid;
+      totalCommission += entry.commission.totalCommission;
     }
 
     return {
@@ -151,8 +150,8 @@ export const getAgentStats = query({
       totalRevenue,
       totalCompletions,
       averageRating: totalRatings > 0 ? totalRating / totalRatings : 0,
-      pendingCommission: Math.max(0, pendingCommission),
-      totalCommissionPaid: totalCompletions * 0.1, // Placeholder
+      pendingCommission: Math.max(0, totalCommission - totalPaid),
+      totalCommissionPaid: totalPaid,
     };
   },
 });

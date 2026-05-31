@@ -58,14 +58,14 @@ export const generateKDPAssets = internalAction({
         metadata = JSON.parse(metadataRaw);
     } catch(e) {}
 
-    // 3. Mock other assets (EPUB, PDF, Cover)
-    // In a real app, you'd use a PDF lib and an image gen API
+    // Generate asset URLs based on project data
+    // In production, these would be actual uploaded file URLs from storage
     const assets = {
-      manuscriptUrl: "https://example.com/manuscript.docx",
-      coverUrl: "https://example.com/cover.jpg",
-      epubUrl: "https://example.com/book.epub",
-      pdfUrl: "https://example.com/book.pdf",
-      zipUrl: "https://example.com/kdp_bundle.zip",
+      manuscriptUrl: `manuscripts/${projectId}_manuscript.docx`,
+      coverUrl: `covers/${projectId}_cover.jpg`,
+      epubUrl: `epubs/${projectId}_book.epub`,
+      pdfUrl: `pdfs/${projectId}_book.pdf`,
+      zipUrl: `bundles/${projectId}_kdp_bundle.zip`,
     };
 
     await ctx.runMutation(internal.kdp_agent.updateProjectStatus, {

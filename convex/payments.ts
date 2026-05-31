@@ -59,11 +59,12 @@ export const attemptCharge = internalAction({
       : (standardAmounts as any)[sub.plan] || 0;
 
     try {
-      // Simulate Kora Pay Recurring Charge API Call
+      // In production, this would call the Kora Pay Recurring Charge API
       console.log(`[Kora] Charging ₦${amount} for ${sub.plan} subscription renewal: ${subscriptionId}`);
       
-      // Simulation: 90% success rate
-      const isSuccess = Math.random() > 0.1;
+      // In production, integrate with actual Kora Pay API here
+      // For now, assume success and handle API response
+      const isSuccess = true;
 
       if (isSuccess) {
         await ctx.runMutation(internal.payments.handleSuccessfulRenewal, { subscriptionId });
@@ -216,7 +217,16 @@ export const requestRefund = mutation({
       quarterly: 25000,
       yearly: 80000,
     };
-    const amount = refundAmounts[sub.plan] || 0;
+    // KDP subscription refunds use same tier amounts
+    const kdpRefundAmounts: Record<string, number> = {
+      weekly: 2000,
+      monthly: 8000,
+      quarterly: 25000,
+      yearly: 80000,
+    };
+    const isKdp = sub.service === "kdp";
+    const amounts = isKdp ? kdpRefundAmounts : refundAmounts;
+    const amount = amounts[sub.plan] || 0;
 
     await ctx.db.insert("refunds", {
       userId: sub.userId,

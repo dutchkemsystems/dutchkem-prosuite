@@ -23,6 +23,8 @@ function DashboardPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [modal, setModal] = useState<string | null>(null);
+  const { data } = useSuspenseQuery(convexQuery(api.dashboard.getDashboardData, {}));
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -37,9 +39,6 @@ function DashboardPage() {
       </div>
     );
   }
-
-  const { data } = useSuspenseQuery(convexQuery(api.dashboard.getDashboardData, {}));
-  const [modal, setModal] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row overflow-hidden">
@@ -239,7 +238,7 @@ function Header({ user, notifications }: { user: any, notifications: any[] }) {
              <div className="p-2 space-y-1">
                 <button className="w-full text-left px-4 py-3 text-xs font-bold text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition-colors">Profile Settings</button>
                 <button className="w-full text-left px-4 py-3 text-xs font-bold text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition-colors">Billing & Plans</button>
-                <button className="w-full text-left px-4 py-3 text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl transition-colors">Sign Out</button>
+                <button onClick={() => { localStorage.removeItem('admin_session_token'); window.location.href = '/'; }} className="w-full text-left px-4 py-3 text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl transition-colors">Sign Out</button>
              </div>
           </div>
         </div>
@@ -802,10 +801,10 @@ function Footer() {
           <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-tighter">© 2026 Dutchkem Ventures. RC: 9489855. All rights reserved.</p>
         </div>
         <div className="flex gap-6 text-xs text-slate-500 font-medium">
-          <a href="#" className="hover:text-indigo-400">Terms of Service</a>
-          <a href="#" className="hover:text-indigo-400">Privacy Policy</a>
-          <a href="#" className="hover:text-indigo-400">Help Center</a>
-          <a href="#" className="hover:text-indigo-400">Contact Us</a>
+          <a href="/terms" className="hover:text-indigo-400">Terms of Service</a>
+          <a href="/privacy" className="hover:text-indigo-400">Privacy Policy</a>
+          <a href="/contact" className="hover:text-indigo-400">Help Center</a>
+          <a href="/contact" className="hover:text-indigo-400">Contact Us</a>
         </div>
         <div className="flex gap-4">
           <SocialIcon icon="🐦" />

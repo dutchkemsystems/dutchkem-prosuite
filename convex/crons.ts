@@ -127,16 +127,16 @@ crons.cron(
   {}
 );
 
-// 🔄 Bi-Annual Auto-Upgrade Scheduler
+// 🔄 Bi-Annual Auto-Upgrade Scheduler (offset by 30 min to avoid collision with service updates)
 crons.cron(
   "spring service upgrade",
-  "0 2 1 5 *",
+  "30 2 1 5 *",
   api.bi_annual_upgrade.runBiAnnualUpgrade,
   {}
 );
 crons.cron(
   "fall service upgrade",
-  "0 2 1 11 *",
+  "30 2 1 11 *",
   api.bi_annual_upgrade.runBiAnnualUpgrade,
   {}
 );

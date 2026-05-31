@@ -27,7 +27,24 @@ export const verifyPayment = internalMutation({
     if (!encryptionKey) {
       return { status: "rejected", confidenceScore: 0 };
     }
-    const isValidSignature = args.signature !== "" && !!encryptionKey;
+    // Verify HMAC-SHA256 signature
+    let isValidSignature = false;
+    if (encryptionKey && args.signature) {
+      try {
+        const key = await crypto.subtle.importKey(
+          "raw",
+          new TextEncoder().encode(encryptionKey),
+          { name: "HMAC", hash: "SHA-256" },
+          false,
+          ["verify"]
+        );
+        const data = `${args.reference}:${args.amount}:${args.currency}`;
+        const signatureBytes = Uint8Array.from(atob(args.signature), c => c.charCodeAt(0));
+        isValidSignature = await crypto.subtle.verify("HMAC", key, signatureBytes, new TextEncoder().encode(data));
+      } catch {
+        isValidSignature = false;
+      }
+    }
     
     let confidenceScore = 100;
     const flags: string[] = [];
@@ -56,7 +73,11 @@ export const verifyPayment = internalMutation({
       flags.push("ip_mismatch");
     }
 
-    const fraudList = ["192.168.1.100"];
+    // Check IP against system_config blacklisted IPs
+    const blacklistConfig = await ctx.db.query("system_config")
+      .withIndex("by_key", q => q.eq("key", "blacklisted_ips"))
+      .first();
+    const fraudList: string[] = (blacklistConfig?.value as string[]) || [];
     if (fraudList.includes(args.ip)) {
         confidenceScore = 0;
         flags.push("blacklisted_ip");

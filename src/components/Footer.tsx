@@ -7,7 +7,11 @@ function FooterColumn({ title, links }: { title: string, links: {label: string, 
       <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-950">{title}</h4>
       <div className="flex flex-col gap-4">
         {links.map(link => (
-          <Link key={link.label} to={link.href as any} className="text-sm font-bold text-slate-400 hover:text-orange-600 transition-colors capitalize">{link.label}</Link>
+          link.href.startsWith("/#") ? (
+            <a key={link.label} href={link.href} className="text-sm font-bold text-slate-400 hover:text-orange-600 transition-colors capitalize">{link.label}</a>
+          ) : (
+            <Link key={link.label} to={link.href as any} className="text-sm font-bold text-slate-400 hover:text-orange-600 transition-colors capitalize">{link.label}</Link>
+          )
         ))}
       </div>
     </div>

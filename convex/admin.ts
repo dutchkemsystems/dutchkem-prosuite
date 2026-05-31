@@ -1,7 +1,7 @@
 import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import type { Doc, Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 
 // Helper for shared logic
 async function fetchSweepSettings(ctx: import("./_generated/server").QueryCtx) {
@@ -53,48 +53,60 @@ export const getAdminStats = query({
   returns: v.any(),
   handler: async (ctx) => {
     const now = Date.now();
-const _dayAgo = now - (24 * 60 * 60 * 1000);
-const _weekAgo = now - (7 * 24 * 60 * 60 * 1000);
-const _monthAgo = now - (30 * 24 * 60 * 60 * 1000);
+const dayAgo = now - (24 * 60 * 60 * 1000);
+const weekAgo = now - (7 * 24 * 60 * 60 * 1000);
+const monthAgo = now - (30 * 24 * 60 * 60 * 1000);
 
-    // Revenue metrics (Simplified: sum of all approved payments)
+    // Revenue metrics from database
     const verifications = await ctx.db.query("payment_verifications").collect();
-    const _approved = verifications.filter(v => v.status === "approved");
+    const approved = verifications.filter(v => v.status === "approved");
     
-    // In a real app, these would come from the database.
-    // For this specific requirement, I'm providing the requested "Real-time Stats"
+    const dailyRevenue = approved.filter(v => v.verifiedAt >= dayAgo).reduce((sum, v) => sum + v.amount, 0);
+    const weeklyRevenue = approved.filter(v => v.verifiedAt >= weekAgo).reduce((sum, v) => sum + v.amount, 0);
+    const monthlyRevenue = approved.filter(v => v.verifiedAt >= monthAgo).reduce((sum, v) => sum + v.amount, 0);
+    const totalRevenue = approved.reduce((sum, v) => sum + v.amount, 0);
+
+    const activeSubscriptions = await ctx.db.query("subscriptions")
+      .withIndex("by_status_and_endsAt", q => q.eq("status", "active"))
+      .collect();
+
     const stats = {
       revenue: {
-        daily: 1930000,
-        weekly: 13480000,
-        monthly: 57750000,
-        yearly: 693000000,
-        total: 57750000,
+        daily: dailyRevenue,
+        weekly: weeklyRevenue,
+        monthly: monthlyRevenue,
+        yearly: totalRevenue,
+        total: totalRevenue,
       },
-      mrr: 57750000,
-      subscribers: 5247,
+      mrr: monthlyRevenue,
+      subscribers: activeSubscriptions.length,
       activeAgents: 15,
-      platformFees: 8660000,
-      fraudStopped: 2450000, // Monthly value
+      platformFees: Math.round(monthlyRevenue * 0.15),
+      fraudStopped: 0,
     };
 
     const agentHealth = [
-        { modelName: "meta-llama/llama-3.3-70b-instruct", status: "healthy", failureCount: 0, avgResponseTime: 1.8, requestsToday: 4250, fallbackTriggered: 2 },
-        { modelName: "meta-llama/llama-3.1-70b-instruct", status: "healthy", failureCount: 0, avgResponseTime: 2.1, requestsToday: 1200, fallbackTriggered: 0 },
-        { modelName: "mistralai/mixtral-8x22b-instruct", status: "healthy", failureCount: 1, avgResponseTime: 2.5, requestsToday: 850, fallbackTriggered: 5 },
-        { modelName: "meta-llama/llama-3-8b-instruct", status: "healthy", failureCount: 0, avgResponseTime: 0.9, requestsToday: 120, fallbackTriggered: 0 },
+        { modelName: "meta-llama/llama-3.3-70b-instruct", status: "healthy", failureCount: 0, avgResponseTime: 1.8, requestsToday: 0, fallbackTriggered: 0 },
+        { modelName: "meta-llama/llama-3.1-70b-instruct", status: "healthy", failureCount: 0, avgResponseTime: 2.1, requestsToday: 0, fallbackTriggered: 0 },
+        { modelName: "mistralai/mixtral-8x22b-instruct", status: "healthy", failureCount: 0, avgResponseTime: 2.5, requestsToday: 0, fallbackTriggered: 0 },
+        { modelName: "meta-llama/llama-3-8b-instruct", status: "healthy", failureCount: 0, avgResponseTime: 0.9, requestsToday: 0, fallbackTriggered: 0 },
     ];
 
+    const recentPayments = await ctx.db.query("payment_verifications")
+      .withIndex("by_status", q => q.eq("status", "approved"))
+      .order("desc")
+      .take(10);
+
     const guardianStats = {
-        todayTransactions: 147,
-        autoApproved: 142,
-        autoApprovedValue: 2100000,
-        autoRejected: 3,
-        autoRejectedValue: 45000,
-        flagged: 2,
+        todayTransactions: approved.filter(v => v.verifiedAt >= dayAgo).length,
+        autoApproved: approved.filter(v => v.verifiedAt >= dayAgo).length,
+        autoApprovedValue: dailyRevenue,
+        autoRejected: verifications.filter(v => v.status === "rejected" && v.verifiedAt >= dayAgo).length,
+        autoRejectedValue: verifications.filter(v => v.status === "rejected" && v.verifiedAt >= dayAgo).reduce((sum, v) => sum + v.amount, 0),
+        flagged: verifications.filter(v => v.status === "manual_review" && v.verifiedAt >= dayAgo).length,
         avgVerificationTime: 2.3,
-        fraudPreventedMonth: 2450000,
-        lastVerification: now - 2000,
+        fraudPreventedMonth: 0,
+        lastVerification: recentPayments[0]?.verifiedAt || now,
         status: "online"
     };
 
@@ -383,16 +395,17 @@ export const getFreelancerOverview = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const _freelancers = await ctx.db.query("users").withIndex("by_role", (q) => q.eq("role", "freelancer")).collect();
+    const freelancers = await ctx.db.query("users").withIndex("by_role", (q) => q.eq("role", "freelancer")).collect();
     const jobs = await ctx.db.query("jobs").collect();
+    const payouts = await ctx.db.query("payouts").collect();
     
     return {
-      total: 1247,
-      pendingApplications: 89,
-      autoApprovedWeek: 127,
-      autoRejectedWeek: 34,
-      totalPaidMonth: 12400000,
-      avgEarnings: 9950,
+      total: freelancers.length,
+      pendingApplications: jobs.filter(j => j.status === "pending").length,
+      autoApprovedWeek: 0,
+      autoRejectedWeek: 0,
+      totalPaidMonth: payouts.filter(p => p.type === "freelancer").reduce((sum, p) => sum + p.amount, 0),
+      avgEarnings: freelancers.length > 0 ? Math.round(payouts.filter(p => p.type === "freelancer").reduce((sum, p) => sum + p.amount, 0) / freelancers.length) : 0,
       pendingJobs: jobs.filter(j => j.status === "pending").length,
       approvedJobs: jobs.filter(j => j.status === "approved").length,
     };
@@ -405,13 +418,18 @@ export const getFreelancerOverview = query({
 export const getReferralOverview = query({
   args: {},
   returns: v.any(),
-  handler: async (_ctx) => {
+  handler: async (ctx) => {
+        const users = await ctx.db.query("users").collect();
+        const payouts = await ctx.db.query("payouts").collect();
+        const referralPayouts = payouts.filter(p => p.type === "referral");
+        const usersWithReferrals = users.filter(u => u.referredBy);
+        
         return {
-            totalReferrers: 2847,
-            totalPaidLifetime: 47200000,
-            pendingPayouts: 12800000,
-            avgCommission: 16580,
-            topReferrer: { name: "Adeola O.", earnings: 247000 }
+            totalReferrers: usersWithReferrals.length,
+            totalPaidLifetime: referralPayouts.reduce((sum, p) => sum + p.amount, 0),
+            pendingPayouts: referralPayouts.filter(p => p.status === "pending").reduce((sum, p) => sum + p.amount, 0),
+            avgCommission: referralPayouts.length > 0 ? Math.round(referralPayouts.reduce((sum, p) => sum + p.amount, 0) / referralPayouts.length) : 0,
+            topReferrer: null,
         };
     }
 });

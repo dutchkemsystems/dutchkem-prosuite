@@ -2,7 +2,7 @@ import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 
-export default mutation({
+export const seedKdp = mutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {

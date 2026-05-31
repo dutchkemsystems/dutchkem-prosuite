@@ -31,9 +31,18 @@ export const createJobWithPayment = mutation({
     const platformFee = Math.round(args.amount * 0.15 * 100) / 100;
     const freelancerAmount = Math.round(args.amount * 0.85 * 100) / 100;
 
-    // 1. Log the marketplace transaction
+    // 1. Create the job first to get a valid jobId
+    const jobId = await ctx.db.insert("jobs", {
+      freelancerId: args.freelancerId,
+      amount: args.amount,
+      status: "pending",
+      description: args.description,
+      completedAt: undefined,
+    });
+
+    // 2. Log the marketplace transaction with valid jobId
     const txId = await ctx.db.insert("marketplace_transactions", {
-      jobId: "dummy_job_id" as any, // Will be updated after job creation
+      jobId,
       clientId: args.clientId,
       freelancerId: args.freelancerId,
       amount: args.amount,
@@ -43,18 +52,6 @@ export const createJobWithPayment = mutation({
       koraReference: args.koraPaymentReference,
       createdAt: Date.now(),
     });
-
-    // 2. Create the actual job linked to this transaction
-    const jobId = await ctx.db.insert("jobs", {
-      freelancerId: args.freelancerId,
-      amount: args.amount,
-      status: "pending",
-      description: args.description,
-      completedAt: undefined,
-    });
-
-    // Update transaction with the real jobId
-    await ctx.db.patch(txId, { jobId });
 
     // 3. Add 15% platform fee to main wallet
     await ctx.runMutation(internal.marketplace.addToMainWallet, { amount: platformFee });
