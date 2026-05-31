@@ -44,49 +44,39 @@ export const getPlatformAnalyticsSummary = query({
         break;
     }
 
-    // Get leads by source
+    // Get leads by source using index
     const leads = await ctx.db.query("leads")
-      .filter(q => q.gte(q.field("receivedAt"), startTime))
+      .withIndex("by_received", q => q.gte("receivedAt", startTime))
       .collect();
 
-    // Get users by registration source
-    const users = await ctx.db.query("users")
-      .filter(q => q.gte(q.field("_creationTime"), startTime))
-      .collect();
-
-    // Get subscriptions
-    const subscriptions = await ctx.db.query("subscriptions")
-      .filter(q => q.gte(q.field("_creationTime"), startTime))
-      .collect();
-
-    // Get payments
+    // Get payments using index
     const payments = await ctx.db.query("payment_verifications")
-      .filter(q => q.eq(q.field("status"), "approved"))
-      .filter(q => q.gte(q.field("verifiedAt"), startTime))
+      .withIndex("by_status", q => q.eq("status", "approved"))
       .collect();
+    
+    const filteredPayments = payments.filter(p => p.verifiedAt >= startTime);
 
     // Calculate per-platform metrics
     const platformMetrics = PLATFORMS.map(platform => {
       const platformLeads = leads.filter(l => l.source === platform.id);
-      const platformUsers = users.filter(u => {
-        // Match by email from leads
-        const leadEmails = platformLeads.filter(l => l.email).map(l => l.email);
-        return u.email && leadEmails.includes(u.email);
-      });
-      const platformSubs = subscriptions.filter(s => {
-        const user = users.find(u => u._id === s.userId);
-        return user && platformUsers.some(pu => pu._id === user._id);
-      });
-      const platformPayments = payments.filter(p => {
-        const user = users.find(u => u._id === p.userId);
-        return user && platformUsers.some(pu => pu._id === user._id);
+      const platformPayments = filteredPayments.filter(p => {
+        // Match payments to platform via leads
+        return platformLeads.some(l => l.email && l.email === p.userId);
       });
 
       const revenue = platformPayments.reduce((sum, p) => sum + p.amount, 0);
 
       return {
         ...platform,
-        visits: platformLeads.length * 10, // Estimate: 10 visits per lead
+        visits: platformLeads.length * 10,
+        registrations: platformLeads.filter(l => l.status === "converted").length,
+        subscriptions: platformLeads.filter(l => l.status === "converted").length,
+        revenue,
+        conversionRate: platformLeads.length > 0 
+          ? Math.round((platformLeads.filter(l => l.status === "converted").length / platformLeads.length) * 100)
+          : 0,
+      };
+    });
         registrations: platformUsers.length,
         subscriptions: platformSubs.length,
         revenue,
@@ -130,23 +120,22 @@ export const getDailyPlatformMetrics = query({
     const now = Date.now();
     const metrics = [];
 
+    // Get all leads and payments once
+    const allLeads = await ctx.db.query("leads")
+      .withIndex("by_received", q => q.gte("receivedAt", now - args.days * 24 * 60 * 60 * 1000))
+      .collect();
+
+    const allPayments = await ctx.db.query("payment_verifications")
+      .withIndex("by_status", q => q.eq("status", "approved"))
+      .collect();
+
     for (let i = args.days - 1; i >= 0; i--) {
       const dayStart = now - (i + 1) * 24 * 60 * 60 * 1000;
       const dayEnd = now - i * 24 * 60 * 60 * 1000;
       const date = new Date(dayStart).toISOString().split("T")[0];
 
-      // Get leads for this day
-      const leads = await ctx.db.query("leads")
-        .filter(q => q.gte(q.field("receivedAt"), dayStart))
-        .filter(q => q.lt(q.field("receivedAt"), dayEnd))
-        .collect();
-
-      // Get payments for this day
-      const payments = await ctx.db.query("payment_verifications")
-        .filter(q => q.eq(q.field("status"), "approved"))
-        .filter(q => q.gte(q.field("verifiedAt"), dayStart))
-        .filter(q => q.lt(q.field("verifiedAt"), dayEnd))
-        .collect();
+      const leads = allLeads.filter(l => l.receivedAt >= dayStart && l.receivedAt < dayEnd);
+      const payments = allPayments.filter(p => p.verifiedAt >= dayStart && p.verifiedAt < dayEnd);
 
       const revenue = payments.reduce((sum, p) => sum + p.amount, 0);
 

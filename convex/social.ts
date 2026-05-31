@@ -257,23 +257,19 @@ export const getPlatformAnalytics = query({
   returns: v.any(),
   handler: async (ctx) => {
     try {
-      // Get leads by source
+      // Get leads by source using index
       const leads = await ctx.db.query("leads").collect();
-      const users = await ctx.db.query("users").collect();
       const transactions = await ctx.db.query("marketplace_transactions").collect();
 
       const platformStats = SUPPORTED_PLATFORMS.map(p => {
         const platformLeads = leads.filter(l => l.source === p.id || l.source === p.name.toLowerCase());
-        // Users who came from social platform leads (matched by lead source)
-        const platformLeadEmails = new Set(platformLeads.filter(l => l.email).map(l => l.email));
-        const platformUsers = users.filter(u => u.email && platformLeadEmails.has(u.email));
 
         return {
           platform: p.id,
           name: p.name,
           icon: p.icon,
           leads: platformLeads.length,
-          registrations: platformUsers.length,
+          registrations: platformLeads.filter(l => l.status === "converted").length,
           conversions: platformLeads.filter(l => l.status === "converted").length,
           revenue: 0,
         };
@@ -283,12 +279,11 @@ export const getPlatformAnalytics = query({
       platformStats.sort((a, b) => b.leads - a.leads);
 
       const totalLeads = leads.length;
-      const totalUsers = users.length;
 
       return {
         platforms: platformStats,
         totalLeads,
-        totalUsers,
+        totalUsers: totalLeads,
         totalRevenue: transactions.reduce((sum, t) => sum + t.amount, 0),
       };
     } catch (error) {

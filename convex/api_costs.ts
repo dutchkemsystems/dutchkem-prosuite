@@ -25,14 +25,12 @@ export const getApiCostSummary = query({
   returns: v.any(),
   handler: async (ctx) => {
     const now = Date.now();
-    const startOfMonth = new Date(now);
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
 
-    // Get all API usage logs
-    const usageLogs = await ctx.db.query("system_config")
-      .filter(q => q.eq(q.field("key").slice(0, 8), "API_USE_"))
-      .collect();
+    // Get all system_config entries
+    const allConfigs = await ctx.db.query("system_config").collect();
+    
+    // Filter for API usage logs (keys starting with "API_USE_")
+    const usageLogs = allConfigs.filter(c => c.key.startsWith("API_USE_"));
 
     // Calculate costs per API
     const costs: Record<string, { name: string; usage: number; cost: number; unit: string }> = {};

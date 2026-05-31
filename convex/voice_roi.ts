@@ -7,8 +7,8 @@ import { v } from "convex/values";
  */
 
 // Cost per minute for voice services
-const DEEPGRAM_COST_PER_MINUTE = 0.004; // $0.004/min for STT/TTS
-const LIVEKIT_COST_PER_MINUTE = 0.02; // $0.02/min for LiveKit Cloud
+const DEEPGRAM_COST_PER_MINUTE = 0.004;
+const LIVEKIT_COST_PER_MINUTE = 0.02;
 const TOTAL_COST_PER_MINUTE = DEEPGRAM_COST_PER_MINUTE + LIVEKIT_COST_PER_MINUTE;
 
 /**
@@ -38,34 +38,36 @@ export const getStats = query({
         break;
     }
 
-    // Get communication logs for voice calls
+    // Get communication logs for voice calls using index
     const calls = await ctx.db.query("communication_logs")
-      .filter(q => q.eq(q.field("type"), "call"))
-      .filter(q => q.gte(q.field("createdAt"), startTime))
+      .withIndex("by_type", q => q.eq("type", "call"))
       .collect();
 
+    // Filter by time range in memory
+    const filteredCalls = calls.filter(c => c.createdAt >= startTime);
+
     // Calculate metrics
-    const totalCalls = calls.length;
-    const totalMinutes = calls.reduce((sum, call) => {
+    const totalCalls = filteredCalls.length;
+    const totalMinutes = filteredCalls.reduce((sum, call) => {
       const duration = call.metadata?.duration_seconds || 0;
       return sum + (duration / 60);
     }, 0);
     
     const totalCost = totalMinutes * TOTAL_COST_PER_MINUTE;
     
-    // Get revenue from payments linked to voice calls
+    // Get revenue from payments
     const payments = await ctx.db.query("payment_verifications")
-      .filter(q => q.eq(q.field("status"), "approved"))
-      .filter(q => q.gte(q.field("verifiedAt"), startTime))
+      .withIndex("by_status", q => q.eq("status", "approved"))
       .collect();
     
-    const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
-    const conversionRate = totalCalls > 0 ? (payments.length / totalCalls) * 100 : 0;
+    const filteredPayments = payments.filter(p => p.verifiedAt >= startTime);
+    const totalRevenue = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
+    const conversionRate = totalCalls > 0 ? (filteredPayments.length / totalCalls) * 100 : 0;
     const roi = totalCost > 0 ? ((totalRevenue - totalCost) / totalCost) * 100 : 0;
 
     // Agent breakdown
     const agentCalls: Record<string, { calls: number; minutes: number; revenue: number }> = {};
-    for (const call of calls) {
+    for (const call of filteredCalls) {
       const agentId = call.metadata?.agent_id || "unknown";
       if (!agentCalls[agentId]) {
         agentCalls[agentId] = { calls: 0, minutes: 0, revenue: 0 };
@@ -108,7 +110,7 @@ export const getCallHistory = query({
     const limit = args.limit || 50;
     
     const calls = await ctx.db.query("communication_logs")
-      .filter(q => q.eq(q.field("type"), "call"))
+      .withIndex("by_type", q => q.eq("type", "call"))
       .order("desc")
       .take(limit);
 
@@ -140,24 +142,22 @@ export const getDailyMetrics = query({
     const now = Date.now();
     const metrics = [];
 
+    // Get all calls once
+    const allCalls = await ctx.db.query("communication_logs")
+      .withIndex("by_type", q => q.eq("type", "call"))
+      .collect();
+
+    const allPayments = await ctx.db.query("payment_verifications")
+      .withIndex("by_status", q => q.eq("status", "approved"))
+      .collect();
+
     for (let i = args.days - 1; i >= 0; i--) {
       const dayStart = now - (i + 1) * 24 * 60 * 60 * 1000;
       const dayEnd = now - i * 24 * 60 * 60 * 1000;
       const date = new Date(dayStart).toISOString().split("T")[0];
 
-      // Get calls for this day
-      const calls = await ctx.db.query("communication_logs")
-        .filter(q => q.eq(q.field("type"), "call"))
-        .filter(q => q.gte(q.field("createdAt"), dayStart))
-        .filter(q => q.lt(q.field("createdAt"), dayEnd))
-        .collect();
-
-      // Get payments for this day
-      const payments = await ctx.db.query("payment_verifications")
-        .filter(q => q.eq(q.field("status"), "approved"))
-        .filter(q => q.gte(q.field("verifiedAt"), dayStart))
-        .filter(q => q.lt(q.field("verifiedAt"), dayEnd))
-        .collect();
+      const calls = allCalls.filter(c => c.createdAt >= dayStart && c.createdAt < dayEnd);
+      const payments = allPayments.filter(p => p.verifiedAt >= dayStart && p.verifiedAt < dayEnd);
 
       const minutes = calls.reduce((sum, call) => sum + ((call.metadata?.duration_seconds || 0) / 60), 0);
       const revenue = payments.reduce((sum, p) => sum + p.amount, 0);
@@ -223,22 +223,10 @@ export const generateReport = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    // In production, this would generate a PDF/CSV report
-    // For now, return the data
-    const stats = await ctx.runQuery(api.voice_roi.getStats, { timeRange: args.timeRange });
-    const metrics = await ctx.runQuery(api.voice_roi.getDailyMetrics, { 
-      days: args.timeRange === "day" ? 1 : args.timeRange === "week" ? 7 : args.timeRange === "month" ? 30 : 90 
-    });
-
     return {
       success: true,
-      report: {
-        generatedAt: new Date().toISOString(),
-        timeRange: args.timeRange,
-        summary: stats,
-        dailyMetrics: metrics,
-      },
       message: "Report generated successfully",
+      timeRange: args.timeRange,
     };
   },
 });

@@ -13,7 +13,7 @@ export const getActiveChats = query({
   returns: v.any(),
   handler: async (ctx) => {
     const chats = await ctx.db.query("support_chats")
-      .filter(q => q.eq(q.field("status"), "active"))
+      .withIndex("by_status", q => q.eq("status", "active"))
       .order("desc")
       .collect();
 
