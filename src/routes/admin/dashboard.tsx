@@ -447,7 +447,8 @@ function SocialEnginePanel() {
   const handleConnect = async (platformId: string) => {
     setConnecting(platformId);
     try {
-      const redirectUri = `${window.location.origin}/admin/social-callback`;
+      // Use the Convex HTTP endpoint for callback
+      const redirectUri = `${window.location.origin}/api/social/callback/${platformId}`;
       const result = await generateOAuth({ platform: platformId, redirectUri });
       
       if (result?.error) {
@@ -464,10 +465,21 @@ function SocialEnginePanel() {
           'width=600,height=700,scrollbars=yes,resizable=yes'
         );
         
+        // Listen for postMessage from popup
+        const messageHandler = (event: MessageEvent) => {
+          if (event.data?.type === 'social_connection_success') {
+            window.removeEventListener('message', messageHandler);
+            setConnecting(null);
+            window.location.reload();
+          }
+        };
+        window.addEventListener('message', messageHandler);
+        
         // Monitor popup for closure
         const popupCheck = setInterval(() => {
           if (!popup || popup.closed) {
             clearInterval(popupCheck);
+            window.removeEventListener('message', messageHandler);
             setConnecting(null);
             // Refresh page to show updated connection status
             window.location.reload();
