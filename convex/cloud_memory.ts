@@ -411,27 +411,117 @@ async function computeChecksum(data: string): Promise<string> {
 }
 
 /**
- * Get system health status
+ * Get system health status (LIVE DATA - not simulated)
  */
 export const getSystemHealth = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const backups = await ctx.db.query("system_backups").collect();
-    const sessions = await ctx.db.query("user_sessions").collect();
-    const posts = await ctx.db.query("social_posts").collect();
-    
-    const lastBackup = backups.sort((a, b) => b.createdAt - a.createdAt)[0];
-    const activeSessions = sessions.filter(s => s.isCurrent).length;
-    const stuckPosts = posts.filter(p => p.status === "scheduled" && p.scheduledFor < Date.now() - 3600000).length;
+    try {
+      const now = Date.now();
+      
+      // Parallel queries for performance
+      const [
+        backups,
+        sessions,
+        posts,
+        socialPlatforms,
+        paymentVerifications,
+        systemWallets,
+      ] = await Promise.all([
+        ctx.db.query("system_backups").order("desc").take(100),
+        ctx.db.query("user_sessions").collect(),
+        ctx.db.query("social_posts").collect(),
+        ctx.db.query("social_platforms").collect(),
+        ctx.db.query("payment_verifications").order("desc").take(100),
+        ctx.db.query("system_wallets").collect(),
+      ]);
 
-    return {
-      lastBackupTime: lastBackup?.createdAt || null,
-      backupCount: backups.length,
-      activeSessions,
-      stuckPosts,
-      healthScore: Math.max(0, 100 - (stuckPosts * 5) - (activeSessions > 100 ? 20 : 0)),
-      status: stuckPosts > 5 ? "degraded" : "optimal",
-    };
+      // Calculate real metrics
+      const lastBackup = backups[0];
+      const activeSessions = sessions.filter(s => s.isCurrent && s.expiresAt > now).length;
+      const stuckPosts = posts.filter(p => 
+        p.status === "scheduled" && p.scheduledFor < now - 3600000
+      ).length;
+      const connectedPlatforms = socialPlatforms.filter(p => p.isConnected).length;
+      
+      // Payment health (last 24h)
+      const dayAgo = now - 24 * 60 * 60 * 1000;
+      const recentPayments = paymentVerifications.filter(p => p.verifiedAt >= dayAgo);
+      const successfulPayments = recentPayments.filter(p => p.status === "approved").length;
+      const failedPayments = recentPayments.filter(p => p.status === "rejected").length;
+      const paymentSuccessRate = recentPayments.length > 0 
+        ? (successfulPayments / recentPayments.length) * 100 
+        : 100;
+
+      // Wallet balances
+      const walletBalances = systemWallets.map(w => ({
+        type: w.type,
+        balance: w.balance,
+      }));
+
+      // Health score calculation
+      let healthScore = 100;
+      if (stuckPosts > 0) healthScore -= stuckPosts * 3;
+      if (failedPayments > 0) healthScore -= failedPayments * 5;
+      if (paymentSuccessRate < 95) healthScore -= 10;
+      if (activeSessions > 50) healthScore -= 10;
+      if (!lastBackup || (now - lastBackup.createdAt) > 24 * 60 * 60 * 1000) {
+        healthScore -= 15; // No backup in 24h
+      }
+      healthScore = Math.max(0, Math.min(100, healthScore));
+
+      // Determine status
+      let status: "optimal" | "degraded" | "critical" = "optimal";
+      if (healthScore < 50) status = "critical";
+      else if (healthScore < 80) status = "degraded";
+
+      return {
+        status,
+        healthScore,
+        database: {
+          status: "connected",
+          tables: {
+            backups: backups.length,
+            sessions: sessions.length,
+            posts: posts.length,
+            payments: paymentVerifications.length,
+          },
+        },
+        backups: {
+          count: backups.length,
+          lastBackupTime: lastBackup?.createdAt || null,
+          lastBackupAge: lastBackup ? now - lastBackup.createdAt : null,
+        },
+        sessions: {
+          active: activeSessions,
+          total: sessions.length,
+        },
+        social: {
+          connectedPlatforms,
+          totalPlatforms: socialPlatforms.length,
+          stuckPosts,
+          totalPosts: posts.length,
+        },
+        payments: {
+          last24h: recentPayments.length,
+          successful: successfulPayments,
+          failed: failedPayments,
+          successRate: Math.round(paymentSuccessRate),
+        },
+        wallets: walletBalances,
+        timestamp: now,
+        isLive: true,
+      };
+    } catch (error: any) {
+      console.error("getSystemHealth error:", error);
+      return {
+        status: "degraded",
+        healthScore: 0,
+        error: error.message,
+        timestamp: Date.now(),
+        isLive: true,
+      };
+    }
   },
 });
