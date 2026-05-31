@@ -37,11 +37,10 @@ export const generateOAuthUrl = mutation({
 
     const postizKey = process.env.POSTIZ_API_KEY;
     const postizUrl = process.env.POSTIZ_API_URL || 'https://api.postiz.com';
-    const postizClientId = process.env.POSTIZ_CLIENT_ID;
 
-    if (!postizKey || !postizClientId) {
+    if (!postizKey) {
       return { 
-        error: "Postiz API not configured. Set POSTIZ_API_KEY and POSTIZ_CLIENT_ID.",
+        error: "Postiz API not configured. Set POSTIZ_API_KEY.",
         platform: platformConfig.name,
       };
     }
@@ -63,8 +62,8 @@ export const generateOAuthUrl = mutation({
       updatedAt: Date.now(),
     });
 
-    // Use Postiz OAuth endpoint
-    const authUrl = `${postizUrl}/api/v1/auth/${platform}?redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
+    // Use Postiz API to get OAuth URL: GET /public/v1/social/{integration}
+    const authUrl = `${postizUrl}/public/v1/social/${platform}?redirect=${encodeURIComponent(redirectUri)}&state=${state}`;
 
     return { 
       authUrl, 
@@ -113,13 +112,18 @@ export const handleOAuthCallback = mutation({
 
     try {
       // Exchange authorization code for access token via Postiz
-      const tokenResponse = await fetch(`${postizUrl}/api/v1/auth/${platform}/callback`, {
+      // POST /public/v1/oauth/token
+      const tokenResponse = await fetch(`${postizUrl}/public/v1/oauth/token`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${postizKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ code, state }),
+        body: JSON.stringify({
+          grant_type: "authorization_code",
+          code: code,
+          client_id: process.env.POSTIZ_CLIENT_ID,
+          client_secret: process.env.POSTIZ_CLIENT_SECRET,
+        }),
       });
 
       if (!tokenResponse.ok) {
@@ -130,26 +134,24 @@ export const handleOAuthCallback = mutation({
 
       const tokenData = await tokenResponse.json();
       const accessToken = tokenData.access_token;
-      const refreshToken = tokenData.refresh_token;
 
-      // Get user info from Postiz
+      // Get integrations to find the connected platform
+      const integrationsResponse = await fetch(`${postizUrl}/public/v1/integrations`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
       let username = "unknown";
       let userId = "";
 
-      try {
-        const userInfoResponse = await fetch(`${postizUrl}/api/v1/user/me`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-          },
-        });
-        
-        if (userInfoResponse.ok) {
-          const userInfo = await userInfoResponse.json();
-          username = userInfo.username || userInfo.name || "unknown";
-          userId = userInfo.id || "";
+      if (integrationsResponse.ok) {
+        const integrations = await integrationsResponse.json();
+        const platformIntegration = integrations.find((i: any) => i.identifier === platform);
+        if (platformIntegration) {
+          username = platformIntegration.profile || platformIntegration.name || "unknown";
+          userId = platformIntegration.id || "";
         }
-      } catch (err) {
-        console.error(`[OAUTH] Failed to get user info for ${platform}:`, err);
       }
 
       // Store or update the connection
@@ -160,7 +162,7 @@ export const handleOAuthCallback = mutation({
       if (existing) {
         await ctx.db.patch(existing._id, {
           accessToken,
-          refreshToken,
+          refreshToken: tokenData.refresh_token,
           isConnected: true,
           connectedAt: Date.now(),
           lastSyncAt: Date.now(),
@@ -172,7 +174,7 @@ export const handleOAuthCallback = mutation({
         await ctx.db.insert("social_platforms", {
           platform,
           accessToken,
-          refreshToken,
+          refreshToken: tokenData.refresh_token,
           isConnected: true,
           connectedAt: Date.now(),
           lastSyncAt: Date.now(),
