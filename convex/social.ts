@@ -5,97 +5,25 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
 /**
- * SOCIAL MEDIA ENGINE - Complete OAuth Integration
- * Real OAuth with platform-native login pages
+ * SOCIAL MEDIA ENGINE - Postiz API Integration
+ * Real OAuth via Postiz for all social platforms
  */
 
-// Supported platforms with their OAuth endpoints
+// Supported platforms via Postiz
 export const SUPPORTED_PLATFORMS = [
-  { 
-    id: "x", 
-    name: "X (Twitter)", 
-    icon: "𝕏", 
-    color: "#1DA1F2",
-    oauthUrl: "https://twitter.com/i/oauth2/authorize",
-    scopes: ["tweet.read", "tweet.write", "users.read", "offline.access"],
-    tokenUrl: "https://api.twitter.com/2/oauth2/token",
-  },
-  { 
-    id: "linkedin", 
-    name: "LinkedIn", 
-    icon: "💼", 
-    color: "#0A66C2",
-    oauthUrl: "https://www.linkedin.com/oauth/v2/authorization",
-    scopes: ["w_member_social", "r_liteprofile", "r_emailaddress", "openid", "profile"],
-    tokenUrl: "https://www.linkedin.com/oauth/v2/accessToken",
-  },
-  { 
-    id: "facebook", 
-    name: "Facebook", 
-    icon: "📘", 
-    color: "#1877F2",
-    oauthUrl: "https://www.facebook.com/v18.0/dialog/oauth",
-    scopes: ["pages_manage_posts", "pages_read_engagement", "pages_show_list", "public_profile", "email"],
-    tokenUrl: "https://graph.facebook.com/v18.0/oauth/access_token",
-  },
-  { 
-    id: "instagram", 
-    name: "Instagram", 
-    icon: "📸", 
-    color: "#E4405F",
-    oauthUrl: "https://www.facebook.com/v18.0/dialog/oauth",
-    scopes: ["instagram_basic", "instagram_content_publish", "instagram_manage_insights", "pages_show_list"],
-    tokenUrl: "https://graph.facebook.com/v18.0/oauth/access_token",
-  },
-  { 
-    id: "tiktok", 
-    name: "TikTok", 
-    icon: "🎵", 
-    color: "#000000",
-    oauthUrl: "https://www.tiktok.com/v2/auth/authorize/",
-    scopes: ["user.info.basic", "video.publish", "video.list"],
-    tokenUrl: "https://open.tiktokapis.com/v2/oauth/token/",
-  },
-  { 
-    id: "youtube", 
-    name: "YouTube", 
-    icon: "🎬", 
-    color: "#FF0000",
-    oauthUrl: "https://accounts.google.com/o/oauth2/v2/auth",
-    scopes: ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube", "https://www.googleapis.com/auth/youtube.force-ssl"],
-    tokenUrl: "https://oauth2.googleapis.com/token",
-  },
-  { 
-    id: "pinterest", 
-    name: "Pinterest", 
-    icon: "📌", 
-    color: "#E60023",
-    oauthUrl: "https://api.pinterest.com/oauth/",
-    scopes: ["pins:read", "pins:write", "boards:read", "boards:write"],
-    tokenUrl: "https://api.pinterest.com/v5/oauth/token",
-  },
-  { 
-    id: "reddit", 
-    name: "Reddit", 
-    icon: "🤖", 
-    color: "#FF4500",
-    oauthUrl: "https://www.reddit.com/api/v1/authorize",
-    scopes: ["submit", "read", "identity"],
-    tokenUrl: "https://www.reddit.com/api/v1/access_token",
-  },
-  { 
-    id: "threads", 
-    name: "Threads", 
-    icon: "🧵", 
-    color: "#000000",
-    oauthUrl: "https://www.threads.net/oauth/authorize",
-    scopes: ["threads_basic", "threads_content_publish"],
-    tokenUrl: "https://graph.threads.net/oauth/access_token",
-  },
+  { id: "x", name: "X (Twitter)", icon: "𝕏", color: "#1DA1F2" },
+  { id: "linkedin", name: "LinkedIn", icon: "💼", color: "#0A66C2" },
+  { id: "facebook", name: "Facebook", icon: "📘", color: "#1877F2" },
+  { id: "instagram", name: "Instagram", icon: "📸", color: "#E4405F" },
+  { id: "tiktok", name: "TikTok", icon: "🎵", color: "#000000" },
+  { id: "youtube", name: "YouTube", icon: "🎬", color: "#FF0000" },
+  { id: "pinterest", name: "Pinterest", icon: "📌", color: "#E60023" },
+  { id: "reddit", name: "Reddit", icon: "🤖", color: "#FF4500" },
+  { id: "threads", name: "Threads", icon: "🧵", color: "#000000" },
 ] as const;
 
 /**
- * Generate OAuth URL for platform login (opens popup)
+ * Generate OAuth URL for connecting a platform via Postiz
  */
 export const generateOAuthUrl = mutation({
   args: { 
@@ -107,10 +35,21 @@ export const generateOAuthUrl = mutation({
     const platformConfig = SUPPORTED_PLATFORMS.find(p => p.id === platform);
     if (!platformConfig) throw new Error(`Unsupported platform: ${platform}`);
 
-    // Generate state parameter for CSRF protection
+    const postizKey = process.env.POSTIZ_API_KEY;
+    const postizUrl = process.env.POSTIZ_API_URL || 'https://api.postiz.com';
+    const postizClientId = process.env.POSTIZ_CLIENT_ID;
+
+    if (!postizKey || !postizClientId) {
+      return { 
+        error: "Postiz API not configured. Set POSTIZ_API_KEY and POSTIZ_CLIENT_ID.",
+        platform: platformConfig.name,
+      };
+    }
+
+    // Generate state parameter
     const state = `${platform}_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
     
-    // Store the OAuth state temporarily
+    // Store the OAuth state
     await ctx.db.insert("system_config", {
       key: `oauth_state_${state}`,
       value: { 
@@ -118,67 +57,26 @@ export const generateOAuthUrl = mutation({
         state, 
         redirectUri,
         createdAt: Date.now(),
-        expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+        expiresAt: Date.now() + 10 * 60 * 1000,
       },
       description: `OAuth state for ${platformConfig.name}`,
       updatedAt: Date.now(),
     });
 
-    // Get platform credentials from environment
-    const clientId = process.env[`${platform.toUpperCase()}_CLIENT_ID`];
-    
-    if (!clientId) {
-      return { 
-        error: `Missing ${platform.toUpperCase()}_CLIENT_ID environment variable`,
-        platform: platformConfig.name,
-      };
-    }
-
-    // Build OAuth URL
-    let authUrl = "";
-    const scopes = platformConfig.scopes.join(" ");
-
-    switch (platform) {
-      case "x":
-        authUrl = `${platformConfig.oauthUrl}?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${encodeURIComponent(scopes)}`;
-        break;
-      case "linkedin":
-        authUrl = `${platformConfig.oauthUrl}?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${encodeURIComponent(scopes)}`;
-        break;
-      case "facebook":
-      case "instagram":
-        authUrl = `${platformConfig.oauthUrl}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${encodeURIComponent(scopes)}&response_type=code`;
-        break;
-      case "tiktok":
-        authUrl = `${platformConfig.oauthUrl}?client_key=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${encodeURIComponent(scopes)}`;
-        break;
-      case "youtube":
-        authUrl = `${platformConfig.oauthUrl}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${encodeURIComponent(scopes)}&response_type=code&access_type=offline`;
-        break;
-      case "pinterest":
-        authUrl = `${platformConfig.oauthUrl}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${encodeURIComponent(scopes)}&response_type=code`;
-        break;
-      case "reddit":
-        authUrl = `${platformConfig.oauthUrl}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${encodeURIComponent(scopes)}&response_type=code&duration=permanent`;
-        break;
-      case "threads":
-        authUrl = `${platformConfig.oauthUrl}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${encodeURIComponent(scopes)}&response_type=code`;
-        break;
-      default:
-        authUrl = `${platformConfig.oauthUrl}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${encodeURIComponent(scopes)}&response_type=code`;
-    }
+    // Use Postiz OAuth endpoint
+    const authUrl = `${postizUrl}/api/v1/auth/${platform}?redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
 
     return { 
       authUrl, 
       state, 
       platform: platformConfig,
-      message: `Opening ${platformConfig.name} login page...`
+      message: `Opening ${platformConfig.name} login via Postiz...`
     };
   },
 });
 
 /**
- * Handle OAuth callback and complete connection
+ * Handle OAuth callback from Postiz
  */
 export const handleOAuthCallback = mutation({
   args: { 
@@ -205,34 +103,23 @@ export const handleOAuthCallback = mutation({
     // Delete used state
     await ctx.db.delete(stateConfig._id);
 
-    // Exchange code for tokens via platform's token endpoint
-    const platformConfig = SUPPORTED_PLATFORMS.find(p => p.id === platform);
-    if (!platformConfig) {
-      return { success: false, error: "Unknown platform" };
-    }
+    // Exchange code for tokens via Postiz API
+    const postizKey = process.env.POSTIZ_API_KEY;
+    const postizUrl = process.env.POSTIZ_API_URL || 'https://api.postiz.com';
 
-    const clientId = process.env[`${platform.toUpperCase()}_CLIENT_ID`];
-    const clientSecret = process.env[`${platform.toUpperCase()}_CLIENT_SECRET`];
-    const redirectUri = stateData.redirectUri;
-
-    if (!clientId || !clientSecret) {
-      return { success: false, error: `Missing credentials for ${platformConfig.name}` };
+    if (!postizKey) {
+      return { success: false, error: "Postiz API not configured" };
     }
 
     try {
-      // Exchange authorization code for access token
-      const tokenResponse = await fetch(platformConfig.tokenUrl, {
-        method: "POST",
+      // Exchange authorization code for access token via Postiz
+      const tokenResponse = await fetch(`${postizUrl}/api/v1/auth/${platform}/callback`, {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
+          'Authorization': `Bearer ${postizKey}`,
+          'Content-Type': 'application/json',
         },
-        body: new URLSearchParams({
-          grant_type: "authorization_code",
-          client_id: clientId,
-          client_secret: clientSecret,
-          code: code,
-          redirect_uri: redirectUri,
-        }).toString(),
+        body: JSON.stringify({ code, state }),
       });
 
       if (!tokenResponse.ok) {
@@ -244,16 +131,23 @@ export const handleOAuthCallback = mutation({
       const tokenData = await tokenResponse.json();
       const accessToken = tokenData.access_token;
       const refreshToken = tokenData.refresh_token;
-      const expiresIn = tokenData.expires_in;
 
-      // Get user info from the platform
+      // Get user info from Postiz
       let username = "unknown";
       let userId = "";
 
       try {
-        const userInfo = await getPlatformUserInfo(platform, accessToken);
-        username = userInfo.username || userInfo.name || "unknown";
-        userId = userInfo.id || "";
+        const userInfoResponse = await fetch(`${postizUrl}/api/v1/user/me`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        });
+        
+        if (userInfoResponse.ok) {
+          const userInfo = await userInfoResponse.json();
+          username = userInfo.username || userInfo.name || "unknown";
+          userId = userInfo.id || "";
+        }
       } catch (err) {
         console.error(`[OAUTH] Failed to get user info for ${platform}:`, err);
       }
@@ -290,6 +184,9 @@ export const handleOAuthCallback = mutation({
         });
       }
 
+      // Start auto-posting for this platform
+      await ctx.scheduler.runAfter(0, internal.social.startAutoPosting, { platform });
+
       return { 
         success: true, 
         platform: platformConfig.name,
@@ -304,40 +201,41 @@ export const handleOAuthCallback = mutation({
 });
 
 /**
- * Get user info from platform
+ * Start auto-posting for a platform
  */
-async function getPlatformUserInfo(platform: string, accessToken: string): Promise<any> {
-  const endpoints: Record<string, string> = {
-    x: "https://api.twitter.com/2/users/me",
-    linkedin: "https://api.linkedin.com/v2/userinfo",
-    facebook: "https://graph.facebook.com/me?fields=id,name",
-    instagram: "https://graph.facebook.com/me?fields=id,name",
-    tiktok: "https://open.tiktokapis.com/v2/user/info/?fields=display_name,username",
-    youtube: "https://www.googleapis.com/oauth2/v2/userinfo",
-    pinterest: "https://api.pinterest.com/v5/user_account",
-    reddit: "https://oauth.reddit.com/api/v1/me",
-    threads: "https://graph.threads.net/me?fields=id,username",
-  };
+export const startAutoPosting = internalMutation({
+  args: { platform: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Get the connected platform
+    const platform = await ctx.db.query("social_platforms")
+      .withIndex("by_platform", q => q.eq("platform", args.platform))
+      .first();
 
-  const endpoint = endpoints[platform];
-  if (!endpoint) throw new Error(`No user info endpoint for ${platform}`);
+    if (!platform || !platform.isConnected) {
+      console.log(`[SOCIAL] Platform ${args.platform} not connected, skipping auto-post`);
+      return null;
+    }
 
-  const response = await fetch(endpoint, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+    // Check if auto-posting is enabled
+    if (platform.postingMode !== "auto") {
+      console.log(`[SOCIAL] Auto-posting disabled for ${args.platform}`);
+      return null;
+    }
 
-  if (!response.ok) throw new Error(`Failed to get user info: ${response.status}`);
+    // Generate and schedule first post
+    await ctx.scheduler.runAfter(0, internal.social.generateAndSchedulePost, { 
+      agentId: "A1",
+      platform: args.platform 
+    });
 
-  const data = await response.json();
-  return {
-    id: data.id || data.sub || "",
-    username: data.username || data.name || data.login || "",
-    name: data.name || data.display_name || "",
-  };
-}
+    console.log(`[SOCIAL] Started auto-posting for ${args.platform}`);
+    return null;
+  },
+});
 
 /**
- * Get all connected platforms (BACKWARD COMPATIBLE)
+ * Get all connected platforms
  */
 export const getConnectedPlatforms = query({
   args: {},
@@ -470,7 +368,7 @@ export const updatePostingSettings = mutation({
 });
 
 /**
- * Manual post to a platform
+ * Manual post to a platform via Postiz
  */
 export const manualPost = mutation({
   args: {
@@ -489,15 +387,32 @@ export const manualPost = mutation({
       throw new Error("Platform not connected");
     }
     
-    // Post via platform API
+    // Post via Postiz API
     let externalId = `manual_${Date.now()}`;
     let success = false;
     
     if (platform.accessToken) {
       try {
-        const result = await postToPlatform(args.platformId, platform.accessToken, args.content, args.mediaUrls);
-        externalId = result.id || externalId;
-        success = true;
+        const postizUrl = process.env.POSTIZ_API_URL || 'https://api.postiz.com';
+        const response = await fetch(`${postizUrl}/api/v1/posts`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${platform.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            platformId: platform.platformUserId || platform.username,
+            content: args.content,
+            mediaUrls: args.mediaUrls,
+            postNow: true,
+          }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          externalId = data.id || externalId;
+          success = true;
+        }
       } catch (err: any) {
         console.error(`[SOCIAL] Post failed for ${args.platformId}:`, err.message);
       }
@@ -529,42 +444,6 @@ export const manualPost = mutation({
 });
 
 /**
- * Post to platform API
- */
-async function postToPlatform(platform: string, accessToken: string, content: string, mediaUrls?: string[]): Promise<any> {
-  const postEndpoints: Record<string, string> = {
-    x: "https://api.twitter.com/2/tweets",
-    linkedin: "https://api.linkedin.com/v2/ugcPosts",
-    facebook: "https://graph.facebook.com/v18.0/me/feed",
-    instagram: "https://graph.facebook.com/v18.0/me/media",
-    tiktok: "https://open.tiktokapis.com/v2/post/publish/",
-    youtube: "https://www.googleapis.com/upload/youtube/v3/videos",
-    pinterest: "https://api.pinterest.com/v5/pins",
-    reddit: "https://oauth.reddit.com/api/submit",
-    threads: "https://graph.threads.net/me/threads",
-  };
-
-  const endpoint = postEndpoints[platform];
-  if (!endpoint) throw new Error(`No post endpoint for ${platform}`);
-
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ text: content, content }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Post failed: ${error}`);
-  }
-
-  return await response.json();
-}
-
-/**
  * Get social stats
  */
 export const getSocialStats = query({
@@ -582,27 +461,37 @@ export const getSocialStats = query({
   },
 });
 
-// Existing internal functions...
+/**
+ * Generate and schedule post via Postiz
+ */
 export const generateAndSchedulePost = internalAction({
-  args: { agentId: v.string() },
+  args: { 
+    agentId: v.string(),
+    platform: v.optional(v.string()),
+  },
   returns: v.null(),
-  handler: async (ctx, { agentId }) => {
+  handler: async (ctx, { agentId, platform }) => {
     const nvidia = createOpenAI({
       apiKey: process.env.NVIDIA_NIM_API_KEY,
       baseURL: "https://integrate.api.nvidia.com/v1",
     });
 
+    // Get connected platforms
     const platforms = await ctx.runQuery(api.social.getConnectedPlatforms);
-    const connectedPlatforms = platforms.filter((p: any) => p.isConnected);
+    const connectedPlatforms = platform 
+      ? platforms.filter((p: any) => p.isConnected && p.id === platform)
+      : platforms.filter((p: any) => p.isConnected);
     
     if (connectedPlatforms.length === 0) {
       console.log("[SOCIAL] No connected platforms, skipping post generation");
       return null;
     }
 
+    // Get agent services for context
     const services = await ctx.runQuery(internal.updates.getAgentServices, { agent_id: agentId });
     const serviceName = services?.[0]?.name || "Professional Services";
 
+    // Generate post content using NVIDIA AI
     const { text: content } = await generateText({
       model: nvidia.chat("meta/llama-3.1-405b-instruct"),
       prompt: `Generate a compelling social media post for ${serviceName}. 
@@ -613,12 +502,13 @@ export const generateAndSchedulePost = internalAction({
       Return ONLY the post content, no explanations.`,
     });
 
-    for (const platform of connectedPlatforms) {
-      const scheduledFor = Date.now() + (30 * 60 * 1000);
+    // Schedule post for each connected platform
+    for (const plat of connectedPlatforms) {
+      const scheduledFor = Date.now() + (30 * 60 * 1000); // 30 minutes from now
       
       await ctx.runMutation(api.social.saveScheduledPost, {
         agentId,
-        platform: platform.id,
+        platform: plat.id,
         content: content.trim(),
         scheduledFor,
       });
@@ -629,6 +519,9 @@ export const generateAndSchedulePost = internalAction({
   },
 });
 
+/**
+ * Save scheduled post
+ */
 export const saveScheduledPost = internalMutation({
   args: {
     agentId: v.string(),
@@ -649,6 +542,9 @@ export const saveScheduledPost = internalMutation({
   },
 });
 
+/**
+ * Process scheduled posts via Postiz
+ */
 export const processScheduledPosts = internalAction({
   args: {},
   returns: v.null(),
@@ -658,37 +554,49 @@ export const processScheduledPosts = internalAction({
 
     for (const post of pendingPosts) {
       try {
-        const postizUrl = process.env.POSTIZ_API_URL;
-        const postizKey = process.env.POSTIZ_API_KEY;
-        
-        if (postizKey && postizUrl) {
-          const response = await fetch(`${postizUrl}/api/v1/posts`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${postizKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              platform: post.platform,
-              content: post.content,
-              scheduledFor: post.scheduledFor,
-            }),
-          });
+        // Get the platform's access token
+        const platform = await ctx.db.query("social_platforms")
+          .withIndex("by_platform", q => q.eq("platform", post.platform))
+          .first();
 
-          if (response.ok) {
-            const data = await response.json();
-            await ctx.runMutation(internal.social.markPostSuccess, {
-              postId: post._id,
-              externalId: data.id || `postiz_${Date.now()}`,
-            });
-          } else {
-            throw new Error(`Postiz API error: ${response.status}`);
-          }
-        } else {
+        if (!platform || !platform.accessToken) {
+          console.error(`[SOCIAL] No access token for ${post.platform}`);
+          await ctx.runMutation(internal.social.markPostFailed, {
+            postId: post._id,
+            error: "No access token",
+          });
+          continue;
+        }
+
+        // Post via Postiz API
+        const postizUrl = process.env.POSTIZ_API_URL || 'https://api.postiz.com';
+        const response = await fetch(`${postizUrl}/api/v1/posts`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${platform.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            platformId: platform.platformUserId || platform.username,
+            content: post.content,
+            postNow: true,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
           await ctx.runMutation(internal.social.markPostSuccess, {
             postId: post._id,
-            externalId: `dev_${Date.now()}`,
+            externalId: data.id || `postiz_${Date.now()}`,
           });
+          
+          // Update platform post count
+          await ctx.db.patch(platform._id, {
+            postsCount: platform.postsCount + 1,
+            lastSyncAt: Date.now(),
+          });
+        } else {
+          throw new Error(`Postiz API error: ${response.status}`);
         }
       } catch (err: any) {
         console.error(`[SOCIAL] Failed to post ${post._id}:`, err.message);
@@ -703,6 +611,9 @@ export const processScheduledPosts = internalAction({
   },
 });
 
+/**
+ * Get pending posts
+ */
 export const getPendingPosts = internalQuery({
   args: { now: v.number() },
   returns: v.array(v.any()),
@@ -716,6 +627,9 @@ export const getPendingPosts = internalQuery({
   },
 });
 
+/**
+ * Mark post as successful
+ */
 export const markPostSuccess = internalMutation({
   args: { postId: v.id("social_posts"), externalId: v.string() },
   returns: v.null(),
@@ -729,6 +643,9 @@ export const markPostSuccess = internalMutation({
   },
 });
 
+/**
+ * Mark post as failed
+ */
 export const markPostFailed = internalMutation({
   args: { postId: v.id("social_posts"), error: v.string() },
   returns: v.null(),
@@ -741,6 +658,9 @@ export const markPostFailed = internalMutation({
   },
 });
 
+/**
+ * Rotate social agents for posting
+ */
 export const rotateSocialAgents = internalMutation({
   args: {},
   returns: v.any(),
@@ -763,6 +683,9 @@ export const rotateSocialAgents = internalMutation({
   },
 });
 
+/**
+ * Manual rotation trigger
+ */
 export const rotateSocialAgentsManual = mutation({
   args: {},
   returns: v.any(),
