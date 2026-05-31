@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 
 /**
  * FINTECH INTEGRATION - Nigerian Bank Connections
@@ -145,11 +146,11 @@ export const transferFunds = mutation({
         balance_after: mainWallet.balance - args.amount,
         status: "completed",
         timestamp: Date.now(),
-        notes: `Transfer to ${beneficiary.bankName}`,
+        notes: `Transfer to beneficiary`,
       });
 
       // In production, this would call Kora Pay API
-      console.log(`[TRANSFER] ₦${args.amount} to ${beneficiary.bankName} (${beneficiary.encryptedAccountNumber})`);
+      console.log(`[TRANSFER] ₦${args.amount} to beneficiary ${beneficiary._id}`);
 
       return {
         success: true,

@@ -217,9 +217,9 @@ export const resetMonthlyUsage = internalMutation({
 export const deductMonthlyApiCosts = internalAction({
   args: {},
   returns: v.any(),
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<any> => {
     // Get API cost summary via query
-    const summary = await ctx.runQuery(internal.api_costs.getApiCostSummaryInternal);
+    const summary: any = await ctx.runQuery(internal.api_costs.getApiCostSummaryInternal);
     
     if (summary.totalCost <= 0) {
       return { success: true, message: "No API costs to deduct" };
