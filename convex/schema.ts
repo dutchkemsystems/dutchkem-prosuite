@@ -462,6 +462,7 @@ export default defineSchema({
     .index("by_status_and_scheduled", ["status", "scheduledFor"]),
 
   social_platforms: defineTable({
+    userId: v.optional(v.id("users")), // Owner of this connection
     platform: v.string(), // "x", "linkedin", "facebook", "instagram", "threads", etc.
     accessToken: v.optional(v.string()),
     refreshToken: v.optional(v.string()),
@@ -472,8 +473,15 @@ export default defineSchema({
     followersCount: v.number(),
     username: v.optional(v.string()),
     profileUrl: v.optional(v.string()),
+    // Posting control fields
+    postingMode: v.optional(v.union(v.literal("auto"), v.literal("manual"), v.literal("paused"))),
+    scheduleTime: v.optional(v.string()),
+    postingFrequency: v.optional(v.string()),
+    platformUserId: v.optional(v.string()),
   }).index("by_platform", ["platform"])
-    .index("by_connected", ["isConnected"]),
+    .index("by_connected", ["isConnected"])
+    .index("by_user_id", ["userId"])
+    .index("by_user_id_and_platform", ["userId", "platform"]),
 
   guardian_tests: defineTable({
     testName: v.string(),
