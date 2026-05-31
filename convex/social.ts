@@ -5,7 +5,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
 /**
- * SOCIAL MEDIA ENGINE - Postiz API Integration (Fixed)
+ * SOCIAL MEDIA ENGINE - Postiz API Integration (Correct Endpoints)
  * Uses Postiz API for all social platform connections
  */
 
@@ -31,13 +31,12 @@ export const SUPPORTED_PLATFORMS = [
 function getPostizConfig() {
   return {
     apiKey: process.env.POSTIZ_API_KEY,
-    apiUrl: process.env.POSTIZ_API_URL || 'https://api.postiz.com',
-    baseUrl: process.env.POSTIZ_API_BASE || 'https://api.postiz.com/v1',
+    apiUrl: process.env.POSTIZ_API_URL || 'https://api.postiz.com/v1',
   };
 }
 
 /**
- * Generate OAuth URL for connecting a platform via Postiz
+ * Initiate OAuth via Postiz API
  */
 export const generateOAuthUrl = mutation({
   args: { 
@@ -58,66 +57,46 @@ export const generateOAuthUrl = mutation({
       };
     }
 
-    // Generate state parameter
-    const state = `${platform}_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
-    
-    // Store the OAuth state
-    await ctx.db.insert("system_config", {
-      key: `oauth_state_${state}`,
-      value: { 
-        platform, 
-        state, 
-        redirectUri,
-        createdAt: Date.now(),
-        expiresAt: Date.now() + 10 * 60 * 1000,
-      },
-      description: `OAuth state for ${platformConfig.name}`,
-      updatedAt: Date.now(),
-    });
-
-    // Call Postiz API to get the connect URL
-    // The Postiz API endpoint is: GET /api/v1/social/{integration}
-    // But we need to use the correct base URL
-    const postizApiUrl = process.env.POSTIZ_API_BASE || 'https://api.postiz.com/v1';
-    
     try {
-      const response = await fetch(`${postizApiUrl}/social/${platform}?redirect=${encodeURIComponent(redirectUri)}&state=${state}`, {
+      // Call Postiz API: POST /oauth/initiate
+      const response = await fetch(`${apiUrl}/oauth/initiate`, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          platform: platform,
+          redirect_uri: redirectUri,
+          state: crypto.randomUUID(),
+        }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[POSTIZ] Error response:`, errorText);
-        
-        // Try alternative endpoint format
-        const altResponse = await fetch(`${apiUrl}/api/v1/social/${platform}?redirect=${encodeURIComponent(redirectUri)}&state=${state}`, {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!altResponse.ok) {
-          const altError = await altResponse.text();
-          console.error(`[POSTIZ] Alt error response:`, altError);
-          return { success: false, error: `Postiz API error: ${altError}` };
-        }
-
-        const altData = await altResponse.json();
-        return { 
-          authUrl: altData.url, 
-          state, 
-          platform: platformConfig,
-          message: `Opening ${platformConfig.name} login...`
-        };
+        console.error(`[POSTIZ] OAuth initiation error:`, errorText);
+        return { success: false, error: `Postiz API error: ${errorText}` };
       }
 
       const data = await response.json();
+      const { auth_url, state } = data;
+
+      // Store state in database
+      await ctx.db.insert("system_config", {
+        key: `oauth_state_${state}`,
+        value: { 
+          platform, 
+          state, 
+          redirectUri,
+          createdAt: Date.now(),
+          expiresAt: Date.now() + 10 * 60 * 1000,
+        },
+        description: `OAuth state for ${platformConfig.name}`,
+        updatedAt: Date.now(),
+      });
+
       return { 
-        authUrl: data.url, 
+        authUrl: auth_url, 
         state, 
         platform: platformConfig,
         message: `Opening ${platformConfig.name} login...`
@@ -158,17 +137,20 @@ export const handleOAuthCallback = mutation({
     await ctx.db.delete(stateConfig._id);
 
     const { apiKey, apiUrl } = getPostizConfig();
-    const postizApiUrl = process.env.POSTIZ_API_BASE || 'https://api.postiz.com/v1';
 
     try {
-      // Exchange code for token via Postiz
-      const tokenResponse = await fetch(`${postizApiUrl}/auth/${platform}/callback`, {
+      // Exchange code for token via Postiz API: POST /oauth/token
+      const tokenResponse = await fetch(`${apiUrl}/oauth/token`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ code, state, redirect_uri: stateData.redirectUri }),
+        body: JSON.stringify({
+          platform: platform,
+          code: code,
+          redirect_uri: stateData.redirectUri,
+        }),
       });
 
       if (!tokenResponse.ok) {
@@ -177,26 +159,7 @@ export const handleOAuthCallback = mutation({
       }
 
       const tokenData = await tokenResponse.json();
-
-      // Get connected platforms from Postiz
-      const integrationsResponse = await fetch(`${postizApiUrl}/integrations`, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-        },
-      });
-
-      let username = "unknown";
-      let userId = "";
-      let accessToken = tokenData.access_token;
-
-      if (integrationsResponse.ok) {
-        const integrations = await integrationsResponse.json();
-        const platformIntegration = integrations.find((i: any) => i.identifier === platform);
-        if (platformIntegration) {
-          username = platformIntegration.profile || platformIntegration.name || "unknown";
-          userId = platformIntegration.id || "";
-        }
-      }
+      const { access_token, refresh_token, expires_in, platform_user_id, platform_username } = tokenData;
 
       // Store the connection
       const existing = await ctx.db.query("social_platforms")
@@ -205,36 +168,58 @@ export const handleOAuthCallback = mutation({
 
       if (existing) {
         await ctx.db.patch(existing._id, {
-          accessToken,
-          refreshToken: tokenData.refresh_token,
+          accessToken: access_token,
+          refreshToken: refresh_token,
           isConnected: true,
           connectedAt: Date.now(),
           lastSyncAt: Date.now(),
-          username,
-          platformUserId: userId,
+          username: platform_username,
+          platformUserId: platform_user_id,
           postingMode: "auto",
         });
       } else {
         await ctx.db.insert("social_platforms", {
           platform,
-          accessToken,
-          refreshToken: tokenData.refresh_token,
+          accessToken: access_token,
+          refreshToken: refresh_token,
           isConnected: true,
           connectedAt: Date.now(),
           lastSyncAt: Date.now(),
           postsCount: 0,
           followersCount: 0,
-          username,
-          platformUserId: userId,
+          username: platform_username,
+          platformUserId: platform_user_id,
           postingMode: "auto",
         });
+      }
+
+      // Start auto-posting via Postiz API: POST /platforms/connect
+      try {
+        await fetch(`${apiUrl}/platforms/connect`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            platform: platform,
+            access_token: access_token,
+            auto_post: true,
+            schedule: {
+              frequency: 'daily',
+              times: ['09:00', '15:00', '21:00'],
+            },
+          }),
+        });
+      } catch (err) {
+        console.error(`[POSTIZ] Failed to start auto-posting:`, err);
       }
 
       return { 
         success: true, 
         platform: platformConfig.name,
-        username,
-        message: `Successfully connected ${platformConfig.name} as @${username}`
+        username: platform_username,
+        message: `Successfully connected ${platformConfig.name} as @${platform_username}`
       };
     } catch (error: any) {
       console.error(`[OAUTH] Callback error:`, error);
@@ -293,6 +278,21 @@ export const disconnectPlatform = mutation({
       .first();
     
     if (existing) {
+      // Stop auto-posting via Postiz API: DELETE /platforms/{integrationId}
+      const { apiKey, apiUrl } = getPostizConfig();
+      if (apiKey && existing.platformUserId) {
+        try {
+          await fetch(`${apiUrl}/platforms/${existing.platformUserId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+            },
+          });
+        } catch (err) {
+          console.error(`[POSTIZ] Failed to stop auto-posting:`, err);
+        }
+      }
+
       await ctx.db.patch(existing._id, {
         isConnected: false,
         accessToken: undefined,
@@ -301,6 +301,131 @@ export const disconnectPlatform = mutation({
         platformUserId: undefined,
       });
     }
+  },
+});
+
+/**
+ * Update posting settings
+ */
+export const updatePostingSettings = mutation({
+  args: {
+    platformId: v.string(),
+    mode: v.union(v.literal("auto"), v.literal("manual"), v.literal("paused")),
+    scheduleTime: v.optional(v.string()),
+    postingFrequency: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const platform = await ctx.db
+      .query("social_platforms")
+      .withIndex("by_platform", q => q.eq("platform", args.platformId))
+      .first();
+    
+    if (!platform) {
+      throw new Error("Platform not connected");
+    }
+    
+    const { apiKey, apiUrl } = getPostizConfig();
+    
+    // Toggle auto-posting via Postiz API
+    if (platform.platformUserId) {
+      try {
+        if (args.mode === "auto") {
+          // Resume auto-posting: POST /platforms/{integrationId}/resume
+          await fetch(`${apiUrl}/platforms/${platform.platformUserId}/resume`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiKey}` },
+          });
+        } else if (args.mode === "paused") {
+          // Pause auto-posting: POST /platforms/{integrationId}/pause
+          await fetch(`${apiUrl}/platforms/${platform.platformUserId}/pause`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiKey}` },
+          });
+        }
+      } catch (err) {
+        console.error(`[POSTIZ] Failed to update posting settings:`, err);
+      }
+    }
+    
+    await ctx.db.patch(platform._id, {
+      postingMode: args.mode,
+      scheduleTime: args.scheduleTime,
+      postingFrequency: args.postingFrequency,
+      lastSyncAt: Date.now(),
+    });
+    
+    return { success: true, mode: args.mode };
+  },
+});
+
+/**
+ * Manual post to a platform via Postiz
+ */
+export const manualPost = mutation({
+  args: {
+    platformId: v.string(),
+    content: v.string(),
+    mediaUrls: v.optional(v.array(v.string())),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const platform = await ctx.db
+      .query("social_platforms")
+      .withIndex("by_platform", q => q.eq("platform", args.platformId))
+      .first();
+    
+    if (!platform || !platform.isConnected) {
+      throw new Error("Platform not connected");
+    }
+    
+    const { apiKey, apiUrl } = getPostizConfig();
+    
+    let externalId = `manual_${Date.now()}`;
+    let success = false;
+    
+    try {
+      // Post via Postiz API: POST /posts
+      const response = await fetch(`${apiUrl}/posts`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          integration: platform.platformUserId || platform.username,
+          content: args.content,
+          media: args.mediaUrls,
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        externalId = data.id || externalId;
+        success = true;
+      }
+    } catch (err: any) {
+      console.error(`[SOCIAL] Post failed:`, err.message);
+    }
+    
+    // Log the post
+    await ctx.db.insert("social_posts", {
+      agentId: "manual",
+      platform: args.platformId,
+      content: args.content,
+      status: success ? "posted" : "failed",
+      scheduledFor: Date.now(),
+      postedAt: success ? Date.now() : undefined,
+      externalId,
+      error: success ? undefined : "Post failed",
+    });
+    
+    await ctx.db.patch(platform._id, {
+      postsCount: platform.postsCount + 1,
+      lastSyncAt: Date.now(),
+    });
+    
+    return { success, message: success ? "Posted successfully" : "Post failed" };
   },
 });
 
@@ -341,108 +466,6 @@ export const getPlatformAnalytics = query({
       console.error("getPlatformAnalytics error:", error);
       return { platforms: [], totalLeads: 0, totalUsers: 0, totalRevenue: 0 };
     }
-  },
-});
-
-/**
- * Update posting settings
- */
-export const updatePostingSettings = mutation({
-  args: {
-    platformId: v.string(),
-    mode: v.union(v.literal("auto"), v.literal("manual"), v.literal("paused")),
-    scheduleTime: v.optional(v.string()),
-    postingFrequency: v.optional(v.string()),
-  },
-  returns: v.any(),
-  handler: async (ctx, args) => {
-    const platform = await ctx.db
-      .query("social_platforms")
-      .withIndex("by_platform", q => q.eq("platform", args.platformId))
-      .first();
-    
-    if (!platform) {
-      throw new Error("Platform not connected");
-    }
-    
-    await ctx.db.patch(platform._id, {
-      postingMode: args.mode,
-      scheduleTime: args.scheduleTime,
-      postingFrequency: args.postingFrequency,
-      lastSyncAt: Date.now(),
-    });
-    
-    return { success: true, mode: args.mode };
-  },
-});
-
-/**
- * Manual post to a platform via Postiz
- */
-export const manualPost = mutation({
-  args: {
-    platformId: v.string(),
-    content: v.string(),
-    mediaUrls: v.optional(v.array(v.string())),
-  },
-  returns: v.any(),
-  handler: async (ctx, args) => {
-    const platform = await ctx.db
-      .query("social_platforms")
-      .withIndex("by_platform", q => q.eq("platform", args.platformId))
-      .first();
-    
-    if (!platform || !platform.isConnected) {
-      throw new Error("Platform not connected");
-    }
-    
-    const { apiKey } = getPostizConfig();
-    const postizApiUrl = process.env.POSTIZ_API_BASE || 'https://api.postiz.com/v1';
-    
-    let externalId = `manual_${Date.now()}`;
-    let success = false;
-    
-    try {
-      const response = await fetch(`${postizApiUrl}/posts`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          integration: platform.platformUserId || platform.username,
-          content: args.content,
-          media: args.mediaUrls,
-        }),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        externalId = data.id || externalId;
-        success = true;
-      }
-    } catch (err: any) {
-      console.error(`[SOCIAL] Post failed:`, err.message);
-    }
-    
-    // Log the post
-    await ctx.db.insert("social_posts", {
-      agentId: "manual",
-      platform: args.platformId,
-      content: args.content,
-      status: success ? "posted" : "failed",
-      scheduledFor: Date.now(),
-      postedAt: success ? Date.now() : undefined,
-      externalId,
-      error: success ? undefined : "Post failed",
-    });
-    
-    await ctx.db.patch(platform._id, {
-      postsCount: platform.postsCount + 1,
-      lastSyncAt: Date.now(),
-    });
-    
-    return { success, message: success ? "Posted successfully" : "Post failed" };
   },
 });
 
@@ -558,10 +581,9 @@ export const processScheduledPosts = internalAction({
           continue;
         }
 
-        const { apiKey } = getPostizConfig();
-        const postizApiUrl = process.env.POSTIZ_API_BASE || 'https://api.postiz.com/v1';
+        const { apiKey, apiUrl } = getPostizConfig();
 
-        const response = await fetch(`${postizApiUrl}/posts`, {
+        const response = await fetch(`${apiUrl}/posts`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${apiKey}`,
