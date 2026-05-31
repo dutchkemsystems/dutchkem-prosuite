@@ -599,7 +599,13 @@ export const getAdminProfile = query({
     const configMap: Record<string, any> = {};
     configs.forEach(c => { configMap[c.key] = c.value; });
 
+    // Find the admin user
+    const adminUser = await ctx.db.query("users")
+      .withIndex("by_role", q => q.eq("role", "admin"))
+      .first();
+
     return {
+      _id: adminUser?._id || "unknown",
       name: process.env.ADMIN_NAME || "Super Admin",
       email: "admin@dutchkem.com",
       role: "Super Admin",

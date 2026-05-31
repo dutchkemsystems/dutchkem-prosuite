@@ -4,22 +4,50 @@ import { convexQuery } from "@convex-dev/react-query"
 import { useConvexAuth, useMutation, useAction } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
 import { api, internal } from "../../../convex/_generated/api"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense, Component, type ReactNode } from "react"
 import { CompanyLogo } from "~/components/CompanyLogo";
 import { useSocket } from "~/lib/socket";
 import { LiveFeed } from "~/components/LiveFeed";
 import { LiveCharts } from "~/components/LiveCharts";
 import { PaymentMonitor } from "~/components/PaymentMonitor";
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line
-} from 'recharts';
+
+class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
+  state = { hasError: false, error: null as Error | null };
+  static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || (
+        <div className="p-8 bg-red-500/10 border border-red-500/20 rounded-3xl text-center">
+          <p className="text-red-500 font-black text-sm uppercase tracking-widest">Something went wrong</p>
+          <p className="text-red-400 text-xs mt-2">{this.state.error?.message}</p>
+          <button onClick={() => this.setState({ hasError: false, error: null })} className="mt-4 px-6 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold">Retry</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function AdminSuspense({ children }: { children: ReactNode }) {
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      }>
+        {children}
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
 
 export const Route = createFileRoute('/admin/dashboard')({
   component: AdminDashboardPage,
 })
 
 function AdminDashboardPage() {
-  const { isAuthenticated, isLoading } = useConvexAuth();
+  const { isLoading } = useConvexAuth();
   const { signOut: authSignOut } = useAuthActions();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
@@ -36,33 +64,11 @@ function AdminDashboardPage() {
     }
   }, [isLoading, navigate]);
 
-  const { data } = useSuspenseQuery(convexQuery(api.admin.getAdminStats, {}));
-  const { data: earnings } = useSuspenseQuery(convexQuery(api.admin.getEarningsSummary, {}));
-  const { data: recentTxs } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, {}));
-  const { data: uaeStatus } = useSuspenseQuery(convexQuery(api.uae_engine.getSystemStatus, {}));
-  const { data: adminProfile } = useSuspenseQuery(convexQuery(api.admin.getAdminProfile, {}));
-  const { data: upgradeStatus } = useSuspenseQuery(convexQuery(api.admin.getUpgradeStatus, {}));
-  const { data: freelancers } = useSuspenseQuery(convexQuery(api.admin.getFreelancerOverview, {}));
-
-  // Real-time socket connection
-  const { connected: wsConnected } = useSocket(adminToken);
+  // Real-time socket connection (safe: only connect when token exists)
+  const { connected: _wsConnected } = useSocket(adminToken || "");
 
   // Browser Notification Logic
-  const [lastTxId, setLastTxId] = useState<string | null>(null);
-  useEffect(() => {
-    if (recentTxs && recentTxs.length > 0) {
-      const latest = recentTxs[0];
-      if (lastTxId && latest._id !== lastTxId && latest.status === 'approved') {
-        if ("Notification" in window && Notification.permission === "granted") {
-          new Notification(`New Payment: ₦${latest.amount.toLocaleString()}`, {
-            body: `Received from Client. Agent service confirmed.`,
-            icon: "/favicon.ico"
-          });
-        }
-      }
-      setLastTxId(latest._id);
-    }
-  }, [recentTxs]);
+  const [_lastTxId, setLastTxId] = useState<string | null>(null);
 
   const handleLogout = async () => {
     localStorage.removeItem('admin_session_token');
@@ -119,53 +125,84 @@ function AdminDashboardPage() {
       </aside>
 
       <main className="flex-grow overflow-y-auto h-screen flex flex-col bg-slate-950">
-        <header className="px-4 md:px-10 py-4 md:py-8 border-b border-slate-800 bg-slate-950/80 backdrop-blur-xl sticky top-0 z-10 flex justify-between items-center">
-          <div className="flex items-center gap-6">
-             <h1 className="text-2xl font-black uppercase tracking-tighter text-white tracking-widest">UAE ENGINE CONTROL</h1>
-             <div className="h-6 w-px bg-slate-800"></div>
-             <div className="flex items-center gap-3">
-                <div className={`w-3 h-3 rounded-full animate-pulse ${uaeStatus.type === 'success' ? 'bg-emerald-500' : 'bg-orange-500'}`}></div>
-                <span className={`text-[10px] font-black uppercase tracking-widest ${uaeStatus.type === 'success' ? 'text-emerald-500' : 'text-orange-500'}`}>
-                    {uaeStatus.status}
-                </span>
-             </div>
-             {upgradeStatus && (
-               <>
-                 <div className="h-6 w-px bg-slate-800"></div>
-                 <div className="flex items-center gap-2">
-                   <span>{upgradeStatus.statusIndicator}</span>
-                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{upgradeStatus.currentStatus}</span>
-                 </div>
-               </>
-             )}
-          </div>
-          <AdminProfileCard profile={adminProfile} />
-        </header>
+        <AdminSuspense>
+          <AdminHeader />
+        </AdminSuspense>
 
         <div className="p-4 md:p-10 space-y-8 md:space-y-12 max-w-[1800px] mx-auto w-full pb-32">
-          {activeTab === "overview" && <StatsOverview data={data} earnings={earnings} uaeStatus={uaeStatus} />}
-          {activeTab === "live-feed" && <LiveFeed />}
-          {activeTab === "live-charts" && <LiveCharts />}
-          {activeTab === "payments" && <PaymentMonitor />}
-          {activeTab === "manual-task" && <ManualAgentTaskPanel />}
-          {activeTab === "social" && <SocialEnginePanel />}
-          {activeTab === "guardian" && <GuardianWatchPanel />}
-          {activeTab === "tax" && <TaxDashboardPanel />}
-          {activeTab === "payouts" && <DailySweepStatusPanel />}
-          {activeTab === "security" && <SecurityHubPanel />}
-          {activeTab === "agents" && <AgentHealthMatrix data={data} />}
-          {activeTab === "freelancers" && <FreelancerPanel data={freelancers} />}
-          {activeTab === "audit" && <AuditTrailPanel />}
-          {activeTab === "discounts" && <HolidayDiscountsPanel />}
-          {activeTab === "updates" && <AutoUpdatesPanel />}
-          {activeTab === "charity" && <CharityDashboardPanel />}
-          {activeTab === "marketplace" && <FreelancerMarketplacePanel />}
-          {activeTab === "cloud-memory" && <CloudMemoryPanel />}
+          <AdminSuspense>
+            {activeTab === "overview" && <StatsOverviewLazy />}
+            {activeTab === "live-feed" && <LiveFeed />}
+            {activeTab === "live-charts" && <LiveCharts />}
+            {activeTab === "payments" && <PaymentMonitor />}
+            {activeTab === "manual-task" && <ManualAgentTaskPanel />}
+            {activeTab === "social" && <SocialEnginePanel />}
+            {activeTab === "guardian" && <GuardianWatchPanel />}
+            {activeTab === "tax" && <TaxDashboardPanel />}
+            {activeTab === "payouts" && <DailySweepStatusPanel />}
+            {activeTab === "security" && <SecurityHubPanel />}
+            {activeTab === "agents" && <AgentHealthMatrixLazy />}
+            {activeTab === "freelancers" && <FreelancerPanelLazy />}
+            {activeTab === "audit" && <AuditTrailPanel />}
+            {activeTab === "discounts" && <HolidayDiscountsPanel />}
+            {activeTab === "updates" && <AutoUpdatesPanel />}
+            {activeTab === "charity" && <CharityDashboardPanel />}
+            {activeTab === "marketplace" && <FreelancerMarketplacePanel />}
+            {activeTab === "cloud-memory" && <CloudMemoryPanel />}
+          </AdminSuspense>
         </div>
         <Footer />
       </main>
     </div>
   );
+}
+
+function AdminHeader() {
+  const { data: uaeStatus } = useSuspenseQuery(convexQuery(api.uae_engine.getSystemStatus, {})) as { data: any };
+  const { data: upgradeStatus } = useSuspenseQuery(convexQuery(api.admin.getUpgradeStatus, {})) as { data: any };
+  const { data: adminProfile } = useSuspenseQuery(convexQuery(api.admin.getAdminProfile, {})) as { data: any };
+
+  return (
+    <header className="px-4 md:px-10 py-4 md:py-8 border-b border-slate-800 bg-slate-950/80 backdrop-blur-xl sticky top-0 z-10 flex justify-between items-center">
+      <div className="flex items-center gap-6">
+         <h1 className="text-2xl font-black uppercase tracking-tighter text-white tracking-widest">UAE ENGINE CONTROL</h1>
+         <div className="h-6 w-px bg-slate-800"></div>
+         <div className="flex items-center gap-3">
+            <div className={`w-3 h-3 rounded-full animate-pulse ${uaeStatus?.type === 'success' ? 'bg-emerald-500' : 'bg-orange-500'}`}></div>
+            <span className={`text-[10px] font-black uppercase tracking-widest ${uaeStatus?.type === 'success' ? 'text-emerald-500' : 'text-orange-500'}`}>
+                {uaeStatus?.status}
+            </span>
+         </div>
+         {upgradeStatus && (
+           <>
+             <div className="h-6 w-px bg-slate-800"></div>
+             <div className="flex items-center gap-2">
+               <span>{upgradeStatus.statusIndicator}</span>
+               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{upgradeStatus.currentStatus}</span>
+             </div>
+           </>
+         )}
+      </div>
+      <AdminProfileCard profile={adminProfile} />
+    </header>
+  );
+}
+
+function StatsOverviewLazy() {
+  const { data } = useSuspenseQuery(convexQuery(api.admin.getAdminStats, {})) as { data: any };
+  const { data: earnings } = useSuspenseQuery(convexQuery(api.admin.getEarningsSummary, {})) as { data: any };
+  const { data: uaeStatus } = useSuspenseQuery(convexQuery(api.uae_engine.getSystemStatus, {})) as { data: any };
+  return <StatsOverview data={data} earnings={earnings} uaeStatus={uaeStatus} />;
+}
+
+function AgentHealthMatrixLazy() {
+  const { data } = useSuspenseQuery(convexQuery(api.admin.getAdminStats, {})) as { data: any };
+  return <AgentHealthMatrix data={data} />;
+}
+
+function FreelancerPanelLazy() {
+  const { data } = useSuspenseQuery(convexQuery(api.admin.getFreelancerOverview, {})) as { data: any };
+  return <FreelancerPanel data={data} />;
 }
 
 function ManualAgentTaskPanel() {
