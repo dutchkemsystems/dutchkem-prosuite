@@ -116,6 +116,9 @@ function AdminDashboardPage() {
            <AdminTab active={activeTab === "marketplace"} onClick={() => setActiveTab("marketplace")} icon="🏪" label="Freelancer Marketplace" />
            <AdminTab active={activeTab === "cloud-memory"} onClick={() => setActiveTab("cloud-memory")} icon="☁️" label="Cloud Memory" />
            <AdminTab active={activeTab === "voice-roi"} onClick={() => setActiveTab("voice-roi")} icon="🎙️" label="Voice ROI" />
+           <AdminTab active={activeTab === "live-chats"} onClick={() => setActiveTab("live-chats")} icon="💬" label="Live Chats" />
+           <AdminTab active={activeTab === "api-costs"} onClick={() => setActiveTab("api-costs")} icon="🔌" label="API Costs" />
+           <AdminTab active={activeTab === "platform-analytics"} onClick={() => setActiveTab("platform-analytics")} icon="📊" label="Platform Analytics" />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -150,6 +153,10 @@ function AdminDashboardPage() {
             {activeTab === "charity" && <CharityDashboardPanel />}
             {activeTab === "marketplace" && <FreelancerMarketplacePanel />}
             {activeTab === "cloud-memory" && <CloudMemoryPanel />}
+            {activeTab === "voice-roi" && <VoiceROIPanel />}
+            {activeTab === "live-chats" && <LiveChatsPanel />}
+            {activeTab === "api-costs" && <APICostsPanel />}
+            {activeTab === "platform-analytics" && <PlatformAnalyticsPanel />}
           </AdminSuspense>
         </div>
         <Footer />
@@ -2331,6 +2338,204 @@ function VoiceROIPanel() {
               </div>
             ))
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LiveChatsPanel() {
+  const { data: activeChats } = useSuspenseQuery(convexQuery(api.live_chats.getActiveChats, {})) as { data: any };
+  const { data: chatStats } = useSuspenseQuery(convexQuery(api.live_chats.getChatStats, {})) as { data: any };
+  const [selectedChat, setSelectedChat] = useState<any>(null);
+  const [replyText, setReplyText] = useState("");
+  const sendReply = useMutation(api.live_chats.sendReply);
+  const resolveChat = useMutation(api.live_chats.resolveChat);
+
+  const handleSendReply = async () => {
+    if (!replyText.trim() || !selectedChat) return;
+    await sendReply({ chatId: selectedChat.id, message: replyText });
+    setReplyText("");
+  };
+
+  const handleResolve = async () => {
+    if (!selectedChat) return;
+    if (!confirm("Resolve this chat?")) return;
+    await resolveChat({ chatId: selectedChat.id });
+    setSelectedChat(null);
+  };
+
+  return (
+    <div className="space-y-10 animate-in fade-in duration-700">
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <MetricCard label="Active Chats" value={chatStats?.active || 0} icon="💬" color="emerald" />
+        <MetricCard label="Escalated" value={chatStats?.escalated || 0} icon="⚠️" color="amber" />
+        <MetricCard label="Resolved" value={chatStats?.resolved || 0} icon="✅" color="blue" />
+        <MetricCard label="Resolution Rate" value={`${chatStats?.resolutionRate || 0}%`} icon="📈" color="indigo" />
+      </div>
+
+      {/* Chat Interface */}
+      <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">
+        <h3 className="text-xl font-black uppercase tracking-tighter text-white mb-8">Live Chat Support</h3>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Chat List */}
+          <div className="space-y-4 max-h-[500px] overflow-y-auto">
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Active Conversations ({activeChats?.length || 0})</p>
+            {activeChats?.map((chat: any) => (
+              <div
+                key={chat.id}
+                onClick={() => setSelectedChat(chat)}
+                className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                  selectedChat?.id === chat.id
+                    ? "bg-orange-600/10 border-orange-500/20"
+                    : "bg-slate-950 border-white/5 hover:border-slate-700"
+                }`}
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-sm font-bold text-white">{chat.user_name || "Anonymous"}</p>
+                    <p className="text-[9px] text-slate-500 line-clamp-1">{chat.last_message}</p>
+                  </div>
+                  {chat.unread_count > 0 && (
+                    <span className="w-5 h-5 bg-orange-600 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                      {chat.unread_count}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Chat Area */}
+          <div className="lg:col-span-2 bg-slate-950 rounded-2xl border border-white/5 p-6">
+            {selectedChat ? (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center pb-4 border-b border-white/5">
+                  <p className="text-sm font-bold text-white">{selectedChat.user_name || "Anonymous"}</p>
+                  <button onClick={handleResolve} className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-lg">
+                    ✅ Resolve
+                  </button>
+                </div>
+                <div className="h-[300px] overflow-y-auto space-y-3">
+                  <div className="p-3 bg-slate-900 rounded-xl max-w-[80%]">
+                    <p className="text-sm text-white">{selectedChat.last_message}</p>
+                    <p className="text-[8px] text-slate-500 mt-1">{new Date(selectedChat.last_message_time).toLocaleTimeString()}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSendReply()}
+                    placeholder="Type your reply..."
+                    className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white text-sm"
+                  />
+                  <button onClick={handleSendReply} className="px-6 py-3 bg-orange-600 text-white text-xs font-bold rounded-xl">
+                    Send
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="h-[400px] flex items-center justify-center text-slate-500">
+                Select a chat to start responding
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function APICostsPanel() {
+  const { data: apiCosts } = useSuspenseQuery(convexQuery(api.api_costs.getApiCostSummary, {})) as { data: any };
+
+  return (
+    <div className="space-y-10 animate-in fade-in duration-700">
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <MetricCard label="Total API Cost" value={`₦${(apiCosts?.totalCost || 0).toLocaleString()}`} icon="💸" color="red" />
+        <MetricCard label="Wallet Balance" value={`₦${(apiCosts?.walletBalance || 0).toLocaleString()}`} icon="💰" color="emerald" />
+        <MetricCard label="Month" value={apiCosts?.month || ""} icon="📅" color="blue" />
+      </div>
+
+      {/* API Costs Table */}
+      <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">
+        <h3 className="text-xl font-black uppercase tracking-tighter text-white mb-8">API Subscription Costs</h3>
+        <div className="space-y-4">
+          {apiCosts?.costs?.map((api: any) => (
+            <div key={api.id} className="flex justify-between items-center p-6 bg-slate-950 rounded-2xl border border-white/5">
+              <div>
+                <p className="text-sm font-bold text-white">{api.name}</p>
+                <p className="text-[9px] text-slate-500">{api.usage.toLocaleString()} {api.unit}s used</p>
+              </div>
+              <p className="text-sm font-bold text-red-500">₦{api.cost.toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-8 p-6 bg-slate-950 rounded-2xl border border-white/5 flex justify-between items-center">
+          <p className="text-sm font-black text-white">TOTAL MONTHLY COST</p>
+          <p className="text-lg font-black text-red-500">₦{(apiCosts?.totalCost || 0).toLocaleString()}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlatformAnalyticsPanel() {
+  const [timeRange, setTimeRange] = useState<"day" | "week" | "month" | "year">("month");
+  const { data: analytics } = useSuspenseQuery(convexQuery(api.platform_analytics.getPlatformAnalyticsSummary, { timeRange })) as { data: any };
+
+  return (
+    <div className="space-y-10 animate-in fade-in duration-700">
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <MetricCard label="Total Visits" value={(analytics?.totals?.visits || 0).toLocaleString()} icon="👁️" color="blue" />
+        <MetricCard label="Registrations" value={(analytics?.totals?.registrations || 0).toLocaleString()} icon="👥" color="emerald" />
+        <MetricCard label="Subscriptions" value={(analytics?.totals?.subscriptions || 0).toLocaleString()} icon="💳" color="amber" />
+        <MetricCard label="Revenue" value={`₦${(analytics?.totals?.revenue || 0).toLocaleString()}`} icon="💰" color="indigo" />
+      </div>
+
+      {/* Time Range Selector */}
+      <div className="flex gap-2">
+        {(["day", "week", "month", "year"] as const).map((range) => (
+          <button
+            key={range}
+            onClick={() => setTimeRange(range)}
+            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              timeRange === range
+                ? "bg-orange-600 text-white"
+                : "bg-slate-800 text-slate-500 hover:bg-slate-700"
+            }`}
+          >
+            {range}
+          </button>
+        ))}
+      </div>
+
+      {/* Platform Breakdown */}
+      <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">
+        <h3 className="text-xl font-black uppercase tracking-tighter text-white mb-8">Platform Performance</h3>
+        <div className="space-y-4">
+          {analytics?.platforms?.map((platform: any) => (
+            <div key={platform.id} className="flex items-center justify-between p-6 bg-slate-950 rounded-2xl border border-white/5">
+              <div className="flex items-center gap-4">
+                <span className="text-2xl">{platform.icon}</span>
+                <div>
+                  <p className="text-sm font-bold text-white">{platform.name}</p>
+                  <p className="text-[9px] text-slate-500">
+                    {platform.visits} visits • {platform.registrations} registered • {platform.subscriptions} subscribed
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-bold text-emerald-500">₦{platform.revenue.toLocaleString()}</p>
+                <p className="text-[9px] text-slate-500">{platform.conversionRate}% conversion</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
