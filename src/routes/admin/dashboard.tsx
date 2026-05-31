@@ -449,8 +449,34 @@ function SocialEnginePanel() {
     try {
       const redirectUri = `${window.location.origin}/admin/social-callback`;
       const result = await generateOAuth({ platform: platformId, redirectUri });
+      
+      if (result?.error) {
+        alert(result.error);
+        setConnecting(null);
+        return;
+      }
+      
       if (result?.authUrl) {
-        window.open(result.authUrl, '_blank', 'width=600,height=700');
+        // Open popup window for OAuth
+        const popup = window.open(
+          result.authUrl, 
+          `${platformId}_oauth`, 
+          'width=600,height=700,scrollbars=yes,resizable=yes'
+        );
+        
+        // Monitor popup for closure
+        const popupCheck = setInterval(() => {
+          if (!popup || popup.closed) {
+            clearInterval(popupCheck);
+            setConnecting(null);
+            // Refresh page to show updated connection status
+            window.location.reload();
+          }
+        }, 1000);
+      } else if (result?.devMode) {
+        // Development mode - auto-connect
+        alert(result.message);
+        window.location.reload();
       }
     } catch (err: any) {
       alert(err.message);
