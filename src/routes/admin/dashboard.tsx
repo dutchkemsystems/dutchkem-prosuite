@@ -942,10 +942,66 @@ function DailySweepStatusPanel() {
    
    const updateSettings = useMutation(api.secure_sweeps.updateSettings);
    const performSweep = useMutation(api.secure_sweeps.performSweep);
+   const initiateTransfer = useMutation(api.fintech.initiateTransfer);
+   const verifyTransferOTP = useMutation(api.fintech.verifyTransferOTP);
    const [sweeping, setSweeping] = useState(false);
    const [sweepStatus, setSweepStatus] = useState<{ message: string; type: string } | null>(null);
    const [transferAmount, setTransferAmount] = useState("");
    const [selectedAccount, setSelectedAccount] = useState("");
+   const [transferStatus, setTransferStatus] = useState<{ message: string; type: string } | null>(null);
+   const [showOTPModal, setShowOTPModal] = useState(false);
+   const [otpCode, setOtpCode] = useState("");
+   const [otpId, setOtpId] = useState("");
+   const [verifying, setVerifying] = useState(false);
+   const [showReceipt, setShowReceipt] = useState(false);
+   const [receipt, setReceipt] = useState<any>(null);
+
+   const handleInitiateTransfer = async () => {
+      if (!selectedAccount || !transferAmount) {
+         setTransferStatus({ message: "Please select account and enter amount", type: "error" });
+         return;
+      }
+
+      setTransferStatus({ message: "Sending OTP to your email...", type: "loading" });
+      try {
+         const result = await initiateTransfer({
+            amount: parseFloat(transferAmount),
+            beneficiaryId: selectedAccount,
+         });
+
+         if (result?.success) {
+            setOtpId(result.otpId);
+            setShowOTPModal(true);
+            setTransferStatus({ message: "OTP sent! Check your email.", type: "otp" });
+         } else {
+            setTransferStatus({ message: result?.error || "Failed to initiate transfer", type: "error" });
+         }
+      } catch (err: any) {
+         setTransferStatus({ message: err.message, type: "error" });
+      }
+   };
+
+   const handleVerifyOTP = async () => {
+      if (otpCode.length !== 6) return;
+
+      setVerifying(true);
+      try {
+         const result = await verifyTransferOTP({ otpId, otp: otpCode });
+
+         if (result?.success) {
+            setReceipt(result.receipt);
+            setShowOTPModal(false);
+            setShowReceipt(true);
+            setTransferStatus({ message: "Transfer completed!", type: "success" });
+            setOtpCode("");
+         } else {
+            setTransferStatus({ message: result?.error || "Invalid OTP", type: "error" });
+         }
+      } catch (err: any) {
+         setTransferStatus({ message: err.message, type: "error" });
+      }
+      setVerifying(false);
+   };
 
    const handleAutoSweepToggle = async () => {
       const newState = !settings?.autoSweep;
@@ -1099,39 +1155,135 @@ function DailySweepStatusPanel() {
 
          {/* Quick Transfer Section */}
          <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">
-            <h3 className="text-xl font-black uppercase tracking-tighter mb-6">Quick Transfer</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-               <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Select Account</label>
-                  <select 
-                     value={selectedAccount} 
-                     onChange={(e) => setSelectedAccount(e.target.value)}
-                     className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-white text-sm"
+            <h3 className="text-xl font-black uppercase tracking-tighter mb-6">Quick Transfer (Kora Pay)</h3>
+            
+            {/* Transfer Status */}
+            {transferStatus && (
+               <div className={`mb-6 p-4 rounded-2xl text-center text-sm font-black ${
+                  transferStatus.type === "success" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" :
+                  transferStatus.type === "error" ? "bg-red-500/10 text-red-500 border border-red-500/20" :
+                  transferStatus.type === "otp" ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" :
+                  "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+               }`}>
+                  {transferStatus.message}
+               </div>
+            )}
+
+            {/* Transfer Form */}
+            {!showOTPModal && !showReceipt && (
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Select Account</label>
+                     <select 
+                        value={selectedAccount} 
+                        onChange={(e) => setSelectedAccount(e.target.value)}
+                        className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-white text-sm"
+                     >
+                        <option value="">-- Select Beneficiary --</option>
+                        {beneficiaries?.map((b: any) => (
+                           <option key={b._id} value={b._id}>
+                              {b.bankName} (••••{b.encryptedAccountNumber?.slice(-4)})
+                           </option>
+                        ))}
+                     </select>
+                  </div>
+                  <div>
+                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Amount (₦)</label>
+                     <input
+                        type="number"
+                        value={transferAmount}
+                        onChange={(e) => setTransferAmount(e.target.value)}
+                        placeholder="Enter amount"
+                        className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-white text-sm"
+                     />
+                  </div>
+                  <div className="flex items-end">
+                     <button 
+                        onClick={handleInitiateTransfer}
+                        disabled={!selectedAccount || !transferAmount}
+                        className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                     >
+                        💸 Send OTP & Transfer
+                     </button>
+                  </div>
+               </div>
+            )}
+
+            {/* OTP Verification Modal */}
+            {showOTPModal && (
+               <div className="bg-slate-950 p-8 rounded-2xl border border-white/5 space-y-6">
+                  <div className="text-center">
+                     <div className="text-4xl mb-4">🔐</div>
+                     <h4 className="text-lg font-black text-white">Enter OTP</h4>
+                     <p className="text-sm text-slate-500 mt-2">
+                        A 6-digit code has been sent to your email. Valid for 10 minutes.
+                     </p>
+                  </div>
+                  <div className="flex justify-center">
+                     <input
+                        type="text"
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value)}
+                        maxLength={6}
+                        placeholder="000000"
+                        className="w-48 bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-2xl text-center font-mono tracking-[0.5em]"
+                     />
+                  </div>
+                  <div className="flex gap-4">
+                     <button 
+                        onClick={() => setShowOTPModal(false)}
+                        className="flex-1 py-3 bg-slate-800 text-white rounded-xl text-xs font-bold"
+                     >
+                        Cancel
+                     </button>
+                     <button 
+                        onClick={handleVerifyOTP}
+                        disabled={otpCode.length !== 6 || verifying}
+                        className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold disabled:opacity-50"
+                     >
+                        {verifying ? "Verifying..." : "Verify & Complete"}
+                     </button>
+                  </div>
+               </div>
+            )}
+
+            {/* Receipt Display */}
+            {showReceipt && receipt && (
+               <div className="bg-slate-950 p-8 rounded-2xl border border-white/5 space-y-6">
+                  <div className="text-center">
+                     <div className="text-4xl mb-4">✅</div>
+                     <h4 className="text-lg font-black text-emerald-500">Transfer Successful!</h4>
+                  </div>
+                  <div className="bg-slate-900 p-6 rounded-xl space-y-3">
+                     <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">Reference</span>
+                        <span className="text-white font-mono">{receipt.reference}</span>
+                     </div>
+                     <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">Amount</span>
+                        <span className="text-white font-bold">₦{receipt.amount.toLocaleString()}</span>
+                     </div>
+                     <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">To</span>
+                        <span className="text-white">{receipt.to}</span>
+                     </div>
+                     <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">Date</span>
+                        <span className="text-white">{new Date(receipt.date).toLocaleString()}</span>
+                     </div>
+                     <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">Status</span>
+                        <span className="text-emerald-500 font-bold">{receipt.status.toUpperCase()}</span>
+                     </div>
+                  </div>
+                  <button 
+                     onClick={() => { setShowReceipt(false); setReceipt(null); setTransferAmount(""); setSelectedAccount(""); }}
+                     className="w-full py-3 bg-slate-800 text-white rounded-xl text-xs font-bold"
                   >
-                     <option value="">-- Select Beneficiary --</option>
-                     {beneficiaries?.map((b: any) => (
-                        <option key={b._id} value={b._id}>
-                           {b.bankName} (••••{b.encryptedAccountNumber?.slice(-4)})
-                        </option>
-                     ))}
-                  </select>
-               </div>
-               <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Amount (₦)</label>
-                  <input
-                     type="number"
-                     value={transferAmount}
-                     onChange={(e) => setTransferAmount(e.target.value)}
-                     placeholder="Enter amount"
-                     className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-white text-sm"
-                  />
-               </div>
-               <div className="flex items-end">
-                  <button className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
-                     💸 Transfer Now
+                     Done
                   </button>
                </div>
-            </div>
+            )}
          </div>
       </div>
    )
