@@ -926,73 +926,203 @@ function RecentTransactions() {
 }
 
 function DailySweepStatusPanel() {
-   const { data: settings } = useSuspenseQuery(convexQuery(api.admin.getSweepSettings, {}));
-   const { data: sweeps } = useSuspenseQuery(convexQuery(api.admin.getDailySweeps, {}));
-   const { data: earnings } = useSuspenseQuery(convexQuery(api.admin.getEarningsSummary, {}));
+   const { data: settings } = useSuspenseQuery(convexQuery(api.secure_sweeps.getSettings, {})) as { data: any };
+   const { data: sweepHistory } = useSuspenseQuery(convexQuery(api.secure_sweeps.getHistory, { limit: 10 })) as { data: any };
+   const { data: sweepStats } = useSuspenseQuery(convexQuery(api.secure_sweeps.getSweepStats, {})) as { data: any };
+   const { data: beneficiaries } = useSuspenseQuery(convexQuery(api.payouts.getBeneficiaries, {})) as { data: any };
+   const { data: earnings } = useSuspenseQuery(convexQuery(api.admin.getEarningsSummary, {})) as { data: any };
    
-   const triggerSweep = useAction(internal.payouts.runDailySweep);
+   const updateSettings = useMutation(api.secure_sweeps.updateSettings);
+   const performSweep = useMutation(api.secure_sweeps.performSweep);
    const [sweeping, setSweeping] = useState(false);
+   const [sweepStatus, setSweepStatus] = useState<{ message: string; type: string } | null>(null);
+   const [transferAmount, setTransferAmount] = useState("");
+   const [selectedAccount, setSelectedAccount] = useState("");
+
+   const handleAutoSweepToggle = async () => {
+      const newState = !settings?.autoSweep;
+      await updateSettings({ autoSweep: newState });
+      setSweepStatus({ message: `Auto Sweep ${newState ? "enabled" : "disabled"}`, type: "success" });
+      setTimeout(() => setSweepStatus(null), 3000);
+   };
+
+   const handlePauseSchedule = async () => {
+      const newState = !settings?.pauseSchedule;
+      await updateSettings({ pauseSchedule: newState });
+      setSweepStatus({ message: `Schedule ${newState ? "paused" : "resumed"}`, type: "success" });
+      setTimeout(() => setSweepStatus(null), 3000);
+   };
 
    const handleManualSweep = async () => {
-      if (!confirm("Proceed with manual secure sweep? System will verify entropy and 2FA.")) return;
+      if (!confirm("Proceed with manual secure sweep?")) return;
       setSweeping(true);
+      setSweepStatus({ message: "Processing sweep...", type: "loading" });
       try {
-         await triggerSweep({ forceApproved: true });
-         alert("Manual sweep initiated. Verify logs for disbursement status.");
-      } catch (err: any) { alert(err.message); }
+         const result = await performSweep({ type: "manual" });
+         if (result?.success) {
+            setSweepStatus({ message: `Sweep completed! ₦${result.amount?.toLocaleString()} transferred.`, type: "success" });
+         } else {
+            setSweepStatus({ message: result?.error || "Sweep failed", type: "error" });
+         }
+      } catch (err: any) { 
+         setSweepStatus({ message: err.message, type: "error" });
+      }
       setSweeping(false);
+      setTimeout(() => setSweepStatus(null), 5000);
    };
    
    return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-         <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 space-y-8 shadow-2xl relative overflow-hidden group">
-            <div className="flex justify-between items-center">
-               <h3 className="text-2xl font-black uppercase tracking-tighter text-white">Daily Secure Sweep</h3>
-               <span className="px-4 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full text-[9px] font-black">ENCRYPTED</span>
+      <div className="space-y-10 animate-in fade-in duration-700">
+         {/* Status Banner */}
+         {sweepStatus && (
+            <div className={`p-4 rounded-2xl text-center text-sm font-black ${
+               sweepStatus.type === "success" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" :
+               sweepStatus.type === "error" ? "bg-red-500/10 text-red-500 border border-red-500/20" :
+               "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+            }`}>
+               {sweepStatus.message}
             </div>
-            <div className="grid grid-cols-2 gap-6">
-               <div className="bg-slate-950 p-6 rounded-2xl border border-white/5">
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Scheduled Time</p>
-                  <p className="text-xl font-black text-white">{settings.time} WAT</p>
+         )}
+
+         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            {/* Sweep Controls */}
+            <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 space-y-8 shadow-2xl relative overflow-hidden">
+               <div className="flex justify-between items-center">
+                  <h3 className="text-2xl font-black uppercase tracking-tighter text-white">Daily Secure Sweep</h3>
+                  <span className="px-4 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full text-[9px] font-black">ENCRYPTED</span>
                </div>
-               <div className="bg-slate-950 p-6 rounded-2xl border border-white/5">
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Main Wallet</p>
-                  <p className="text-xl font-black text-emerald-500">₦{earnings.walletBalance.toLocaleString()}</p>
+
+               {/* Stats Grid */}
+               <div className="grid grid-cols-2 gap-6">
+                  <div className="bg-slate-950 p-6 rounded-2xl border border-white/5">
+                     <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Scheduled Time</p>
+                     <p className="text-xl font-black text-white">{settings?.sweepTime || "22:00"} WAT</p>
+                  </div>
+                  <div className="bg-slate-950 p-6 rounded-2xl border border-white/5">
+                     <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Main Wallet</p>
+                     <p className="text-xl font-black text-emerald-500">₦{(earnings?.walletBalance || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="bg-slate-950 p-6 rounded-2xl border border-white/5">
+                     <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Today Swept</p>
+                     <p className="text-xl font-black text-white">₦{(sweepStats?.today?.amount || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="bg-slate-950 p-6 rounded-2xl border border-white/5">
+                     <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">This Month</p>
+                     <p className="text-xl font-black text-white">₦{(sweepStats?.month?.amount || 0).toLocaleString()}</p>
+                  </div>
+               </div>
+
+               {/* Sweep Info */}
+               <div className="space-y-4">
+                  <div className="flex justify-between text-[10px] font-black border-b border-white/5 pb-2">
+                     <span className="text-slate-500 uppercase">DESTINATION</span>
+                     <span className="text-white uppercase">{beneficiaries?.[0]?.bankName || "OPAY"} (••••••{beneficiaries?.[0]?.encryptedAccountNumber?.slice(-4) || "1202"})</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-black">
+                     <span className="text-slate-500 uppercase">PAYOUT FREQUENCY</span>
+                     <span className="text-white uppercase">DAILY ({settings?.sweepTime || "11 PM"})</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-black">
+                     <span className="text-slate-500 uppercase">STATUS</span>
+                     <span className={`uppercase ${settings?.autoSweep ? "text-emerald-500" : "text-amber-500"}`}>
+                        {settings?.pauseSchedule ? "PAUSED" : settings?.autoSweep ? "ACTIVE" : "MANUAL"}
+                     </span>
+                  </div>
+               </div>
+
+               {/* Control Buttons */}
+               <div className="space-y-4">
+                  <div className="flex gap-4">
+                     <button 
+                        onClick={handleAutoSweepToggle}
+                        className={`flex-1 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                           settings?.autoSweep 
+                              ? "bg-emerald-600 text-white" 
+                              : "bg-slate-800 border border-slate-700 text-white"
+                        }`}
+                     >
+                        {settings?.autoSweep ? "🤖 Auto Sweep ON" : "⭕ Auto Sweep OFF"}
+                     </button>
+                     <button 
+                        onClick={handlePauseSchedule}
+                        className={`flex-1 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                           settings?.pauseSchedule 
+                              ? "bg-amber-600 text-white" 
+                              : "bg-slate-800 border border-slate-700 text-white"
+                        }`}
+                     >
+                        {settings?.pauseSchedule ? "▶️ Resume" : "⏸️ Pause"}
+                     </button>
+                  </div>
+                  <button 
+                     onClick={handleManualSweep}
+                     disabled={sweeping}
+                     className="w-full py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 transition-all"
+                  >
+                     {sweeping ? "Sweeping..." : "⚡ Sweep Now"}
+                  </button>
                </div>
             </div>
-            <div className="space-y-4">
-               <div className="flex justify-between text-[10px] font-black border-b border-white/5 pb-2">
-                  <span className="text-slate-500 uppercase">DESTINATION</span>
-                  <span className="text-white uppercase">OPAY (••••••1202)</span>
+
+            {/* Sweep History */}
+            <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">
+               <h3 className="text-xl font-black uppercase tracking-tighter mb-6">Payout History</h3>
+               <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                  {sweepHistory?.length === 0 ? (
+                     <p className="text-slate-500 text-sm text-center py-10">No sweeps performed yet. Use Manual Sweep to start.</p>
+                  ) : (
+                     sweepHistory?.map((sweep: any) => (
+                        <div key={sweep.id} className="bg-slate-950 p-6 rounded-2xl border border-white/5 flex justify-between items-center">
+                           <div>
+                              <p className="text-sm font-black text-white">₦{sweep.amount.toLocaleString()}</p>
+                              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                                 {sweep.type} • {sweep.date}
+                              </p>
+                           </div>
+                           <span className={`text-xs font-bold ${sweep.status === "completed" ? "text-emerald-500" : "text-amber-500"}`}>
+                              {sweep.status === "completed" ? "✓" : "⏳"}
+                           </span>
+                        </div>
+                     ))
+                  )}
                </div>
-               <div className="flex justify-between text-[10px] font-black">
-                  <span className="text-slate-500 uppercase">PAYOUT FREQUENCY</span>
-                  <span className="text-white uppercase">DAILY (11 PM)</span>
-               </div>
-            </div>
-            <div className="flex gap-4">
-                <button 
-                  onClick={handleManualSweep}
-                  disabled={sweeping}
-                  className="flex-1 py-4 bg-slate-800 border border-slate-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
-                >
-                  {sweeping ? "Sweeping..." : "Manual Sweep"}
-                </button>
-                <button className="flex-1 py-4 bg-white text-slate-950 rounded-xl text-[10px] font-black uppercase tracking-widest">Pause Schedule</button>
             </div>
          </div>
+
+         {/* Quick Transfer Section */}
          <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">
-            <h3 className="text-xl font-black uppercase tracking-tighter mb-6">Payout History</h3>
-            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-               {sweeps.map((sweep: any) => (
-                  <div key={sweep._id} className="bg-slate-950 p-6 rounded-2xl border border-white/5 flex justify-between items-center group">
-                     <div>
-                        <p className="text-sm font-black text-white">₦{sweep.amount.toLocaleString()}</p>
-                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">REF: {sweep.kora_reference?.slice(0,12)} • {sweep.date}</p>
-                     </div>
-                     <span className="text-emerald-500 text-xs">✓</span>
-                  </div>
-               ))}
+            <h3 className="text-xl font-black uppercase tracking-tighter mb-6">Quick Transfer</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+               <div>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Select Account</label>
+                  <select 
+                     value={selectedAccount} 
+                     onChange={(e) => setSelectedAccount(e.target.value)}
+                     className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-white text-sm"
+                  >
+                     <option value="">-- Select Beneficiary --</option>
+                     {beneficiaries?.map((b: any) => (
+                        <option key={b._id} value={b._id}>
+                           {b.bankName} (••••{b.encryptedAccountNumber?.slice(-4)})
+                        </option>
+                     ))}
+                  </select>
+               </div>
+               <div>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Amount (₦)</label>
+                  <input
+                     type="number"
+                     value={transferAmount}
+                     onChange={(e) => setTransferAmount(e.target.value)}
+                     placeholder="Enter amount"
+                     className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-white text-sm"
+                  />
+               </div>
+               <div className="flex items-end">
+                  <button className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                     💸 Transfer Now
+                  </button>
+               </div>
             </div>
          </div>
       </div>
