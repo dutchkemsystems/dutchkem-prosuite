@@ -1,4 +1,4 @@
-import { query, mutation, internalAction, internalMutation } from "./_generated/server";
+import { query, mutation, internalQuery, internalMutation, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -18,14 +18,12 @@ const API_COSTS = {
 } as const;
 
 /**
- * Get API cost summary
+ * Get API cost summary (public query for frontend)
  */
 export const getApiCostSummary = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const now = Date.now();
-
     // Get all system_config entries
     const allConfigs = await ctx.db.query("system_config").collect();
     
@@ -77,7 +75,7 @@ export const getApiCostSummary = query({
       totalCost: Math.round(totalCost * 100) / 100,
       walletBalance: mainWallet?.balance || 0,
       canAfford: (mainWallet?.balance || 0) >= totalCost,
-      month: new Date(now).toISOString().slice(0, 7),
+      month: new Date().toISOString().slice(0, 7),
     };
   },
 });
@@ -116,64 +114,13 @@ export const recordApiUsage = mutation({
   },
 });
 
-/**
- * Deduct API costs from wallet (run monthly)
- */
-export const deductMonthlyApiCosts = internalAction({
+// Internal query to get API cost summary
+export const getApiCostSummaryInternal = internalQuery({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const now = Date.now();
-    const startOfMonth = new Date(now);
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    // Get API cost summary
-    const summary = await ctx.runQuery(internal.api_costs.getApiCostSummaryInternal);
-    
-    if (summary.totalCost <= 0) {
-      return { success: true, message: "No API costs to deduct" };
-    }
-
-    // Get main wallet
-    const mainWallet = await ctx.runQuery(internal.api_costs.getMainWallet);
-    
-    if (!mainWallet || mainWallet.balance < summary.totalCost) {
-      console.error(`[API_COSTS] Insufficient balance: ₦${mainWallet?.balance || 0} < ₦${summary.totalCost}`);
-      return { success: false, error: "Insufficient wallet balance" };
-    }
-
-    // Deduct from main wallet
-    await ctx.runMutation(internal.api_costs.deductFromWallet, {
-      amount: summary.totalCost,
-    });
-
-    // Log the deduction
-    await ctx.runMutation(internal.api_costs.logApiCostDeduction, {
-      amount: summary.totalCost,
-      month: summary.month,
-      costs: summary.costs,
-    });
-
-    // Reset usage counters for next month
-    await ctx.runMutation(internal.api_costs.resetMonthlyUsage);
-
-    return {
-      success: true,
-      amount: summary.totalCost,
-      message: `Monthly API costs deducted: ₦${summary.totalCost.toLocaleString()}`,
-    };
-  },
-});
-
-// Internal helpers
-export const getApiCostSummaryInternal = internalAction({
-  args: {},
-  returns: v.any(),
-  handler: async (ctx) => {
-    const usageLogs = await ctx.db.query("system_config")
-      .filter(q => q.eq(q.field("key").slice(0, 8), "API_USE_"))
-      .collect();
+    const allConfigs = await ctx.db.query("system_config").collect();
+    const usageLogs = allConfigs.filter(c => c.key.startsWith("API_USE_"));
 
     const costs: Record<string, { name: string; usage: number; cost: number; unit: string }> = {};
     
@@ -212,16 +159,7 @@ export const getApiCostSummaryInternal = internalAction({
   },
 });
 
-export const getMainWallet = internalAction({
-  args: {},
-  returns: v.any(),
-  handler: async (ctx) => {
-    return await ctx.db.query("system_wallets")
-      .withIndex("by_type", q => q.eq("type", "main"))
-      .first();
-  },
-});
-
+// Internal mutation to deduct from wallet
 export const deductFromWallet = internalMutation({
   args: { amount: v.number() },
   returns: v.null(),
@@ -240,21 +178,17 @@ export const deductFromWallet = internalMutation({
   },
 });
 
+// Internal mutation to log API cost deduction
 export const logApiCostDeduction = internalMutation({
   args: { 
     amount: v.number(),
     month: v.string(),
-    costs: v.array(v.any()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.insert("system_config", {
       key: `API_COST_${args.month}`,
-      value: {
-        totalAmount: args.amount,
-        costs: args.costs,
-        deductedAt: Date.now(),
-      },
+      value: args.amount,
       description: `Monthly API cost deduction for ${args.month}`,
       updatedAt: Date.now(),
     });
@@ -262,17 +196,53 @@ export const logApiCostDeduction = internalMutation({
   },
 });
 
+// Internal mutation to reset monthly usage
 export const resetMonthlyUsage = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    const usageLogs = await ctx.db.query("system_config")
-      .filter(q => q.eq(q.field("key").slice(0, 8), "API_USE_"))
-      .collect();
+    const allConfigs = await ctx.db.query("system_config").collect();
+    const usageLogs = allConfigs.filter(c => c.key.startsWith("API_USE_"));
     
     for (const log of usageLogs) {
       await ctx.db.patch(log._id, { value: 0, updatedAt: Date.now() });
     }
     return null;
+  },
+});
+
+/**
+ * Deduct monthly API costs (run via cron)
+ */
+export const deductMonthlyApiCosts = internalAction({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    // Get API cost summary via query
+    const summary = await ctx.runQuery(internal.api_costs.getApiCostSummaryInternal);
+    
+    if (summary.totalCost <= 0) {
+      return { success: true, message: "No API costs to deduct" };
+    }
+
+    // Deduct from wallet
+    await ctx.runMutation(internal.api_costs.deductFromWallet, {
+      amount: summary.totalCost,
+    });
+
+    // Log the deduction
+    await ctx.runMutation(internal.api_costs.logApiCostDeduction, {
+      amount: summary.totalCost,
+      month: summary.month,
+    });
+
+    // Reset usage counters
+    await ctx.runMutation(internal.api_costs.resetMonthlyUsage);
+
+    return {
+      success: true,
+      amount: summary.totalCost,
+      message: `Monthly API costs deducted: ₦${summary.totalCost.toLocaleString()}`,
+    };
   },
 });

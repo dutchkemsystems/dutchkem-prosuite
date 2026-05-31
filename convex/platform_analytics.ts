@@ -77,14 +77,6 @@ export const getPlatformAnalyticsSummary = query({
           : 0,
       };
     });
-        registrations: platformUsers.length,
-        subscriptions: platformSubs.length,
-        revenue,
-        conversionRate: platformLeads.length > 0 
-          ? Math.round((platformSubs.length / platformLeads.length) * 100)
-          : 0,
-      };
-    });
 
     // Total metrics
     const totalVisits = platformMetrics.reduce((sum, p) => sum + p.visits, 0);
