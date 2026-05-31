@@ -230,10 +230,9 @@ export const getPlatformAnalytics = query({
 
     const platformStats = SUPPORTED_PLATFORMS.map(p => {
       const platformLeads = leads.filter(l => l.source === p.id || l.source === p.name.toLowerCase());
-      const platformUsers = users.filter(u => {
-        const meta = u as any;
-        return meta.registrationSource === p.id || meta.signupSource === p.id;
-      });
+      // Users who came from social platform leads (matched by lead source)
+      const platformLeadEmails = new Set(platformLeads.filter(l => l.email).map(l => l.email));
+      const platformUsers = users.filter(u => u.email && platformLeadEmails.has(u.email));
 
       return {
         platform: p.id,

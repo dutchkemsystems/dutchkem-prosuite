@@ -1,4 +1,4 @@
-import { mutation, query, internalAction } from "./_generated/server";
+import { mutation, query, internalAction, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -59,6 +59,21 @@ export const runHygieneScan = internalAction({
       });
     }
 
+    return results;
+  },
+});
+
+// Public wrapper for frontend access
+export const triggerHygieneScan = action({
+  args: {},
+  returns: v.array(v.object({
+    type: v.string(),
+    severity: v.string(),
+    affectedCount: v.number(),
+    details: v.any(),
+  })),
+  handler: async (ctx, args) => {
+    const results = await ctx.runAction(internal.crm_hygiene.runHygieneScan, {});
     return results;
   },
 });

@@ -175,7 +175,7 @@ export const runDailySweep = action({
         } catch (error) {
             console.error(`[SWEEP] Secure payout failed: ${error}`);
             if (retryCount < 2) {
-                await ctx.scheduler.runAfter(3600, internal.payouts.runDailySweep, {
+                await ctx.scheduler.runAfter(3600, api.payouts.runDailySweep, {
                     retryCount: retryCount + 1
                 });
             }

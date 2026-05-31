@@ -128,7 +128,9 @@ export const getTaxStatus = query({
     args: {},
     returns: v.any(),
     handler: async (ctx) => {
-        const wallet = await ctx.db.query("tax_wallet").first();
+        const wallet = await ctx.db.query("system_wallets")
+            .withIndex("by_type", q => q.eq("type", "tax"))
+            .unique();
         const recentTransactions = await ctx.db.query("tax_transactions")
             .order("desc")
             .take(10);

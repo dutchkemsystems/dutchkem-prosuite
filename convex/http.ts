@@ -1,7 +1,7 @@
 import { httpRouter } from "convex/server";
 import { auth } from "./auth";
 import { httpAction } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 
 const http = httpRouter();
 
@@ -517,7 +517,7 @@ http.route({
       });
     }
 
-    await ctx.runMutation(internal.marketplace.approveJob, {
+    await ctx.runMutation(api.marketplace.approveJob, {
       transactionId: transactionId,
       clientId: clientId,
     });
@@ -552,7 +552,7 @@ http.route({
     if (!adminId) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
     }
-    const balance = await ctx.runQuery(internal.marketplace.getEscrowBalance);
+    const balance = await ctx.runQuery(api.marketplace.getEscrowBalance);
     return new Response(JSON.stringify(balance), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -569,7 +569,7 @@ http.route({
     if (!adminId) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
     }
-    const pending = await ctx.runQuery(internal.marketplace.getPendingFridayPayout);
+    const pending = await ctx.runQuery(api.marketplace.getPendingFridayPayout);
     return new Response(JSON.stringify(pending), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -587,7 +587,7 @@ http.route({
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
     }
     const limit = Number(req.url.searchParams.get("limit")) || 50;
-    const payouts = await ctx.runQuery(internal.marketplace.getPayoutHistory, { limit });
+    const payouts = await ctx.runQuery(api.marketplace.getPayoutHistory, { limit });
     return new Response(JSON.stringify(payouts), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -604,7 +604,7 @@ http.route({
     if (!adminId) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
     }
-    const stats = await ctx.runQuery(internal.marketplace.getMarketplaceStats);
+    const stats = await ctx.runQuery(api.marketplace.getMarketplaceStats);
     return new Response(JSON.stringify(stats), {
       status: 200,
       headers: { "Content-Type": "application/json" },

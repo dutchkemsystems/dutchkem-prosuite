@@ -101,11 +101,15 @@ export function LiveCharts() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const chartRef = useRef<HTMLDivElement>(null)
-  const { data: stats } = useSuspenseQuery(convexQuery(api.admin.getAdminStats, {}))
-  const { data: earnings } = useSuspenseQuery(convexQuery(api.admin.getEarningsSummary, {}))
-  const { data: transactions } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, {}))
-  const { data: socialStats } = useSuspenseQuery(convexQuery(api.social.getSocialStats, {}))
-  const { data: platformAnalytics } = useSuspenseQuery(convexQuery(api.social.getPlatformAnalytics, {}))
+  const { data: stats } = useSuspenseQuery(convexQuery(api.admin.getAdminStats, {})) as { data: any };
+  const { data: earnings } = useSuspenseQuery(convexQuery(api.admin.getEarningsSummary, {})) as { data: any };
+  const { data: transactions } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, {})) as { data: any };
+  const { data: socialStats } = useSuspenseQuery(convexQuery(api.social.getSocialStats, {})) as { data: any };
+  const { data: platformAnalytics } = useSuspenseQuery(convexQuery(api.social.getPlatformAnalytics, {})) as { data: any };
+
+  // Extract nested stats - backend returns { stats: { subscribers, ... }, agentHealth, guardianStats }
+  const adminStats = stats?.stats || {};
+  const totalSubscribers = adminStats?.subscribers || 0;
 
   useEffect(() => {
     const interval = setInterval(() => setRefreshKey(k => k + 1), 8000)
@@ -123,9 +127,8 @@ export function LiveCharts() {
       });
     }
     // Add subscriber-based logins estimate
-    const totalSubs = stats?.totalSubscribers || 0;
     hours.forEach((h, i) => {
-      h.logins = Math.floor(totalSubs * (i >= 9 && i <= 18 ? 0.08 : 0.02) * (0.5 + Math.random()));
+      h.logins = Math.floor(totalSubscribers * (i >= 9 && i <= 18 ? 0.08 : 0.02) * (0.5 + Math.random()));
     });
     return hours;
   })()
@@ -138,16 +141,16 @@ export function LiveCharts() {
   }))
 
   const taskFunnel = [
-    { stage: 'Logins', count: stats?.totalSubscribers || 0 },
-    { stage: 'Tasks Started', count: Math.floor((stats?.totalSubscribers || 0) * 0.68) },
-    { stage: 'Agent Assigned', count: Math.floor((stats?.totalSubscribers || 0) * 0.62) },
-    { stage: 'Completed', count: Math.floor((stats?.totalSubscribers || 0) * 0.55) },
+    { stage: 'Logins', count: totalSubscribers },
+    { stage: 'Tasks Started', count: Math.floor(totalSubscribers * 0.68) },
+    { stage: 'Agent Assigned', count: Math.floor(totalSubscribers * 0.62) },
+    { stage: 'Completed', count: Math.floor(totalSubscribers * 0.55) },
   ]
 
   const taskStatusData = [
     { name: 'Pending', value: socialStats?.scheduled || 0, color: '#F59E0B' },
-    { name: 'In Progress', value: Math.floor((stats?.totalSubscribers || 0) * 0.1), color: '#3B82F6' },
-    { name: 'Completed', value: socialStats?.posted || stats?.totalSubscribers || 0, color: '#10B981' },
+    { name: 'In Progress', value: Math.floor(totalSubscribers * 0.1), color: '#3B82F6' },
+    { name: 'Completed', value: socialStats?.posted || totalSubscribers, color: '#10B981' },
     { name: 'Failed', value: socialStats?.failed || 0, color: '#EF4444' },
   ]
 

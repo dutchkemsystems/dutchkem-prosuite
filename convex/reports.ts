@@ -1,4 +1,4 @@
-import { mutation, query, internalAction } from "./_generated/server";
+import { mutation, query, internalAction, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -148,6 +148,16 @@ export const generateReport = internalAction({
     await ctx.runMutation(internal.reports.updateLastGenerated, { reportId: args.reportId });
 
     return { data, generatedAt: Date.now() };
+  },
+});
+
+// Public wrapper for frontend access
+export const triggerGenerateReport = action({
+  args: { reportId: v.id("saved_reports") },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const result = await ctx.runAction(internal.reports.generateReport, { reportId: args.reportId });
+    return result;
   },
 });
 

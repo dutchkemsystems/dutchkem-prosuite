@@ -249,7 +249,7 @@ export const runDailyPlatformSweep = internalAction({
 // Internal Helpers
 // ──────────────────────────────────────────────────────────────────
 
-export const getReadyForPayout = query({
+export const getReadyForPayout = internalQuery({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
@@ -288,7 +288,7 @@ export const markReleased = internalMutation({
   },
 });
 
-export const getUnsweptPlatformFees = query({
+export const getUnsweptPlatformFees = internalQuery({
   args: {},
   returns: v.number(),
   handler: async (ctx, args) => {

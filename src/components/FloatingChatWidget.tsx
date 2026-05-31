@@ -5,7 +5,7 @@ import { api } from "../../convex/_generated/api";
 import { useConvexAuth } from "convex/react";
 
 export function FloatingChatWidget() {
-  const { isAuthenticated } = useConvexAuth();
+  const { isAuthenticated, user } = useConvexAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [_sessionId, setSessionId] = useState<string | null>(null);

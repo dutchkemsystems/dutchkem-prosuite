@@ -1,6 +1,10 @@
 import { cronJobs } from "convex/server";
 import { internal, api } from "./_generated/api";
 
+// Note: Functions registered with `query`, `mutation`, or `action` (public)
+// must be referenced via `api.*`. Only `internalQuery`, `internalMutation`,
+// `internalAction` can be referenced via `internal.*`.
+
 const crons = cronJobs();
 
 // 💰 Financials & Payouts
@@ -27,7 +31,7 @@ crons.cron(
 crons.cron(
   "owner daily sweep",
   "0 22 * * *",
-  internal.payouts.runDailySweep,
+  api.payouts.runDailySweep,
   {}
 );
 
@@ -91,7 +95,7 @@ crons.interval(
 crons.interval(
   "full diagnosis",
   { hours: 1 },
-  internal.guardian_watch.runFullDiagnosis,
+  api.guardian_watch.runFullDiagnosis,
   {}
 );
 crons.interval(
