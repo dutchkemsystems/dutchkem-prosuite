@@ -413,15 +413,20 @@ function TaxDashboardPanel() {
 }
 
 function SocialEnginePanel() {
-  const { data: stats } = useSuspenseQuery(convexQuery(api.social.getSocialStats, {}));
-  const { data: platforms } = useSuspenseQuery(convexQuery(api.social.getConnectedPlatforms, {}));
-  const { data: analytics } = useSuspenseQuery(convexQuery(api.social.getPlatformAnalytics, {}));
+  const { data: stats } = useSuspenseQuery(convexQuery(api.social.getSocialStats, {})) as { data: any };
+  const { data: platforms } = useSuspenseQuery(convexQuery(api.social.getConnectedPlatforms, {})) as { data: any };
+  const { data: analytics } = useSuspenseQuery(convexQuery(api.social.getPlatformAnalytics, {})) as { data: any };
   const rotateSocial = useMutation(api.social.rotateSocialAgentsManual);
   const generateOAuth = useMutation(api.social.generateOAuthUrl);
   const disconnectPlatform = useMutation(api.social.disconnectPlatform);
+  const updatePostingSettings = useMutation(api.social.updatePostingSettings);
+  const manualPost = useMutation(api.social.manualPost);
   const [rotating, setRotating] = useState(false);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<"platforms" | "analytics" | "posts">("platforms");
+  const [postingMode, setPostingMode] = useState<Record<string, string>>({});
+  const [manualPostContent, setManualPostContent] = useState("");
+  const [postingStatus, setPostingStatus] = useState<{ platformId: string; status: string; error?: string } | null>(null);
 
   const handleRotate = async () => {
     setRotating(true);
@@ -448,6 +453,37 @@ function SocialEnginePanel() {
     await disconnectPlatform({ platform: platformId });
   };
 
+  const handleModeChange = async (platformId: string, mode: "auto" | "manual" | "paused") => {
+    setPostingMode({ ...postingMode, [platformId]: mode });
+    const result = await updatePostingSettings({ 
+      platformId, 
+      mode,
+      scheduleTime: mode === "auto" ? "09:00,15:00,21:00" : undefined,
+      postingFrequency: mode === "auto" ? "daily" : undefined,
+    });
+    if (result?.success) {
+      alert(`${platformId} posting mode set to ${mode.toUpperCase()}`);
+    }
+  };
+
+  const handleManualPost = async (platformId: string) => {
+    if (!manualPostContent.trim()) {
+      alert("Please enter content to post");
+      return;
+    }
+    
+    setPostingStatus({ platformId, status: "posting" });
+    const result = await manualPost({ platformId, content: manualPostContent });
+    
+    if (result?.success) {
+      setPostingStatus({ platformId, status: "success" });
+      setManualPostContent("");
+      setTimeout(() => setPostingStatus(null), 3000);
+    } else {
+      setPostingStatus({ platformId, status: "error", error: result?.message || "Post failed" });
+    }
+  };
+
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
       <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl relative overflow-hidden">
@@ -468,10 +504,10 @@ function SocialEnginePanel() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <MetricCard label="Total Generated" value={stats.total} icon="📝" color="blue" />
-            <MetricCard label="Live Posts" value={stats.posted} icon="🌐" color="emerald" />
-            <MetricCard label="Scheduled" value={stats.scheduled} icon="📅" color="indigo" />
-            <MetricCard label="Failed" value={stats.failed} icon="⚠️" color="red" />
+            <MetricCard label="Total Generated" value={stats?.total || 0} icon="📝" color="blue" />
+            <MetricCard label="Live Posts" value={stats?.posted || 0} icon="🌐" color="emerald" />
+            <MetricCard label="Scheduled" value={stats?.scheduled || 0} icon="📅" color="indigo" />
+            <MetricCard label="Failed" value={stats?.failed || 0} icon="⚠️" color="red" />
           </div>
 
           {/* Sub-tabs */}
@@ -526,8 +562,9 @@ function SocialEnginePanel() {
                         </div>
                         <span className={`w-3 h-3 rounded-full ${p.isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'}`}></span>
                       </div>
+                      
                       {p.isConnected ? (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           <div className="flex justify-between text-[9px] font-bold">
                             <span className="text-slate-500 uppercase">Posts</span>
                             <span className="text-white">{p.postsCount}</span>
@@ -536,9 +573,85 @@ function SocialEnginePanel() {
                             <span className="text-slate-500 uppercase">Followers</span>
                             <span className="text-white">{p.followersCount.toLocaleString()}</span>
                           </div>
+                          
+                          {/* Auto/Manual/Pause Controls */}
+                          <div className="flex gap-1 mt-3">
+                            <button
+                              onClick={() => handleModeChange(p.id, "auto")}
+                              className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${
+                                (postingMode[p.id] || p.postingMode) === "auto"
+                                  ? "bg-emerald-600 text-white"
+                                  : "bg-slate-800 text-slate-500 hover:bg-slate-700"
+                              }`}
+                            >
+                              🤖 Auto
+                            </button>
+                            <button
+                              onClick={() => handleModeChange(p.id, "manual")}
+                              className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${
+                                postingMode[p.id] === "manual"
+                                  ? "bg-blue-600 text-white"
+                                  : "bg-slate-800 text-slate-500 hover:bg-slate-700"
+                              }`}
+                            >
+                              ✍️ Manual
+                            </button>
+                            <button
+                              onClick={() => handleModeChange(p.id, "paused")}
+                              className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${
+                                postingMode[p.id] === "paused"
+                                  ? "bg-amber-600 text-white"
+                                  : "bg-slate-800 text-slate-500 hover:bg-slate-700"
+                              }`}
+                            >
+                              ⏸️ Pause
+                            </button>
+                          </div>
+
+                          {/* Manual Post Input */}
+                          {(postingMode[p.id] === "manual" || (!postingMode[p.id] && !p.postingMode)) && (
+                            <div className="mt-3 space-y-2">
+                              <textarea
+                                placeholder="Write your post content here..."
+                                value={manualPostContent}
+                                onChange={(e) => setManualPostContent(e.target.value)}
+                                className="w-full bg-slate-950 border border-white/10 rounded-xl p-3 text-white text-xs resize-none"
+                                rows={2}
+                              />
+                              <button
+                                onClick={() => handleManualPost(p.id)}
+                                disabled={postingStatus?.status === "posting"}
+                                className="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                              >
+                                {postingStatus?.status === "posting" ? "Posting..." : "📤 Post Now"}
+                              </button>
+                              {postingStatus?.platformId === p.id && postingStatus.status === "success" && (
+                                <p className="text-emerald-500 text-[9px] font-bold text-center">✅ Posted successfully!</p>
+                              )}
+                              {postingStatus?.platformId === p.id && postingStatus.status === "error" && (
+                                <p className="text-red-500 text-[9px] font-bold text-center">❌ {postingStatus.error}</p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Auto Mode Info */}
+                          {postingMode[p.id] === "auto" && (
+                            <div className="mt-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                              <p className="text-emerald-500 text-[9px] font-bold">📅 Auto-posting active</p>
+                              <p className="text-slate-500 text-[8px] mt-1">Schedule: Daily at 9:00 AM, 3:00 PM, 9:00 PM</p>
+                            </div>
+                          )}
+
+                          {/* Paused State */}
+                          {postingMode[p.id] === "paused" && (
+                            <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                              <p className="text-amber-500 text-[9px] font-bold">⏸️ Posting is paused</p>
+                            </div>
+                          )}
+
                           <button
                             onClick={() => handleDisconnect(p.id)}
-                            className="w-full mt-3 py-2 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all"
+                            className="w-full mt-2 py-2 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all"
                           >
                             Disconnect
                           </button>
@@ -597,7 +710,7 @@ function SocialEnginePanel() {
             <div className="bg-slate-950 p-10 rounded-[2.5rem] border border-white/5">
               <h3 className="text-lg font-black text-white uppercase tracking-tighter mb-8">Pulse History</h3>
               <div className="space-y-4">
-                {stats.history.map((p: any) => (
+                {stats?.history?.map((p: any) => (
                   <div key={p._id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-slate-900 rounded-3xl border border-white/5 gap-4">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-slate-950 rounded-2xl flex items-center justify-center text-xl">{p.platform === 'X' ? '𝕏' : '📱'}</div>
