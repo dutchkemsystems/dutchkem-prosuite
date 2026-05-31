@@ -62,8 +62,26 @@ export const generateOAuthUrl = mutation({
       updatedAt: Date.now(),
     });
 
-    // Use Postiz API to get OAuth URL: GET /public/v1/social/{integration}
-    const authUrl = `${postizUrl}/public/v1/social/${platform}?redirect=${encodeURIComponent(redirectUri)}&state=${state}`;
+    // Call Postiz API to get OAuth URL: GET /public/v1/social/{integration}
+    // API key must be in Authorization header
+    const response = await fetch(`${postizUrl}/public/v1/social/${platform}?redirect=${encodeURIComponent(redirectUri)}&state=${state}`, {
+      headers: {
+        'Authorization': postizKey,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error(`[OAUTH] Failed to get OAuth URL for ${platform}:`, error);
+      return { success: false, error: `Failed to get OAuth URL: ${error}` };
+    }
+
+    const data = await response.json();
+    const authUrl = data.url;
+
+    if (!authUrl) {
+      return { success: false, error: "No OAuth URL returned from Postiz" };
+    }
 
     return { 
       authUrl, 
