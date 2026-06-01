@@ -424,74 +424,123 @@ function TaxDashboardPanel() {
 
 function SocialEnginePanel() {
   const { data: stats } = useSuspenseQuery(convexQuery(api.social.getSocialStats, {})) as { data: any };
-  const { data: platforms } = useSuspenseQuery(convexQuery(api.social.getConnectedPlatforms, {})) as { data: any };
   const { data: analytics } = useSuspenseQuery(convexQuery(api.social.getPlatformAnalytics, {})) as { data: any };
+  const getConnectedPlatformsAction = useAction(api.social.getConnectedPlatforms);
   const rotateSocial = useMutation(api.social.rotateSocialAgentsManual);
   const generateOAuth = useMutation(api.social.generateOAuthUrl);
   const disconnectPlatform = useMutation(api.social.disconnectPlatform);
   const updatePostingSettings = useMutation(api.social.updatePostingSettings);
   const manualPost = useMutation(api.social.manualPost);
+  const [platforms, setPlatforms] = useState<any[]>([]);
+  const [platformsLoading, setPlatformsLoading] = useState(true);
   const [rotating, setRotating] = useState(false);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<"platforms" | "analytics" | "posts">("platforms");
   const [postingMode, setPostingMode] = useState<Record<string, string>>({});
   const [manualPostContent, setManualPostContent] = useState("");
   const [postingStatus, setPostingStatus] = useState<{ platformId: string; status: string; error?: string } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+
+  useEffect(() => {
+    const fetchPlatforms = async () => {
+      try {
+        const result = await getConnectedPlatformsAction();
+        const platformsData = result.platforms || [];
+        const availablePlatforms = result.availablePlatforms || [];
+        const merged = availablePlatforms.map((ap: any) => {
+          const conn = platformsData.find((p: any) => p.integration === ap.id || p.id === ap.id);
+          return {
+            ...ap,
+            isConnected: !!conn,
+            connectedAt: conn?.connectedAt,
+            lastSyncAt: conn?.lastSyncAt,
+            postsCount: conn?.postsCount || 0,
+            followersCount: conn?.followersCount || 0,
+            postingMode: conn?.postingMode || "auto",
+            username: conn?.username || conn?.name,
+          };
+        });
+        setPlatforms(merged);
+      } catch (error) {
+        console.error("Failed to fetch platforms:", error);
+        setPlatforms([]);
+      } finally {
+        setPlatformsLoading(false);
+      }
+    };
+    fetchPlatforms();
+  }, [getConnectedPlatformsAction]);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'social_connection_success') {
+        setToast({ message: `✅ Connected to ${event.data.platformId}! Auto-posting started.`, type: "success" });
+        setConnecting(null);
+        window.location.reload();
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  const showToast = (message: string, type: string) => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 5000);
+  };
 
   const handleRotate = async () => {
     setRotating(true);
     await rotateSocial({});
     setRotating(false);
+    showToast("Agent rotation triggered", "success");
   };
 
   const handleConnect = async (platformId: string) => {
     setConnecting(platformId);
     try {
       // Use the Convex HTTP endpoint for callback
-      const redirectUri = `${window.location.origin}/api/social/callback/${platformId}`;
+      const redirectUri = `${window.location.origin}/api/social/callback?platform=${platformId}`;
       const result = await generateOAuth({ platform: platformId, redirectUri });
       
       if (result?.error) {
-        alert(result.error);
+        showToast(result.error, "error");
         setConnecting(null);
         return;
       }
       
       if (result?.authUrl) {
+        // Calculate popup dimensions
+        const width = 600;
+        const height = 700;
+        const left = (window.screen.width / 2) - (width / 2);
+        const top = (window.screen.height / 2) - (height / 2);
+        
         // Open popup window for OAuth
         const popup = window.open(
           result.authUrl, 
-          `${platformId}_oauth`, 
-          'width=600,height=700,scrollbars=yes,resizable=yes'
+          `connect-${platformId}`, 
+          `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
         );
         
-        // Listen for postMessage from popup
-        const messageHandler = (event: MessageEvent) => {
-          if (event.data?.type === 'social_connection_success') {
-            window.removeEventListener('message', messageHandler);
-            setConnecting(null);
-            window.location.reload();
-          }
-        };
-        window.addEventListener('message', messageHandler);
+        if (!popup) {
+          showToast("Popup blocked. Please allow popups for this site.", "error");
+          setConnecting(null);
+          return;
+        }
         
         // Monitor popup for closure
         const popupCheck = setInterval(() => {
-          if (!popup || popup.closed) {
+          if (popup.closed) {
             clearInterval(popupCheck);
-            window.removeEventListener('message', messageHandler);
             setConnecting(null);
-            // Refresh page to show updated connection status
-            window.location.reload();
           }
-        }, 1000);
+        }, 500);
       } else if (result?.devMode) {
-        // Development mode - auto-connect
-        alert(result.message);
+        showToast(result.message, "success");
         window.location.reload();
       }
     } catch (err: any) {
-      alert(err.message);
+      showToast(err.message || "Failed to connect", "error");
     }
     setConnecting(null);
   };
@@ -503,37 +552,54 @@ function SocialEnginePanel() {
 
   const handleModeChange = async (platformId: string, mode: "auto" | "manual" | "paused") => {
     setPostingMode({ ...postingMode, [platformId]: mode });
-    const result = await updatePostingSettings({ 
-      platformId, 
+    const result = await updatePostingSettings({
+      platformId,
       mode,
       scheduleTime: mode === "auto" ? "09:00,15:00,21:00" : undefined,
       postingFrequency: mode === "auto" ? "daily" : undefined,
     });
     if (result?.success) {
-      alert(`${platformId} posting mode set to ${mode.toUpperCase()}`);
+      showToast(`${platformId} posting mode set to ${mode.toUpperCase()}`, "success");
+    } else {
+      showToast(result?.message || "Failed to update posting mode", "error");
     }
   };
 
   const handleManualPost = async (platformId: string) => {
     if (!manualPostContent.trim()) {
-      alert("Please enter content to post");
+      showToast("Please enter content to post", "error");
       return;
     }
-    
+
     setPostingStatus({ platformId, status: "posting" });
     const result = await manualPost({ platformId, content: manualPostContent });
-    
+
     if (result?.success) {
       setPostingStatus({ platformId, status: "success" });
       setManualPostContent("");
+      showToast(`Post published to ${platformId}!`, "success");
       setTimeout(() => setPostingStatus(null), 3000);
     } else {
       setPostingStatus({ platformId, status: "error", error: result?.message || "Post failed" });
+      showToast(result?.message || "Post failed", "error");
     }
   };
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-10 animate-in fade-in duration-700 relative">
+      {toast && (
+        <div
+          className={`fixed top-6 right-6 z-50 px-6 py-4 rounded-2xl shadow-2xl font-semibold text-sm animate-in slide-in-from-top-2 ${
+            toast.type === "success"
+              ? "bg-emerald-600 text-white"
+              : toast.type === "error"
+                ? "bg-red-600 text-white"
+                : "bg-slate-800 text-white border border-white/10"
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
       <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-orange-600/5 blur-[80px]"></div>
         <div className="relative z-10 space-y-10">

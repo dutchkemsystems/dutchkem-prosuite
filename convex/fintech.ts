@@ -1,6 +1,5 @@
-import { query, mutation, action } from "./_generated/server";
+import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
 
 /**
  * FINTECH INTEGRATION - Kora Pay + Nigerian Banks
@@ -45,8 +44,8 @@ export const getConnectedAccounts = query({
       id: b._id,
       bankName: b.bankName,
       bankCode: b.bankCode,
-      accountName: b.encryptedAccountName,
-      accountNumber: "****" + b.encryptedAccountNumber.slice(-4),
+      accountName: (b as any).encryptedAccountName || "N/A",
+      accountNumber: "****" + ((b as any).encryptedAccountNumber || "0000").slice(-4),
       isDefault: b.isDefault,
     }));
   },
@@ -137,9 +136,9 @@ export const initiateTransfer = mutation({
           otp,
           amount: args.amount,
           beneficiaryId: args.beneficiaryId,
-          beneficiaryName: beneficiary.encryptedAccountName,
-          bankName: beneficiary.bankName,
-          bankCode: beneficiary.bankCode,
+          beneficiaryName: (beneficiary as any).encryptedAccountName || "Unknown",
+          bankName: (beneficiary as any).bankName || "Unknown",
+          bankCode: (beneficiary as any).bankCode || "Unknown",
           purpose: args.purpose || "Transfer",
           createdAt: Date.now(),
           expiresAt: otpExpiry,
@@ -271,10 +270,10 @@ export const getTransferHistory = query({
   returns: v.any(),
   handler: async (ctx, args) => {
     const limit = args.limit || 20;
-    const transfers = await ctx.db.query("daily_sweeps")
-      .filter(q => q.eq(q.field("sweep_id").slice(0, 8), "TRANSFER_"))
-      .order("desc")
-      .take(limit);
+    const allSweeps = await ctx.db.query("daily_sweeps").collect();
+    const transfers = allSweeps.filter(s => s.sweep_id?.slice(0, 9) === "TRANSFER_")
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, limit);
 
     return transfers.map(t => ({
       id: t._id,
