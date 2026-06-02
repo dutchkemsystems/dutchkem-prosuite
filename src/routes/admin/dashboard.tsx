@@ -1298,14 +1298,23 @@ function DailySweepStatusPanel() {
 
                {/* Manual Sweep Amount */}
                <div className="bg-slate-950 p-6 rounded-2xl border border-white/5 space-y-4">
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Manual Sweep Amount (Optional)</p>
-                  <input
-                     type="number"
-                     value={manualSweepAmount}
-                     onChange={(e) => setManualSweepAmount(e.target.value)}
-                     placeholder="Leave empty to sweep all funds"
-                     className="w-full bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-sm"
-                  />
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Manual Sweep Amount</p>
+                  <div className="flex gap-3">
+                     <input
+                        type="number"
+                        value={manualSweepAmount}
+                        onChange={(e) => setManualSweepAmount(e.target.value)}
+                        placeholder="Enter amount to sweep"
+                        className="flex-1 bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-sm"
+                     />
+                     <button
+                        onClick={handleManualSweep}
+                        disabled={!manualSweepAmount || parseFloat(manualSweepAmount) <= 0 || sweeping}
+                        className="px-6 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:opacity-50 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                     >
+                        {sweeping ? "..." : "Apply"}
+                     </button>
+                  </div>
                   <input
                      type="text"
                      value={sweepRemarks}
@@ -1313,6 +1322,7 @@ function DailySweepStatusPanel() {
                      placeholder="Remarks (optional)"
                      className="w-full bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-sm"
                   />
+                  <p className="text-[8px] text-slate-600">Enter amount and click Apply to sweep immediately via Kora Pay</p>
                </div>
 
                {/* Sweep Info */}
