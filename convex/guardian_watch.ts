@@ -39,7 +39,7 @@ export const testAgents = internalAction({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    const agents = ["A1", "A2", "A13"]; // Representative sample
+    const agents = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A15"];
     for (const aid of agents) {
       const start = Date.now();
       try {

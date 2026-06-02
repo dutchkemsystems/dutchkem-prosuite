@@ -7,6 +7,14 @@ import { internal } from "./_generated/api";
  * Admin-only controls for backing up and restoring agent configurations
  */
 
+function simpleHash(str: string): string {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash + str.charCodeAt(i)) & 0xffffffff;
+  }
+  return hash.toString(16);
+}
+
 /**
  * Create a backup of all agent configurations
  */
@@ -50,7 +58,7 @@ export const createBackup = mutation({
       description: args.name,
       createdAt: Date.now(),
       status: "active",
-      checksum: JSON.stringify(backupData).length.toString(),
+      checksum: simpleHash(JSON.stringify(backupData)),
     });
 
     return {
@@ -223,7 +231,7 @@ export const createBackupInternal = internalMutation({
       description: args.name,
       createdAt: Date.now(),
       status: "active",
-      checksum: JSON.stringify(backupData).length.toString(),
+      checksum: simpleHash(JSON.stringify(backupData)),
     });
 
     return { backupId, name: args.name };

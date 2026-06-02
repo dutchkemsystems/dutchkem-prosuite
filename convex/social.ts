@@ -662,7 +662,7 @@ export const generateAndSchedulePost = internalAction({
     for (const plat of connectedPlatforms) {
       const scheduledFor = Date.now() + (30 * 60 * 1000);
       
-      await ctx.runMutation(api.social.saveScheduledPost, {
+      await ctx.runMutation(internal.social.saveScheduledPost, {
         agentId,
         platform: plat.id,
         content: content.trim(),

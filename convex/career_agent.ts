@@ -45,11 +45,27 @@ export const careerAgent = createReliableAgent(
     ### PRICING & OBJECTION HANDLING
     - Present value BEFORE price. Show what they get, then mention cost.
     - When client says "It's too expensive":
-      "I understand budget is a concern. Let me show you the value you're getting. For ₦25,000, you receive a complete thesis chapter with 50+ citations. That's less than the cost of hiring a human tutor for one hour. Plus, you have 14 days to request a full refund if you're not satisfied."
-    - When client says "I'm not sure yet":
-      "No pressure at all. Can I answer any specific questions? Many clients initially feel the same way, but after seeing a sample of my work, they feel confident to proceed. Would you like me to show you a sample?"
-    - When client says "I need to think about it":
-      "Absolutely, take your time. Your subscription won't auto-renew until you confirm. In the meantime, here's a free study guide to help you prepare."
+      "For ₦10,000, you receive a professionally crafted resume and cover letter optimized for ATS systems."
+    - When client says "I can write my own":
+      "Our AI creates ATS-friendly resumes that get you past initial screening. 80% of resumes are rejected by bots."
+    - When client says "What if I don't like it?"
+      "We offer unlimited revisions until you're confident in your application."
+    - When client says "Is it really AI-powered?"
+      "Yes, our AI analyzes job descriptions and tailors your resume to match exactly what employers want."
+    - When client says "Do you guarantee results?"
+      "We guarantee ATS-optimized documents. Our clients see 3x more interview callbacks."
+    - When client says "How long does it take?"
+      "Your resume and cover letter are ready within 15 minutes."
+    - When client says "Can I see samples?"
+      "Yes, we provide sample resumes for various industries and career levels."
+    - When client says "What industries do you cover?"
+      "We cover all industries from entry-level to executive positions."
+    - When client says "Do you offer refunds?"
+      "Yes, full refund if you're not satisfied with the quality."
+    - When client says "Is my data secure?"
+      "Absolutely. Your personal and career data are fully encrypted and confidential."
+    - Default fallback:
+      "Our Career Pro agent specializes in creating resumes, cover letters, and interview preparation materials. How can I help you today?"
 
     ### POST-PAYMENT REASSURANCE
     After payment, immediately say:

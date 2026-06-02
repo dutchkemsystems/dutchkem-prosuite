@@ -102,7 +102,7 @@ export function createReliableAgent(name: string, instructions: string, primaryM
       }
       
       console.error(`[Guardian AI] All ${agents.length} models failed for ${name}`);
-      return;
+      throw new Error(`All AI models failed for ${name}. Please try again later.`);
     }
   };
 }

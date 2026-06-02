@@ -87,6 +87,12 @@ export const toggleSyntheticAgent = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
+    // Admin-only check (skip for internal cron calls)
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity && identity.email !== "admin@dutchkem.com" && !identity.email?.includes("dutchkem")) {
+      return { success: false, error: "Admin access required" };
+    }
+
     const agent = AGENTS.find(a => a.id === args.agentId);
     if (!agent) return { success: false, error: "Agent not found" };
 
@@ -122,6 +128,12 @@ export const updateAgentSettings = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
+    // Admin-only check (skip for internal cron calls)
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity && identity.email !== "admin@dutchkem.com" && !identity.email?.includes("dutchkem")) {
+      return { success: false, error: "Admin access required" };
+    }
+
     const agent = AGENTS.find(a => a.id === args.agentId);
     if (!agent) return { success: false, error: "Agent not found" };
 
@@ -160,6 +172,12 @@ export const enableAllAgents = mutation({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
+    // Admin-only check (skip for internal cron calls)
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity && identity.email !== "admin@dutchkem.com" && !identity.email?.includes("dutchkem")) {
+      return { success: false, error: "Admin access required" };
+    }
+
     for (const agent of AGENTS) {
       const key = `SYNTHETIC_${agent.id}_ENABLED`;
       const existing = await ctx.db.query("system_config")
@@ -188,6 +206,12 @@ export const disableAllAgents = mutation({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
+    // Admin-only check (skip for internal cron calls)
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity && identity.email !== "admin@dutchkem.com" && !identity.email?.includes("dutchkem")) {
+      return { success: false, error: "Admin access required" };
+    }
+
     for (const agent of AGENTS) {
       const key = `SYNTHETIC_${agent.id}_ENABLED`;
       const existing = await ctx.db.query("system_config")
@@ -240,6 +264,16 @@ export const generateSyntheticResponse = action({
       baseURL: "https://integrate.api.nvidia.com/v1",
     });
 
+    // Map model names from OpenRouter format to NVIDIA format
+    const NVIDIA_MODEL_MAP: Record<string, string> = {
+      "meta-llama/llama-3.3-70b-instruct": "meta/llama-3.3-70b-instruct",
+      "meta-llama/llama-3.1-70b-instruct": "meta/llama-3.1-70b-instruct",
+      "meta-llama/llama-3-8b-instruct": "meta/llama-3-8b-instruct",
+      "mistralai/mixtral-8x22b-instruct": "mistralai/mixtral-8x22b-instruct-v0.1",
+    };
+    const modelId = configs.model || "meta-llama/llama-3.1-70b-instruct";
+    const nvidiaModelId = NVIDIA_MODEL_MAP[modelId] || modelId;
+
     // Build system prompt based on agent capabilities
     const systemPrompt = `You are ${agent.name}, an AI assistant specialized in ${agent.description}.
     Your capabilities include: ${agent.capabilities.join(", ")}.
@@ -250,7 +284,7 @@ export const generateSyntheticResponse = action({
 
     try {
       const { text } = await generateText({
-        model: nvidia.chat(configs.model || "meta-llama/llama-3.1-70b-instruct"),
+        model: nvidia.chat(nvidiaModelId),
         system: systemPrompt,
         prompt: args.context ? `Context: ${args.context}\n\nUser request: ${args.prompt}` : args.prompt,
         temperature: configs.temperature || 0.7,
@@ -258,10 +292,11 @@ export const generateSyntheticResponse = action({
 
       const latencyMs = Date.now() - startTime;
 
-      // Track usage + performance log
+      // Track usage + performance log (approx 4 chars per token)
+      const approxTokens = Math.ceil(text.length / 4);
       await ctx.runMutation(internal.synthetic_intelligence.trackUsage, {
         agentId: args.agentId,
-        tokens: text.length,
+        tokens: approxTokens,
       });
 
       await ctx.runMutation(internal.synthetic_intelligence.logPerformance, {
@@ -270,7 +305,7 @@ export const generateSyntheticResponse = action({
         prompt: args.prompt.substring(0, 500),
         response: text.substring(0, 500),
         model: configs.model || "meta-llama/llama-3.1-70b-instruct",
-        tokensUsed: text.length,
+        tokensUsed: approxTokens,
         latencyMs,
         success: true,
       });
@@ -435,7 +470,8 @@ export const getPerformanceSummary = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const logs = await ctx.db.query("synthetic_performance_logs").collect();
+    // Limit to last 1000 logs for efficiency
+    const logs = await ctx.db.query("synthetic_performance_logs").order("desc").take(1000);
 
     const byAgent: Record<string, {
       total: number;

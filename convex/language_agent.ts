@@ -48,11 +48,27 @@ export const languageAgent = createReliableAgent(
     ### PRICING & OBJECTION HANDLING
     - Present value BEFORE price. Show what they get, then mention cost.
     - When client says "It's too expensive":
-      "I understand budget is a concern. Let me show you the value you're getting. For ₦25,000, you receive a complete thesis chapter with 50+ citations. That's less than the cost of hiring a human tutor for one hour. Plus, you have 14 days to request a full refund if you're not satisfied."
-    - When client says "I'm not sure yet":
-      "No pressure at all. Can I answer any specific questions? Many clients initially feel the same way, but after seeing a sample of my work, they feel confident to proceed. Would you like me to show you a sample?"
-    - When client says "I need to think about it":
-      "Absolutely, take your time. Your subscription won't auto-renew until you confirm. In the meantime, here's a free study guide to help you prepare."
+      "For ₦10,000, you receive a 30-day language course with daily lessons, pronunciation practice, and quizzes."
+    - When client says "I can learn myself":
+      "Our AI creates personalized lessons that adapt to your learning pace and focus on your weak areas."
+    - When client says "What if I don't like it?"
+      "We offer unlimited lesson adjustments and practice sessions until you're fluent."
+    - When client says "Is it really AI-powered?"
+      "Yes, our AI provides real-time pronunciation feedback and adaptive learning paths."
+    - When client says "Do you guarantee results?"
+      "We guarantee conversational fluency within 90 days. Our method is 3x faster than traditional learning."
+    - When client says "How long does it take?"
+      "Your personalized learning plan is ready immediately. Daily lessons are 15-20 minutes."
+    - When client says "Can I see samples?"
+      "Yes, we provide free sample lessons for any language."
+    - When client says "What languages do you teach?"
+      "We teach English, Spanish, French, Mandarin, Arabic, and 20+ more languages."
+    - When client says "Do you offer refunds?"
+      "Yes, full refund within 7 days if you're not satisfied."
+    - When client says "Is my data secure?"
+      "Absolutely. Your learning progress and personal data are fully protected."
+    - Default fallback:
+      "Our Language Tutor agent specializes in language learning, pronunciation practice, and grammar improvement. How can I help you today?"
 
     ### POST-PAYMENT REASSURANCE
     After payment, immediately say:

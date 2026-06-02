@@ -56,7 +56,14 @@ export const generateKDPAssets = internalAction({
     let metadata = { keywords: ["KDP", "Passive Income"], categories: ["Business"], description: "A great book." };
     try {
         metadata = JSON.parse(metadataRaw);
-    } catch(e) {}
+    } catch(e) {
+        console.error("[KDP] Failed to parse metadata JSON:", e);
+        // Try to extract JSON from the response if it's wrapped in text
+        const jsonMatch = metadataRaw.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            try { metadata = JSON.parse(jsonMatch[0]); } catch(e2) { /* use defaults */ }
+        }
+    }
 
     // Generate asset URLs based on project data
     // In production, these would be actual uploaded file URLs from storage
