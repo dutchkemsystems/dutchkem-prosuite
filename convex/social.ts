@@ -3,10 +3,11 @@ import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
+import { getPlatformOAuthConfig, buildPlatformAuthUrl, PLATFORM_OAUTH_CONFIGS } from "./platformOAuth";
 
 /**
- * SOCIAL MEDIA ENGINE - Postiz API Integration (Correct Endpoints)
- * Uses Postiz API for all social platform connections
+ * SOCIAL MEDIA ENGINE - Direct Platform OAuth 2.0
+ * Each platform has its own OAuth flow with real login pages
  */
 
 // Supported platforms via Postiz
@@ -40,8 +41,8 @@ function getPostizConfig() {
 }
 
 /**
- * Initiate Postiz OAuth (User authorizes our app to act on their Postiz account)
- * Per Postiz docs: redirect user to /oauth/authorize
+ * Initiate OAuth for a specific platform
+ * Generates the platform's REAL login URL for the popup
  */
 export const generateOAuthUrl = mutation({
   args: {
@@ -53,8 +54,54 @@ export const generateOAuthUrl = mutation({
     const platformConfig = SUPPORTED_PLATFORMS.find(p => p.id === platform);
     if (!platformConfig) throw new Error(`Unsupported platform: ${platform}`);
 
-    const { clientId, frontendUrl } = getPostizConfig();
+    // Check if platform has direct OAuth config
+    const oauthConfig = getPlatformOAuthConfig(platform);
+    
+    if (oauthConfig) {
+      // Direct platform OAuth
+      const clientId = process.env[oauthConfig.clientIdEnvKey];
+      if (!clientId) {
+        return {
+          error: `${platformConfig.name} OAuth not configured. Set ${oauthConfig.clientIdEnvKey} in Convex env.`,
+          platform: platformConfig.name,
+        };
+      }
 
+      // Generate CSRF state
+      const state = crypto.randomUUID();
+
+      // Store state for verification
+      await ctx.db.insert("system_config", {
+        key: `oauth_state_${state}`,
+        value: {
+          platform,
+          state,
+          redirectUri,
+          type: "platform",
+          createdAt: Date.now(),
+          expiresAt: Date.now() + 10 * 60 * 1000,
+        },
+        description: `OAuth state for ${platformConfig.name}`,
+        updatedAt: Date.now(),
+      });
+
+      // Build the platform's REAL authorization URL
+      const authUrl = buildPlatformAuthUrl(platform, clientId, redirectUri, state);
+      if (!authUrl) {
+        return { error: `Failed to build auth URL for ${platformConfig.name}` };
+      }
+
+      return {
+        authUrl,
+        state,
+        platform: platformConfig,
+        type: "platform",
+        message: `Opening ${platformConfig.name} login...`,
+      };
+    }
+
+    // Fallback: Postiz OAuth (for platforms without direct config)
+    const { clientId, frontendUrl } = getPostizConfig();
     if (!clientId) {
       return {
         error: "Postiz OAuth not configured. Set POSTIZ_CLIENT_ID in Convex env.",
@@ -72,6 +119,7 @@ export const generateOAuthUrl = mutation({
         platform,
         state,
         redirectUri,
+        type: "postiz",
         createdAt: Date.now(),
         expiresAt: Date.now() + 10 * 60 * 1000,
       },
@@ -79,7 +127,7 @@ export const generateOAuthUrl = mutation({
       updatedAt: Date.now(),
     });
 
-    // Build the Postiz authorization URL with redirect_uri
+    // Build the Postiz authorization URL
     const params = new URLSearchParams({
       client_id: clientId,
       response_type: 'code',
@@ -93,15 +141,15 @@ export const generateOAuthUrl = mutation({
       authUrl,
       state,
       platform: platformConfig,
+      type: "postiz",
       message: `Opening Postiz login for ${platformConfig.name}...`,
-      note: "After authorizing Postiz, you can connect your social media accounts through Postiz."
     };
   },
 });
 
 /**
- * Handle OAuth callback from Postiz
- * Exchanges authorization code for access token using the standard OAuth2 flow
+ * Handle OAuth callback from any platform
+ * Exchanges authorization code for access token
  */
 export const handleOAuthCallback = mutation({
   args: {
@@ -123,162 +171,415 @@ export const handleOAuthCallback = mutation({
     // Delete used state
     await ctx.db.delete(stateConfig._id);
 
-    const { clientId, clientSecret, apiUrl } = getPostizConfig();
     const stateData = stateConfig.value as any;
-
-    if (!clientId || !clientSecret) {
-      return { success: false, error: "Postiz OAuth credentials not configured" };
-    }
+    const oauthType = stateData.type || "postiz";
 
     try {
-      // Exchange code for access token via Postiz OAuth2 standard flow
-      const tokenResponse = await fetch(`${apiUrl}/api/oauth/token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          grant_type: 'authorization_code',
-          code: code,
-          client_id: clientId,
-          client_secret: clientSecret,
+      let accessToken: string | undefined;
+      let refreshToken: string | undefined;
+      let platformUsername: string | undefined;
+      let platformUserId: string | undefined;
+
+      if (oauthType === "platform") {
+        // Direct platform OAuth token exchange
+        const oauthConfig = getPlatformOAuthConfig(platform);
+        if (!oauthConfig) {
+          return { success: false, error: `No OAuth config for ${platform}` };
+        }
+
+        const clientId = process.env[oauthConfig.clientIdEnvKey];
+        const clientSecret = process.env[oauthConfig.clientSecretEnvKey];
+        if (!clientId || !clientSecret) {
+          return { success: false, error: `${platform} credentials not configured` };
+        }
+
+        // Platform-specific token exchange
+        const tokenBody: Record<string, string> = {
+          grant_type: "authorization_code",
+          code,
           redirect_uri: stateData.redirectUri,
-        }),
-      });
+        };
 
-      if (!tokenResponse.ok) {
-        const error = await tokenResponse.text();
-        console.error(`[POSTIZ] Token exchange error:`, error);
-        return { success: false, error: `Token exchange failed: ${error}` };
+        // Different platforms use different auth methods
+        if (platform === "x") {
+          // Twitter uses Basic auth with base64(client_id:client_secret)
+          const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+          const tokenResponse = await fetch(oauthConfig.tokenUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              Authorization: `Basic ${authHeader}`,
+            },
+            body: new URLSearchParams({
+              code,
+              grant_type: "authorization_code",
+              redirect_uri: stateData.redirectUri,
+              client_id: clientId,
+            }).toString(),
+          });
+
+          if (!tokenResponse.ok) {
+            const error = await tokenResponse.text();
+            console.error(`[${platform}] Token exchange error:`, error);
+            return { success: false, error: `Token exchange failed: ${error}` };
+          }
+
+          const tokenData = await tokenResponse.json();
+          accessToken = tokenData.access_token;
+          refreshToken = tokenData.refresh_token;
+
+          // Fetch user info
+          const userResponse = await fetch("https://api.twitter.com/2/users/me", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            platformUsername = userData.data?.username;
+            platformUserId = userData.data?.id;
+          }
+        } else if (platform === "linkedin") {
+          const tokenResponse = await fetch(oauthConfig.tokenUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              grant_type: "authorization_code",
+              code,
+              redirect_uri: stateData.redirectUri,
+              client_id: clientId,
+              client_secret: clientSecret,
+            }).toString(),
+          });
+
+          if (!tokenResponse.ok) {
+            const error = await tokenResponse.text();
+            console.error(`[${platform}] Token exchange error:`, error);
+            return { success: false, error: `Token exchange failed: ${error}` };
+          }
+
+          const tokenData = await tokenResponse.json();
+          accessToken = tokenData.access_token;
+          refreshToken = tokenData.refresh_token;
+
+          // Fetch user info
+          const userResponse = await fetch("https://api.linkedin.com/v2/userinfo", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            platformUsername = userData.name || userData.preferred_username;
+            platformUserId = userData.sub;
+          }
+        } else if (platform === "facebook" || platform === "instagram") {
+          const tokenResponse = await fetch(oauthConfig.tokenUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              grant_type: "authorization_code",
+              code,
+              redirect_uri: stateData.redirectUri,
+              client_id: clientId,
+              client_secret: clientSecret,
+            }).toString(),
+          });
+
+          if (!tokenResponse.ok) {
+            const error = await tokenResponse.text();
+            console.error(`[${platform}] Token exchange error:`, error);
+            return { success: false, error: `Token exchange failed: ${error}` };
+          }
+
+          const tokenData = await tokenResponse.json();
+          accessToken = tokenData.access_token;
+
+          // Fetch user info
+          const userResponse = await fetch(
+            `https://graph.facebook.com/v19.0/me?fields=id,name,email&access_token=${accessToken}`
+          );
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            platformUsername = userData.name;
+            platformUserId = userData.id;
+          }
+        } else if (platform === "youtube") {
+          const tokenResponse = await fetch(oauthConfig.tokenUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              grant_type: "authorization_code",
+              code,
+              redirect_uri: stateData.redirectUri,
+              client_id: clientId,
+              client_secret: clientSecret,
+            }).toString(),
+          });
+
+          if (!tokenResponse.ok) {
+            const error = await tokenResponse.text();
+            console.error(`[${platform}] Token exchange error:`, error);
+            return { success: false, error: `Token exchange failed: ${error}` };
+          }
+
+          const tokenData = await tokenResponse.json();
+          accessToken = tokenData.access_token;
+          refreshToken = tokenData.refresh_token;
+
+          // Fetch user info
+          const userResponse = await fetch(
+            `https://www.googleapis.com/oauth2/v2/userinfo?access_token=${accessToken}`
+          );
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            platformUsername = userData.name || userData.email;
+            platformUserId = userData.id;
+          }
+        } else if (platform === "reddit") {
+          const authHeader = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+          const tokenResponse = await fetch(oauthConfig.tokenUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              Authorization: `Basic ${authHeader}`,
+            },
+            body: new URLSearchParams({
+              grant_type: "authorization_code",
+              code,
+              redirect_uri: stateData.redirectUri,
+            }).toString(),
+          });
+
+          if (!tokenResponse.ok) {
+            const error = await tokenResponse.text();
+            console.error(`[${platform}] Token exchange error:`, error);
+            return { success: false, error: `Token exchange failed: ${error}` };
+          }
+
+          const tokenData = await tokenResponse.json();
+          accessToken = tokenData.access_token;
+          refreshToken = tokenData.refresh_token;
+
+          // Fetch user info
+          const userResponse = await fetch("https://oauth.reddit.com/api/v1/me", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            platformUsername = userData.name;
+            platformUserId = userData.id;
+          }
+        } else if (platform === "discord") {
+          const tokenResponse = await fetch(oauthConfig.tokenUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              grant_type: "authorization_code",
+              code,
+              redirect_uri: stateData.redirectUri,
+              client_id: clientId,
+              client_secret: clientSecret,
+            }).toString(),
+          });
+
+          if (!tokenResponse.ok) {
+            const error = await tokenResponse.text();
+            console.error(`[${platform}] Token exchange error:`, error);
+            return { success: false, error: `Token exchange failed: ${error}` };
+          }
+
+          const tokenData = await tokenResponse.json();
+          accessToken = tokenData.access_token;
+
+          // Fetch user info
+          const userResponse = await fetch("https://discord.com/api/users/@me", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            platformUsername = userData.username;
+            platformUserId = userData.id;
+          }
+        } else if (platform === "tiktok") {
+          const tokenResponse = await fetch(oauthConfig.tokenUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              grant_type: "authorization_code",
+              code,
+              client_key: clientId,
+              client_secret: clientSecret,
+            }).toString(),
+          });
+
+          if (!tokenResponse.ok) {
+            const error = await tokenResponse.text();
+            console.error(`[${platform}] Token exchange error:`, error);
+            return { success: false, error: `Token exchange failed: ${error}` };
+          }
+
+          const tokenData = await tokenResponse.json();
+          accessToken = tokenData.access_token;
+          refreshToken = tokenData.refresh_token;
+
+          // Fetch user info
+          const userResponse = await fetch(
+            `https://open.tiktokapis.com/v2/user/info/?fields=display_name,open_id`,
+            { headers: { Authorization: `Bearer ${accessToken}` } }
+          );
+          if (userResponse.ok) {
+            const userData = await userResponse.json();
+            platformUsername = userData.data?.user?.display_name;
+            platformUserId = userData.data?.user?.open_id;
+          }
+        } else {
+          // Generic token exchange for other platforms
+          const tokenResponse = await fetch(oauthConfig.tokenUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              grant_type: "authorization_code",
+              code,
+              redirect_uri: stateData.redirectUri,
+              client_id: clientId,
+              client_secret: clientSecret,
+            }).toString(),
+          });
+
+          if (!tokenResponse.ok) {
+            const error = await tokenResponse.text();
+            console.error(`[${platform}] Token exchange error:`, error);
+            return { success: false, error: `Token exchange failed: ${error}` };
+          }
+
+          const tokenData = await tokenResponse.json();
+          accessToken = tokenData.access_token;
+          refreshToken = tokenData.refresh_token;
+          platformUsername = tokenData.username || tokenData.user?.username;
+          platformUserId = tokenData.user_id || tokenData.id;
+        }
+      } else {
+        // Postiz OAuth token exchange
+        const { clientId, clientSecret, apiUrl } = getPostizConfig();
+        if (!clientId || !clientSecret) {
+          return { success: false, error: "Postiz OAuth credentials not configured" };
+        }
+
+        const tokenResponse = await fetch(`${apiUrl}/api/oauth/token`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            grant_type: "authorization_code",
+            code,
+            client_id: clientId,
+            client_secret: clientSecret,
+            redirect_uri: stateData.redirectUri,
+          }),
+        });
+
+        if (!tokenResponse.ok) {
+          const error = await tokenResponse.text();
+          console.error(`[POSTIZ] Token exchange error:`, error);
+          return { success: false, error: `Token exchange failed: ${error}` };
+        }
+
+        const tokenData = await tokenResponse.json();
+        accessToken = tokenData.access_token;
+        refreshToken = tokenData.refresh_token;
+        platformUsername = tokenData.id || "Postiz User";
+        platformUserId = tokenData.id;
       }
 
-      const tokenData = await tokenResponse.json();
-      const { access_token, refresh_token, id } = tokenData;
-
-      if (!access_token) {
-        return { success: false, error: "No access token returned from Postiz" };
+      if (!accessToken) {
+        return { success: false, error: "No access token received" };
       }
 
-      // Store the Postiz connection
+      // Store the platform connection
       const existing = await ctx.db.query("social_platforms")
-        .withIndex("by_platform", q => q.eq("platform", "postiz"))
+        .withIndex("by_platform", q => q.eq("platform", platform))
         .first();
 
       if (existing) {
         await ctx.db.patch(existing._id, {
-          accessToken: access_token,
-          refreshToken: refresh_token,
+          accessToken,
+          refreshToken,
           isConnected: true,
           connectedAt: Date.now(),
           lastSyncAt: Date.now(),
-          username: id || "Postiz User",
-          platformUserId: id,
-          postingMode: "auto",
-        });
-      } else {
-        await ctx.db.insert("social_platforms", {
-          platform: "postiz",
-          accessToken: access_token,
-          refreshToken: refresh_token,
-          isConnected: true,
-          connectedAt: Date.now(),
-          lastSyncAt: Date.now(),
-          postsCount: 0,
-          followersCount: 0,
-          username: id || "Postiz User",
-          platformUserId: id,
-          postingMode: "auto",
-        });
-      }
-
-      // Mark the target platform as connected
-      const targetExisting = await ctx.db.query("social_platforms")
-        .withIndex("by_platform", q => q.eq("platform", platform))
-        .first();
-
-      if (targetExisting) {
-        await ctx.db.patch(targetExisting._id, {
-          isConnected: true,
-          connectedAt: Date.now(),
-          lastSyncAt: Date.now(),
-          accessToken: access_token,
+          username: platformUsername,
+          platformUserId,
           postingMode: "auto",
         });
       } else {
         await ctx.db.insert("social_platforms", {
           platform,
+          accessToken,
+          refreshToken,
           isConnected: true,
           connectedAt: Date.now(),
           lastSyncAt: Date.now(),
           postsCount: 0,
           followersCount: 0,
-          username: undefined,
-          platformUserId: undefined,
-          accessToken: access_token,
+          username: platformUsername,
+          platformUserId,
           postingMode: "auto",
         });
       }
 
-      // Now fetch the user's connected social media integrations from Postiz
-      try {
-        const integrationsResponse = await fetch(`https://api.postiz.com/public/v1/integrations`, {
-          method: 'GET',
-          headers: {
-            'Authorization': access_token,
-          },
-        });
+      // For Postiz OAuth, also sync integrations
+      if (oauthType === "postiz") {
+        try {
+          const integrationsResponse = await fetch(`https://api.postiz.com/public/v1/integrations`, {
+            method: "GET",
+            headers: { Authorization: accessToken },
+          });
 
-        if (integrationsResponse.ok) {
-          const integrations = await integrationsResponse.json();
-          const integrationList = Array.isArray(integrations) ? integrations : integrations.integrations || [];
-          
-          // Update each social platform with integration data
-          for (const integration of integrationList) {
-            const intPlatform = integration.identifier || integration.name?.toLowerCase();
-            if (!intPlatform) continue;
+          if (integrationsResponse.ok) {
+            const integrations = await integrationsResponse.json();
+            const integrationList = Array.isArray(integrations) ? integrations : integrations.integrations || [];
 
-            const platformRecord = await ctx.db.query("social_platforms")
-              .withIndex("by_platform", q => q.eq("platform", intPlatform))
-              .first();
+            for (const integration of integrationList) {
+              const intPlatform = integration.identifier || integration.name?.toLowerCase();
+              if (!intPlatform) continue;
 
-            if (platformRecord) {
-              await ctx.db.patch(platformRecord._id, {
-                isConnected: true,
-                lastSyncAt: Date.now(),
-                username: integration.name || integration.username,
-                platformUserId: integration.id,
-                postingMode: "auto",
-              });
-            } else {
-              // Create new platform record for discovered integration
-              await ctx.db.insert("social_platforms", {
-                platform: intPlatform,
-                isConnected: true,
-                connectedAt: Date.now(),
-                lastSyncAt: Date.now(),
-                postsCount: 0,
-                followersCount: 0,
-                username: integration.name || integration.username,
-                platformUserId: integration.id,
-                accessToken: access_token,
-                postingMode: "auto",
-              });
+              const platformRecord = await ctx.db.query("social_platforms")
+                .withIndex("by_platform", q => q.eq("platform", intPlatform))
+                .first();
+
+              if (platformRecord) {
+                await ctx.db.patch(platformRecord._id, {
+                  isConnected: true,
+                  lastSyncAt: Date.now(),
+                  username: integration.name || integration.username,
+                  platformUserId: integration.id,
+                  postingMode: "auto",
+                });
+              } else {
+                await ctx.db.insert("social_platforms", {
+                  platform: intPlatform,
+                  isConnected: true,
+                  connectedAt: Date.now(),
+                  lastSyncAt: Date.now(),
+                  postsCount: 0,
+                  followersCount: 0,
+                  username: integration.name || integration.username,
+                  platformUserId: integration.id,
+                  accessToken,
+                  postingMode: "auto",
+                });
+              }
             }
           }
-          
-          console.log(`[POSTIZ] Synced ${integrationList.length} integrations`);
+        } catch (syncErr) {
+          console.log(`[POSTIZ] Integration sync warning:`, syncErr);
         }
-      } catch (syncErr) {
-        console.log(`[POSTIZ] Integration sync warning:`, syncErr);
       }
 
       return {
         success: true,
         platform,
-        message: `Postiz connected successfully. You can now manage ${platform} and other social media accounts through Postiz.`,
+        username: platformUsername,
+        message: `${platform} connected successfully. Auto-posting enabled.`,
       };
     } catch (error: any) {
-      console.error(`[POSTIZ] Connection error:`, error.message);
+      console.error(`[${platform}] Connection error:`, error.message);
       return { success: false, error: `Failed to complete OAuth: ${error.message}` };
     }
   },
