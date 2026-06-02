@@ -255,4 +255,24 @@ crons.interval(
   {}
 );
 
+// ═══════════════════════════════════════════════════════════════════
+// POSTIZ AD ENGINE - Automated Ad Scheduling
+// ═══════════════════════════════════════════════════════════════════
+
+// Process scheduled ads every 15 minutes
+crons.interval(
+  "process scheduled ads",
+  { minutes: 15 },
+  internal.postiz_ad_engine.processScheduledAds,
+  {}
+);
+
+// Auto-backup synthetic agent configs every 12 hours
+crons.interval(
+  "auto backup synthetic agents",
+  { hours: 12 },
+  internal.agent_backups.autoBackup,
+  {}
+);
+
 export default crons;

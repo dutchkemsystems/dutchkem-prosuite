@@ -68,6 +68,7 @@ import type * as model_recovery from "../model_recovery.js";
 import type * as payments from "../payments.js";
 import type * as payouts from "../payouts.js";
 import type * as platform_analytics from "../platform_analytics.js";
+import type * as postiz_ad_engine from "../postiz_ad_engine.js";
 import type * as receipts from "../receipts.js";
 import type * as reports from "../reports.js";
 import type * as secure_sweeps from "../secure_sweeps.js";
@@ -162,6 +163,7 @@ declare const fullApi: ApiFromModules<{
   payments: typeof payments;
   payouts: typeof payouts;
   platform_analytics: typeof platform_analytics;
+  postiz_ad_engine: typeof postiz_ad_engine;
   receipts: typeof receipts;
   reports: typeof reports;
   secure_sweeps: typeof secure_sweeps;

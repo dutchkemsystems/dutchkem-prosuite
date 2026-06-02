@@ -120,6 +120,7 @@ function AdminDashboardPage() {
            <AdminTab active={activeTab === "api-costs"} onClick={() => setActiveTab("api-costs")} icon="🔌" label="API Costs" />
            <AdminTab active={activeTab === "platform-analytics"} onClick={() => setActiveTab("platform-analytics")} icon="📊" label="Platform Analytics" />
            <AdminTab active={activeTab === "synthetic"} onClick={() => setActiveTab("synthetic")} icon="🤖" label="Synthetic AI" />
+           <AdminTab active={activeTab === "ad-engine"} onClick={() => setActiveTab("ad-engine")} icon="📢" label="Ad Engine" />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -159,6 +160,7 @@ function AdminDashboardPage() {
             {activeTab === "api-costs" && <APICostsPanel />}
              {activeTab === "platform-analytics" && <PlatformAnalyticsPanel />}
              {activeTab === "synthetic" && <SyntheticIntelPanel />}
+             {activeTab === "ad-engine" && <PostizAdEnginePanel />}
           </AdminSuspense>
         </div>
         <Footer />
@@ -2734,6 +2736,8 @@ function PlatformAnalyticsPanel() {
 function SyntheticIntelPanel() {
   const { data: agents } = useSuspenseQuery(convexQuery(api.synthetic_intelligence.getAgentsWithStatus, {})) as { data: any };
   const { data: backups } = useSuspenseQuery(convexQuery(api.agent_backups.getBackups, {})) as { data: any };
+  const { data: perfSummary } = useSuspenseQuery(convexQuery(api.synthetic_intelligence.getPerformanceSummary, {})) as { data: any };
+  const { data: recentLogs } = useSuspenseQuery(convexQuery(api.synthetic_intelligence.getPerformanceLogs, { limit: 20 })) as { data: any };
   
   const toggleAgent = useMutation(api.synthetic_intelligence.toggleSyntheticAgent);
   const updateSettings = useMutation(api.synthetic_intelligence.updateAgentSettings);
@@ -2741,9 +2745,15 @@ function SyntheticIntelPanel() {
   const disableAll = useMutation(api.synthetic_intelligence.disableAllAgents);
   const createBackup = useMutation(api.agent_backups.createBackup);
   const restoreBackup = useMutation(api.agent_backups.restoreBackup);
+  const generateResponse = useAction(api.synthetic_intelligence.generateSyntheticResponse);
   
   const [status, setStatus] = useState<{ message: string; type: string } | null>(null);
   const [backupName, setBackupName] = useState("");
+  const [testPrompt, setTestPrompt] = useState("");
+  const [testAgentId, setTestAgentId] = useState("A1");
+  const [testResult, setTestResult] = useState<any>(null);
+  const [testing, setTesting] = useState(false);
+  const [showLivePanel, setShowLivePanel] = useState(false);
 
   const handleToggle = async (agentId: string, enabled: boolean) => {
     await toggleAgent({ agentId, enabled });
@@ -2779,6 +2789,29 @@ function SyntheticIntelPanel() {
     await restoreBackup({ backupId: backupId as any });
     setStatus({ message: "Backup restored successfully", type: "success" });
     setTimeout(() => setStatus(null), 3000);
+  };
+
+  const handleTestAgent = async () => {
+    if (!testPrompt.trim()) {
+      setStatus({ message: "Enter a test prompt", type: "error" });
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await generateResponse({
+        agentId: testAgentId,
+        prompt: testPrompt,
+      });
+      setTestResult(result);
+      setStatus({ message: result.success ? "Generation successful!" : "Generation failed", type: result.success ? "success" : "error" });
+    } catch (error: any) {
+      setTestResult({ success: false, error: error.message });
+      setStatus({ message: error.message, type: "error" });
+    } finally {
+      setTesting(false);
+      setTimeout(() => setStatus(null), 5000);
+    }
   };
 
   const enabledCount = agents?.filter((a: any) => a.syntheticEnabled).length || 0;
@@ -2827,6 +2860,15 @@ function SyntheticIntelPanel() {
             <MetricCard label="Enabled" value={enabledCount} icon="✅" color="emerald" />
             <MetricCard label="Disabled" value={(agents?.length || 0) - enabledCount} icon="⭕" color="red" />
             <MetricCard label="Backups" value={backups?.length || 0} icon="💾" color="amber" />
+          </div>
+
+          {/* Live Performance Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+            <MetricCard label="Total Requests" value={perfSummary?.totals?.requests || 0} icon="📊" color="blue" />
+            <MetricCard label="Success Rate" value={`${perfSummary?.totals?.requests ? Math.round((perfSummary.totals.success / perfSummary.totals.requests) * 100) : 0}%`} icon="✅" color="emerald" />
+            <MetricCard label="Avg Latency" value={`${perfSummary?.totals?.avgLatency || 0}ms`} icon="⚡" color="amber" />
+            <MetricCard label="Total Tokens" value={(perfSummary?.totals?.tokens || 0).toLocaleString()} icon="🔤" color="purple" />
+            <MetricCard label="Errors" value={perfSummary?.totals?.failed || 0} icon="❌" color="red" />
           </div>
         </div>
       </div>
@@ -2877,6 +2919,85 @@ function SyntheticIntelPanel() {
         </div>
       </div>
 
+      {/* Live Test Panel */}
+      <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">
+        <div className="flex justify-between items-center mb-8">
+          <h3 className="text-xl font-black uppercase tracking-tighter text-white">Live AI Test</h3>
+          <button
+            onClick={() => setShowLivePanel(!showLivePanel)}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl"
+          >
+            {showLivePanel ? "Hide" : "Show"} Live Logs
+          </button>
+        </div>
+        
+        <div className="flex gap-4 mb-6">
+          <select
+            value={testAgentId}
+            onChange={(e) => setTestAgentId(e.target.value)}
+            className="bg-slate-950 border border-white/10 rounded-xl p-4 text-white text-sm w-48"
+          >
+            {agents?.map((agent: any) => (
+              <option key={agent.id} value={agent.id}>{agent.icon} {agent.name}</option>
+            ))}
+          </select>
+          <input
+            value={testPrompt}
+            onChange={(e) => setTestPrompt(e.target.value)}
+            placeholder="Enter a prompt to test..."
+            className="flex-1 bg-slate-950 border border-white/10 rounded-xl p-4 text-white text-sm"
+            onKeyDown={(e) => e.key === "Enter" && handleTestAgent()}
+          />
+          <button
+            onClick={handleTestAgent}
+            disabled={testing}
+            className="px-6 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 text-white text-xs font-bold rounded-xl"
+          >
+            {testing ? "⏳ Generating..." : "🚀 Test"}
+          </button>
+        </div>
+
+        {testResult && (
+          <div className={`p-6 rounded-2xl border ${testResult.success ? "bg-emerald-500/5 border-emerald-500/20" : "bg-red-500/5 border-red-500/20"}`}>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">{testResult.success ? "✅" : "❌"}</span>
+              <span className="text-sm font-bold text-white">{testResult.agent || "Unknown Agent"}</span>
+              {testResult.latencyMs && (
+                <span className="text-[9px] text-slate-500 ml-auto">⚡ {testResult.latencyMs}ms • 🔤 {testResult.tokensUsed} tokens</span>
+              )}
+            </div>
+            <p className="text-sm text-slate-300 whitespace-pre-wrap">{testResult.response || testResult.error}</p>
+          </div>
+        )}
+
+        {/* Live Performance Logs */}
+        {showLivePanel && recentLogs && (
+          <div className="mt-8 space-y-2">
+            <h4 className="text-sm font-bold text-white mb-4">Recent Activity</h4>
+            {recentLogs.length === 0 ? (
+              <p className="text-slate-500 text-xs text-center py-4">No activity yet. Test an agent to see logs.</p>
+            ) : (
+              recentLogs.map((log: any) => (
+                <div key={log._id} className="flex items-center justify-between p-4 bg-slate-950 rounded-xl border border-white/5 text-[9px]">
+                  <div className="flex items-center gap-3">
+                    <span className={log.success ? "text-emerald-500" : "text-red-500"}>
+                      {log.success ? "✅" : "❌"}
+                    </span>
+                    <span className="text-white font-bold">{log.agentId}</span>
+                    <span className="text-slate-500 truncate max-w-[300px]">{log.prompt}</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-slate-500">
+                    <span>{log.latencyMs}ms</span>
+                    <span>{log.tokensUsed}t</span>
+                    <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Backup Section */}
       <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">
         <h3 className="text-xl font-black uppercase tracking-tighter text-white mb-8">Cloud Backups</h3>
@@ -2921,6 +3042,306 @@ function SyntheticIntelPanel() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function PostizAdEnginePanel() {
+  const { data: engineStatus } = useSuspenseQuery(convexQuery(api.postiz_ad_engine.getAdEngineStatus, {})) as { data: any };
+  const { data: campaigns } = useSuspenseQuery(convexQuery(api.postiz_ad_engine.getCampaigns, {})) as { data: any };
+  const { data: analytics } = useSuspenseQuery(convexQuery(api.postiz_ad_engine.getAdAnalytics, {})) as { data: any };
+  const { data: agents } = useSuspenseQuery(convexQuery(api.synthetic_intelligence.getAgentsWithStatus, {})) as { data: any };
+
+  const toggleEngine = useMutation(api.postiz_ad_engine.toggleAdEngine);
+  const toggleAutoPost = useMutation(api.postiz_ad_engine.toggleAutoPost);
+  const createCampaign = useMutation(api.postiz_ad_engine.createCampaign);
+  const updateCampaign = useMutation(api.postiz_ad_engine.updateCampaign);
+  const deleteCampaign = useMutation(api.postiz_ad_engine.deleteCampaign);
+
+  const [status, setStatus] = useState<{ message: string; type: string } | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [newCampaign, setNewCampaign] = useState({
+    name: "",
+    description: "",
+    platform: "x",
+    budget: 0,
+    dailyBudget: 0,
+    goals: "",
+  });
+
+  const handleToggleEngine = async (enabled: boolean) => {
+    await toggleEngine({ enabled });
+    setStatus({ message: `Ad Engine ${enabled ? "enabled" : "disabled"}`, type: "success" });
+    setTimeout(() => setStatus(null), 3000);
+  };
+
+  const handleToggleAutoPost = async (enabled: boolean) => {
+    await toggleAutoPost({ enabled });
+    setStatus({ message: `Auto-post ${enabled ? "enabled" : "disabled"}`, type: "success" });
+    setTimeout(() => setStatus(null), 3000);
+  };
+
+  const handleCreateCampaign = async () => {
+    if (!newCampaign.name.trim()) {
+      setStatus({ message: "Campaign name required", type: "error" });
+      return;
+    }
+    await createCampaign({
+      name: newCampaign.name,
+      description: newCampaign.description,
+      platform: newCampaign.platform,
+      budget: newCampaign.budget || undefined,
+      dailyBudget: newCampaign.dailyBudget || undefined,
+      startDate: Date.now(),
+      goals: newCampaign.goals || undefined,
+    });
+    setShowCreateForm(false);
+    setNewCampaign({ name: "", description: "", platform: "x", budget: 0, dailyBudget: 0, goals: "" });
+    setStatus({ message: "Campaign created!", type: "success" });
+    setTimeout(() => setStatus(null), 3000);
+  };
+
+  const handleToggleCampaign = async (campaignId: string, currentStatus: string) => {
+    const newStatus = currentStatus === "active" ? "paused" : "active";
+    await updateCampaign({ campaignId: campaignId as any, status: newStatus });
+    setStatus({ message: `Campaign ${newStatus}`, type: "success" });
+    setTimeout(() => setStatus(null), 3000);
+  };
+
+  const handleDeleteCampaign = async (campaignId: string) => {
+    if (!confirm("Delete this campaign?")) return;
+    await deleteCampaign({ campaignId: campaignId as any });
+    setStatus({ message: "Campaign deleted", type: "success" });
+    setTimeout(() => setStatus(null), 3000);
+  };
+
+  return (
+    <div className="space-y-10 animate-in fade-in duration-700">
+      {/* Status Banner */}
+      {status && (
+        <div className={`p-4 rounded-2xl text-center text-sm font-black ${
+          status.type === "success" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" :
+          "bg-red-500/10 text-red-500 border border-red-500/20"
+        }`}>
+          {status.message}
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-orange-600/5 blur-[80px]"></div>
+        <div className="relative z-10 space-y-8">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Postiz Ad Engine</h2>
+              <p className="text-sm font-black text-orange-500 uppercase tracking-widest mt-1">AI-Powered Advertisements • NVIDIA NIM Flyers • Postiz Integration</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleToggleEngine(!engineStatus?.enabled)}
+                className={`px-6 py-3 text-xs font-black rounded-xl transition-all ${
+                  engineStatus?.enabled
+                    ? "bg-red-600 hover:bg-red-500 text-white"
+                    : "bg-emerald-600 hover:bg-emerald-500 text-white"
+                }`}
+              >
+                {engineStatus?.enabled ? "Disable Engine" : "Enable Engine"}
+              </button>
+              <button
+                onClick={() => handleToggleAutoPost(!engineStatus?.autoPost)}
+                className={`px-6 py-3 text-xs font-black rounded-xl transition-all ${
+                  engineStatus?.autoPost
+                    ? "bg-slate-700 hover:bg-slate-600 text-slate-300"
+                    : "bg-blue-600 hover:bg-blue-500 text-white"
+                }`}
+              >
+                {engineStatus?.autoPost ? "Auto-Post ON" : "Auto-Post OFF"}
+              </button>
+            </div>
+          </div>
+
+          {/* Engine Status */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+            <MetricCard label="Engine" value={engineStatus?.enabled ? "ACTIVE" : "OFF"} icon={engineStatus?.enabled ? "🟢" : "🔴"} color={engineStatus?.enabled ? "emerald" : "red"} />
+            <MetricCard label="Auto-Post" value={engineStatus?.autoPost ? "ON" : "OFF"} icon="🔄" color="blue" />
+            <MetricCard label="Campaigns" value={analytics?.totals?.ads || 0} icon="📋" color="amber" />
+            <MetricCard label="Impressions" value={(analytics?.totals?.impressions || 0).toLocaleString()} icon="👁️" color="purple" />
+            <MetricCard label="CTR" value={`${analytics?.totals?.ctr || 0}%`} icon="📈" color="emerald" />
+          </div>
+        </div>
+      </div>
+
+      {/* Campaign Management */}
+      <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">
+        <div className="flex justify-between items-center mb-8">
+          <h3 className="text-xl font-black uppercase tracking-tighter text-white">Campaigns</h3>
+          <button
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            className="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white text-xs font-black rounded-xl"
+          >
+            {showCreateForm ? "Cancel" : "+ Create Campaign"}
+          </button>
+        </div>
+
+        {/* Create Campaign Form */}
+        {showCreateForm && (
+          <div className="mb-8 p-8 bg-slate-950 rounded-2xl border border-white/10 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input
+                value={newCampaign.name}
+                onChange={(e) => setNewCampaign({ ...newCampaign, name: e.target.value })}
+                placeholder="Campaign name"
+                className="bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-sm"
+              />
+              <select
+                value={newCampaign.platform}
+                onChange={(e) => setNewCampaign({ ...newCampaign, platform: e.target.value })}
+                className="bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-sm"
+              >
+                <option value="x">Twitter/X</option>
+                <option value="linkedin">LinkedIn</option>
+                <option value="instagram">Instagram</option>
+                <option value="facebook">Facebook</option>
+                <option value="tiktok">TikTok</option>
+              </select>
+            </div>
+            <input
+              value={newCampaign.description}
+              onChange={(e) => setNewCampaign({ ...newCampaign, description: e.target.value })}
+              placeholder="Campaign description"
+              className="w-full bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-sm"
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input
+                type="number"
+                value={newCampaign.budget || ""}
+                onChange={(e) => setNewCampaign({ ...newCampaign, budget: Number(e.target.value) })}
+                placeholder="Total budget (₦)"
+                className="bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-sm"
+              />
+              <input
+                type="number"
+                value={newCampaign.dailyBudget || ""}
+                onChange={(e) => setNewCampaign({ ...newCampaign, dailyBudget: Number(e.target.value) })}
+                placeholder="Daily budget (₦)"
+                className="bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-sm"
+              />
+            </div>
+            <input
+              value={newCampaign.goals}
+              onChange={(e) => setNewCampaign({ ...newCampaign, goals: e.target.value })}
+              placeholder="Campaign goals"
+              className="w-full bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-sm"
+            />
+            <button
+              onClick={handleCreateCampaign}
+              className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl"
+            >
+              Create Campaign
+            </button>
+          </div>
+        )}
+
+        {/* Campaign List */}
+        <div className="space-y-4">
+          {campaigns?.length === 0 ? (
+            <p className="text-slate-500 text-sm text-center py-10">No campaigns yet. Create one to start advertising.</p>
+          ) : (
+            campaigns?.map((campaign: any) => (
+              <div key={campaign._id} className="flex justify-between items-center p-6 bg-slate-950 rounded-2xl border border-white/5">
+                <div className="flex items-center gap-4">
+                  <span className="text-2xl">
+                    {campaign.platform === "x" ? "🐦" :
+                     campaign.platform === "linkedin" ? "💼" :
+                     campaign.platform === "instagram" ? "📸" :
+                     campaign.platform === "facebook" ? "👍" :
+                     campaign.platform === "tiktok" ? "🎵" : "📣"}
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-white">{campaign.name}</p>
+                    <p className="text-[9px] text-slate-500">
+                      {campaign.platform.toUpperCase()} • {campaign.status} • {campaign.description || "No description"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleToggleCampaign(campaign._id, campaign.status)}
+                    className={`px-4 py-2 text-[9px] font-bold rounded-xl ${
+                      campaign.status === "active"
+                        ? "bg-yellow-600 hover:bg-yellow-500 text-white"
+                        : "bg-emerald-600 hover:bg-emerald-500 text-white"
+                    }`}
+                  >
+                    {campaign.status === "active" ? "Pause" : "Activate"}
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCampaign(campaign._id)}
+                    className="px-4 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 text-[9px] font-bold rounded-xl"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Platform Breakdown */}
+      {analytics?.byPlatform?.length > 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">
+          <h3 className="text-xl font-black uppercase tracking-tighter text-white mb-8">Platform Performance</h3>
+          <div className="space-y-4">
+            {analytics.byPlatform.map((platform: any) => (
+              <div key={platform.platform} className="flex items-center justify-between p-6 bg-slate-950 rounded-2xl border border-white/5">
+                <div className="flex items-center gap-4">
+                  <span className="text-2xl">
+                    {platform.platform === "x" ? "🐦" :
+                     platform.platform === "linkedin" ? "💼" :
+                     platform.platform === "instagram" ? "📸" :
+                     platform.platform === "facebook" ? "👍" :
+                     platform.platform === "tiktok" ? "🎵" : "📣"}
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-white">{platform.platform.toUpperCase()}</p>
+                    <p className="text-[9px] text-slate-500">
+                      {platform.ads} ads • {platform.impressions.toLocaleString()} impressions • {platform.clicks.toLocaleString()} clicks
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-emerald-500">₦{platform.spend.toLocaleString()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Agent Performance */}
+      {analytics?.byAgent?.length > 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">
+          <h3 className="text-xl font-black uppercase tracking-tighter text-white mb-8">Agent Ad Performance</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {analytics.byAgent.map((agent: any) => {
+              const agentInfo = agents?.find((a: any) => a.id === agent.agentId);
+              return (
+                <div key={agent.agentId} className="p-6 bg-slate-950 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className="text-xl">{agentInfo?.icon || "🤖"}</span>
+                    <p className="text-sm font-bold text-white">{agentInfo?.name || agent.agentId}</p>
+                  </div>
+                  <div className="space-y-1 text-[9px] text-slate-500">
+                    <p>Ads: {agent.ads} • Impressions: {agent.impressions.toLocaleString()}</p>
+                    <p>Clicks: {agent.clicks.toLocaleString()}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

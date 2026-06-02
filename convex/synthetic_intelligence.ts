@@ -246,6 +246,8 @@ export const generateSyntheticResponse = action({
     Provide professional, accurate, and helpful responses.
     Be concise but thorough. Use appropriate formatting.`;
 
+    const startTime = Date.now();
+
     try {
       const { text } = await generateText({
         model: nvidia.chat(configs.model || "meta-llama/llama-3.1-70b-instruct"),
@@ -254,10 +256,23 @@ export const generateSyntheticResponse = action({
         temperature: configs.temperature || 0.7,
       });
 
-      // Track usage
+      const latencyMs = Date.now() - startTime;
+
+      // Track usage + performance log
       await ctx.runMutation(internal.synthetic_intelligence.trackUsage, {
         agentId: args.agentId,
         tokens: text.length,
+      });
+
+      await ctx.runMutation(internal.synthetic_intelligence.logPerformance, {
+        agentId: args.agentId,
+        eventType: "generation",
+        prompt: args.prompt.substring(0, 500),
+        response: text.substring(0, 500),
+        model: configs.model || "meta-llama/llama-3.1-70b-instruct",
+        tokensUsed: text.length,
+        latencyMs,
+        success: true,
       });
 
       return {
@@ -265,10 +280,25 @@ export const generateSyntheticResponse = action({
         response: text,
         agent: agent.name,
         model: configs.model,
+        latencyMs,
+        tokensUsed: text.length,
         isLive: true,
       };
     } catch (error: any) {
+      const latencyMs = Date.now() - startTime;
       console.error(`[SYNTHETIC] ${agent.name} error:`, error.message);
+
+      await ctx.runMutation(internal.synthetic_intelligence.logPerformance, {
+        agentId: args.agentId,
+        eventType: "error",
+        prompt: args.prompt.substring(0, 500),
+        model: configs.model || "meta-llama/llama-3.1-70b-instruct",
+        tokensUsed: 0,
+        latencyMs,
+        success: false,
+        error: error.message,
+      });
+
       return {
         success: false,
         error: error.message,
@@ -340,5 +370,126 @@ export const trackUsage = internalMutation({
     }
 
     return null;
+  },
+});
+
+export const logPerformance = internalMutation({
+  args: {
+    agentId: v.string(),
+    eventType: v.string(),
+    prompt: v.string(),
+    response: v.optional(v.string()),
+    model: v.string(),
+    tokensUsed: v.number(),
+    latencyMs: v.number(),
+    success: v.boolean(),
+    error: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.insert("synthetic_performance_logs", {
+      agentId: args.agentId,
+      eventType: args.eventType as any,
+      prompt: args.prompt,
+      response: args.response,
+      model: args.model,
+      tokensUsed: args.tokensUsed,
+      latencyMs: args.latencyMs,
+      success: args.success,
+      error: args.error,
+      timestamp: Date.now(),
+    });
+    return null;
+  },
+});
+
+/**
+ * Get performance logs for live analytics
+ */
+export const getPerformanceLogs = query({
+  args: {
+    agentId: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    if (args.agentId) {
+      return await ctx.db
+        .query("synthetic_performance_logs")
+        .withIndex("by_agent", q => q.eq("agentId", args.agentId!))
+        .order("desc")
+        .take(args.limit || 50);
+    }
+    return await ctx.db
+      .query("synthetic_performance_logs")
+      .withIndex("by_timestamp")
+      .order("desc")
+      .take(args.limit || 50);
+  },
+});
+
+/**
+ * Get live performance summary for all agents
+ */
+export const getPerformanceSummary = query({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const logs = await ctx.db.query("synthetic_performance_logs").collect();
+
+    const byAgent: Record<string, {
+      total: number;
+      success: number;
+      failed: number;
+      avgLatency: number;
+      totalTokens: number;
+      recentLogs: any[];
+    }> = {};
+
+    for (const log of logs) {
+      if (!byAgent[log.agentId]) {
+        byAgent[log.agentId] = {
+          total: 0,
+          success: 0,
+          failed: 0,
+          avgLatency: 0,
+          totalTokens: 0,
+          recentLogs: [],
+        };
+      }
+      const agentStats = byAgent[log.agentId];
+      agentStats.total++;
+      if (log.success) agentStats.success++;
+      else agentStats.failed++;
+      agentStats.avgLatency += log.latencyMs;
+      agentStats.totalTokens += log.tokensUsed;
+      if (agentStats.recentLogs.length < 5) {
+        agentStats.recentLogs.push(log);
+      }
+    }
+
+    // Calculate averages
+    for (const agentId of Object.keys(byAgent)) {
+      const stats = byAgent[agentId];
+      stats.avgLatency = stats.total > 0 ? Math.round(stats.avgLatency / stats.total) : 0;
+    }
+
+    const totalRequests = logs.length;
+    const totalSuccess = logs.filter((l) => l.success).length;
+    const totalTokens = logs.reduce((sum, l) => sum + l.tokensUsed, 0);
+    const avgLatency = totalRequests > 0
+      ? Math.round(logs.reduce((sum, l) => sum + l.latencyMs, 0) / totalRequests)
+      : 0;
+
+    return {
+      totals: {
+        requests: totalRequests,
+        success: totalSuccess,
+        failed: totalRequests - totalSuccess,
+        tokens: totalTokens,
+        avgLatency,
+      },
+      byAgent,
+    };
   },
 });
