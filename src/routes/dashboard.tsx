@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { KDPProjectHub } from '~/components/KDPProjectHub';
 import { KDPRoyaltyDashboard } from '~/components/KDPRoyaltyDashboard';
+import { InactivityLogout } from '~/components/InactivityLogout';
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -42,6 +43,7 @@ function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row overflow-hidden">
+      <InactivityLogout adminMode={false} logoutPath="/auth" />
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800 sticky top-0 z-30">
         <Link to="/" className="flex items-center gap-3">

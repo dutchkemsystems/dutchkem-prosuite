@@ -10,6 +10,7 @@ import { useSocket } from "~/lib/socket";
 import { LiveFeed } from "~/components/LiveFeed";
 import { LiveCharts } from "~/components/LiveCharts";
 import { PaymentMonitor } from "~/components/PaymentMonitor";
+import { InactivityLogout } from "~/components/InactivityLogout";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -81,6 +82,7 @@ function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row overflow-hidden font-sans">
+      <InactivityLogout adminMode={true} logoutPath="/admin/login" />
       <aside className="w-full md:w-80 bg-slate-900 border-r border-slate-800 flex-shrink-0 z-20 flex flex-col shadow-2xl">
         <div className="p-8 border-b border-slate-800 bg-red-600/5">
           <div className="flex items-center gap-4 mb-2">
