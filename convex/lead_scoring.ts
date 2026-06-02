@@ -1,4 +1,4 @@
-import { mutation, query, internalAction, internalQuery } from "./_generated/server";
+import { mutation, query, internalAction, internalQuery, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -38,8 +38,8 @@ export const calculateLeadScore = internalAction({
     // Factor 2: Subscription tier (+10 to +30)
     const subscriptions = await ctx.runQuery(internal.lead_scoring.getUserSubscriptions, { userId: args.userId });
     if (subscriptions.length > 0) {
-      const hasYearly = subscriptions.some(s => s.plan === "yearly");
-      const hasQuarterly = subscriptions.some(s => s.plan === "quarterly");
+    const hasYearly = subscriptions.some((s: any) => s.plan === "yearly");
+    const hasQuarterly = subscriptions.some((s: any) => s.plan === "quarterly");
       if (hasYearly) {
         reasoning.push({ factor: "Premium Subscription", points: 30, description: "Yearly subscription holder" });
         totalScore += 30;
@@ -104,35 +104,18 @@ export const calculateLeadScore = internalAction({
   },
 });
 
-export const updateLeadScore = mutation({
+export const updateLeadScore = action({
   args: { userId: v.id("users") },
   returns: v.null(),
   handler: async (ctx, args) => {
     const result = await ctx.runAction(internal.lead_scoring.calculateLeadScore, { userId: args.userId });
     
-    const existing = await ctx.db
-      .query("lead_scores")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .first();
-
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        score: result.score,
-        reasoning: result.reasoning,
-        nextBestAction: result.nextBestAction,
-        lastCalculated: Date.now(),
-        isActive: true,
-      });
-    } else {
-      await ctx.db.insert("lead_scores", {
-        userId: args.userId,
-        score: result.score,
-        reasoning: result.reasoning,
-        nextBestAction: result.nextBestAction,
-        lastCalculated: Date.now(),
-        isActive: true,
-      });
-    }
+    await ctx.runMutation(internal.lead_scoring._updateStoredScore, {
+      userId: args.userId,
+      score: result.score,
+      reasoning: result.reasoning,
+      nextBestAction: result.nextBestAction,
+    });
     return null;
   },
 });
@@ -208,7 +191,7 @@ export const getUserForScoring = internalQuery({
   },
 });
 
-export const getUserSubscriptions = query({
+export const getUserSubscriptions = internalQuery({
   args: { userId: v.id("users") },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
@@ -219,7 +202,7 @@ export const getUserSubscriptions = query({
   },
 });
 
-export const getUserProjects = query({
+export const getUserProjects = internalQuery({
   args: { userId: v.id("users") },
   returns: v.any(),
   handler: async (ctx, args) => {
@@ -230,7 +213,7 @@ export const getUserProjects = query({
   },
 });
 
-export const checkPaymentHistory = query({
+export const checkPaymentHistory = internalQuery({
   args: { userId: v.id("users") },
   returns: v.boolean(),
   handler: async (ctx, args) => {
@@ -242,7 +225,7 @@ export const checkPaymentHistory = query({
   },
 });
 
-export const getReferralCount = query({
+export const getReferralCount = internalQuery({
   args: { userId: v.id("users") },
   returns: v.number(),
   handler: async (ctx, args) => {
@@ -260,7 +243,7 @@ export const getReferralCount = query({
 export const calculateAllLeadScores = internalAction({
   args: {},
   returns: v.null(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     const users = await ctx.runQuery(internal.lead_scoring._getAllUsers);
     
     for (const user of users) {
@@ -288,22 +271,14 @@ export const calculateAllLeadScores = internalAction({
 export const _getAllUsers = query({
   args: {},
   returns: v.array(v.any()),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     return await ctx.db.query("users").collect();
   },
 });
 
 export const _getLatestScore = query({
   args: { userId: v.id("users") },
-  returns: v.optional(v.object({
-    score: v.number(),
-    reasoning: v.array(v.object({
-      factor: v.string(),
-      points: v.number(),
-      description: v.string(),
-    })),
-    nextBestAction: v.string(),
-  })),
+  returns: v.any(),
   handler: async (ctx, args) => {
     const leadScore = await ctx.db
       .query("lead_scores")

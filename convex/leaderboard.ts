@@ -81,7 +81,7 @@ export const calculateLeaderboard = internalAction({
       periodEnd,
     });
 
-    const sorted = entries.sort((a, b) => b.score - a.score);
+    const sorted = entries.sort((a: any, b: any) => b.score - a.score);
     for (let i = 0; i < sorted.length; i++) {
       await ctx.runMutation(internal.leaderboard.updateEntryRank, {
         entryId: sorted[i]._id,
@@ -103,7 +103,7 @@ export const calculateLeaderboard = internalAction({
 export const getFreelancers = query({
   args: {},
   returns: v.array(v.any()),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     return await ctx.db
       .query("users")
       .withIndex("by_role", (q) => q.eq("role", "freelancer"))
@@ -144,7 +144,7 @@ export const calculateFreelancerMetrics = query({
 
     // Get rating from payment verifications confidence scores
     const allVerifications = await ctx.db.query("payment_verifications").collect();
-    const verifications = allVerifications.filter(v => v.userId === userId && v.verifiedAt >= startTime && v.verifiedAt <= endTime);
+    const verifications = allVerifications.filter(v => v.userId === args.userId && v.verifiedAt >= startTime && v.verifiedAt <= endTime);
     const avgConfidence = verifications.length > 0 
       ? verifications.reduce((sum, v) => sum + v.confidenceScore, 0) / verifications.length / 20 // Scale 0-100 to 0-5
       : 0;
@@ -158,17 +158,17 @@ export const calculateFreelancerMetrics = query({
 
 export const getExistingEntry = query({
   args: { userId: v.id("users"), period: v.string(), periodStart: v.string(), periodEnd: v.string() },
-  returns: v.optional(v.any()),
+  returns: v.any(),
   handler: async (ctx, args) => {
-    return await ctx.db
+    const allEntries = await ctx.db
       .query("leaderboard_entries")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .filter((entry) => 
-        entry.period === args.period && 
-        entry.periodStart === args.periodStart &&
-        entry.periodEnd === args.periodEnd
-      )
-      .first();
+      .collect();
+    return allEntries.find(e => 
+      e.period === args.period && 
+      e.periodStart === args.periodStart &&
+      e.periodEnd === args.periodEnd
+    );
   },
 });
 
@@ -327,7 +327,7 @@ export const createBadge = mutation({
 export const getBadges = query({
   args: {},
   returns: v.array(v.any()),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     return await ctx.db.query("badges").collect();
   },
 });
@@ -413,7 +413,7 @@ export const checkBadgeAwards = internalAction({
 export const getAllActiveBadges = query({
   args: {},
   returns: v.array(v.any()),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     return await ctx.db.query("badges").collect();
   },
 });
@@ -425,7 +425,7 @@ export const userHasBadge = query({
     const existing = await ctx.db
       .query("user_badges")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .filter((ub) => ub.badgeId === args.badgeId)
+      .filter((ub) => (ub as any).badgeId === args.badgeId)
       .first();
     return !!existing;
   },

@@ -482,6 +482,7 @@ export const manualPost = mutation({
 
     let externalId = `manual_${Date.now()}`;
     let success = false;
+    let errorMsg = "";
     try {
       // Post via Postiz Public API: POST /public/v1/posts
       const integrationId = platform.platformUserId;

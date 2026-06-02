@@ -10,7 +10,7 @@ const PAPER_TYPES = ["Black & White", "Cream", "Color"] as const;
 const COVER_TYPES = ["Matte", "Glossy", "Premium Matte"] as const;
 
 export function KDPProjectHub({ userId: _userId }: { userId: any }) {
-  const { data: projects } = useSuspenseQuery(convexQuery(api.kdp_agent.listBookProjects, {}));
+  const { data: projects } = useSuspenseQuery(convexQuery(api.kdp_agent.listBookProjects, {})) as any;
   const createProject = useMutation(api.kdp_agent.createBookProject);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);

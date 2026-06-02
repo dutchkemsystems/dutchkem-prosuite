@@ -76,16 +76,7 @@ export const deleteReport = mutation({
 
 export const getReports = query({
   args: { createdBy: v.optional(v.id("users")) },
-  returns: v.array(v.object({
-    _id: v.id("saved_reports"),
-    name: v.string(),
-    description: v.optional(v.string()),
-    metrics: v.any(),
-    filters: v.any(),
-    schedule: v.any(),
-    lastGenerated: v.optional(v.number()),
-    createdAt: v.number(),
-  })),
+  returns: v.any(),
   handler: async (ctx, args) => {
     if (args.createdBy) {
       return await ctx.db
@@ -163,7 +154,7 @@ export const triggerGenerateReport = action({
 
 export const getReportById = query({
   args: { reportId: v.id("saved_reports") },
-  returns: v.optional(v.any()),
+  returns: v.any(),
   handler: async (ctx, args) => {
     return await ctx.db.get(args.reportId);
   },
@@ -286,7 +277,7 @@ export const getScheduledReports = query({
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const reports = await ctx.db.query("saved_reports").collect();
-    return reports.filter(r => r.schedule?.enabled);
+    return reports.filter((r: any) => r.schedule?.enabled);
   },
 });
 

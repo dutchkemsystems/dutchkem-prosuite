@@ -35,7 +35,7 @@ function ChatbotPanel() {
             <p className="text-slate-400">No active escalated chats</p>
           ) : (
             <div className="space-y-2">
-              {chats.data?.map((chat) => (
+              {chats.data?.map((chat: any) => (
                 <div key={chat._id} className="bg-slate-800 rounded-lg p-4 border border-slate-700">
                   <div className="flex justify-between items-start mb-2">
                     <div>
@@ -102,7 +102,7 @@ function LeadScoringPanel() {
       </div>
 
       <div className="space-y-2">
-        {leads.data?.map((lead, idx) => (
+        {leads.data?.map((lead: any, _idx: any) => (
           <div key={lead.userId} className="bg-slate-800 rounded-lg p-4 border border-slate-700">
             <div className="flex items-center gap-4">
               <div className="relative w-12 h-12">
@@ -165,7 +165,7 @@ function WorkflowsPanel() {
       )}
 
       <div className="space-y-2">
-        {workflows.data?.map((workflow) => (
+        {workflows.data?.map((workflow: any) => (
           <div key={workflow._id} className="bg-slate-800 rounded-lg p-4 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
@@ -232,7 +232,7 @@ function LeaderboardPanel() {
       </div>
 
       <div className="space-y-2">
-        {leaderboard.data?.slice(0, 3).map((entry, idx) => (
+        {leaderboard.data?.slice(0, 3).map((entry: any, idx: any) => (
           <div
             key={entry._id}
             className={`flex items-center gap-4 bg-slate-800 rounded-lg p-4 border ${
@@ -368,7 +368,7 @@ function FacebookLeadsPanel() {
       </div>
 
       <div className="space-y-2 max-h-64 overflow-y-auto">
-        {leads.data?.map((lead) => (
+        {leads.data?.map((lead: any) => (
           <div key={lead._id} className="bg-slate-800 rounded-lg p-3 border border-slate-700">
             <div className="flex justify-between items-start">
               <div>
@@ -436,7 +436,7 @@ function ReportBuilderPanel() {
       <div>
         <h5 className="text-sm font-medium text-slate-300 mb-2">Saved Reports</h5>
         <div className="space-y-2">
-          {reports.data?.map((report) => (
+          {reports.data?.map((report: any) => (
             <div key={report._id} className="bg-slate-800 rounded-lg p-3 border border-slate-700 flex justify-between items-center">
               <div>
                 <p className="text-sm text-white">{report.name}</p>
@@ -494,7 +494,7 @@ function AgentPerformancePanel() {
       </div>
 
       <div className="space-y-2">
-        {agents.data?.map((agent) => (
+        {agents.data?.map((agent: any) => (
           <div key={agent.userId} className="bg-slate-800 rounded-lg p-4 border border-slate-700">
             <div className="flex justify-between items-start mb-3">
               <div>
@@ -540,7 +540,7 @@ function AgentPerformancePanel() {
 
 // Feature 9: Geo-Tracking Panel
 function GeoTrackingPanel() {
-  const locations = useSuspenseQuery(convexQuery(api.geo_tracking.getAllClientLocations, {})) as any;
+  const _locations = useSuspenseQuery(convexQuery(api.geo_tracking.getAllClientLocations, {})) as any;
   const stats = useSuspenseQuery(convexQuery(api.geo_tracking.getLocationStats, {})) as any;
 
   return (
@@ -628,7 +628,7 @@ function CRMHygienePanel() {
       </div>
 
       <div className="space-y-2">
-        {reports.data?.map((report) => (
+        {reports.data?.map((report: any) => (
           <div key={report._id} className="bg-slate-800 rounded-lg p-3 border border-slate-700">
             <div className="flex justify-between items-start">
               <div>

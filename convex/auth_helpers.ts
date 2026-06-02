@@ -170,7 +170,6 @@ export const updateLastLogin = mutation({
   args: { userId: v.id("users"), ip: v.string() },
   returns: v.null(),
   handler: async (ctx, { userId, ip: _ip }) => {
-    const _user = await ctx.db.get(userId);
     await ctx.db.patch(userId, {
       adminLastLoginAt: Date.now(),
       adminFailedLoginAttempts: 0,
@@ -391,7 +390,7 @@ async function computeTOTP(secret: string, timeStep: number): Promise<string> {
   // Import key for HMAC-SHA1
   const key = await globalThis.crypto.subtle.importKey(
     "raw",
-    secretBytes,
+    secretBytes as BufferSource,
     { name: "HMAC", hash: "SHA-1" },
     false,
     ["sign"]

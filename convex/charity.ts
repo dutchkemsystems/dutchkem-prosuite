@@ -469,7 +469,7 @@ export const getHistory = query({
 export const getCharities = query({
   args: {},
   returns: v.any(),
-  handler: async (ctx) => {
+  handler: async (_ctx) => {
     return [
       { id: "dutchkem_foundation", name: "Dutchkem Charity Foundation", description: "Education & empowerment" },
       { id: "orphanage_support", name: "Orphanage Support", description: "Support orphanages" },
@@ -601,7 +601,7 @@ export const linkAccount = mutation({
     details: v.string(),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     // Ensure charity wallet exists
     await getOrCreateCharityWallet(ctx);
     
@@ -623,7 +623,7 @@ export const linkAccount = mutation({
 export const disconnectAccount = mutation({
   args: {},
   returns: v.any(),
-  handler: async (ctx) => {
+  handler: async (_ctx) => {
     // In production, this would disconnect the account
     return { success: true, message: "Account disconnected" };
   },

@@ -12,7 +12,7 @@ export function AgentServices({ agentId, onSelect }: { agentId: string, onSelect
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-      {services.map((s) => (
+      {services.map((s: any) => (
         <button 
           key={s._id}
           onClick={() => onSelect(s.name)}

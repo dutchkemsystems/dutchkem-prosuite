@@ -178,7 +178,7 @@ export const autoBackup = internalAction({
     const date = new Date(now).toISOString().split("T")[0];
 
     // Create automatic backup
-    const result = await ctx.runMutation(internal.agent_backups.createBackupInternal, {
+    const result: any = await ctx.runMutation(internal.agent_backups.createBackupInternal, {
       name: `Auto Backup ${date}`,
       description: `Automatic daily backup`,
     });

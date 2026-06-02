@@ -54,16 +54,7 @@ export const updateClientLocation = mutation({
 
 export const getClientLocation = query({
   args: { userId: v.id("users") },
-  returns: v.optional(v.object({
-    _id: v.id("client_locations"),
-    country: v.optional(v.string()),
-    countryCode: v.optional(v.string()),
-    city: v.optional(v.string()),
-    region: v.optional(v.string()),
-    latitude: v.optional(v.number()),
-    longitude: v.optional(v.number()),
-    lastUpdated: v.number(),
-  })),
+  returns: v.any(),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("client_locations")
@@ -84,7 +75,7 @@ export const getAllClientLocations = query({
     latitude: v.optional(v.number()),
     longitude: v.optional(v.number()),
   })),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     const locations = await ctx.db.query("client_locations").collect();
     const result = [];
 
@@ -113,7 +104,7 @@ export const getLocationStats = query({
     byCountry: v.record(v.string(), v.number()),
     byCity: v.record(v.string(), v.number()),
   }),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     const locations = await ctx.db.query("client_locations").collect();
 
     const byCountry: Record<string, number> = {};
@@ -198,7 +189,7 @@ export const getTerritories = query({
     isActive: v.boolean(),
     createdAt: v.number(),
   })),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     return await ctx.db.query("territories").collect();
   },
 });
@@ -215,12 +206,7 @@ export const deleteTerritory = mutation({
 // Find which territory a location falls in
 export const findTerritoryForLocation = query({
   args: { latitude: v.number(), longitude: v.number() },
-  returns: v.optional(v.object({
-    _id: v.id("territories"),
-    name: v.string(),
-    color: v.string(),
-    assignedAgents: v.array(v.id("users")),
-  })),
+  returns: v.any(),
   handler: async (ctx, args) => {
     const territories = await ctx.db.query("territories").collect();
 

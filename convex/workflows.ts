@@ -121,7 +121,7 @@ export const executeWorkflow = internalAction({
 
     const executedActions: Array<{actionType: string; success: boolean; error?: string; executedAt: number}> = [];
 
-    for (const action of workflow.actions.sort((a, b) => a.order - b.order)) {
+    for (const action of workflow.actions.sort((a: any, b: any) => a.order - b.order)) {
       try {
         switch (action.type) {
           case "send_sms":
@@ -186,7 +186,7 @@ export const executeWorkflow = internalAction({
 
 export const getWorkflowById = query({
   args: { workflowId: v.id("workflows") },
-  returns: v.optional(v.any()),
+  returns: v.any(),
   handler: async (ctx, args) => {
     return await ctx.db.get(args.workflowId);
   },

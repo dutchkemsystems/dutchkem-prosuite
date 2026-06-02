@@ -47,7 +47,7 @@ export const receiveFacebookLead = internalAction({
     }
 
     // Create lead in database
-    const leadId = await ctx.runMutation(internal.facebook_leads.createLead, {
+    const newLeadId = await ctx.runMutation(internal.facebook_leads.createLead, {
       email,
       phone,
       name,
@@ -60,7 +60,7 @@ export const receiveFacebookLead = internalAction({
       workflowId: args.formId as any, // Would be mapped to actual workflow
       triggerEvent: {
         type: "new_lead",
-        leadId,
+        leadId: newLeadId,
         source: "facebook",
         email,
         phone,
@@ -70,11 +70,11 @@ export const receiveFacebookLead = internalAction({
 
     // Send notification to admin
     await ctx.runMutation(internal.facebook_leads.notifyNewLead, {
-      leadId,
+      leadId: newLeadId,
       source: "Facebook Lead Ads",
     });
 
-    return { success: true, leadId, error: undefined };
+    return { success: true, leadId: newLeadId, error: undefined };
   },
 });
 
@@ -133,7 +133,7 @@ export const assignLead = mutation({
     
     // Notify assigned agent
     const lead = await ctx.db.get(args.leadId);
-    const assignee = await ctx.db.get(args.assignedTo);
+    void lead; // used in notification message below
     
     await ctx.db.insert("notifications", {
       userId: args.assignedTo,
@@ -153,17 +153,7 @@ export const getLeads = query({
     source: v.optional(v.string()),
     limit: v.optional(v.number()),
   },
-  returns: v.array(v.object({
-    _id: v.id("leads"),
-    email: v.optional(v.string()),
-    phone: v.optional(v.string()),
-    name: v.optional(v.string()),
-    source: v.string(),
-    status: v.string(),
-    assignedTo: v.optional(v.id("users")),
-    receivedAt: v.number(),
-    lastContactedAt: v.optional(v.number()),
-  })),
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     let query_ = ctx.db.query("leads");
     
@@ -244,7 +234,7 @@ export const notifyNewLead = mutation({
 
 export const getLeadById = query({
   args: { leadId: v.id("leads") },
-  returns: v.optional(v.any()),
+  returns: v.any(),
   handler: async (ctx, args) => {
     return await ctx.db.get(args.leadId);
   },

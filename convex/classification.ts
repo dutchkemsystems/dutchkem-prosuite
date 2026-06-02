@@ -6,7 +6,7 @@ import type { ActionCtx } from "./_generated/server";
  * Cheap classification using Llama 3 8B (Attempt 3 model)
  * Used to save NVIDIA NIM credits for complex tasks.
  */
-export async function classifyTask(ctx: ActionCtx, prompt: string): Promise<string> {
+export async function classifyTask(_ctx: ActionCtx, prompt: string): Promise<string> {
   const nvidia = createOpenAI({
     apiKey: process.env.NVIDIA_NIM_API_KEY,
     baseURL: "https://integrate.api.nvidia.com/v1",

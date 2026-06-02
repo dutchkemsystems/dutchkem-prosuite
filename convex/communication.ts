@@ -21,7 +21,7 @@ export const sendSms = mutation({
     if (!termiiKey || termiiKey === "your_termii_key") {
       // Demo mode - just log
       await ctx.db.insert("communication_logs", {
-        userId: args.userId ?? undefined,
+        userId: args.userId ?? undefined as any,
         type: "sms",
         direction: "outbound",
         recipient: args.to,
@@ -49,7 +49,7 @@ export const sendSms = mutation({
       const data = await response.json();
       
       await ctx.db.insert("communication_logs", {
-        userId: args.userId ?? undefined,
+        userId: args.userId ?? undefined as any,
         type: "sms",
         direction: "outbound",
         recipient: args.to,
@@ -85,7 +85,7 @@ export const sendWhatsApp = mutation({
     // WhatsApp Business API integration would go here
     // For now, log as pending
     await ctx.db.insert("communication_logs", {
-      userId: args.userId ?? undefined,
+      userId: args.userId ?? undefined as any,
       type: "whatsapp",
       direction: "outbound",
       recipient: args.to,
@@ -113,8 +113,8 @@ export const initiateCall = mutation({
     // Twilio integration would go here
     // For now, log as pending
     await ctx.db.insert("communication_logs", {
-      userId: args.userId ?? undefined,
-      adminId: args.adminId ?? undefined,
+      userId: args.userId ?? undefined as any,
+      adminId: args.adminId ?? undefined as any,
       type: "call",
       direction: "outbound",
       recipient: args.to,
@@ -191,9 +191,8 @@ export const getCommunicationStats = query({
     sent: v.number(),
     failed: v.number(),
   }),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     const logs = await ctx.db.query("communication_logs").collect();
-    
     return {
       totalSms: logs.filter(l => l.type === "sms").length,
       totalCalls: logs.filter(l => l.type === "call").length,

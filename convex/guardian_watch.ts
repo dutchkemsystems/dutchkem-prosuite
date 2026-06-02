@@ -149,7 +149,7 @@ export const testTaxIntegrity = internalAction({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    const status = await ctx.runQuery(api.tax.getTaxStatus, {});
+    const _status = await ctx.runQuery(api.tax.getTaxStatus, {});
     const mismatch = false; // logic to check if tax_wallet balance matches history
 
     await ctx.runMutation(internal.guardian_watch.logTest, {

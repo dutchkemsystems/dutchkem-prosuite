@@ -586,7 +586,8 @@ http.route({
     if (!adminId) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
     }
-    const limit = Number(req.url.searchParams.get("limit")) || 50;
+    const url = new URL(req.url);
+    const limit = Number(url.searchParams.get("limit")) || 50;
     const payouts = await ctx.runQuery(api.marketplace.getPayoutHistory, { limit });
     return new Response(JSON.stringify(payouts), {
       status: 200,
@@ -614,23 +615,23 @@ http.route({
 
 // ========== SOCIAL OAUTH CALLBACK ==========
 http.route({
-  path: "/api/social/callback/:platformId",
+  path: "/api/social/callback",
   method: "GET",
   handler: httpAction(async (ctx, req) => {
     try {
-      const platformId = req.url.split("/callback/")[1]?.split("?")[0];
       const url = new URL(req.url);
+      const platformId = url.searchParams.get("platform");
       const code = url.searchParams.get("code");
       const state = url.searchParams.get("state");
-      
+
       if (!code || !state) {
         throw new Error("Missing code or state parameter");
       }
-      
+
       if (!platformId) {
         throw new Error("Missing platform ID");
       }
-      
+
       // Call handleOAuthCallback mutation
       const result = await ctx.runMutation(api.social.handleOAuthCallback, {
         platform: platformId,

@@ -5,7 +5,7 @@ import { api } from "../../convex/_generated/api";
 import { useConvexAuth } from "convex/react";
 
 export function FloatingChatWidget() {
-  const { isAuthenticated, user } = useConvexAuth();
+  const { isAuthenticated: _isAuthenticated, user } = useConvexAuth() as any;
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [_sessionId, setSessionId] = useState<string | null>(null);
@@ -130,7 +130,7 @@ export function FloatingChatWidget() {
 
         {/* Messages */}
         <div className="h-80 overflow-y-auto p-4 space-y-3 bg-slate-800/50">
-          {messages.filter(m => m.role !== "system").length === 0 && (
+          {messages.filter((m: any) => m.role !== "system").length === 0 && (
             <div className="text-center text-slate-400 py-8">
               <p className="text-lg mb-2">👋</p>
               <p className="text-sm">How can I help you today?</p>
@@ -142,7 +142,7 @@ export function FloatingChatWidget() {
             </div>
           )}
 
-          {messages.filter(m => m.role !== "system").map((msg, idx) => (
+          {messages.filter((m: any) => m.role !== "system").map((msg: any, idx: any) => (
             <div
               key={idx}
               className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}

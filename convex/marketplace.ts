@@ -181,7 +181,7 @@ export const approveJob = mutation({
 export const runMarketplacePayouts = internalAction({
   args: {},
   returns: v.null(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     const readyTxs = await ctx.runQuery(internal.marketplace.getReadyForPayout);
 
     for (const tx of readyTxs) {
@@ -221,7 +221,7 @@ export const runMarketplacePayouts = internalAction({
 export const runDailyPlatformSweep = internalAction({
   args: {},
   returns: v.null(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     // 1. Sum platform fees collected since last sweep
     const totalFees = await ctx.runQuery(internal.marketplace.getUnsweptPlatformFees);
     if (totalFees <= 0) return null;
@@ -230,15 +230,9 @@ export const runDailyPlatformSweep = internalAction({
     await ctx.runMutation(internal.marketplace.deductFromMainWallet, { amount: totalFees });
 
     // 3. Log sweep
-    await ctx.db.insert("daily_sweeps", {
-      sweep_id: `PLATFORM_SWEEP_${Date.now()}`,
-      date: new Date().toISOString().split("T")[0],
+    await ctx.runMutation(internal.marketplace.logPlatformSweep, {
+      sweepId: `PLATFORM_SWEEP_${Date.now()}`,
       amount: totalFees,
-      balance_before: 0, // simplified; fetch current balance if needed
-      balance_after: 0,
-      status: "completed",
-      timestamp: Date.now(),
-      notes: "Daily platform-fee sweep",
     });
 
     return null;
@@ -252,7 +246,7 @@ export const runDailyPlatformSweep = internalAction({
 export const getReadyForPayout = internalQuery({
   args: {},
   returns: v.array(v.any()),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     return await ctx.db
       .query("marketplace_transactions")
       .withIndex("by_status", (q) => q.eq("status", "ready_for_payout"))
@@ -291,13 +285,34 @@ export const markReleased = internalMutation({
 export const getUnsweptPlatformFees = internalQuery({
   args: {},
   returns: v.number(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     // Sum platform fees from all completed marketplace transactions
     const txs = await ctx.db
       .query("marketplace_transactions")
       .withIndex("by_status", (q) => q.eq("status", "released"))
       .collect();
     return txs.reduce((sum, t) => sum + (t.platformFee || 0), 0);
+  },
+});
+
+export const logPlatformSweep = internalMutation({
+  args: {
+    sweepId: v.string(),
+    amount: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.insert("daily_sweeps", {
+      sweep_id: args.sweepId,
+      date: new Date().toISOString().split("T")[0],
+      amount: args.amount,
+      balance_before: 0,
+      balance_after: 0,
+      status: "completed",
+      timestamp: Date.now(),
+      notes: "Daily platform-fee sweep",
+    });
+    return null;
   },
 });
 
@@ -330,7 +345,7 @@ export const getEscrowBalance = query({
     totalHeld: v.number(),
     totalReleased: v.number(),
   }),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     const wallet = await ctx.db.query("escrow_wallet").first();
     return {
       balance: wallet?.balance || 0,
@@ -346,7 +361,7 @@ export const getPendingFridayPayout = query({
     total: v.number(),
     count: v.number(),
   }),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     const txs = await ctx.db
       .query("marketplace_transactions")
       .withIndex("by_status", (q) => q.eq("status", "ready_for_payout"))
@@ -389,7 +404,7 @@ export const getMarketplaceStats = query({
     pendingPayouts: v.number(),
     totalTransactions: v.number(),
   }),
-  handler: async (ctx, args) => {
+  handler: async (ctx, _args) => {
     const allTx = await ctx.db.query("marketplace_transactions").collect();
     const escrow = await ctx.db.query("escrow_wallet").first();
 

@@ -1,6 +1,6 @@
-import { internalAction, internalMutation, mutation, query, internalQuery, action } from "./_generated/server";
+import { internalAction, internalMutation, mutation, query, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import { internal, api } from "./_generated/api";
+import { internal } from "./_generated/api";
 
 /**
  * CLOUD MEMORY & SELF-HEALING SYSTEM

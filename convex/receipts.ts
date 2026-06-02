@@ -35,7 +35,7 @@ export const createReceipt = mutation({
 export const getReceipt = query({
   args: { receiptId: v.string() },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args) => {
     return {
       company: "Dutchkem Ventures Prosuite NG+",
       address: "26, Opeki Road, Ipaja, Ayobo, Lagos State, Nigeria",
@@ -54,7 +54,7 @@ export const getReceipt = query({
 export const generateReceipt = query({
   args: { amount: v.number(), plan: v.string(), name: v.string(), date: v.number() },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args) => {
     return {
       company: "Dutchkem Ventures Prosuite NG+",
       address: "26, Opeki Road, Ipaja, Ayobo, Lagos State, Nigeria",

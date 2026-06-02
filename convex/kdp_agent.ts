@@ -42,7 +42,7 @@ export const generateKDPAssets = internalAction({
 
     // 1. Generate Manuscript
     console.log("[KDP] Generating manuscript...");
-    const { text: manuscript } = await generateText({
+    const { text: _manuscript } = await generateText({
       model: nvidia.chat("meta/llama-3.1-405b-instruct"),
       prompt: "Write a short professional e-book manuscript about passive income via Amazon KDP.",
     });

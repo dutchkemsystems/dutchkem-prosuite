@@ -1,4 +1,4 @@
-import { query, mutation, action, internalAction, internalMutation, internalQuery } from "./_generated/server";
+import { query, mutation, action, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -224,7 +224,7 @@ export const generateSyntheticResponse = action({
     if (!agent) return { success: false, error: "Agent not found" };
 
     // Check if synthetic is enabled
-    const configs = await ctx.runQuery(internal.synthetic_intelligence.getAgentConfig, { agentId: args.agentId });
+    const configs: any = await ctx.runQuery(internal.synthetic_intelligence.getAgentConfig, { agentId: args.agentId });
     
     if (!configs.enabled) {
       return { 
@@ -252,7 +252,6 @@ export const generateSyntheticResponse = action({
         system: systemPrompt,
         prompt: args.context ? `Context: ${args.context}\n\nUser request: ${args.prompt}` : args.prompt,
         temperature: configs.temperature || 0.7,
-        maxTokens: configs.maxTokens || 2048,
       });
 
       // Track usage

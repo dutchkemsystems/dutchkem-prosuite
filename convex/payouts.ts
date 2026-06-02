@@ -70,7 +70,6 @@ export const executeSecurePayout = internalAction({
             
             // 4. IMMEDIATELY clear sensitive data
             const logAccountMasked = maskAccountNumber(accountNumber);
-            const _logNameMasked = maskAccountName(accountName);
             accountNumber = null;
             accountName = null;
 
