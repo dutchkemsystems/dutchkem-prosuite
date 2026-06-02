@@ -1164,7 +1164,7 @@ function DailySweepStatusPanel() {
          if (result?.success) {
             setOtpId(result.otpId);
             setShowOTPModal(true);
-            setTransferStatus({ message: "OTP sent! Check your email.", type: "otp" });
+            setTransferStatus({ message: "OTP sent! Check your email or screen.", type: "otp" });
          } else {
             setTransferStatus({ message: result?.error || "Failed to initiate transfer", type: "error" });
          }

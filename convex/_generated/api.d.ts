@@ -65,6 +65,7 @@ import type * as leaderboard from "../leaderboard.js";
 import type * as live_chats from "../live_chats.js";
 import type * as marketplace from "../marketplace.js";
 import type * as model_recovery from "../model_recovery.js";
+import type * as otp_email from "../otp_email.js";
 import type * as payments from "../payments.js";
 import type * as payouts from "../payouts.js";
 import type * as platform_analytics from "../platform_analytics.js";
@@ -161,6 +162,7 @@ declare const fullApi: ApiFromModules<{
   live_chats: typeof live_chats;
   marketplace: typeof marketplace;
   model_recovery: typeof model_recovery;
+  otp_email: typeof otp_email;
   payments: typeof payments;
   payouts: typeof payouts;
   platform_analytics: typeof platform_analytics;

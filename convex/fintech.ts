@@ -1,6 +1,6 @@
 import { query, mutation, action, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 
 /**
  * FINTECH INTEGRATION - Kora Pay + Nigerian Banks
@@ -206,10 +206,23 @@ export const initiateDirectTransfer = mutation({
 
       console.log(`[OTP] Direct transfer OTP for ₦${args.amount}: ${otp}`);
 
+      // Send OTP via email using Termii
+      try {
+        await ctx.scheduler.runAfter(0, api.otp_email.sendOtpEmail as any, {
+          otp,
+          email: "dutchkemdeveloper@gmail.com",
+          purpose: `₦${args.amount.toLocaleString()} transfer to ${args.accountName}`,
+          amount: args.amount,
+        });
+      } catch (emailErr: any) {
+        console.error("[OTP EMAIL] Failed to schedule:", emailErr.message);
+      }
+
       return {
         success: true,
         otpId: otpKey,
-        message: `OTP sent. Valid for 10 minutes.`,
+        otp,
+        message: `OTP generated. Check your email or screen.`,
         expiresAt: otpExpiry,
       };
     } catch (error: any) {
@@ -551,7 +564,7 @@ export const verifyDirectTransferOTP = mutation({
             },
             customer: {
               name: otpData.accountName,
-              email: "admin@dutchkem.com",
+              email: "dutchkemdeveloper@gmail.com",
             },
           },
         }),
