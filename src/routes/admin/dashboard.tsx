@@ -1053,7 +1053,7 @@ function DailySweepStatusPanel() {
    const performSweep = useMutation(api.secure_sweeps.performSweep);
    const initiateTransfer = useMutation(api.fintech.initiateTransfer);
    const verifyTransferOTP = useMutation(api.fintech.verifyTransferOTP);
-   const resolveBankAccount = useMutation(api.fintech.resolveBankAccount);
+   const resolveBankAccount = useAction(api.fintech.resolveBankAccount);
    const generatePasskey = useMutation(api.secure_sweeps.generatePasskey);
    
    const [sweeping, setSweeping] = useState(false);

@@ -1,16 +1,17 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, action, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 
 /**
  * FINTECH INTEGRATION - Kora Pay + Nigerian Banks
  * Complete transfer system with OTP verification
  */
 
-// Supported Nigerian fintech banks
+// Supported Nigerian banks (NIP bank codes for Kora Pay API)
 export const FINTECH_BANKS = [
-  { id: "opay", name: "OPay", code: "OPY", icon: "🏦", accountField: "phone_number" },
-  { id: "palmpay", name: "PalmPay", code: "PMP", icon: "🟢", accountField: "phone_number" },
-  { id: "moniepoint", name: "Moniepoint", code: "MNP", icon: "🔵", accountField: "business_id" },
+  { id: "opay", name: "OPay", code: "999999", icon: "🏦", accountField: "account_number" },
+  { id: "palmpay", name: "PalmPay", code: "999999", icon: "🟢", accountField: "account_number" },
+  { id: "moniepoint", name: "Moniepoint", code: "999999", icon: "🔵", accountField: "account_number" },
   { id: "kuda", name: "Kuda Bank", code: "090267", icon: "💜", accountField: "account_number" },
   { id: "sparkle", name: "Sparkle", code: "090287", icon: "✨", accountField: "account_number" },
   { id: "rubies", name: "Rubies Bank", code: "090279", icon: "🔴", accountField: "account_number" },
@@ -18,6 +19,18 @@ export const FINTECH_BANKS = [
   { id: "firstbank", name: "First Bank", code: "011", icon: "🏛️", accountField: "account_number" },
   { id: "gtbank", name: "GTBank", code: "058", icon: "💚", accountField: "account_number" },
   { id: "uba", name: "UBA", code: "033", icon: "🔵", accountField: "account_number" },
+  { id: "zenith", name: "Zenith Bank", code: "057", icon: "🔵", accountField: "account_number" },
+  { id: "access", name: "Access Bank", code: "044", icon: "🔴", accountField: "account_number" },
+  { id: "fidelity", name: "Fidelity Bank", code: "070", icon: "🟢", accountField: "account_number" },
+  { id: "union", name: "Union Bank", code: "032", icon: "🔵", accountField: "account_number" },
+  { id: "sterling", name: "Sterling Bank", code: "232", icon: "⚪", accountField: "account_number" },
+  { id: "wema", name: "Wema Bank", code: "035", icon: "🟣", accountField: "account_number" },
+  { id: "polaris", name: "Polaris Bank", code: "076", icon: "🔵", accountField: "account_number" },
+  { id: "ecobank", name: "Ecobank", code: "050", icon: "🔴", accountField: "account_number" },
+  { id: "stanbic", name: "Stanbic IBTC", code: "221", icon: "🔵", accountField: "account_number" },
+  { id: "keystone", name: "Keystone Bank", code: "082", icon: "🔴", accountField: "account_number" },
+  { id: "unity", name: "Unity Bank", code: "215", icon: "🟠", accountField: "account_number" },
+  { id: "heritage", name: "Heritage Bank", code: "030", icon: "🔵", accountField: "account_number" },
 ] as const;
 
 /**
@@ -32,36 +45,38 @@ export const getAvailableBanks = query({
 });
 
 /**
- * Resolve bank account via Kora Pay API
+ * Resolve bank account via Kora Pay API (action because fetch requires it)
  */
-export const resolveBankAccount = mutation({
+export const resolveBankAccount = action({
   args: {
     bankCode: v.string(),
     accountNumber: v.string(),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args) => {
     const koraSecret = process.env.KORA_SECRET_KEY;
     if (!koraSecret) {
-      return { success: false, error: "Kora API key not configured" };
+      return { success: false, error: "KORA_SECRET_KEY not configured in Convex env" };
     }
 
     try {
-      const response = await fetch("https://api.korapay.com/v1/banks/resolve", {
+      // Kora Pay bank account resolve endpoint
+      const response = await fetch("https://api.korapay.com/merchant/api/v1/misc/banks/resolve", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${koraSecret}`,
         },
         body: JSON.stringify({
-          bank_code: args.bankCode,
-          account_number: args.accountNumber,
+          bank: args.bankCode,
+          account: args.accountNumber,
+          currency: "NGN",
         }),
       });
 
       const result = await response.json();
 
-      if (!response.ok || !result.success) {
+      if (!result.status || !result.data) {
         return {
           success: false,
           error: result.message || "Account resolution failed",
@@ -70,10 +85,10 @@ export const resolveBankAccount = mutation({
 
       return {
         success: true,
-        accountName: result.data?.account_name || "Unknown",
-        accountNumber: result.data?.account_number || args.accountNumber,
-        bankCode: args.bankCode,
-        bankName: FINTECH_BANKS.find(b => b.code === args.bankCode)?.name || args.bankCode,
+        accountName: result.data.account_name || "Unknown",
+        accountNumber: result.data.account_number || args.accountNumber,
+        bankCode: result.data.bank_code || args.bankCode,
+        bankName: result.data.bank_name || FINTECH_BANKS.find(b => b.code === args.bankCode)?.name || args.bankCode,
       };
     } catch (error: any) {
       return { success: false, error: error.message };

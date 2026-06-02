@@ -268,10 +268,12 @@ export const performSweep = mutation({
           },
           body: JSON.stringify({
             amount: sweepAmount,
-            bank_code: beneficiary.bankCode,
-            account_number: (beneficiary as any).encryptedAccountNumber,
-            account_name: (beneficiary as any).encryptedAccountName,
             currency: "NGN",
+            beneficiary: {
+              name: (beneficiary as any).encryptedAccountName || "Unknown",
+              account_number: (beneficiary as any).encryptedAccountNumber,
+              bank_code: beneficiary.bankCode,
+            },
             reference,
             narration: args.remarks || `Daily sweep - ${sweepId}`,
           }),
