@@ -1047,34 +1047,113 @@ function DailySweepStatusPanel() {
    const { data: sweepStats } = useSuspenseQuery(convexQuery(api.secure_sweeps.getSweepStats, {})) as { data: any };
    const { data: beneficiaries } = useSuspenseQuery(convexQuery(api.payouts.getBeneficiaries, {})) as { data: any };
    const { data: earnings } = useSuspenseQuery(convexQuery(api.admin.getEarningsSummary, {})) as { data: any };
+   const { data: banks } = useSuspenseQuery(convexQuery(api.fintech.getAvailableBanks, {})) as { data: any };
    
    const updateSettings = useMutation(api.secure_sweeps.updateSettings);
    const performSweep = useMutation(api.secure_sweeps.performSweep);
    const initiateTransfer = useMutation(api.fintech.initiateTransfer);
    const verifyTransferOTP = useMutation(api.fintech.verifyTransferOTP);
+   const resolveBankAccount = useMutation(api.fintech.resolveBankAccount);
+   const generatePasskey = useMutation(api.secure_sweeps.generatePasskey);
+   
    const [sweeping, setSweeping] = useState(false);
    const [sweepStatus, setSweepStatus] = useState<{ message: string; type: string } | null>(null);
+   const [manualSweepAmount, setManualSweepAmount] = useState("");
+   const [sweepRemarks, setSweepRemarks] = useState("");
+   
+   // Transfer states
    const [transferAmount, setTransferAmount] = useState("");
-   const [selectedAccount, setSelectedAccount] = useState("");
+   const [selectedBank, setSelectedBank] = useState("");
+   const [recipientAccount, setRecipientAccount] = useState("");
+   const [recipientName, setRecipientName] = useState("");
+   const [resolving, setResolving] = useState(false);
    const [transferStatus, setTransferStatus] = useState<{ message: string; type: string } | null>(null);
+   
+   // Passkey states
+   const [showPasskeyModal, setShowPasskeyModal] = useState(false);
+   const [passkeyCode, setPasskeyCode] = useState("");
+   const [passkeyId, setPasskeyId] = useState("");
+   const [generatedPasskey, setGeneratedPasskey] = useState("");
+   
+   // OTP states
    const [showOTPModal, setShowOTPModal] = useState(false);
    const [otpCode, setOtpCode] = useState("");
    const [otpId, setOtpId] = useState("");
    const [verifying, setVerifying] = useState(false);
+   
+   // Receipt
    const [showReceipt, setShowReceipt] = useState(false);
    const [receipt, setReceipt] = useState<any>(null);
 
+   // Resolve bank account
+   const handleResolveAccount = async () => {
+      if (!selectedBank || !recipientAccount || recipientAccount.length < 10) {
+         setTransferStatus({ message: "Enter valid bank and 10-digit account number", type: "error" });
+         return;
+      }
+      setResolving(true);
+      setTransferStatus({ message: "Resolving account...", type: "loading" });
+      try {
+         const result = await resolveBankAccount({ bankCode: selectedBank, accountNumber: recipientAccount });
+         if (result?.success) {
+            setRecipientName(result.accountName);
+            setTransferStatus({ message: `Account resolved: ${result.accountName}`, type: "success" });
+         } else {
+            setRecipientName("");
+            setTransferStatus({ message: result?.error || "Account resolution failed", type: "error" });
+         }
+      } catch (err: any) {
+         setTransferStatus({ message: err.message, type: "error" });
+      }
+      setResolving(false);
+   };
+
+   // Generate passkey for sweep
+   const handleGeneratePasskey = async () => {
+      try {
+         const result = await generatePasskey({});
+         if (result?.success) {
+            setPasskeyId(result.passkeyId);
+            setGeneratedPasskey(result.passkey);
+         }
+      } catch (err: any) {
+         setSweepStatus({ message: err.message, type: "error" });
+      }
+   };
+
+   // Initiate transfer with passkey
    const handleInitiateTransfer = async () => {
-      if (!selectedAccount || !transferAmount) {
-         setTransferStatus({ message: "Please select account and enter amount", type: "error" });
+      if (!selectedBank || !recipientAccount || !transferAmount || !recipientName) {
+         setTransferStatus({ message: "Please fill all fields and resolve account", type: "error" });
          return;
       }
 
+      // Generate passkey first
+      const pkResult = await generatePasskey({});
+      if (!pkResult?.success) {
+         setTransferStatus({ message: "Failed to generate passkey", type: "error" });
+         return;
+      }
+      setPasskeyId(pkResult.passkeyId);
+      setGeneratedPasskey(pkResult.passkey);
+      setShowPasskeyModal(true);
+   };
+
+   // Verify passkey and initiate OTP
+   const handleVerifyPasskeyAndInitiate = async () => {
+      if (passkeyCode !== generatedPasskey) {
+         setTransferStatus({ message: "Invalid passkey", type: "error" });
+         return;
+      }
+
+      setShowPasskeyModal(false);
       setTransferStatus({ message: "Sending OTP to your email...", type: "loading" });
       try {
          const result = await initiateTransfer({
             amount: parseFloat(transferAmount),
-            beneficiaryId: selectedAccount,
+            beneficiaryId: beneficiaries?.[0]?._id || "",
+            bankCode: selectedBank,
+            purpose: `Transfer to ${recipientName}`,
          });
 
          if (result?.success) {
@@ -1089,12 +1168,13 @@ function DailySweepStatusPanel() {
       }
    };
 
+   // Verify OTP and complete transfer
    const handleVerifyOTP = async () => {
       if (otpCode.length !== 6) return;
 
       setVerifying(true);
       try {
-         const result = await verifyTransferOTP({ otpId, otp: otpCode });
+         const result = await verifyTransferOTP({ otpId, otp: otpCode, passkeyId, passkey: passkeyCode });
 
          if (result?.success) {
             setReceipt(result.receipt);
@@ -1102,6 +1182,7 @@ function DailySweepStatusPanel() {
             setShowReceipt(true);
             setTransferStatus({ message: "Transfer completed!", type: "success" });
             setOtpCode("");
+            setPasskeyCode("");
          } else {
             setTransferStatus({ message: result?.error || "Invalid OTP", type: "error" });
          }
@@ -1126,12 +1207,38 @@ function DailySweepStatusPanel() {
    };
 
    const handleManualSweep = async () => {
-      if (!confirm("Proceed with manual secure sweep?")) return;
+      // Generate passkey first
+      const pkResult = await generatePasskey({});
+      if (!pkResult?.success) {
+         setSweepStatus({ message: "Failed to generate passkey", type: "error" });
+         return;
+      }
+      setPasskeyId(pkResult.passkeyId);
+      setGeneratedPasskey(pkResult.passkey);
+      setShowPasskeyModal(true);
+   };
+
+   const handleConfirmManualSweep = async () => {
+      if (passkeyCode !== generatedPasskey) {
+         setSweepStatus({ message: "Invalid passkey", type: "error" });
+         return;
+      }
+
+      setShowPasskeyModal(false);
       setSweeping(true);
-      setSweepStatus({ message: "Processing sweep...", type: "loading" });
+      setSweepStatus({ message: "Processing sweep with Kora Pay...", type: "loading" });
       try {
-         const result = await performSweep({ type: "manual" });
+         const amount = manualSweepAmount ? parseFloat(manualSweepAmount) : undefined;
+         const result = await performSweep({
+            type: "manual",
+            amount,
+            passkeyId,
+            passkey: passkeyCode,
+            remarks: sweepRemarks || undefined,
+         });
          if (result?.success) {
+            setReceipt(result.receipt);
+            setShowReceipt(true);
             setSweepStatus({ message: `Sweep completed! ₦${result.amount?.toLocaleString()} transferred.`, type: "success" });
          } else {
             setSweepStatus({ message: result?.error || "Sweep failed", type: "error" });
@@ -1161,7 +1268,7 @@ function DailySweepStatusPanel() {
             <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 space-y-8 shadow-2xl relative overflow-hidden">
                <div className="flex justify-between items-center">
                   <h3 className="text-2xl font-black uppercase tracking-tighter text-white">Daily Secure Sweep</h3>
-                  <span className="px-4 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full text-[9px] font-black">ENCRYPTED</span>
+                  <span className="px-4 py-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 rounded-full text-[9px] font-black">LIVE KORA PAY</span>
                </div>
 
                {/* Stats Grid */}
@@ -1182,6 +1289,25 @@ function DailySweepStatusPanel() {
                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">This Month</p>
                      <p className="text-xl font-black text-white">₦{(sweepStats?.month?.amount || 0).toLocaleString()}</p>
                   </div>
+               </div>
+
+               {/* Manual Sweep Amount */}
+               <div className="bg-slate-950 p-6 rounded-2xl border border-white/5 space-y-4">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Manual Sweep Amount (Optional)</p>
+                  <input
+                     type="number"
+                     value={manualSweepAmount}
+                     onChange={(e) => setManualSweepAmount(e.target.value)}
+                     placeholder="Leave empty to sweep all funds"
+                     className="w-full bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-sm"
+                  />
+                  <input
+                     type="text"
+                     value={sweepRemarks}
+                     onChange={(e) => setSweepRemarks(e.target.value)}
+                     placeholder="Remarks (optional)"
+                     className="w-full bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-sm"
+                  />
                </div>
 
                {/* Sweep Info */}
@@ -1213,7 +1339,7 @@ function DailySweepStatusPanel() {
                               : "bg-slate-800 border border-slate-700 text-white"
                         }`}
                      >
-                        {settings?.autoSweep ? "🤖 Auto Sweep ON" : "⭕ Auto Sweep OFF"}
+                        {settings?.autoSweep ? "Auto Sweep ON" : "Auto Sweep OFF"}
                      </button>
                      <button 
                         onClick={handlePauseSchedule}
@@ -1223,7 +1349,7 @@ function DailySweepStatusPanel() {
                               : "bg-slate-800 border border-slate-700 text-white"
                         }`}
                      >
-                        {settings?.pauseSchedule ? "▶️ Resume" : "⏸️ Pause"}
+                        {settings?.pauseSchedule ? "Resume" : "Pause"}
                      </button>
                   </div>
                   <button 
@@ -1231,7 +1357,7 @@ function DailySweepStatusPanel() {
                      disabled={sweeping}
                      className="w-full py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 transition-all"
                   >
-                     {sweeping ? "Sweeping..." : "⚡ Sweep Now"}
+                     {sweeping ? "Processing with Kora Pay..." : "Sweep Now (Live Transfer)"}
                   </button>
                </div>
             </div>
@@ -1250,9 +1376,12 @@ function DailySweepStatusPanel() {
                               <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
                                  {sweep.type} • {sweep.date}
                               </p>
+                              {sweep.reference && (
+                                 <p className="text-[8px] font-mono text-slate-600 mt-1">{sweep.reference}</p>
+                              )}
                            </div>
-                           <span className={`text-xs font-bold ${sweep.status === "completed" ? "text-emerald-500" : "text-amber-500"}`}>
-                              {sweep.status === "completed" ? "✓" : "⏳"}
+                           <span className={`text-xs font-bold ${sweep.status === "completed" ? "text-emerald-500" : sweep.status === "failed" ? "text-red-500" : "text-amber-500"}`}>
+                              {sweep.status === "completed" ? "✓ DONE" : sweep.status === "failed" ? "✗ FAIL" : "⏳ PENDING"}
                            </span>
                         </div>
                      ))
@@ -1261,9 +1390,9 @@ function DailySweepStatusPanel() {
             </div>
          </div>
 
-         {/* Quick Transfer Section */}
+         {/* Live Transfer Section */}
          <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">
-            <h3 className="text-xl font-black uppercase tracking-tighter mb-6">Quick Transfer (Kora Pay)</h3>
+            <h3 className="text-xl font-black uppercase tracking-tighter mb-6">Live Transfer (Kora Pay API)</h3>
             
             {/* Transfer Status */}
             {transferStatus && (
@@ -1278,40 +1407,114 @@ function DailySweepStatusPanel() {
             )}
 
             {/* Transfer Form */}
-            {!showOTPModal && !showReceipt && (
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Select Account</label>
-                     <select 
-                        value={selectedAccount} 
-                        onChange={(e) => setSelectedAccount(e.target.value)}
-                        className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-white text-sm"
-                     >
-                        <option value="">-- Select Beneficiary --</option>
-                        {beneficiaries?.map((b: any) => (
-                           <option key={b._id} value={b._id}>
-                              {b.bankName} (••••{b.encryptedAccountNumber?.slice(-4)})
-                           </option>
-                        ))}
-                     </select>
+            {!showOTPModal && !showPasskeyModal && !showReceipt && (
+               <div className="space-y-6">
+                  {/* Bank and Account Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                     <div>
+                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Bank</label>
+                        <select 
+                           value={selectedBank} 
+                           onChange={(e) => { setSelectedBank(e.target.value); setRecipientName(""); }}
+                           className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-white text-sm"
+                        >
+                           <option value="">-- Select Bank --</option>
+                           {banks?.map((bank: any) => (
+                              <option key={bank.code} value={bank.code}>
+                                 {bank.icon} {bank.name}
+                              </option>
+                           ))}
+                        </select>
+                     </div>
+                     <div>
+                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Account Number</label>
+                        <input
+                           type="text"
+                           value={recipientAccount}
+                           onChange={(e) => { setRecipientAccount(e.target.value); setRecipientName(""); }}
+                           placeholder="10-digit account"
+                           maxLength={10}
+                           className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-white text-sm"
+                        />
+                     </div>
+                     <div>
+                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Account Name</label>
+                        <div className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-white text-sm">
+                           {resolving ? "Resolving..." : recipientName || "Auto-resolved"}
+                        </div>
+                     </div>
+                     <div className="flex items-end">
+                        <button 
+                           onClick={handleResolveAccount}
+                           disabled={!selectedBank || !recipientAccount || recipientAccount.length < 10 || resolving}
+                           className="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                        >
+                           {resolving ? "..." : "🔍 Resolve"}
+                        </button>
+                     </div>
                   </div>
-                  <div>
-                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Amount (₦)</label>
+
+                  {/* Amount Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                     <div>
+                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block">Amount (₦)</label>
+                        <input
+                           type="number"
+                           value={transferAmount}
+                           onChange={(e) => setTransferAmount(e.target.value)}
+                           placeholder="Enter amount"
+                           className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-white text-sm"
+                        />
+                     </div>
+                     <div className="md:col-span-2 flex items-end">
+                        <button 
+                           onClick={handleInitiateTransfer}
+                           disabled={!selectedBank || !recipientAccount || !transferAmount || !recipientName}
+                           className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                        >
+                           Generate Passkey & Initiate Transfer
+                        </button>
+                     </div>
+                  </div>
+               </div>
+            )}
+
+            {/* Passkey Modal */}
+            {showPasskeyModal && (
+               <div className="bg-slate-950 p-8 rounded-2xl border border-white/5 space-y-6">
+                  <div className="text-center">
+                     <div className="text-4xl mb-4">🔑</div>
+                     <h4 className="text-lg font-black text-white">Transaction Passkey</h4>
+                     <p className="text-sm text-slate-500 mt-2">
+                        Enter the 6-digit passkey to authorize this transfer.
+                     </p>
+                     <p className="text-xs font-mono text-amber-500 mt-2 bg-amber-500/10 p-2 rounded">
+                        Passkey: {generatedPasskey}
+                     </p>
+                  </div>
+                  <div className="flex justify-center">
                      <input
-                        type="number"
-                        value={transferAmount}
-                        onChange={(e) => setTransferAmount(e.target.value)}
-                        placeholder="Enter amount"
-                        className="w-full bg-slate-950 border border-white/10 rounded-xl p-4 text-white text-sm"
+                        type="text"
+                        value={passkeyCode}
+                        onChange={(e) => setPasskeyCode(e.target.value)}
+                        maxLength={6}
+                        placeholder="000000"
+                        className="w-48 bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-2xl text-center font-mono tracking-[0.5em]"
                      />
                   </div>
-                  <div className="flex items-end">
+                  <div className="flex gap-4">
                      <button 
-                        onClick={handleInitiateTransfer}
-                        disabled={!selectedAccount || !transferAmount}
-                        className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                        onClick={() => { setShowPasskeyModal(false); setPasskeyCode(""); }}
+                        className="flex-1 py-3 bg-slate-800 text-white rounded-xl text-xs font-bold"
                      >
-                        💸 Send OTP & Transfer
+                        Cancel
+                     </button>
+                     <button 
+                        onClick={handleVerifyPasskeyAndInitiate}
+                        disabled={passkeyCode.length !== 6}
+                        className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold disabled:opacity-50"
+                     >
+                        Verify & Send OTP
                      </button>
                   </div>
                </div>
@@ -1349,7 +1552,7 @@ function DailySweepStatusPanel() {
                         disabled={otpCode.length !== 6 || verifying}
                         className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold disabled:opacity-50"
                      >
-                        {verifying ? "Verifying..." : "Verify & Complete"}
+                        {verifying ? "Processing Transfer..." : "Verify & Complete Transfer"}
                      </button>
                   </div>
                </div>
@@ -1367,6 +1570,12 @@ function DailySweepStatusPanel() {
                         <span className="text-slate-500">Reference</span>
                         <span className="text-white font-mono">{receipt.reference}</span>
                      </div>
+                     {receipt.koraReference && (
+                        <div className="flex justify-between text-sm">
+                           <span className="text-slate-500">Kora Ref</span>
+                           <span className="text-white font-mono text-[10px]">{receipt.koraReference}</span>
+                        </div>
+                     )}
                      <div className="flex justify-between text-sm">
                         <span className="text-slate-500">Amount</span>
                         <span className="text-white font-bold">₦{receipt.amount.toLocaleString()}</span>
@@ -1376,8 +1585,20 @@ function DailySweepStatusPanel() {
                         <span className="text-white">{receipt.to}</span>
                      </div>
                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">Account</span>
+                        <span className="text-white font-mono">{receipt.accountNumber || "N/A"}</span>
+                     </div>
+                     <div className="flex justify-between text-sm">
                         <span className="text-slate-500">Date</span>
                         <span className="text-white">{new Date(receipt.date).toLocaleString()}</span>
+                     </div>
+                     <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">Balance Before</span>
+                        <span className="text-white">₦{receipt.balanceBefore?.toLocaleString()}</span>
+                     </div>
+                     <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">Balance After</span>
+                        <span className="text-emerald-500 font-bold">₦{receipt.balanceAfter?.toLocaleString()}</span>
                      </div>
                      <div className="flex justify-between text-sm">
                         <span className="text-slate-500">Status</span>
@@ -1385,7 +1606,7 @@ function DailySweepStatusPanel() {
                      </div>
                   </div>
                   <button 
-                     onClick={() => { setShowReceipt(false); setReceipt(null); setTransferAmount(""); setSelectedAccount(""); }}
+                     onClick={() => { setShowReceipt(false); setReceipt(null); setTransferAmount(""); setSelectedBank(""); setRecipientAccount(""); setRecipientName(""); }}
                      className="w-full py-3 bg-slate-800 text-white rounded-xl text-xs font-bold"
                   >
                      Done

@@ -1,8 +1,10 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, action, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 
 /**
  * SECURE SWEEPS - Daily Auto Sweep with Auto/Manual/Pause Controls
+ * LIVE Kora Pay API integration for real money transfers
  */
 
 /**
@@ -125,15 +127,95 @@ export const updateSettings = mutation({
 });
 
 /**
- * Perform manual sweep
+ * Generate 6-digit passkey for transaction security
+ */
+export const generatePasskey = mutation({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const passkey = Math.floor(100000 + Math.random() * 900000).toString();
+    const passkeyKey = `PASSKEY_${Date.now()}`;
+    
+    await ctx.db.insert("system_config", {
+      key: passkeyKey,
+      value: {
+        passkey,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
+        used: false,
+      },
+      description: "Transaction passkey",
+      updatedAt: Date.now(),
+    });
+
+    return { success: true, passkeyId: passkeyKey, passkey };
+  },
+});
+
+/**
+ * Verify passkey
+ */
+export const verifyPasskey = mutation({
+  args: {
+    passkeyId: v.string(),
+    passkey: v.string(),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const record = await ctx.db.query("system_config")
+      .withIndex("by_key", q => q.eq("key", args.passkeyId))
+      .first();
+
+    if (!record) return { success: false, error: "Passkey not found" };
+
+    const data = record.value as any;
+    if (data.used) return { success: false, error: "Passkey already used" };
+    if (Date.now() > data.expiresAt) return { success: false, error: "Passkey expired" };
+    if (data.passkey !== args.passkey) return { success: false, error: "Invalid passkey" };
+
+    // Mark as used
+    await ctx.db.patch(record._id, {
+      value: { ...data, used: true },
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+/**
+ * Perform sweep with real Kora Pay API
  */
 export const performSweep = mutation({
   args: {
     type: v.union(v.literal("manual"), v.literal("auto")),
+    amount: v.optional(v.number()),
+    passkeyId: v.optional(v.string()),
+    passkey: v.optional(v.string()),
+    beneficiaryId: v.optional(v.string()),
+    remarks: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
     try {
+      // Verify passkey for manual sweeps
+      if (args.type === "manual" && args.passkeyId && args.passkey) {
+        const passkeyRecord = await ctx.db.query("system_config")
+          .withIndex("by_key", q => q.eq("key", args.passkeyId))
+          .first();
+
+        if (!passkeyRecord) return { success: false, error: "Passkey not found" };
+        const pkData = passkeyRecord.value as any;
+        if (pkData.used) return { success: false, error: "Passkey already used" };
+        if (Date.now() > pkData.expiresAt) return { success: false, error: "Passkey expired" };
+        if (pkData.passkey !== args.passkey) return { success: false, error: "Invalid passkey" };
+
+        await ctx.db.patch(passkeyRecord._id, {
+          value: { ...pkData, used: true },
+          updatedAt: Date.now(),
+        });
+      }
+
       // Get main wallet balance
       const mainWallet = await ctx.db.query("system_wallets")
         .withIndex("by_type", q => q.eq("type", "main"))
@@ -143,44 +225,147 @@ export const performSweep = mutation({
         return { success: false, error: "No funds to sweep" };
       }
 
-      const amount = mainWallet.balance;
-      const sweepId = `SWEEP_${args.type.toUpperCase()}_${Date.now()}`;
-      const date = new Date().toISOString().split("T")[0];
-
-      // Record the sweep
-      await ctx.db.insert("daily_sweeps", {
-        sweep_id: sweepId,
-        date,
-        amount,
-        balance_before: mainWallet.balance,
-        balance_after: 0,
-        status: "completed",
-        timestamp: Date.now(),
-        notes: `Manual sweep performed`,
-      });
-
-      // Deduct from main wallet
-      await ctx.db.patch(mainWallet._id, {
-        balance: 0,
-        lastUpdated: Date.now(),
-      });
-
-      // Add to owner's sweep wallet (beneficiary)
-      const beneficiaries = await ctx.db.query("beneficiaries").collect();
-      
-      const defaultBeneficiary = beneficiaries.find(b => b.isDefault) || beneficiaries[0];
-      
-      if (defaultBeneficiary) {
-        // In production, this would call Kora Pay API
-        console.log(`[SWEEP] Transferring ₦${amount} to beneficiary ${defaultBeneficiary._id}`);
+      // Determine sweep amount
+      let sweepAmount: number;
+      if (args.type === "manual" && args.amount && args.amount > 0) {
+        if (args.amount > mainWallet.balance) {
+          return { success: false, error: "Amount exceeds wallet balance" };
+        }
+        sweepAmount = args.amount;
+      } else {
+        sweepAmount = mainWallet.balance;
       }
 
-      return {
-        success: true,
-        amount,
-        reference: sweepId,
-        message: `Sweep completed: ₦${amount.toLocaleString()}`,
-      };
+      // Get default beneficiary
+      const beneficiaries = await ctx.db.query("beneficiaries").collect();
+      let beneficiary;
+      
+      if (args.beneficiaryId) {
+        beneficiary = beneficiaries.find(b => b._id === args.beneficiaryId);
+      } else {
+        beneficiary = beneficiaries.find(b => b.isDefault) || beneficiaries[0];
+      }
+
+      if (!beneficiary) {
+        return { success: false, error: "No beneficiary configured" };
+      }
+
+      // Call Kora Pay API for real transfer
+      const koraSecret = process.env.KORA_SECRET_KEY;
+      if (!koraSecret) {
+        return { success: false, error: "Kora API key not configured" };
+      }
+
+      const sweepId = `SWEEP_${args.type.toUpperCase()}_${Date.now()}`;
+      const reference = `KNP_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+      try {
+        const response = await fetch("https://api.korapay.com/v1/transfers", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${koraSecret}`,
+          },
+          body: JSON.stringify({
+            amount: sweepAmount,
+            bank_code: beneficiary.bankCode,
+            account_number: (beneficiary as any).encryptedAccountNumber,
+            account_name: (beneficiary as any).encryptedAccountName,
+            currency: "NGN",
+            reference,
+            narration: args.remarks || `Daily sweep - ${sweepId}`,
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          // Log failed attempt
+          await ctx.db.insert("daily_sweeps", {
+            sweep_id: sweepId,
+            date: new Date().toISOString().split("T")[0],
+            amount: sweepAmount,
+            balance_before: mainWallet.balance,
+            balance_after: mainWallet.balance,
+            status: "failed",
+            kora_reference: reference,
+            timestamp: Date.now(),
+            notes: `Transfer failed: ${result.message || "Kora API error"}`,
+          });
+
+          return {
+            success: false,
+            error: result.message || "Transfer failed",
+            reference,
+          };
+        }
+
+        // Deduct from main wallet
+        const newBalance = mainWallet.balance - sweepAmount;
+        await ctx.db.patch(mainWallet._id, {
+          balance: newBalance,
+          lastUpdated: Date.now(),
+        });
+
+        // Record successful sweep
+        await ctx.db.insert("daily_sweeps", {
+          sweep_id: sweepId,
+          date: new Date().toISOString().split("T")[0],
+          amount: sweepAmount,
+          balance_before: mainWallet.balance,
+          balance_after: newBalance,
+          status: "completed",
+          kora_reference: reference,
+          timestamp: Date.now(),
+          notes: args.remarks || `Sweep to ${(beneficiary as any).encryptedAccountName}`,
+        });
+
+        // Generate receipt
+        const receipt = {
+          id: sweepId,
+          type: "sweep",
+          date: new Date().toISOString(),
+          amount: sweepAmount,
+          from: "Main Wallet",
+          to: `${beneficiary.bankName} - ${(beneficiary as any).encryptedAccountName}`,
+          accountNumber: "****" + ((beneficiary as any).encryptedAccountNumber || "").slice(-4),
+          bankCode: beneficiary.bankCode,
+          reference,
+          koraReference: result.data?.reference || reference,
+          status: "completed",
+          remarks: args.remarks || "Daily sweep",
+          balanceBefore: mainWallet.balance,
+          balanceAfter: newBalance,
+        };
+
+        return {
+          success: true,
+          amount: sweepAmount,
+          reference: sweepId,
+          koraReference: result.data?.reference || reference,
+          receipt,
+          message: `₦${sweepAmount.toLocaleString()} transferred successfully`,
+        };
+      } catch (apiError: any) {
+        // Log failed attempt
+        await ctx.db.insert("daily_sweeps", {
+          sweep_id: sweepId,
+          date: new Date().toISOString().split("T")[0],
+          amount: sweepAmount,
+          balance_before: mainWallet.balance,
+          balance_after: mainWallet.balance,
+          status: "failed",
+          kora_reference: reference,
+          timestamp: Date.now(),
+          notes: `API error: ${apiError.message}`,
+        });
+
+        return {
+          success: false,
+          error: `Transfer failed: ${apiError.message}`,
+          reference,
+        };
+      }
     } catch (error: any) {
       console.error("performSweep error:", error);
       return { success: false, error: error.message };

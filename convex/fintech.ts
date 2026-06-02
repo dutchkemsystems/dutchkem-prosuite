@@ -32,6 +32,56 @@ export const getAvailableBanks = query({
 });
 
 /**
+ * Resolve bank account via Kora Pay API
+ */
+export const resolveBankAccount = mutation({
+  args: {
+    bankCode: v.string(),
+    accountNumber: v.string(),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const koraSecret = process.env.KORA_SECRET_KEY;
+    if (!koraSecret) {
+      return { success: false, error: "Kora API key not configured" };
+    }
+
+    try {
+      const response = await fetch("https://api.korapay.com/v1/banks/resolve", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${koraSecret}`,
+        },
+        body: JSON.stringify({
+          bank_code: args.bankCode,
+          account_number: args.accountNumber,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        return {
+          success: false,
+          error: result.message || "Account resolution failed",
+        };
+      }
+
+      return {
+        success: true,
+        accountName: result.data?.account_name || "Unknown",
+        accountNumber: result.data?.account_number || args.accountNumber,
+        bankCode: args.bankCode,
+        bankName: FINTECH_BANKS.find(b => b.code === args.bankCode)?.name || args.bankCode,
+      };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  },
+});
+
+/**
  * Get connected bank accounts (beneficiaries)
  */
 export const getConnectedAccounts = query({
@@ -166,12 +216,14 @@ export const initiateTransfer = mutation({
 });
 
 /**
- * Verify OTP and complete transfer
+ * Verify OTP and complete transfer via Kora Pay API
  */
 export const verifyTransferOTP = mutation({
   args: {
     otpId: v.string(),
     otp: v.string(),
+    passkey: v.optional(v.string()),
+    passkeyId: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
@@ -202,6 +254,24 @@ export const verifyTransferOTP = mutation({
         return { success: false, error: "Invalid OTP" };
       }
 
+      // Verify passkey if provided
+      if (args.passkeyId && args.passkey) {
+        const passkeyRecord = await ctx.db.query("system_config")
+          .withIndex("by_key", q => q.eq("key", args.passkeyId))
+          .first();
+
+        if (!passkeyRecord) return { success: false, error: "Passkey not found" };
+        const pkData = passkeyRecord.value as any;
+        if (pkData.used) return { success: false, error: "Passkey already used" };
+        if (Date.now() > pkData.expiresAt) return { success: false, error: "Passkey expired" };
+        if (pkData.passkey !== args.passkey) return { success: false, error: "Invalid passkey" };
+
+        await ctx.db.patch(passkeyRecord._id, {
+          value: { ...pkData, used: true },
+          updatedAt: Date.now(),
+        });
+      }
+
       // Mark OTP as used
       await ctx.db.patch(otpRecord._id, {
         value: { ...otpData, status: "verified" },
@@ -217,36 +287,79 @@ export const verifyTransferOTP = mutation({
         return { success: false, error: "Insufficient balance" };
       }
 
+      // Call Kora Pay API for real transfer
+      const koraSecret = process.env.KORA_SECRET_KEY;
+      if (!koraSecret) {
+        return { success: false, error: "Kora API key not configured" };
+      }
+
+      const reference = `KNP_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+      const response = await fetch("https://api.korapay.com/v1/transfers", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${koraSecret}`,
+        },
+        body: JSON.stringify({
+          amount: otpData.amount,
+          bank_code: otpData.bankCode,
+          account_number: otpData.beneficiaryAccountNumber || "",
+          account_name: otpData.beneficiaryName,
+          currency: "NGN",
+          reference,
+          narration: otpData.purpose || "Transfer",
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        return {
+          success: false,
+          error: result.message || "Transfer failed",
+          reference,
+        };
+      }
+
       // Deduct from main wallet
+      const newBalance = mainWallet.balance - otpData.amount;
       await ctx.db.patch(mainWallet._id, {
-        balance: mainWallet.balance - otpData.amount,
+        balance: newBalance,
         lastUpdated: Date.now(),
       });
 
       // Record the transaction
-      const reference = `TRANSFER_${Date.now()}`;
+      const sweepId = `TRANSFER_${Date.now()}`;
       await ctx.db.insert("daily_sweeps", {
-        sweep_id: reference,
+        sweep_id: sweepId,
         date: new Date().toISOString().split("T")[0],
         amount: otpData.amount,
         balance_before: mainWallet.balance,
-        balance_after: mainWallet.balance - otpData.amount,
+        balance_after: newBalance,
         status: "completed",
+        kora_reference: reference,
         timestamp: Date.now(),
         notes: `Transfer to ${otpData.bankName} (${otpData.beneficiaryName})`,
       });
 
       // Generate receipt
       const receipt = {
-        id: reference,
+        id: sweepId,
+        type: "transfer",
         date: new Date().toISOString(),
         amount: otpData.amount,
         from: "Main Wallet",
         to: `${otpData.bankName} - ${otpData.beneficiaryName}`,
-        purpose: otpData.purpose,
-        status: "completed",
+        accountNumber: otpData.beneficiaryAccountNumber ? "****" + otpData.beneficiaryAccountNumber.slice(-4) : "N/A",
+        bankCode: otpData.bankCode,
         reference,
+        koraReference: result.data?.reference || reference,
+        status: "completed",
+        purpose: otpData.purpose || "Transfer",
         verifiedBy: "OTP",
+        balanceBefore: mainWallet.balance,
+        balanceAfter: newBalance,
       };
 
       return {
