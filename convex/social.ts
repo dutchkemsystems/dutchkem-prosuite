@@ -33,8 +33,8 @@ function getPostizConfig() {
     apiKey: process.env.POSTIZ_API_KEY,
     clientId: process.env.POSTIZ_CLIENT_ID,
     clientSecret: process.env.POSTIZ_CLIENT_SECRET,
-    apiUrl: process.env.POSTIZ_API_URL || 'https://api.postiz.com',
-    publicApiUrl: process.env.POSTIZ_API_BASE || 'https://api.postiz.com/public/v1',
+    apiUrl: 'https://api.postiz.com',
+    publicApiUrl: 'https://api.postiz.com/public/v1',
     frontendUrl: 'https://platform.postiz.com',
   };
 }
@@ -79,10 +79,11 @@ export const generateOAuthUrl = mutation({
       updatedAt: Date.now(),
     });
 
-    // Build the Postiz authorization URL
+    // Build the Postiz authorization URL with redirect_uri
     const params = new URLSearchParams({
       client_id: clientId,
       response_type: 'code',
+      redirect_uri: redirectUri,
       state,
     });
 
@@ -123,6 +124,7 @@ export const handleOAuthCallback = mutation({
     await ctx.db.delete(stateConfig._id);
 
     const { clientId, clientSecret, apiUrl } = getPostizConfig();
+    const stateData = stateConfig.value as any;
 
     if (!clientId || !clientSecret) {
       return { success: false, error: "Postiz OAuth credentials not configured" };
@@ -130,7 +132,7 @@ export const handleOAuthCallback = mutation({
 
     try {
       // Exchange code for access token via Postiz OAuth2 standard flow
-      const tokenResponse = await fetch(`${apiUrl}/oauth/token`, {
+      const tokenResponse = await fetch(`${apiUrl}/api/oauth/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -140,6 +142,7 @@ export const handleOAuthCallback = mutation({
           code: code,
           client_id: clientId,
           client_secret: clientSecret,
+          redirect_uri: stateData.redirectUri,
         }),
       });
 
@@ -150,7 +153,7 @@ export const handleOAuthCallback = mutation({
       }
 
       const tokenData = await tokenResponse.json();
-      const { access_token, id } = tokenData;
+      const { access_token, refresh_token, id } = tokenData;
 
       if (!access_token) {
         return { success: false, error: "No access token returned from Postiz" };
@@ -164,6 +167,7 @@ export const handleOAuthCallback = mutation({
       if (existing) {
         await ctx.db.patch(existing._id, {
           accessToken: access_token,
+          refreshToken: refresh_token,
           isConnected: true,
           connectedAt: Date.now(),
           lastSyncAt: Date.now(),
@@ -175,6 +179,7 @@ export const handleOAuthCallback = mutation({
         await ctx.db.insert("social_platforms", {
           platform: "postiz",
           accessToken: access_token,
+          refreshToken: refresh_token,
           isConnected: true,
           connectedAt: Date.now(),
           lastSyncAt: Date.now(),
@@ -186,28 +191,37 @@ export const handleOAuthCallback = mutation({
         });
       }
 
-      // Also store the target social platform connection (will be populated when user connects via Postiz)
+      // Mark the target platform as connected
       const targetExisting = await ctx.db.query("social_platforms")
         .withIndex("by_platform", q => q.eq("platform", platform))
         .first();
 
-      if (!targetExisting) {
+      if (targetExisting) {
+        await ctx.db.patch(targetExisting._id, {
+          isConnected: true,
+          connectedAt: Date.now(),
+          lastSyncAt: Date.now(),
+          accessToken: access_token,
+          postingMode: "auto",
+        });
+      } else {
         await ctx.db.insert("social_platforms", {
           platform,
-          isConnected: false,
+          isConnected: true,
           connectedAt: Date.now(),
           lastSyncAt: Date.now(),
           postsCount: 0,
           followersCount: 0,
           username: undefined,
           platformUserId: undefined,
+          accessToken: access_token,
           postingMode: "auto",
         });
       }
 
       // Now fetch the user's connected social media integrations from Postiz
       try {
-        const integrationsResponse = await fetch(`${getPostizConfig().publicApiUrl}/integrations`, {
+        const integrationsResponse = await fetch(`https://api.postiz.com/public/v1/integrations`, {
           method: 'GET',
           headers: {
             'Authorization': access_token,
@@ -216,8 +230,10 @@ export const handleOAuthCallback = mutation({
 
         if (integrationsResponse.ok) {
           const integrations = await integrationsResponse.json();
+          const integrationList = Array.isArray(integrations) ? integrations : integrations.integrations || [];
+          
           // Update each social platform with integration data
-          for (const integration of integrations) {
+          for (const integration of integrationList) {
             const intPlatform = integration.identifier || integration.name?.toLowerCase();
             if (!intPlatform) continue;
 
@@ -233,8 +249,24 @@ export const handleOAuthCallback = mutation({
                 platformUserId: integration.id,
                 postingMode: "auto",
               });
+            } else {
+              // Create new platform record for discovered integration
+              await ctx.db.insert("social_platforms", {
+                platform: intPlatform,
+                isConnected: true,
+                connectedAt: Date.now(),
+                lastSyncAt: Date.now(),
+                postsCount: 0,
+                followersCount: 0,
+                username: integration.name || integration.username,
+                platformUserId: integration.id,
+                accessToken: access_token,
+                postingMode: "auto",
+              });
             }
           }
+          
+          console.log(`[POSTIZ] Synced ${integrationList.length} integrations`);
         }
       } catch (syncErr) {
         console.log(`[POSTIZ] Integration sync warning:`, syncErr);
@@ -270,12 +302,11 @@ export const getConnectedPlatforms = action({
 
       // Optional: Try to sync with Postiz API if a valid API key exists
       const postizApiKey = process.env.POSTIZ_API_KEY;
-      const postizApiUrl = process.env.POSTIZ_API_URL || "https://api.postiz.com";
       let apiPlatforms: any[] = [];
 
-      if (postizApiKey && postizApiKey.startsWith("pos_")) {
+      if (postizApiKey) {
         try {
-          const response = await fetch(`${postizApiUrl}/public/v1/integrations`, {
+          const response = await fetch(`https://api.postiz.com/public/v1/integrations`, {
             headers: {
               Authorization: postizApiKey,
               "Content-Type": "application/json",
