@@ -148,18 +148,48 @@ export const executeCharityPayout = internalAction({
     const bankCode = process.env.CHARITY_BANK_CODE;
     const accountNumber = process.env.CHARITY_ACCOUNT_NUMBER;
     const accountName = process.env.CHARITY_ACCOUNT_NAME;
+    const koraSecretKey = process.env.KORA_SECRET_KEY;
 
     if (!bankCode || !accountNumber || !accountName) {
       throw new Error("CHARITY_BANK_CODE, CHARITY_ACCOUNT_NUMBER, and CHARITY_ACCOUNT_NAME must be set in environment variables");
     }
+    if (!koraSecretKey) {
+      throw new Error("KORA_SECRET_KEY not configured for charity payout");
+    }
 
     const koraReference = `CHARITY_${Date.now()}`;
+
+    // Real Kora Pay API transfer
+    const response = await fetch("https://api.korapay.com/v1/transfers", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${koraSecretKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: args.amount,
+        currency: "NGN",
+        beneficiary: {
+          name: accountName,
+          account_number: accountNumber,
+          bank_code: bankCode,
+        },
+        reference: koraReference,
+        narration: "Monthly Tithe/Charity Transfer",
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Kora Pay charity transfer failed: ${error}`);
+    }
+
+    const data = await response.json();
     console.log(
-      `[KORA] Disbursing ₦${args.amount.toFixed(2)} to charity account via bank ${bankCode} — ref: ${koraReference}`,
+      `[KORA] ₦${args.amount.toFixed(2)} disbursed to charity — ref: ${koraReference}`,
     );
 
-    const result = { success: true, reference: koraReference };
-    return result;
+    return { success: true, reference: koraReference, koraResponse: data };
   },
 });
 

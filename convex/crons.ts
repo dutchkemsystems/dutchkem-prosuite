@@ -48,12 +48,27 @@ crons.cron(
   internal.tax.runDailyInterestAccrual,
   {}
 );
+// Annual CAC tax filing + year-end remittance to PalmPay
+crons.cron(
+  "annual tax filing",
+  "0 23 31 12 *",
+  internal.tax.runAnnualTaxFiling,
+  {}
+);
 
 // 🏛️ Freelancer Marketplace: Daily Platform-Fee Sweep (11 PM)
 crons.cron(
   "daily platform fee sweep",
   "0 23 * * *",
   internal.marketplace.runDailyPlatformSweep,
+  {}
+);
+
+// 💻 Monthly API Cost Deduction (1st of each month at 1 AM)
+crons.cron(
+  "monthly api cost deduction",
+  "0 1 1 * *",
+  internal.api_costs.deductMonthlyApiCosts,
   {}
 );
 
