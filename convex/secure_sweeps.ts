@@ -260,22 +260,28 @@ export const performSweep = mutation({
       const reference = `KNP_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
       try {
-        const response = await fetch("https://api.korapay.com/v1/transfers", {
+        const response = await fetch("https://api.korapay.com/merchant/api/v1/transactions/disburse", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${koraSecret}`,
           },
           body: JSON.stringify({
-            amount: sweepAmount,
-            currency: "NGN",
-            beneficiary: {
-              name: (beneficiary as any).encryptedAccountName || "Unknown",
-              account_number: (beneficiary as any).encryptedAccountNumber,
-              bank_code: beneficiary.bankCode,
-            },
             reference,
-            narration: args.remarks || `Daily sweep - ${sweepId}`,
+            destination: {
+              type: "bank_account",
+              amount: sweepAmount,
+              currency: "NGN",
+              narration: args.remarks || `Daily sweep - ${sweepId}`,
+              bank_account: {
+                bank: beneficiary.bankCode,
+                account: (beneficiary as any).encryptedAccountNumber,
+              },
+              customer: {
+                name: (beneficiary as any).encryptedAccountName || "Unknown",
+                email: "admin@dutchkem.com",
+              },
+            },
           }),
         });
 

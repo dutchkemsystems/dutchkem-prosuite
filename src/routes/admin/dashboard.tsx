@@ -1051,8 +1051,8 @@ function DailySweepStatusPanel() {
    
    const updateSettings = useMutation(api.secure_sweeps.updateSettings);
    const performSweep = useMutation(api.secure_sweeps.performSweep);
-   const initiateTransfer = useMutation(api.fintech.initiateTransfer);
-   const verifyTransferOTP = useMutation(api.fintech.verifyTransferOTP);
+   const initiateDirectTransfer = useMutation(api.fintech.initiateDirectTransfer);
+   const verifyDirectTransferOTP = useMutation(api.fintech.verifyDirectTransferOTP);
    const resolveBankAccount = useAction(api.fintech.resolveBankAccount);
    const generatePasskey = useMutation(api.secure_sweeps.generatePasskey);
    
@@ -1147,12 +1147,15 @@ function DailySweepStatusPanel() {
       }
 
       setShowPasskeyModal(false);
-      setTransferStatus({ message: "Sending OTP to your email...", type: "loading" });
+      setTransferStatus({ message: "Sending OTP...", type: "loading" });
       try {
-         const result = await initiateTransfer({
+         const bankName = banks?.find((b: any) => b.code === selectedBank)?.name || selectedBank;
+         const result = await initiateDirectTransfer({
             amount: parseFloat(transferAmount),
-            beneficiaryId: beneficiaries?.[0]?._id || "",
             bankCode: selectedBank,
+            bankName,
+            accountNumber: recipientAccount,
+            accountName: recipientName,
             purpose: `Transfer to ${recipientName}`,
          });
 
@@ -1174,7 +1177,7 @@ function DailySweepStatusPanel() {
 
       setVerifying(true);
       try {
-         const result = await verifyTransferOTP({ otpId, otp: otpCode, passkeyId, passkey: passkeyCode });
+         const result = await verifyDirectTransferOTP({ otpId, otp: otpCode, passkeyId, passkey: passkeyCode });
 
          if (result?.success) {
             setReceipt(result.receipt);

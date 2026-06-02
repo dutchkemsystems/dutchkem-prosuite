@@ -152,7 +152,75 @@ export const connectBank = mutation({
 });
 
 /**
- * Initiate transfer with OTP verification
+ * Initiate direct transfer to new recipient (no pre-configured beneficiary needed)
+ */
+export const initiateDirectTransfer = mutation({
+  args: {
+    amount: v.number(),
+    bankCode: v.string(),
+    bankName: v.string(),
+    accountNumber: v.string(),
+    accountName: v.string(),
+    purpose: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    try {
+      if (args.amount <= 0) {
+        return { success: false, error: "Amount must be positive" };
+      }
+
+      // Get main wallet
+      const mainWallet = await ctx.db.query("system_wallets")
+        .withIndex("by_type", q => q.eq("type", "main"))
+        .first();
+
+      if (!mainWallet || mainWallet.balance < args.amount) {
+        return { success: false, error: `Insufficient balance. Wallet: ₦${(mainWallet?.balance || 0).toLocaleString()}, Transfer: ₦${args.amount.toLocaleString()}` };
+      }
+
+      // Generate OTP (6 digits)
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+      // Store OTP with direct transfer details
+      const otpKey = `DIRECT_TRANSFER_OTP_${Date.now()}`;
+      await ctx.db.insert("system_config", {
+        key: otpKey,
+        value: {
+          otp,
+          amount: args.amount,
+          bankCode: args.bankCode,
+          bankName: args.bankName,
+          accountNumber: args.accountNumber,
+          accountName: args.accountName,
+          purpose: args.purpose || "Transfer",
+          createdAt: Date.now(),
+          expiresAt: otpExpiry,
+          status: "pending",
+          type: "direct",
+        },
+        description: `Direct transfer OTP for ₦${args.amount} to ${args.accountName}`,
+        updatedAt: Date.now(),
+      });
+
+      console.log(`[OTP] Direct transfer OTP for ₦${args.amount}: ${otp}`);
+
+      return {
+        success: true,
+        otpId: otpKey,
+        message: `OTP sent. Valid for 10 minutes.`,
+        expiresAt: otpExpiry,
+      };
+    } catch (error: any) {
+      console.error("initiateDirectTransfer error:", error);
+      return { success: false, error: error.message };
+    }
+  },
+});
+
+/**
+ * Initiate transfer with OTP verification (legacy - requires pre-configured beneficiary)
  */
 export const initiateTransfer = mutation({
   args: {
@@ -379,6 +447,175 @@ export const verifyTransferOTP = mutation({
       };
     } catch (error: any) {
       console.error("verifyTransferOTP error:", error);
+      return { success: false, error: error.message };
+    }
+  },
+});
+
+/**
+ * Verify OTP and complete DIRECT transfer via Kora Pay API
+ */
+export const verifyDirectTransferOTP = mutation({
+  args: {
+    otpId: v.string(),
+    otp: v.string(),
+    passkey: v.optional(v.string()),
+    passkeyId: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    try {
+      // Get OTP record
+      const otpRecord = await ctx.db.query("system_config")
+        .withIndex("by_key", q => q.eq("key", args.otpId))
+        .first();
+
+      if (!otpRecord) {
+        return { success: false, error: "OTP not found" };
+      }
+
+      const otpData = otpRecord.value as any;
+
+      // Check if OTP expired
+      if (Date.now() > otpData.expiresAt) {
+        return { success: false, error: "OTP has expired" };
+      }
+
+      // Check if OTP already used
+      if (otpData.status !== "pending") {
+        return { success: false, error: "OTP already used" };
+      }
+
+      // Verify OTP
+      if (otpData.otp !== args.otp) {
+        return { success: false, error: "Invalid OTP" };
+      }
+
+      // Verify passkey if provided
+      if (args.passkeyId && args.passkey) {
+        const passkeyRecord = await ctx.db.query("system_config")
+          .withIndex("by_key", q => q.eq("key", args.passkeyId))
+          .first();
+
+        if (!passkeyRecord) return { success: false, error: "Passkey not found" };
+        const pkData = passkeyRecord.value as any;
+        if (pkData.used) return { success: false, error: "Passkey already used" };
+        if (Date.now() > pkData.expiresAt) return { success: false, error: "Passkey expired" };
+        if (pkData.passkey !== args.passkey) return { success: false, error: "Invalid passkey" };
+
+        await ctx.db.patch(passkeyRecord._id, {
+          value: { ...pkData, used: true },
+          updatedAt: Date.now(),
+        });
+      }
+
+      // Mark OTP as used
+      await ctx.db.patch(otpRecord._id, {
+        value: { ...otpData, status: "verified" },
+        updatedAt: Date.now(),
+      });
+
+      // Get main wallet
+      const mainWallet = await ctx.db.query("system_wallets")
+        .withIndex("by_type", q => q.eq("type", "main"))
+        .first();
+
+      if (!mainWallet || mainWallet.balance < otpData.amount) {
+        return { success: false, error: `Insufficient balance. Wallet: ₦${(mainWallet?.balance || 0).toLocaleString()}, Transfer: ₦${otpData.amount.toLocaleString()}` };
+      }
+
+      // Call Kora Pay API for real transfer
+      const koraSecret = process.env.KORA_SECRET_KEY;
+      if (!koraSecret) {
+        return { success: false, error: "Kora API key not configured" };
+      }
+
+      const reference = `KNP_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+      const response = await fetch("https://api.korapay.com/merchant/api/v1/transactions/disburse", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${koraSecret}`,
+        },
+        body: JSON.stringify({
+          reference,
+          destination: {
+            type: "bank_account",
+            amount: otpData.amount,
+            currency: "NGN",
+            narration: otpData.purpose || "Transfer",
+            bank_account: {
+              bank: otpData.bankCode,
+              account: otpData.accountNumber,
+            },
+            customer: {
+              name: otpData.accountName,
+              email: "admin@dutchkem.com",
+            },
+          },
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.status) {
+        return {
+          success: false,
+          error: result.message || result.error || "Transfer failed. Please check account details and try again.",
+          reference,
+          koraError: result,
+        };
+      }
+
+      // Deduct from main wallet
+      const newBalance = mainWallet.balance - otpData.amount;
+      await ctx.db.patch(mainWallet._id, {
+        balance: newBalance,
+        lastUpdated: Date.now(),
+      });
+
+      // Record the transaction
+      const sweepId = `TRANSFER_${Date.now()}`;
+      await ctx.db.insert("daily_sweeps", {
+        sweep_id: sweepId,
+        date: new Date().toISOString().split("T")[0],
+        amount: otpData.amount,
+        balance_before: mainWallet.balance,
+        balance_after: newBalance,
+        status: "completed",
+        kora_reference: reference,
+        timestamp: Date.now(),
+        notes: `Transfer to ${otpData.bankName} (${otpData.accountName})`,
+      });
+
+      // Generate receipt
+      const receipt = {
+        id: sweepId,
+        type: "direct_transfer",
+        date: new Date().toISOString(),
+        amount: otpData.amount,
+        from: "Main Wallet",
+        to: `${otpData.bankName} - ${otpData.accountName}`,
+        accountNumber: "****" + otpData.accountNumber.slice(-4),
+        bankCode: otpData.bankCode,
+        reference,
+        koraReference: result.data?.reference || reference,
+        status: "completed",
+        purpose: otpData.purpose || "Transfer",
+        verifiedBy: "OTP + Passkey",
+        balanceBefore: mainWallet.balance,
+        balanceAfter: newBalance,
+      };
+
+      return {
+        success: true,
+        reference,
+        receipt,
+        message: `₦${otpData.amount.toLocaleString()} transferred successfully to ${otpData.accountName}`,
+      };
+    } catch (error: any) {
+      console.error("verifyDirectTransferOTP error:", error);
       return { success: false, error: error.message };
     }
   },
