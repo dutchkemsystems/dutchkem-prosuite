@@ -253,8 +253,7 @@ export const handleOAuthCallback = mutation({
 });
 
 /**
- * Get all connected platforms - ACTION that calls Postiz API
- * Replaces the broken query that couldn't use fetch
+ * Get all connected platforms - reads from database + optionally syncs with Postiz API
  */
 export const getConnectedPlatforms = action({
   args: {},
@@ -266,46 +265,67 @@ export const getConnectedPlatforms = action({
         throw new Error("Not authenticated");
       }
 
+      // Primary: Read connection status from database (where OAuth stores tokens)
+      const dbPlatforms = await ctx.runQuery(internal.social.getPlatformsFromDb);
+
+      // Optional: Try to sync with Postiz API if a valid API key exists
       const postizApiKey = process.env.POSTIZ_API_KEY;
       const postizApiUrl = process.env.POSTIZ_API_URL || "https://api.postiz.com";
+      let apiPlatforms: any[] = [];
 
-      if (!postizApiKey) {
-        console.warn("[POSTIZ] No API key configured, returning available platforms only");
+      if (postizApiKey && postizApiKey.startsWith("pos_")) {
+        try {
+          const response = await fetch(`${postizApiUrl}/public/v1/integrations`, {
+            headers: {
+              Authorization: postizApiKey,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            apiPlatforms = Array.isArray(data) ? data : data.integrations || [];
+          }
+        } catch (apiErr) {
+          console.warn("[POSTIZ] API sync failed, using DB only:", apiErr);
+        }
+      }
+
+      // Merge: DB records are source of truth, API data supplements
+      const merged = dbPlatforms.map((dbP: any) => {
+        const apiP = apiPlatforms.find((a: any) => a.identifier === dbP.id || a.name?.toLowerCase() === dbP.id);
+        return {
+          ...dbP,
+          apiConnected: !!apiP,
+          apiUsername: apiP?.name || apiP?.username,
+        };
+      });
+
+      return {
+        platforms: merged,
+        availablePlatforms: getAllAvailablePlatforms(),
+        isConnected: true,
+        apiSynced: apiPlatforms.length > 0,
+      };
+    } catch (error: any) {
+      console.error("getConnectedPlatforms action error:", error);
+      // Fallback: read from database directly
+      try {
+        const dbPlatforms = await ctx.runQuery(internal.social.getPlatformsFromDb);
+        return {
+          platforms: dbPlatforms,
+          availablePlatforms: getAllAvailablePlatforms(),
+          isConnected: true,
+          apiSynced: false,
+        };
+      } catch {
         return {
           platforms: [],
           availablePlatforms: getAllAvailablePlatforms(),
           isConnected: false,
-          error: "Postiz API key not configured",
+          error: error.message,
         };
       }
-
-      // Use the public API endpoint
-      const response = await fetch(`${postizApiUrl}/public/v1/integrations`, {
-        headers: {
-          Authorization: postizApiKey,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Postiz API error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      return {
-        platforms: Array.isArray(data) ? data : data.integrations || [],
-        availablePlatforms: getAllAvailablePlatforms(),
-        isConnected: true,
-      };
-    } catch (error: any) {
-      console.error("getConnectedPlatforms action error:", error);
-      return {
-        platforms: [],
-        availablePlatforms: getAllAvailablePlatforms(),
-        isConnected: false,
-        error: error.message,
-      };
     }
   },
 });
