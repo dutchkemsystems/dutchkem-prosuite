@@ -1224,4 +1224,60 @@ export default defineSchema({
   })
     .index("by_influencer", ["influencerId"])
     .index("by_status", ["status"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // PHASE 5: CLIENT ANALYTICS, CHATBOT LEADS, TESTIMONIALS
+  // ═══════════════════════════════════════════════════════════════════
+
+  analytics_events: defineTable({
+    userId: v.id("users"),
+    event: v.string(),
+    properties: v.optional(v.any()),
+    page: v.optional(v.string()),
+    duration: v.optional(v.number()),
+    referrer: v.optional(v.string()),
+    device: v.optional(v.string()),
+    browser: v.optional(v.string()),
+    os: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_event", ["event"])
+    .index("by_page", ["page"]),
+
+  chatbot_conversations: defineTable({
+    visitorId: v.string(),
+    status: v.union(v.literal("active"), v.literal("ended")),
+    state: v.string(),
+    messages: v.array(v.any()),
+    page: v.optional(v.string()),
+    referrer: v.optional(v.string()),
+    leadData: v.optional(v.any()),
+    createdAt: v.number(),
+    endedAt: v.optional(v.number()),
+  })
+    .index("by_visitor", ["visitorId"])
+    .index("by_status", ["status"]),
+
+  testimonials: defineTable({
+    userId: v.id("users"),
+    userName: v.string(),
+    userAvatar: v.optional(v.string()),
+    service: v.string(),
+    rating: v.number(),
+    title: v.string(),
+    content: v.string(),
+    result: v.optional(v.string()),
+    industry: v.optional(v.string()),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
+    featured: v.boolean(),
+    verified: v.boolean(),
+    helpful: v.number(),
+    createdAt: v.number(),
+    approvedAt: v.optional(v.number()),
+  })
+    .index("by_status", ["status"])
+    .index("by_service", ["service"])
+    .index("by_featured", ["featured"])
+    .index("by_rating", ["rating"]),
 });
