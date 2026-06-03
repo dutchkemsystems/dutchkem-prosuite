@@ -456,7 +456,8 @@ export default defineSchema({
     scheduledFor: v.number(),
     postedAt: v.optional(v.number()),
     error: v.optional(v.string()),
-    externalId: v.optional(v.string()), // ID from Postiz/etc.
+    externalId: v.optional(v.string()),
+    anonymous: v.optional(v.boolean()),
   }).index("by_status", ["status"])
     .index("by_scheduled", ["scheduledFor"])
     .index("by_status_and_scheduled", ["status", "scheduledFor"]),
@@ -478,7 +479,6 @@ export default defineSchema({
     scheduleTime: v.optional(v.string()),
     postingFrequency: v.optional(v.string()),
     platformUserId: v.optional(v.string()),
-    postizIntegrationId: v.optional(v.string()),
   }).index("by_platform", ["platform"])
     .index("by_connected", ["isConnected"])
     .index("by_user_id", ["userId"])
@@ -870,91 +870,6 @@ export default defineSchema({
     .index("by_timestamp", ["timestamp"]),
 
   // ═══════════════════════════════════════════════════════════════════
-  // POSTIZ AD ENGINE - Completely separate from Synthetic Intelligence
-  // ═══════════════════════════════════════════════════════════════════
-  postiz_campaigns: defineTable({
-    name: v.string(),
-    description: v.optional(v.string()),
-    platform: v.string(), // "x", "linkedin", "instagram", "facebook", "tiktok"
-    status: v.union(
-      v.literal("draft"),
-      v.literal("active"),
-      v.literal("paused"),
-      v.literal("completed"),
-      v.literal("archived")
-    ),
-    budget: v.optional(v.number()),
-    dailyBudget: v.optional(v.number()),
-    spent: v.optional(v.number()),
-    startDate: v.number(),
-    endDate: v.optional(v.number()),
-    targetAudience: v.optional(v.any()),
-    goals: v.optional(v.string()),
-    createdBy: v.id("users"),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  }).index("by_status", ["status", "createdAt"])
-    .index("by_platform", ["platform", "status"])
-    .index("by_created", ["createdBy", "createdAt"]),
-
-  postiz_ads: defineTable({
-    campaignId: v.id("postiz_campaigns"),
-    name: v.string(),
-    content: v.string(),
-    imageUrl: v.optional(v.string()),
-    flyerUrl: v.optional(v.string()),
-    ctaText: v.optional(v.string()),
-    ctaUrl: v.optional(v.string()),
-    status: v.union(
-      v.literal("draft"),
-      v.literal("active"),
-      v.literal("paused"),
-      v.literal("completed")
-    ),
-    impressions: v.optional(v.number()),
-    clicks: v.optional(v.number()),
-    conversions: v.optional(v.number()),
-    ctr: v.optional(v.number()),
-    cpc: v.optional(v.number()),
-    spend: v.optional(v.number()),
-    scheduledFor: v.optional(v.number()),
-    postedAt: v.optional(v.number()),
-    externalId: v.optional(v.string()),
-    agentId: v.string(), // Which of the 15 agents created this
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  }).index("by_campaign", ["campaignId", "status"])
-    .index("by_status", ["status", "scheduledFor"])
-    .index("by_agent", ["agentId", "createdAt"]),
-
-  postiz_ad_connections: defineTable({
-    adId: v.id("postiz_ads"),
-    platform: v.string(),
-    accessToken: v.optional(v.string()),
-    isConnected: v.boolean(),
-    connectedAt: v.optional(v.number()),
-    platformUserId: v.optional(v.string()),
-    username: v.optional(v.string()),
-    postingMode: v.union(v.literal("auto"), v.literal("manual"), v.literal("paused")),
-    lastPostAt: v.optional(v.number()),
-    totalPosts: v.number(),
-  }).index("by_ad", ["adId"])
-    .index("by_platform", ["platform", "isConnected"]),
-
-  // ═══════════════════════════════════════════════════════════════════
-  // POSTIZ AD ENGINE - Flyer Generation
-  // ═══════════════════════════════════════════════════════════════════
-  postiz_flyers: defineTable({
-    adId: v.id("postiz_ads"),
-    prompt: v.string(),
-    imageUrl: v.string(),
-    status: v.union(v.literal("generating"), v.literal("ready"), v.literal("failed")),
-    error: v.optional(v.string()),
-    createdAt: v.number(),
-  }).index("by_ad", ["adId"])
-    .index("by_status", ["status", "createdAt"]),
-
-  // ═══════════════════════════════════════════════════════════════════
   // OAUTH STATES - Temp storage for OAuth flow
   // ═══════════════════════════════════════════════════════════════════
   oauth_states: defineTable({
@@ -964,6 +879,7 @@ export default defineSchema({
     adminId: v.string(),
     expiresAt: v.number(),
     createdAt: v.number(),
+    codeVerifier: v.optional(v.string()),
   }).index("by_state", ["state"]),
 
   // ═══════════════════════════════════════════════════════════════════
@@ -982,7 +898,62 @@ export default defineSchema({
     autoPostEnabled: v.boolean(),
     connectedAt: v.number(),
     updatedAt: v.number(),
+    expiresAt: v.optional(v.number()),
+    scopes: v.optional(v.string()),
+    anonymousByDefault: v.optional(v.boolean()),
   })
     .index("by_admin", ["adminId"])
     .index("by_admin_platform", ["adminId", "platformId"]),
+
+  referral_codes: defineTable({
+    code: v.string(),
+    userId: v.string(),
+    totalRefs: v.number(),
+    totalEarnings: v.number(),
+    createdAt: v.number(),
+  }).index("by_code", ["code"]).index("by_user", ["userId"]),
+
+  referral_conversions: defineTable({
+    referrerId: v.string(),
+    referredUserId: v.string(),
+    amount: v.number(),
+    commission: v.number(),
+    status: v.union(v.literal("pending"), v.literal("earned"), v.literal("paid")),
+    createdAt: v.number(),
+  }).index("by_referrer", ["referrerId"]).index("by_status", ["status"]),
+
+  referral_payouts: defineTable({
+    userId: v.string(),
+    amount: v.number(),
+    status: v.union(v.literal("pending"), v.literal("processed"), v.literal("failed")),
+    period: v.string(),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"]).index("by_status", ["status"]),
+
+  social_activities: defineTable({
+    type: v.string(),
+    userId: v.string(),
+    userName: v.string(),
+    agentName: v.string(),
+    amount: v.optional(v.number()),
+    metadata: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_created", ["createdAt"]).index("by_user", ["userId", "agentName"]),
+
+  active_viewers: defineTable({
+    agentId: v.string(),
+    userId: v.string(),
+    sessionId: v.string(),
+    lastSeen: v.number(),
+  }).index("by_agent", ["agentId", "lastSeen"]).index("by_session", ["sessionId"]),
+
+  agent_reviews: defineTable({
+    agentId: v.string(),
+    userId: v.string(),
+    userName: v.string(),
+    rating: v.number(),
+    comment: v.string(),
+    verified: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_agent", ["agentId", "createdAt"]),
 });

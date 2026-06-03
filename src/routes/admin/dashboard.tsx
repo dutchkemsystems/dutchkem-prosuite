@@ -657,7 +657,7 @@ function SocialEnginePanel() {
             <div>
               <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Automated Social Engine</h2>
               <p className="text-sm font-black text-orange-500 uppercase tracking-widest mt-1">
-                Direct OAuth + AI Auto-Posting via Postiz
+                Direct OAuth + API Integration — No Third-Party
               </p>
             </div>
             <div className="flex gap-3 flex-wrap">
@@ -676,11 +676,11 @@ function SocialEnginePanel() {
                 ⛓️‍💥 Disconnect All
               </button>
               <button
-                onClick={handleRotate}
-                disabled={rotating}
+                onClick={() => fetchPlatforms()}
+                disabled={platformsLoading}
                 className="px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-orange-600/20 disabled:opacity-50"
               >
-                {rotating ? "Generating..." : "Force Agent Rotation"}
+                {platformsLoading ? "Refreshing..." : "Refresh Platforms"}
               </button>
             </div>
           </div>

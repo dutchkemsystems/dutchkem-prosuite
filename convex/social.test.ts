@@ -28,8 +28,8 @@ test("getOAuthStatus returns all 12 platforms", async () => {
   expect(ids).toContain("discord");
   expect(ids).toContain("bluesky");
   for (const p of status) {
-    expect(p).toHaveProperty("hasCredentials");
-    expect(typeof p.hasCredentials).toBe("boolean");
+    expect(p).toHaveProperty("hasOAuth");
+    expect(typeof p.hasOAuth).toBe("boolean");
   }
 });
 
@@ -58,12 +58,11 @@ test("getPlatformAnalytics returns correct shape", async () => {
 // 2. ACTIONS (need auth or external API)
 // ═══════════════════════════════════════════════════════════════════
 
-test("getConnectedPlatforms returns all platforms when none connected", async () => {
+test("getConnectedPlatforms returns platforms and available platforms", async () => {
   const t = convexTest(schema, modules);
   const result = await t.action(api.social.getConnectedPlatforms, {});
   expect(result).toHaveProperty("platforms");
   expect(result).toHaveProperty("availablePlatforms");
-  expect(result.isConnected).toBe(true);
   expect(result.availablePlatforms).toHaveLength(12);
 });
 
@@ -71,7 +70,7 @@ test("generateOAuthUrl throws when not authenticated", async () => {
   const t = convexTest(schema, modules);
   await expect(
     t.action(api.social.generateOAuthUrl, {
-      platform: "unsupported_platform",
+      platform: "x",
     })
   ).rejects.toThrow("Not authenticated");
 });
@@ -87,11 +86,11 @@ test("handleOAuthCallback rejects invalid state", async () => {
   expect(result.error).toContain("Invalid or expired OAuth state");
 });
 
-test("manualPost fails for non-connected platform", async () => {
+test("postToPlatform fails for non-connected platform", async () => {
   const t = convexTest(schema, modules);
   await expect(
-    t.action(api.social.manualPost, {
-      platformId: "nonexistent",
+    t.action(api.social.postToPlatform, {
+      platform: "nonexistent",
       content: "Test post",
     })
   ).rejects.toThrow("Platform not connected");
@@ -111,8 +110,18 @@ test("updatePostingSettings fails for non-connected platform", async () => {
   ).rejects.toThrow("Platform not connected");
 });
 
+test("disconnectPlatform works without auth in test env", async () => {
+  const t = convexTest(schema, modules);
+  // disconnectPlatform requires auth; in test env without auth this throws
+  await expect(
+    t.mutation(api.social.disconnectPlatform, {
+      platformId: "x",
+    })
+  ).rejects.toThrow("Not authenticated");
+});
+
 // ═══════════════════════════════════════════════════════════════════
-// 4. INTERNAL FUNCTIONS (called via runQuery/runMutation in actions)
+// 4. INTERNAL FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════
 
 test("getPlatformsFromDb returns all 12 platforms as disconnected", async () => {
@@ -131,7 +140,6 @@ test("getPlatformsFromDb returns all 12 platforms as disconnected", async () => 
 
 test("oauth_states table can be queried", async () => {
   const t = convexTest(schema, modules);
-  // Just verify the table exists and is queryable
   const status = await t.query(api.social.getOAuthStatus);
   expect(status).toBeDefined();
 });

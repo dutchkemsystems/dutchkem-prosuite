@@ -70,20 +70,6 @@ services:
       - key: NEW_AUTH_ENABLED
         value: "true"
 
-      # 📱 Social Media (Postiz)
-      - key: POSTIZ_CLIENT_ID
-        sync: false
-      - key: POSTIZ_CLIENT_SECRET
-        sync: false
-      - key: POSTIZ_API_BASE
-        value: https://api.postiz.com/v1
-      - key: POSTIZ_API_KEY
-        sync: false
-      - key: POSTIZ_API_URL
-        value: https://api.postiz.com
-      - key: POSTIZ_WEBHOOK_SECRET
-        sync: false
-
       # 🔗 Social Platform OAuth
       - key: TWITTER_CLIENT_ID
         sync: false
