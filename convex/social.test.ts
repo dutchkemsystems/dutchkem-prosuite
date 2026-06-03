@@ -66,13 +66,13 @@ test("getConnectedPlatforms returns platforms and available platforms", async ()
   expect(result.availablePlatforms).toHaveLength(12);
 });
 
-test("generateOAuthUrl throws when not authenticated", async () => {
+test("generateOAuthUrl returns error when not authenticated", async () => {
   const t = convexTest(schema, modules);
-  await expect(
-    t.action(api.social.generateOAuthUrl, {
-      platform: "x",
-    })
-  ).rejects.toThrow("Not authenticated");
+  const result: any = await t.action(api.social.generateOAuthUrl, {
+    platform: "x",
+  });
+  expect(result.success).toBe(false);
+  expect(result.error).toBe("Not authenticated");
 });
 
 test("handleOAuthCallback rejects invalid state", async () => {
@@ -110,9 +110,8 @@ test("updatePostingSettings fails for non-connected platform", async () => {
   ).rejects.toThrow("Platform not connected");
 });
 
-test("disconnectPlatform works without auth in test env", async () => {
+test("disconnectPlatform returns error when not authenticated", async () => {
   const t = convexTest(schema, modules);
-  // disconnectPlatform requires auth; in test env without auth this throws
   await expect(
     t.mutation(api.social.disconnectPlatform, {
       platformId: "x",
@@ -149,4 +148,101 @@ test("platform_connections table can be queried", async () => {
   const platforms = await t.query(api.social.getPlatformsFromDb);
   expect(platforms).toBeDefined();
   expect(Array.isArray(platforms)).toBe(true);
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 6. OAUTH PROVIDER STATUS (Composio + Direct)
+// ═══════════════════════════════════════════════════════════════════
+
+test("getOAuthProviderStatus returns direct always enabled", async () => {
+  const t = convexTest(schema, modules);
+  const status: any = await t.query(api.social.getOAuthProviderStatus);
+  expect(status).toHaveProperty("directEnabled", true);
+  expect(status).toHaveProperty("composioEnabled");
+  expect(status).toHaveProperty("composioPlatforms");
+  expect(Array.isArray(status.composioPlatforms)).toBe(true);
+  expect(status.composioPlatforms).toContain("x");
+  expect(status.composioPlatforms).toContain("linkedin");
+  expect(status.composioPlatforms).toContain("bluesky");
+  expect(status.composioPlatforms).not.toContain("telegram");
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 7. COMPOSIO OAUTH (returns error when API key not set)
+// ═══════════════════════════════════════════════════════════════════
+
+test("startComposioOAuth returns error when not authenticated", async () => {
+  const t = convexTest(schema, modules);
+  const result: any = await t.action(api.social.startComposioOAuth, { platform: "x" });
+  expect(result.success).toBe(false);
+  expect(result.error).toBe("Not authenticated");
+});
+
+test("startComposioOAuth rejects unsupported platform", async () => {
+  const t = convexTest(schema, modules);
+  const result: any = await t.action(api.social.startComposioOAuth, { platform: "nonexistent" });
+  expect(result.success).toBe(false);
+  expect(result.error).toBeTruthy();
+  expect(result.error).toMatch(/Not authenticated|Unsupported platform/);
+});
+
+test("startComposioOAuth rejects telegram (not Composio-supported)", async () => {
+  const t = convexTest(schema, modules);
+  // Without auth, will return "Not authenticated" first
+  // With auth but no COMPOSIO_API_KEY, will return that error
+  const result: any = await t.action(api.social.startComposioOAuth, { platform: "telegram" });
+  expect(result.success).toBe(false);
+  expect(result.error).toBeTruthy();
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 8. TELEGRAM BOT TOKEN CONNECTION
+// ═══════════════════════════════════════════════════════════════════
+
+test("connectTelegramBot returns error when not authenticated", async () => {
+  const t = convexTest(schema, modules);
+  const result: any = await t.action(api.social.connectTelegramBot, { botToken: "123:test" });
+  expect(result.success).toBe(false);
+  expect(result.error).toBe("Not authenticated");
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 9. BLUESKY AT PROTOCOL CONNECTION
+// ═══════════════════════════════════════════════════════════════════
+
+test("connectBluesky returns error when not authenticated", async () => {
+  const t = convexTest(schema, modules);
+  const result: any = await t.action(api.social.connectBluesky, { identifier: "alice.bsky.social", appPassword: "test-pass" });
+  expect(result.success).toBe(false);
+  expect(result.error).toBe("Not authenticated");
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 10. UUID AND CODE CHALLENGE HELPERS (no runtime errors)
+// ═══════════════════════════════════════════════════════════════════
+
+test("generateOAuthUrl returns error for invalid platform", async () => {
+  const t = convexTest(schema, modules);
+  const result: any = await t.action(api.social.generateOAuthUrl, { platform: "fakep" });
+  expect(result.success).toBe(false);
+  // In test env without auth, returns "Not authenticated" first;
+  // with auth would return "Unsupported platform"
+  expect(result.error).toBeTruthy();
+  expect(result.error).toMatch(/Not authenticated|Unsupported platform/);
+});
+
+test("generateOAuthUrl returns error for telegram (use bot token)", async () => {
+  const t = convexTest(schema, modules);
+  const result: any = await t.action(api.social.generateOAuthUrl, { platform: "telegram" });
+  expect(result.success).toBe(false);
+  expect(result.error).toBeTruthy();
+  expect(result.error).toMatch(/Not authenticated|bot token/);
+});
+
+test("generateOAuthUrl returns error for bluesky (use AT Protocol)", async () => {
+  const t = convexTest(schema, modules);
+  const result: any = await t.action(api.social.generateOAuthUrl, { platform: "bluesky" });
+  expect(result.success).toBe(false);
+  expect(result.error).toBeTruthy();
+  expect(result.error).toMatch(/Not authenticated|AT Protocol/);
 });

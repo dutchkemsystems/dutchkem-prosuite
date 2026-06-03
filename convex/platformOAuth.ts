@@ -1,7 +1,10 @@
 /**
  * Platform OAuth 2.0 Configuration
- * Each platform has its own OAuth endpoints and credentials
+ * Each platform has its own OAuth endpoints and credentials.
+ * Supports two providers: "direct" (platform's own OAuth) and "composio" (Composio unified OAuth).
  */
+
+export type OAuthProvider = "direct" | "composio";
 
 export interface PlatformOAuthConfig {
   id: string;
@@ -15,6 +18,10 @@ export interface PlatformOAuthConfig {
   clientSecretEnvKey: string;
   // Platform-specific User-Agent for token exchange
   userAgent?: string;
+  // Whether Composio is a valid alternative provider for this platform
+  composioSupported: boolean;
+  // The Composio app slug (e.g. "twitter", "linkedin")
+  composioApp?: string;
 }
 
 export const PLATFORM_OAUTH_CONFIGS: Record<string, PlatformOAuthConfig> = {
@@ -28,6 +35,8 @@ export const PLATFORM_OAUTH_CONFIGS: Record<string, PlatformOAuthConfig> = {
     scope: "tweet.read tweet.write users.read offline.access",
     clientIdEnvKey: "TWITTER_CLIENT_ID",
     clientSecretEnvKey: "TWITTER_CLIENT_SECRET",
+    composioSupported: true,
+    composioApp: "twitter",
   },
   linkedin: {
     id: "linkedin",
@@ -39,6 +48,8 @@ export const PLATFORM_OAUTH_CONFIGS: Record<string, PlatformOAuthConfig> = {
     scope: "w_member_social r_liteprofile r_emailaddress",
     clientIdEnvKey: "LINKEDIN_CLIENT_ID",
     clientSecretEnvKey: "LINKEDIN_CLIENT_SECRET",
+    composioSupported: true,
+    composioApp: "linkedin",
   },
   facebook: {
     id: "facebook",
@@ -50,6 +61,8 @@ export const PLATFORM_OAUTH_CONFIGS: Record<string, PlatformOAuthConfig> = {
     scope: "pages_manage_posts pages_read_engagement pages_show_list public_profile email",
     clientIdEnvKey: "FACEBOOK_APP_ID",
     clientSecretEnvKey: "FACEBOOK_APP_SECRET",
+    composioSupported: true,
+    composioApp: "facebook",
   },
   instagram: {
     id: "instagram",
@@ -61,6 +74,8 @@ export const PLATFORM_OAUTH_CONFIGS: Record<string, PlatformOAuthConfig> = {
     scope: "pages_manage_posts pages_read_engagement instagram_basic instagram_content_publish",
     clientIdEnvKey: "INSTAGRAM_CLIENT_ID",
     clientSecretEnvKey: "INSTAGRAM_CLIENT_SECRET",
+    composioSupported: true,
+    composioApp: "instagram",
   },
   tiktok: {
     id: "tiktok",
@@ -72,6 +87,8 @@ export const PLATFORM_OAUTH_CONFIGS: Record<string, PlatformOAuthConfig> = {
     scope: "user.info.basic video.publish",
     clientIdEnvKey: "TIKTOK_CLIENT_KEY",
     clientSecretEnvKey: "TIKTOK_CLIENT_SECRET",
+    composioSupported: true,
+    composioApp: "tiktok",
   },
   youtube: {
     id: "youtube",
@@ -83,6 +100,8 @@ export const PLATFORM_OAUTH_CONFIGS: Record<string, PlatformOAuthConfig> = {
     scope: "https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube https://www.googleapis.com/auth/userinfo.profile",
     clientIdEnvKey: "YOUTUBE_CLIENT_ID",
     clientSecretEnvKey: "YOUTUBE_CLIENT_SECRET",
+    composioSupported: true,
+    composioApp: "youtube",
   },
   pinterest: {
     id: "pinterest",
@@ -94,6 +113,8 @@ export const PLATFORM_OAUTH_CONFIGS: Record<string, PlatformOAuthConfig> = {
     scope: "boards:read pins:read pins:write user_accounts:read",
     clientIdEnvKey: "PINTEREST_CLIENT_ID",
     clientSecretEnvKey: "PINTEREST_CLIENT_SECRET",
+    composioSupported: true,
+    composioApp: "pinterest",
   },
   reddit: {
     id: "reddit",
@@ -105,6 +126,8 @@ export const PLATFORM_OAUTH_CONFIGS: Record<string, PlatformOAuthConfig> = {
     scope: "identity submit read",
     clientIdEnvKey: "REDDIT_CLIENT_ID",
     clientSecretEnvKey: "REDDIT_CLIENT_SECRET",
+    composioSupported: true,
+    composioApp: "reddit",
   },
   threads: {
     id: "threads",
@@ -116,6 +139,8 @@ export const PLATFORM_OAUTH_CONFIGS: Record<string, PlatformOAuthConfig> = {
     scope: "threads_basic threads_content_publish",
     clientIdEnvKey: "THREADS_CLIENT_ID",
     clientSecretEnvKey: "THREADS_CLIENT_SECRET",
+    composioSupported: true,
+    composioApp: "threads",
   },
   telegram: {
     id: "telegram",
@@ -127,6 +152,7 @@ export const PLATFORM_OAUTH_CONFIGS: Record<string, PlatformOAuthConfig> = {
     scope: "",
     clientIdEnvKey: "TELEGRAM_BOT_TOKEN",
     clientSecretEnvKey: "TELEGRAM_BOT_USERNAME",
+    composioSupported: false,
   },
   discord: {
     id: "discord",
@@ -138,6 +164,8 @@ export const PLATFORM_OAUTH_CONFIGS: Record<string, PlatformOAuthConfig> = {
     scope: "identify email bot",
     clientIdEnvKey: "DISCORD_CLIENT_ID",
     clientSecretEnvKey: "DISCORD_CLIENT_SECRET",
+    composioSupported: true,
+    composioApp: "discord",
   },
   bluesky: {
     id: "bluesky",
@@ -149,6 +177,8 @@ export const PLATFORM_OAUTH_CONFIGS: Record<string, PlatformOAuthConfig> = {
     scope: "",
     clientIdEnvKey: "BLUESKY_IDENTIFIER",
     clientSecretEnvKey: "BLUESKY_APP_PASSWORD",
+    composioSupported: true,
+    composioApp: "bluesky",
   },
 };
 
@@ -196,4 +226,112 @@ export function buildPlatformAuthUrl(
   }
 
   return `${config.authUrl}?${params.toString()}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COMPOSIO INTEGRATION (unified OAuth via Composio)
+// Composio provides a single API to manage OAuth flows for many
+// platforms. We use it as an alternative to direct platform OAuth.
+// Docs: https://docs.composio.dev
+// ═══════════════════════════════════════════════════════════════════
+
+const COMPOSIO_API_BASE = "https://backend.composio.dev/api/v1";
+
+export function getComposioApiKey(): string {
+  return process.env.COMPOSIO_API_KEY || "";
+}
+
+export function isComposioEnabled(): boolean {
+  return !!getComposioApiKey();
+}
+
+export function getPlatformsSupportingComposio(): string[] {
+  return Object.values(PLATFORM_OAUTH_CONFIGS)
+    .filter((c) => c.composioSupported)
+    .map((c) => c.id);
+}
+
+/**
+ * Start a Composio OAuth connection for a platform.
+ * Returns a redirect URL the user visits to grant access.
+ */
+export async function startComposioConnection(
+  platformId: string,
+  userId: string,
+  redirectUri: string
+): Promise<{ success: boolean; redirectUrl?: string; connectionId?: string; error?: string }> {
+  const config = PLATFORM_OAUTH_CONFIGS[platformId];
+  if (!config) return { success: false, error: `Unknown platform: ${platformId}` };
+  if (!config.composioSupported) return { success: false, error: `${config.name} does not support Composio` };
+
+  const apiKey = getComposioApiKey();
+  if (!apiKey) return { success: false, error: "COMPOSIO_API_KEY not configured" };
+
+  try {
+    const res = await fetch(`${COMPOSIO_API_BASE}/connectedAccounts`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        integrationId: config.composioApp,
+        userId,
+        callbackUrl: redirectUri,
+      }),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      return { success: false, error: `Composio start failed: ${txt}` };
+    }
+    const data: any = await res.json();
+    return {
+      success: true,
+      redirectUrl: data.redirectUrl || data.redirect_url,
+      connectionId: data.id || data.connectionId,
+    };
+  } catch (err: any) {
+    return { success: false, error: `Composio request failed: ${err?.message || String(err)}` };
+  }
+}
+
+/**
+ * Fetch the status of a Composio connection.
+ * Used after the user returns from the OAuth redirect to confirm success.
+ */
+export async function getComposioConnectionStatus(
+  connectionId: string
+): Promise<{ success: boolean; status?: string; accessToken?: string; error?: string }> {
+  const apiKey = getComposioApiKey();
+  if (!apiKey) return { success: false, error: "COMPOSIO_API_KEY not configured" };
+
+  try {
+    const res = await fetch(`${COMPOSIO_API_BASE}/connectedAccounts/${connectionId}`, {
+      method: "GET",
+      headers: { "x-api-key": apiKey },
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      return { success: false, error: `Composio status check failed: ${txt}` };
+    }
+    const data: any = await res.json();
+    return {
+      success: true,
+      status: data.status,
+      accessToken: data.accessToken || data.access_token,
+    };
+  } catch (err: any) {
+    return { success: false, error: `Composio request failed: ${err?.message || String(err)}` };
+  }
+}
+
+/**
+ * Decide which provider to use for a given platform.
+ * - If COMPOSIO_API_KEY is set AND the platform supports Composio → use Composio
+ * - Otherwise fall back to direct platform OAuth
+ */
+export function selectOAuthProvider(platformId: string): OAuthProvider {
+  const config = PLATFORM_OAUTH_CONFIGS[platformId];
+  if (config?.composioSupported && isComposioEnabled()) return "composio";
+  return "direct";
 }

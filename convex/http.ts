@@ -652,7 +652,7 @@ http.route({
       if (!code || !state || !platform) return new Response(errorHtml("Missing required parameters"), { status: 200, headers: { "Content-Type": "text/html" } });
 
       // Validate state
-      const storedState = await ctx.runQuery(api.social.getOAuthState, { state });
+      const storedState = await ctx.runQuery(internal.social.getOAuthState, { state });
       if (!storedState) return new Response(errorHtml("Invalid or expired OAuth state"), { status: 200, headers: { "Content-Type": "text/html" } });
 
       // Platform-specific token exchange
@@ -666,7 +666,7 @@ http.route({
       if (platform === "x") {
         const res = await fetch("https://api.twitter.com/2/oauth2/token", {
           method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded", "Authorization": `Basic ${btoa(`${clientId}:${clientSecret}`)}` },
+          headers: { "Content-Type": "application/x-www-form-urlencoded", "Authorization": `Basic ${btoa(unescape(encodeURIComponent(`${clientId}:${clientSecret}`)))}` },
           body: new URLSearchParams({ code, grant_type: "authorization_code", redirect_uri: redirectUri, code_verifier: storedState.codeVerifier || "" }).toString(),
         });
         tokenData = await res.json();
@@ -717,7 +717,7 @@ http.route({
       } catch (_) {}
 
       // Save connection
-      await ctx.runMutation(api.social.savePlatformConnection, {
+      await ctx.runMutation(internal.social.savePlatformConnection, {
         adminId: storedState.adminId, platform, platformName,
         accessToken, refreshToken: tokenData.refresh_token || "",
         platformUserId: tokenData.user_id || "", platformUsername: username,
@@ -727,7 +727,7 @@ http.route({
       });
 
       // Delete used state
-      await ctx.runMutation(api.social.deleteOAuthState, { stateId: storedState._id });
+      await ctx.runMutation(internal.social.deleteOAuthState, { stateId: storedState._id });
 
       return new Response(successHtml(username), { status: 200, headers: { "Content-Type": "text/html" } });
     } catch (error: any) {

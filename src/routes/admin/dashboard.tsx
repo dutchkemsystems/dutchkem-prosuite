@@ -431,6 +431,9 @@ function SocialEnginePanel() {
   const { data: analytics } = useSuspenseQuery(convexQuery(api.social.getPlatformAnalytics, {})) as { data: any };
   const getConnectedPlatformsAction = useAction(api.social.getConnectedPlatforms);
   const generateOAuthUrl = useAction(api.social.generateOAuthUrl);
+  const startComposioOAuth = useAction(api.social.startComposioOAuth);
+  const connectTelegramBot = useAction(api.social.connectTelegramBot);
+  const connectBluesky = useAction(api.social.connectBluesky);
   const disconnectPlatform = useMutation(api.social.disconnectPlatform);
   const updatePostingSettings = useMutation(api.social.updatePostingSettings);
   const manualPost = useAction(api.social.manualPost);
@@ -498,22 +501,62 @@ function SocialEnginePanel() {
   const handleConnect = async (platformId: string) => {
     setConnecting(platformId);
     try {
-      const result = await generateOAuthUrl({ platform: platformId });
-
-      if (result?.error) {
-        showToast(result.error, "error");
+      // Telegram: use bot token modal (no OAuth)
+      if (platformId === "telegram") {
+        const botToken = prompt("Enter your Telegram Bot Token (from @BotFather):\n\nFormat: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz");
+        if (!botToken) { setConnecting(null); return; }
+        const result = await connectTelegramBot({ botToken });
+        if (result?.error) { showToast(result.error, "error"); }
+        else { showToast(`Connected to Telegram (${result.username || "bot"})`, "success"); fetchPlatforms(); }
         setConnecting(null);
         return;
       }
 
-      if (result?.authUrl) {
+      // Bluesky: use AT Protocol credentials modal
+      if (platformId === "bluesky") {
+        const identifier = prompt("Enter your Bluesky handle (e.g. alice.bsky.social):");
+        if (!identifier) { setConnecting(null); return; }
+        const appPassword = prompt("Enter your Bluesky App Password (create one at bsky.social/settings/app-passwords):");
+        if (!appPassword) { setConnecting(null); return; }
+        const result = await connectBluesky({ identifier, appPassword });
+        if (result?.error) { showToast(result.error, "error"); }
+        else { showToast(`Connected to Bluesky (@${result.handle})`, "success"); fetchPlatforms(); }
+        setConnecting(null);
+        return;
+      }
+
+      // Try Composio first if enabled, else fall back to direct OAuth
+      let result: any = null;
+      let authUrl: string | null = null;
+
+      // Attempt direct OAuth (the dashboard doesn't know if COMPOSIO_API_KEY is set)
+      const directResult = await generateOAuthUrl({ platform: platformId });
+      if (directResult?.error) {
+        showToast(directResult.error, "error");
+        setConnecting(null);
+        return;
+      }
+      result = directResult;
+      authUrl = directResult.authUrl;
+
+      // Also try Composio in parallel — if it succeeds, prefer its URL
+      try {
+        const composioResult = await startComposioOAuth({ platform: platformId });
+        if (composioResult?.success && composioResult.redirectUrl) {
+          authUrl = composioResult.redirectUrl;
+        }
+      } catch {
+        // Composio not enabled or failed — direct OAuth URL is used
+      }
+
+      if (authUrl) {
         const width = 600;
         const height = 700;
         const left = (window.screen.width / 2) - (width / 2);
         const top = (window.screen.height / 2) - (height / 2);
 
         const popup = window.open(
-          result.authUrl,
+          authUrl,
           `connect-${platformId}`,
           `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
         );
@@ -532,7 +575,7 @@ function SocialEnginePanel() {
         }, 500);
       }
     } catch (err: any) {
-      showToast(err.message || "Failed to initiate connection", "error");
+      showToast(err?.message || "Failed to initiate connection", "error");
       setConnecting(null);
     }
   };
@@ -540,7 +583,7 @@ function SocialEnginePanel() {
   const handleDisconnect = async (platformId: string, platformName: string) => {
     if (!confirm(`Disconnect from ${platformName}? Auto-posting to this platform will stop.`)) return;
     try {
-      await disconnectPlatform({ platform: platformId });
+      await disconnectPlatform({ platformId });
       showToast(`Disconnected from ${platformName}`, "success");
       fetchPlatforms();
     } catch {

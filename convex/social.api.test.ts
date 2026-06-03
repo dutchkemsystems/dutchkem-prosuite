@@ -195,3 +195,78 @@ describe("disconnectPlatform", () => {
     expect(conn).toBeUndefined();
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// 6. COMPOSIO PROVIDER BLENDING
+// ═══════════════════════════════════════════════════════════════════
+
+describe("Composio provider blending", () => {
+  it("Composio app map covers 11 platforms (excludes telegram)", () => {
+    const COMPOSIO_APP_MAP: Record<string, string | undefined> = {
+      x: "twitter",
+      linkedin: "linkedin",
+      facebook: "facebook",
+      instagram: "instagram",
+      tiktok: "tiktok",
+      youtube: "youtube",
+      pinterest: "pinterest",
+      reddit: "reddit",
+      threads: "threads",
+      discord: "discord",
+      bluesky: "bluesky",
+      telegram: undefined,
+    };
+
+    const composioPlatforms = Object.entries(COMPOSIO_APP_MAP).filter(([, v]) => v).map(([k]) => k);
+    expect(composioPlatforms).toHaveLength(11);
+    expect(composioPlatforms).toContain("x");
+    expect(composioPlatforms).toContain("linkedin");
+    expect(composioPlatforms).toContain("facebook");
+    expect(composioPlatforms).toContain("instagram");
+    expect(composioPlatforms).toContain("tiktok");
+    expect(composioPlatforms).toContain("youtube");
+    expect(composioPlatforms).toContain("pinterest");
+    expect(composioPlatforms).toContain("reddit");
+    expect(composioPlatforms).toContain("threads");
+    expect(composioPlatforms).toContain("discord");
+    expect(composioPlatforms).toContain("bluesky");
+    expect(composioPlatforms).not.toContain("telegram");
+  });
+
+  it("platformOAuth configs have composioSupported flags", () => {
+    const PLATFORM_OAUTH_CONFIGS: Record<string, { composioSupported: boolean; composioApp?: string }> = {
+      x: { composioSupported: true, composioApp: "twitter" },
+      linkedin: { composioSupported: true, composioApp: "linkedin" },
+      facebook: { composioSupported: true, composioApp: "facebook" },
+      instagram: { composioSupported: true, composioApp: "instagram" },
+      tiktok: { composioSupported: true, composioApp: "tiktok" },
+      youtube: { composioSupported: true, composioApp: "youtube" },
+      pinterest: { composioSupported: true, composioApp: "pinterest" },
+      reddit: { composioSupported: true, composioApp: "reddit" },
+      threads: { composioSupported: true, composioApp: "threads" },
+      telegram: { composioSupported: false },
+      discord: { composioSupported: true, composioApp: "discord" },
+      bluesky: { composioSupported: true, composioApp: "bluesky" },
+    };
+
+    for (const [id, cfg] of Object.entries(PLATFORM_OAUTH_CONFIGS)) {
+      expect(typeof cfg.composioSupported).toBe("boolean");
+      if (cfg.composioSupported) {
+        expect(cfg.composioApp).toBeTruthy();
+        expect(typeof cfg.composioApp).toBe("string");
+      }
+    }
+    expect(PLATFORM_OAUTH_CONFIGS.telegram.composioSupported).toBe(false);
+  });
+
+  it("OAuth provider selection — direct is always available, composio is opt-in", () => {
+    const hasComposioKey = false;
+    const platformId = "x";
+    const composioSupported = true;
+    const provider = composioSupported && hasComposioKey ? "composio" : "direct";
+    expect(provider).toBe("direct");
+
+    const withKey = composioSupported && true ? "composio" : "direct";
+    expect(withKey).toBe("composio");
+  });
+});

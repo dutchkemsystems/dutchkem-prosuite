@@ -111,6 +111,23 @@ export const SUPPORTED_PLATFORMS = Object.entries(PLATFORM_CONFIGS).map(([id, co
   id, ...config,
 }));
 
+// Composio app slugs — maps our platform IDs to Composio integration IDs.
+// Telegram is NOT supported by Composio (it uses bot tokens).
+export const COMPOSIO_APP_MAP: Record<string, string | undefined> = {
+  x: "twitter",
+  linkedin: "linkedin",
+  facebook: "facebook",
+  instagram: "instagram",
+  tiktok: "tiktok",
+  youtube: "youtube",
+  pinterest: "pinterest",
+  reddit: "reddit",
+  threads: "threads",
+  discord: "discord",
+  bluesky: "bluesky",
+  telegram: undefined, // bot token only
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // OAUTH STATE MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════
@@ -146,65 +163,69 @@ export const deleteOAuthState = internalMutation({
 export const generateOAuthUrl = action({
   args: { platform: v.string() },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    try {
+      const identity = await ctx.auth.getUserIdentity();
+      if (!identity) return { success: false, error: "Not authenticated" };
 
-    const config = PLATFORM_CONFIGS[args.platform];
-    if (!config) throw new Error(`Unsupported platform: ${args.platform}`);
-    if (!config.authUrl) throw new Error(`${config.name} uses ${args.platform === 'telegram' ? 'bot token' : 'AT Protocol'} — connect via settings instead`);
+      const config = PLATFORM_CONFIGS[args.platform];
+      if (!config) return { success: false, error: `Unsupported platform: ${args.platform}` };
+      if (!config.authUrl) return { success: false, error: `${config.name} uses ${args.platform === 'telegram' ? 'bot token' : 'AT Protocol'} — connect via settings instead` };
 
-    const state = crypto.randomUUID();
-    let codeVerifier = "";
-    let codeChallenge = "";
+      const state = uuidV4();
+      let codeVerifier = "";
+      let codeChallenge = "";
 
-    if (config.usesCodeVerifier) {
-      codeVerifier = generateCodeVerifier();
-      codeChallenge = await generateCodeChallenge(codeVerifier);
+      if (config.usesCodeVerifier) {
+        codeVerifier = generateCodeVerifier();
+        codeChallenge = await generateCodeChallenge(codeVerifier);
+      }
+
+      await ctx.runMutation(internal.social.storeOAuthState, {
+        state, platform: args.platform, adminId: identity.subject, codeVerifier,
+      });
+
+      const clientId = getPlatformClientId(args.platform);
+      const redirectUri = getRedirectUri(args.platform);
+      const scopes = config.scopes.join(" ");
+
+      let authUrl = "";
+      switch (args.platform) {
+        case "x":
+          authUrl = `${config.authUrl}?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+          break;
+        case "linkedin":
+          authUrl = `${config.authUrl}?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}`;
+          break;
+        case "facebook":
+        case "instagram":
+          authUrl = `${config.authUrl}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}&response_type=code`;
+          break;
+        case "tiktok":
+          authUrl = `${config.authUrl}?client_key=${clientId}&scope=${scopes}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
+          break;
+        case "youtube":
+          authUrl = `${config.authUrl}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&response_type=code&access_type=offline&state=${state}`;
+          break;
+        case "pinterest":
+          authUrl = `${config.authUrl}?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`;
+          break;
+        case "reddit":
+          authUrl = `${config.authUrl}?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}&duration=permanent`;
+          break;
+        case "threads":
+          authUrl = `${config.authUrl}?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`;
+          break;
+        case "discord":
+          authUrl = `${config.authUrl}?client_id=${clientId}&scope=${scopes.join("+")}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`;
+          break;
+        default:
+          return { success: false, error: `OAuth not implemented for ${args.platform}` };
+      }
+
+      return { success: true, authUrl, state };
+    } catch (error: any) {
+      return { success: false, error: `OAuth URL generation failed: ${error?.message || String(error)}` };
     }
-
-    await ctx.runMutation(internal.social.storeOAuthState, {
-      state, platform: args.platform, adminId: identity.subject, codeVerifier,
-    });
-
-    const clientId = getPlatformClientId(args.platform);
-    const redirectUri = getRedirectUri(args.platform);
-    const scopes = config.scopes.join(" ");
-
-    let authUrl = "";
-    switch (args.platform) {
-      case "x":
-        authUrl = `${config.authUrl}?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
-        break;
-      case "linkedin":
-        authUrl = `${config.authUrl}?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}`;
-        break;
-      case "facebook":
-      case "instagram":
-        authUrl = `${config.authUrl}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&state=${state}&response_type=code`;
-        break;
-      case "tiktok":
-        authUrl = `${config.authUrl}?client_key=${clientId}&scope=${scopes}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
-        break;
-      case "youtube":
-        authUrl = `${config.authUrl}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}&response_type=code&access_type=offline&state=${state}`;
-        break;
-      case "pinterest":
-        authUrl = `${config.authUrl}?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`;
-        break;
-      case "reddit":
-        authUrl = `${config.authUrl}?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}&duration=permanent`;
-        break;
-      case "threads":
-        authUrl = `${config.authUrl}?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`;
-        break;
-      case "discord":
-        authUrl = `${config.authUrl}?client_id=${clientId}&scope=${scopes.join("+")}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}`;
-        break;
-      default:
-        throw new Error(`OAuth not implemented for ${args.platform}`);
-    }
-
-    return { success: true, authUrl, state };
   },
 });
 
@@ -448,6 +469,221 @@ export const getOAuthStatus = query({
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// ACTION: Start OAuth via Composio (alternative to direct platform OAuth)
+// ═══════════════════════════════════════════════════════════════════
+export const startComposioOAuth = action({
+  args: { platform: v.string() },
+  handler: async (ctx, args): Promise<{ success: boolean; redirectUrl?: string; connectionId?: string; error?: string }> => {
+    try {
+      const identity = await ctx.auth.getUserIdentity();
+      if (!identity) return { success: false, error: "Not authenticated" };
+
+      const config = PLATFORM_CONFIGS[args.platform];
+      if (!config) return { success: false, error: `Unsupported platform: ${args.platform}` };
+
+      const apiKey = process.env.COMPOSIO_API_KEY;
+      if (!apiKey) return { success: false, error: "COMPOSIO_API_KEY not configured — set it in Convex dashboard env vars" };
+
+      const composioApp = COMPOSIO_APP_MAP[args.platform];
+      if (!composioApp) return { success: false, error: `${config.name} does not support Composio (use Telegram bot token instead)` };
+
+      const redirectUri = getRedirectUri(args.platform);
+
+      const res = await fetch("https://backend.composio.dev/api/v1/connectedAccounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+        body: JSON.stringify({
+          integrationId: composioApp,
+          userId: identity.subject,
+          callbackUrl: redirectUri,
+        }),
+      });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        return { success: false, error: `Composio start failed: ${txt}` };
+      }
+
+      const data: any = await res.json();
+      return {
+        success: true,
+        redirectUrl: data.redirectUrl || data.redirect_url,
+        connectionId: data.id || data.connectionId,
+      };
+    } catch (err: any) {
+      return { success: false, error: `Composio OAuth start failed: ${err?.message || String(err)}` };
+    }
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// ACTION: Handle Composio callback (polled after user returns from redirect)
+// ═══════════════════════════════════════════════════════════════════
+export const handleComposioCallback = action({
+  args: { platform: v.string(), connectionId: v.string() },
+  handler: async (ctx, args): Promise<{ success: boolean; platformName?: string; username?: string; error?: string }> => {
+    try {
+      const identity = await ctx.auth.getUserIdentity();
+      if (!identity) return { success: false, error: "Not authenticated" };
+
+      const config = PLATFORM_CONFIGS[args.platform];
+      if (!config) return { success: false, error: `Unsupported platform: ${args.platform}` };
+
+      const apiKey = process.env.COMPOSIO_API_KEY;
+      if (!apiKey) return { success: false, error: "COMPOSIO_API_KEY not configured" };
+
+      const res = await fetch(`https://backend.composio.dev/api/v1/connectedAccounts/${args.connectionId}`, {
+        method: "GET",
+        headers: { "x-api-key": apiKey },
+      });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        return { success: false, error: `Composio status check failed: ${txt}` };
+      }
+
+      const data: any = await res.json();
+      const status = data.status;
+      const accessToken = data.accessToken || data.access_token;
+
+      if (status !== "ACTIVE" || !accessToken) {
+        return { success: false, error: `Connection not active (status: ${status})` };
+      }
+
+      const username = data.username || data.account?.username || config.name;
+
+      await ctx.runMutation(internal.social.savePlatformConnection, {
+        adminId: identity.subject,
+        platform: args.platform,
+        platformName: config.name,
+        accessToken,
+        refreshToken: "",
+        platformUserId: data.accountId || data.account?.id || "",
+        platformUsername: username,
+        scopes: config.scopes.join(","),
+        anonymousByDefault: config.anonymousSupported,
+        integrationId: "composio",
+      });
+
+      return { success: true, platformName: config.name, username };
+    } catch (err: any) {
+      return { success: false, error: `Composio callback failed: ${err?.message || String(err)}` };
+    }
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// QUERY: Get OAuth provider status (direct vs composio)
+// ═══════════════════════════════════════════════════════════════════
+export const getOAuthProviderStatus = query({
+  args: {},
+  handler: async () => {
+    const composioKeySet = !!process.env.COMPOSIO_API_KEY;
+    return {
+      directEnabled: true,
+      composioEnabled: composioKeySet,
+      composioPlatforms: ["x", "linkedin", "facebook", "instagram", "tiktok", "youtube", "pinterest", "reddit", "threads", "discord", "bluesky"],
+    };
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// ACTION: Connect Telegram via bot token (Telegram uses bot tokens, not OAuth)
+// ═══════════════════════════════════════════════════════════════════
+export const connectTelegramBot = action({
+  args: { botToken: v.string() },
+  handler: async (ctx, args): Promise<{ success: boolean; username?: string; botId?: number; error?: string }> => {
+    try {
+      const identity = await ctx.auth.getUserIdentity();
+      if (!identity) return { success: false, error: "Not authenticated" };
+
+      if (!args.botToken || !args.botToken.includes(":")) {
+        return { success: false, error: "Invalid bot token format. Expected: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz" };
+      }
+
+      const res = await fetch(`https://api.telegram.org/bot${args.botToken}/getMe`);
+      if (!res.ok) {
+        return { success: false, error: "Invalid bot token — Telegram rejected the token" };
+      }
+
+      const data: any = await res.json();
+      if (!data.ok) {
+        return { success: false, error: data.description || "Telegram API error" };
+      }
+
+      const bot = data.result;
+      const username = bot.username ? `@${bot.username}` : "Telegram Bot";
+
+      await ctx.runMutation(internal.social.savePlatformConnection, {
+        adminId: identity.subject,
+        platform: "telegram",
+        platformName: "Telegram",
+        accessToken: args.botToken,
+        refreshToken: "",
+        platformUserId: String(bot.id || ""),
+        platformUsername: username,
+        scopes: "",
+        anonymousByDefault: false,
+        integrationId: "telegram_bot",
+      });
+
+      return { success: true, username, botId: bot.id };
+    } catch (err: any) {
+      return { success: false, error: `Telegram connection failed: ${err?.message || String(err)}` };
+    }
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// ACTION: Connect Bluesky via AT Protocol credentials
+// ═══════════════════════════════════════════════════════════════════
+export const connectBluesky = action({
+  args: { identifier: v.string(), appPassword: v.string() },
+  handler: async (ctx, args): Promise<{ success: boolean; handle?: string; did?: string; error?: string }> => {
+    try {
+      const identity = await ctx.auth.getUserIdentity();
+      if (!identity) return { success: false, error: "Not authenticated" };
+
+      if (!args.identifier || !args.appPassword) {
+        return { success: false, error: "Identifier and app password are required" };
+      }
+
+      const res = await fetch("https://bsky.social/xrpc/com.atproto.server.createSession", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: args.identifier, password: args.appPassword }),
+      });
+
+      if (!res.ok) {
+        const err: any = await res.json().catch(() => ({}));
+        return { success: false, error: err.message || "Bluesky login failed — check your handle and app password" };
+      }
+
+      const data: any = await res.json();
+      const handle = data.handle || args.identifier;
+      const did = data.did || "";
+
+      await ctx.runMutation(internal.social.savePlatformConnection, {
+        adminId: identity.subject,
+        platform: "bluesky",
+        platformName: "Bluesky",
+        accessToken: data.accessJwt || "",
+        refreshToken: data.refreshJwt || "",
+        platformUserId: did,
+        platformUsername: handle,
+        scopes: "atproto",
+        anonymousByDefault: true,
+        integrationId: "atproto",
+      });
+
+      return { success: true, handle, did };
+    } catch (err: any) {
+      return { success: false, error: `Bluesky connection failed: ${err?.message || String(err)}` };
+    }
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
 // PLATFORM API HELPERS
 // ═══════════════════════════════════════════════════════════════════
 function getPlatformClientId(platform: string): string {
@@ -589,15 +825,55 @@ async function postToPlatformApi(platform: string, accessToken: string, content:
   } catch (error: any) { return { success: false, error: error.message }; }
 }
 
-function generateCodeVerifier(): string {
-  const array = new Uint8Array(32);
+function generateRandomString(byteLength: number): string {
+  const array = new Uint8Array(byteLength);
   crypto.getRandomValues(array);
-  return btoa(String.fromCharCode(...array)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  let result = "";
+  for (let i = 0; i < array.length; i++) result += String.fromCharCode(array[i]);
+  return result;
+}
+
+function base64UrlEncode(input: string): string {
+  let result = "";
+  for (let i = 0; i < input.length; i++) {
+    const charCode = input.charCodeAt(i);
+    if (charCode < 128) {
+      result += String.fromCharCode(charCode);
+    } else if (charCode < 2048) {
+      result += String.fromCharCode((charCode >> 6) | 192, (charCode & 63) | 128);
+    } else {
+      result += String.fromCharCode((charCode >> 12) | 224, ((charCode >> 6) & 63) | 128, (charCode & 63) | 128);
+    }
+  }
+  return btoa(result).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function uuidV4(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex: string[] = [];
+  for (let i = 0; i < 16; i++) hex.push(bytes[i].toString(16).padStart(2, "0"));
+  return (
+    hex.slice(0, 4).join("") + "-" +
+    hex.slice(4, 6).join("") + "-" +
+    hex.slice(6, 8).join("") + "-" +
+    hex.slice(8, 10).join("") + "-" +
+    hex.slice(10, 16).join("")
+  );
+}
+
+function generateCodeVerifier(): string {
+  return base64UrlEncode(generateRandomString(32));
 }
 
 async function generateCodeChallenge(verifier: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(verifier);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  let binary = "";
+  for (let i = 0; i < verifier.length; i++) binary += String.fromCharCode(verifier.charCodeAt(i) & 0xff);
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(binary));
+  let result = "";
+  const bytes = new Uint8Array(digest);
+  for (let i = 0; i < bytes.length; i++) result += String.fromCharCode(bytes[i]);
+  return base64UrlEncode(result);
 }
