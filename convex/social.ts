@@ -6,64 +6,68 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
 // ============================================================
+// CONSTANTS
+// ============================================================
+export const SUPPORTED_PLATFORMS = [
+  { id: "x", name: "X (Twitter)", icon: "🐦", color: "#1DA1F2" },
+  { id: "linkedin", name: "LinkedIn", icon: "💼", color: "#0A66C2" },
+  { id: "facebook", name: "Facebook", icon: "📘", color: "#1877F2" },
+  { id: "instagram", name: "Instagram", icon: "📸", color: "#E4405F" },
+  { id: "tiktok", name: "TikTok", icon: "🎵", color: "#000000" },
+  { id: "youtube", name: "YouTube", icon: "🎬", color: "#FF0000" },
+  { id: "pinterest", name: "Pinterest", icon: "📌", color: "#E60023" },
+  { id: "reddit", name: "Reddit", icon: "🤖", color: "#FF4500" },
+  { id: "threads", name: "Threads", icon: "🧵", color: "#000000" },
+  { id: "telegram", name: "Telegram", icon: "📱", color: "#0088CC" },
+  { id: "discord", name: "Discord", icon: "🎮", color: "#5865F2" },
+  { id: "bluesky", name: "Bluesky", icon: "🦋", color: "#0085FF" },
+] as const;
+
+function getPlatformName(platformId: string): string {
+  const names: Record<string, string> = {
+    x: "X (Twitter)", linkedin: "LinkedIn", facebook: "Facebook",
+    instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube",
+    pinterest: "Pinterest", reddit: "Reddit", threads: "Threads",
+    telegram: "Telegram", discord: "Discord", bluesky: "Bluesky",
+  };
+  return names[platformId] || platformId;
+}
+
+// ============================================================
 // ✅ ACTION: Generate OAuth URL (HTTP request to Postiz)
-//    Uses `action` because it calls fetch() to external API
 // ============================================================
 export const generateOAuthUrl = action({
-  args: {
-    platform: v.string(),
-  },
+  args: { platform: v.string() },
   handler: async (ctx, args) => {
     console.log(`[generateOAuthUrl] Called for platform: ${args.platform}`);
-
-    // 1. Get authenticated user
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+    if (!identity) throw new Error("Not authenticated");
 
     const { platform } = args;
     const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY;
     const POSTIZ_API_URL = process.env.POSTIZ_API_URL || "https://api.postiz.com/v1";
     const APP_URL = process.env.APP_URL || "https://yourdomain.com";
 
-    // 2. Call Postiz API (✅ ALLOWED in action)
     const response = await fetch(`${POSTIZ_API_URL}/oauth/initiate`, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${POSTIZ_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        platform: platform,
-        redirect_uri: `${APP_URL}/api/postiz/callback/${platform}`,
-      }),
+      headers: { "Authorization": `Bearer ${POSTIZ_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ platform, redirect_uri: `${APP_URL}/api/postiz/callback/${platform}` }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Postiz API error: ${response.status}`, errorText);
-      return {
-        success: false,
-        error: `Postiz API error: ${response.status}`,
-      };
+      return { success: false, error: `Postiz API error: ${response.status}` };
     }
 
     const data = await response.json();
     console.log(`[generateOAuthUrl] Got auth URL for ${platform}`);
 
-    // 3. Store OAuth state (call internal action to then call mutation)
     await ctx.runAction(internal.social.storeOAuthStateInternal, {
-      state: data.state,
-      platform: platform,
-      adminId: identity.subject,
+      state: data.state, platform, adminId: identity.subject,
     });
 
-    return {
-      success: true,
-      authUrl: data.auth_url,
-      platform: platform,
-    };
+    return { success: true, authUrl: data.auth_url, platform };
   },
 });
 
@@ -71,59 +75,41 @@ export const generateOAuthUrl = action({
 // INTERNAL: Store OAuth State (action → mutation bridge)
 // ============================================================
 export const storeOAuthStateInternal = internalAction({
-  args: {
-    state: v.string(),
-    platform: v.string(),
-    adminId: v.string(),
-  },
+  args: { state: v.string(), platform: v.string(), adminId: v.string() },
   handler: async (ctx, args) => {
     await ctx.runMutation(internal.social.storeOAuthStateMutation, {
-      state: args.state,
-      platform: args.platform,
-      adminId: args.adminId,
+      state: args.state, platform: args.platform, adminId: args.adminId,
     });
   },
 });
 
 // ============================================================
-// INTERNAL MUTATION: Actually write to database
+// INTERNAL MUTATION: Write OAuth state to database
 // ============================================================
 export const storeOAuthStateMutation = internalMutation({
-  args: {
-    state: v.string(),
-    platform: v.string(),
-    adminId: v.string(),
-  },
+  args: { state: v.string(), platform: v.string(), adminId: v.string() },
   handler: async (ctx, args) => {
     await ctx.db.insert("oauth_states", {
-      state: args.state,
-      platform: args.platform,
-      adminId: args.adminId,
-      expiresAt: Date.now() + 10 * 60 * 1000,
-      createdAt: Date.now(),
+      state: args.state, platform: args.platform, adminId: args.adminId,
+      expiresAt: Date.now() + 10 * 60 * 1000, createdAt: Date.now(),
     });
     console.log(`[storeOAuthStateMutation] Stored state for ${args.platform}`);
   },
 });
 
 // ============================================================
-// INTERNAL QUERY: Get OAuth state
+// INTERNAL QUERY: Get OAuth state (used by http.ts callback)
 // ============================================================
 export const getOAuthStateInternal = internalQuery({
-  args: {
-    state: v.string(),
-    platform: v.string(),
-  },
+  args: { state: v.string(), platform: v.string() },
   handler: async (ctx, args) => {
     const states = await ctx.db
       .query("oauth_states")
       .withIndex("by_state", (q) => q.eq("state", args.state))
       .collect();
-
     const validState = states.find(
       (s) => s.platform === args.platform && s.expiresAt > Date.now()
     );
-
     return validState || null;
   },
 });
@@ -132,22 +118,12 @@ export const getOAuthStateInternal = internalQuery({
 // ✅ ACTION: Handle OAuth Callback (HTTP request to Postiz)
 // ============================================================
 export const handleOAuthCallback = action({
-  args: {
-    platform: v.string(),
-    code: v.string(),
-    state: v.string(),
-  },
+  args: { platform: v.string(), code: v.string(), state: v.string() },
   handler: async (ctx, args) => {
     console.log(`[handleOAuthCallback] Called for platform: ${args.platform}`);
-
     const { platform, code, state } = args;
 
-    // 1. Verify state
-    const storedState = await ctx.runQuery(internal.social.getOAuthStateInternal, {
-      state: state,
-      platform: platform,
-    });
-
+    const storedState = await ctx.runQuery(internal.social.getOAuthStateInternal, { state, platform });
     if (!storedState) {
       console.error(`[handleOAuthCallback] Invalid state for ${platform}`);
       return { success: false, error: "Invalid or expired OAuth state" };
@@ -157,18 +133,10 @@ export const handleOAuthCallback = action({
     const POSTIZ_API_URL = process.env.POSTIZ_API_URL || "https://api.postiz.com/v1";
     const APP_URL = process.env.APP_URL;
 
-    // 2. Exchange code for token (✅ ALLOWED in action)
     const tokenResponse = await fetch(`${POSTIZ_API_URL}/oauth/token`, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${POSTIZ_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        platform: platform,
-        code: code,
-        redirect_uri: `${APP_URL}/api/postiz/callback/${platform}`,
-      }),
+      headers: { "Authorization": `Bearer ${POSTIZ_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ platform, code, redirect_uri: `${APP_URL}/api/postiz/callback/${platform}` }),
     });
 
     if (!tokenResponse.ok) {
@@ -180,38 +148,20 @@ export const handleOAuthCallback = action({
     const tokenData = await tokenResponse.json();
     console.log(`[handleOAuthCallback] Got token for ${platform}`);
 
-    // 3. Register connection with Postiz
     const connectResponse = await fetch(`${POSTIZ_API_URL}/platforms/connect`, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${POSTIZ_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        platform: platform,
-        access_token: tokenData.access_token,
-        integration_id: tokenData.integration_id,
-      }),
+      headers: { "Authorization": `Bearer ${POSTIZ_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ platform, access_token: tokenData.access_token, integration_id: tokenData.integration_id }),
     });
-
     const connectData = connectResponse.ok ? await connectResponse.json().catch(() => ({})) : {};
 
-    // 4. Save to database
     await ctx.runMutation(internal.social.saveConnectionMutation, {
-      adminId: storedState.adminId,
-      platformId: platform,
-      platformName: getPlatformName(platform),
-      integrationId: connectData.integration_id || tokenData.integration_id,
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
-      platformUserId: tokenData.platform_user_id,
-      platformUsername: tokenData.platform_username,
+      adminId: storedState.adminId, platformId: platform, platformName: getPlatformName(platform),
+      integrationId: connectData.integration_id || tokenData.integration_id, accessToken: tokenData.access_token,
+      refreshToken: tokenData.refresh_token, platformUserId: tokenData.platform_user_id, platformUsername: tokenData.platform_username,
     });
 
-    // 5. Delete used state
-    await ctx.runMutation(internal.social.deleteOAuthStateMutation, {
-      stateId: storedState._id,
-    });
+    await ctx.runMutation(internal.social.deleteOAuthStateMutation, { stateId: storedState._id });
 
     console.log(`[handleOAuthCallback] Successfully connected ${platform}`);
     return { success: true, platformName: getPlatformName(platform) };
@@ -223,47 +173,26 @@ export const handleOAuthCallback = action({
 // ============================================================
 export const saveConnectionMutation = internalMutation({
   args: {
-    adminId: v.string(),
-    platformId: v.string(),
-    platformName: v.string(),
-    integrationId: v.string(),
-    accessToken: v.string(),
-    refreshToken: v.optional(v.string()),
-    platformUserId: v.optional(v.string()),
-    platformUsername: v.optional(v.string()),
+    adminId: v.string(), platformId: v.string(), platformName: v.string(),
+    integrationId: v.string(), accessToken: v.string(), refreshToken: v.optional(v.string()),
+    platformUserId: v.optional(v.string()), platformUsername: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("platform_connections")
-      .withIndex("by_admin_platform", (q) =>
-        q.eq("adminId", args.adminId).eq("platformId", args.platformId)
-      )
+      .withIndex("by_admin_platform", (q) => q.eq("adminId", args.adminId).eq("platformId", args.platformId))
       .first();
-
     if (existing) {
       await ctx.db.patch(existing._id, {
-        integrationId: args.integrationId,
-        accessToken: args.accessToken,
-        refreshToken: args.refreshToken,
-        platformUserId: args.platformUserId,
-        platformUsername: args.platformUsername,
-        isConnected: true,
-        updatedAt: Date.now(),
+        integrationId: args.integrationId, accessToken: args.accessToken, refreshToken: args.refreshToken,
+        platformUserId: args.platformUserId, platformUsername: args.platformUsername, isConnected: true, updatedAt: Date.now(),
       });
     } else {
       await ctx.db.insert("platform_connections", {
-        adminId: args.adminId,
-        platformId: args.platformId,
-        platformName: args.platformName,
-        integrationId: args.integrationId,
-        accessToken: args.accessToken,
-        refreshToken: args.refreshToken,
-        platformUserId: args.platformUserId,
-        platformUsername: args.platformUsername,
-        isConnected: true,
-        autoPostEnabled: true,
-        connectedAt: Date.now(),
-        updatedAt: Date.now(),
+        adminId: args.adminId, platformId: args.platformId, platformName: args.platformName,
+        integrationId: args.integrationId, accessToken: args.accessToken, refreshToken: args.refreshToken,
+        platformUserId: args.platformUserId, platformUsername: args.platformUsername,
+        isConnected: true, autoPostEnabled: true, connectedAt: Date.now(), updatedAt: Date.now(),
       });
     }
     console.log(`[saveConnectionMutation] Saved connection for ${args.platformId}`);
@@ -274,9 +203,7 @@ export const saveConnectionMutation = internalMutation({
 // INTERNAL MUTATION: Delete OAuth state
 // ============================================================
 export const deleteOAuthStateMutation = internalMutation({
-  args: {
-    stateId: v.id("oauth_states"),
-  },
+  args: { stateId: v.id("oauth_states") },
   handler: async (ctx, args) => {
     await ctx.db.delete(args.stateId);
     console.log(`[deleteOAuthStateMutation] Deleted state`);
@@ -284,46 +211,32 @@ export const deleteOAuthStateMutation = internalMutation({
 });
 
 // ============================================================
-// ✅ QUERY: Get all connections (Read from database - allowed)
+// ✅ QUERY: Get all connections
 // ============================================================
 export const getConnections = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return [];
-
-    const connections = await ctx.db
-      .query("platform_connections")
+    return await ctx.db.query("platform_connections")
       .withIndex("by_admin", (q) => q.eq("adminId", identity.subject))
       .collect();
-
-    return connections;
   },
 });
 
 // ============================================================
-// ✅ MUTATION: Disconnect platform (Write to database - allowed)
+// ✅ MUTATION: Disconnect platform
 // ============================================================
 export const disconnectPlatform = mutation({
-  args: {
-    platformId: v.string(),
-  },
+  args: { platformId: v.string() },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
-
-    const connection = await ctx.db
-      .query("platform_connections")
-      .withIndex("by_admin_platform", (q) =>
-        q.eq("adminId", identity.subject).eq("platformId", args.platformId)
-      )
+    const connection = await ctx.db.query("platform_connections")
+      .withIndex("by_admin_platform", (q) => q.eq("adminId", identity.subject).eq("platformId", args.platformId))
       .first();
-
     if (connection) {
-      await ctx.db.patch(connection._id, {
-        isConnected: false,
-        updatedAt: Date.now(),
-      });
+      await ctx.db.patch(connection._id, { isConnected: false, updatedAt: Date.now() });
     }
   },
 });
@@ -343,44 +256,18 @@ export const getConnectedPlatforms = action({
       if (POSTIZ_API_KEY) {
         try {
           const res = await fetch(`${POSTIZ_API_URL}/integrations`, {
-            method: "GET",
-            headers: { Authorization: POSTIZ_API_KEY, "Content-Type": "application/json" },
+            method: "GET", headers: { Authorization: POSTIZ_API_KEY, "Content-Type": "application/json" },
           });
-          if (res.ok) {
-            const d = await res.json();
-            postizIntegrations = Array.isArray(d) ? d : d.connections || [];
-          }
+          if (res.ok) { const d = await res.json(); postizIntegrations = Array.isArray(d) ? d : d.connections || []; }
         } catch (_) {}
       }
       const merged = dbPlatforms.map((p: any) => {
-        const postiz = postizIntegrations.find(
-          (i: any) => i.identifier === p.platformId || i.id === p.integrationId
-        );
-        return {
-          ...p,
-          id: p.platformId,
-          isConnected: p.isConnected || !!postiz,
-          username: p.platformUsername || postiz?.profile || postiz?.name,
-          integrationId: p.integrationId || postiz?.id,
-          profilePicture: postiz?.picture,
-        };
+        const postiz = postizIntegrations.find((i: any) => i.identifier === p.platformId || i.id === p.integrationId);
+        return { ...p, id: p.platformId, isConnected: p.isConnected || !!postiz, username: p.platformUsername || postiz?.profile || postiz?.name, integrationId: p.integrationId || postiz?.id, profilePicture: postiz?.picture };
       });
-      return {
-        platforms: merged,
-        availablePlatforms: SUPPORTED_PLATFORMS.map((p) => ({
-          id: p.id, name: p.name, icon: p.icon, color: p.color,
-        })),
-        isConnected: true,
-      };
+      return { platforms: merged, availablePlatforms: SUPPORTED_PLATFORMS.map((p) => ({ id: p.id, name: p.name, icon: p.icon, color: p.color })), isConnected: true };
     } catch (error: any) {
-      return {
-        platforms: [],
-        availablePlatforms: SUPPORTED_PLATFORMS.map((p) => ({
-          id: p.id, name: p.name, icon: p.icon, color: p.color,
-        })),
-        isConnected: false,
-        error: error.message,
-      };
+      return { platforms: [], availablePlatforms: SUPPORTED_PLATFORMS.map((p) => ({ id: p.id, name: p.name, icon: p.icon, color: p.color })), isConnected: false, error: error.message };
     }
   },
 });
@@ -392,12 +279,7 @@ export const getPlatformsFromDb = internalQuery({
     const connected = await ctx.db.query("platform_connections").collect();
     return SUPPORTED_PLATFORMS.map((p) => {
       const conn = connected.find((c) => c.platformId === p.id && c.isConnected);
-      return {
-        platformId: p.id, platformName: p.name, icon: p.icon, color: p.color,
-        isConnected: conn?.isConnected || false, connectedAt: conn?.connectedAt,
-        lastSyncAt: conn?.updatedAt, integrationId: conn?.integrationId,
-        platformUsername: conn?.platformUsername, autoPostEnabled: conn?.autoPostEnabled || false,
-      };
+      return { platformId: p.id, platformName: p.name, icon: p.icon, color: p.color, isConnected: conn?.isConnected || false, connectedAt: conn?.connectedAt, lastSyncAt: conn?.updatedAt, integrationId: conn?.integrationId, platformUsername: conn?.platformUsername, autoPostEnabled: conn?.autoPostEnabled || false };
     });
   },
 });
@@ -422,10 +304,7 @@ export const manualPost = action({
       try {
         const response = await fetch(`${POSTIZ_API_URL}/posts`, {
           method: "POST", headers: { Authorization: POSTIZ_API_KEY, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "now", date: new Date().toISOString(), shortLink: false, tags: [],
-            posts: [{ integration: { id: connection.integrationId }, value: [{ content: args.content, image: (args.mediaUrls || []).map((url) => ({ url })) }], settings: { __type: args.platformId } }],
-          }),
+          body: JSON.stringify({ type: "now", date: new Date().toISOString(), shortLink: false, tags: [], posts: [{ integration: { id: connection.integrationId }, value: [{ content: args.content, image: (args.mediaUrls || []).map((url) => ({ url })) }], settings: { __type: args.platformId } }] }),
         });
         if (response.ok) { const d = await response.json(); externalId = d.id || externalId; success = true; }
         else { errorMsg = await response.text(); }
@@ -448,12 +327,7 @@ export const logPost = internalMutation({
   args: { platformId: v.string(), content: v.string(), success: v.boolean(), externalId: v.string(), errorMsg: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.insert("social_posts", {
-      agentId: "manual", platform: args.platformId, content: args.content,
-      status: args.success ? "posted" : "failed", scheduledFor: Date.now(),
-      postedAt: args.success ? Date.now() : undefined, externalId: args.externalId,
-      error: args.success ? undefined : args.errorMsg || "Post failed",
-    });
+    await ctx.db.insert("social_posts", { agentId: "manual", platform: args.platformId, content: args.content, status: args.success ? "posted" : "failed", scheduledFor: Date.now(), postedAt: args.success ? Date.now() : undefined, externalId: args.externalId, error: args.success ? undefined : args.errorMsg || "Post failed" });
   },
 });
 
@@ -507,38 +381,7 @@ export const getOAuthStatus = query({
   args: {},
   returns: v.any(),
   handler: async () => {
-    const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY;
-    const POSTIZ_CLIENT_ID = process.env.POSTIZ_CLIENT_ID;
-    const POSTIZ_CLIENT_SECRET = process.env.POSTIZ_CLIENT_SECRET;
-    const hasPostiz = !!(POSTIZ_API_KEY && POSTIZ_CLIENT_ID && POSTIZ_CLIENT_SECRET);
+    const hasPostiz = !!(process.env.POSTIZ_API_KEY && process.env.POSTIZ_CLIENT_ID && process.env.POSTIZ_CLIENT_SECRET);
     return SUPPORTED_PLATFORMS.map((p) => ({ id: p.id, name: p.name, icon: p.icon, hasCredentials: hasPostiz }));
   },
 });
-
-// ============================================================
-// CONSTANTS & HELPERS
-// ============================================================
-export const SUPPORTED_PLATFORMS = [
-  { id: "x", name: "X (Twitter)", icon: "🐦", color: "#1DA1F2" },
-  { id: "linkedin", name: "LinkedIn", icon: "💼", color: "#0A66C2" },
-  { id: "facebook", name: "Facebook", icon: "📘", color: "#1877F2" },
-  { id: "instagram", name: "Instagram", icon: "📸", color: "#E4405F" },
-  { id: "tiktok", name: "TikTok", icon: "🎵", color: "#000000" },
-  { id: "youtube", name: "YouTube", icon: "🎬", color: "#FF0000" },
-  { id: "pinterest", name: "Pinterest", icon: "📌", color: "#E60023" },
-  { id: "reddit", name: "Reddit", icon: "🤖", color: "#FF4500" },
-  { id: "threads", name: "Threads", icon: "🧵", color: "#000000" },
-  { id: "telegram", name: "Telegram", icon: "📱", color: "#0088CC" },
-  { id: "discord", name: "Discord", icon: "🎮", color: "#5865F2" },
-  { id: "bluesky", name: "Bluesky", icon: "🦋", color: "#0085FF" },
-] as const;
-
-function getPlatformName(platformId: string): string {
-  const names: Record<string, string> = {
-    x: "X (Twitter)", linkedin: "LinkedIn", facebook: "Facebook",
-    instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube",
-    pinterest: "Pinterest", reddit: "Reddit", threads: "Threads",
-    telegram: "Telegram", discord: "Discord", bluesky: "Bluesky",
-  };
-  return names[platformId] || platformId;
-}
