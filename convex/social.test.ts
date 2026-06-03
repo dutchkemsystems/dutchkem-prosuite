@@ -73,7 +73,7 @@ test("getConnectedPlatforms returns all platforms when none connected", async ()
 test("disconnectPlatform handles non-existent platform gracefully", async () => {
   const t = convexTest(schema, modules);
   // Should not throw
-  const result = await t.mutation(api.social.disconnectPlatform, { platform: "nonexistent" });
+  const result = await t.action(api.social.disconnectPlatform, { platform: "nonexistent" });
   expect(result).toHaveProperty("success");
 });
 
@@ -90,7 +90,7 @@ test("updatePostingSettings fails for non-connected platform", async () => {
 test("manualPost fails for non-connected platform", async () => {
   const t = convexTest(schema, modules);
   await expect(
-    t.mutation(api.social.manualPost, {
+    t.action(api.social.manualPost, {
       platformId: "nonexistent",
       content: "Test post",
     })
@@ -100,7 +100,7 @@ test("manualPost fails for non-connected platform", async () => {
 test("getOAuthUrl rejects unsupported platform", async () => {
   const t = convexTest(schema, modules);
   await expect(
-    t.mutation(api.social.getOAuthUrl, {
+    t.action(api.social.getOAuthUrl, {
       platform: "unsupported_platform",
       redirectUri: "https://example.com/callback",
     })
@@ -111,7 +111,7 @@ test("getOAuthUrl throws when Postiz API key not configured", async () => {
   const t = convexTest(schema, modules);
   // Without Postiz API key, should throw
   await expect(
-    t.mutation(api.social.getOAuthUrl, {
+    t.action(api.social.getOAuthUrl, {
       platform: "x",
       redirectUri: "https://example.com/callback",
     })
@@ -120,7 +120,7 @@ test("getOAuthUrl throws when Postiz API key not configured", async () => {
 
 test("handleOAuthCallback rejects invalid state", async () => {
   const t = convexTest(schema, modules);
-  const result = await t.mutation(api.social.handleOAuthCallback, {
+  const result = await t.action(api.social.handleOAuthCallback, {
     platform: "x",
     code: "test_code",
     state: "invalid_state_12345",
@@ -150,7 +150,7 @@ test("rotateSocialAgentsManual triggers agent rotation", async () => {
 
 test("disconnectAllPlatforms returns success", async () => {
   const t = convexTest(schema, modules);
-  const result = await t.mutation(api.social.disconnectAllPlatforms, {});
+  const result = await t.action(api.social.disconnectAllPlatforms, {});
   expect(result.success).toBe(true);
   expect(result.disconnected).toBe(0); // No platforms connected
 });

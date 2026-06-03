@@ -431,11 +431,11 @@ function SocialEnginePanel() {
   const { data: analytics } = useSuspenseQuery(convexQuery(api.social.getPlatformAnalytics, {})) as { data: any };
   const getConnectedPlatformsAction = useAction(api.social.getConnectedPlatforms);
   const rotateSocial = useMutation(api.social.rotateSocialAgentsManual);
-  const getOAuthUrl = useMutation(api.social.getOAuthUrl);
-  const disconnectPlatform = useMutation(api.social.disconnectPlatform);
-  const disconnectAllPlatforms = useMutation(api.social.disconnectAllPlatforms);
+  const getOAuthUrl = useAction(api.social.getOAuthUrl);
+  const disconnectPlatform = useAction(api.social.disconnectPlatform);
+  const disconnectAllPlatforms = useAction(api.social.disconnectAllPlatforms);
   const updatePostingSettings = useMutation(api.social.updatePostingSettings);
-  const manualPost = useMutation(api.social.manualPost);
+  const manualPost = useAction(api.social.manualPost);
 
   const [platforms, setPlatforms] = useState<any[]>([]);
   const [platformsLoading, setPlatformsLoading] = useState(true);
