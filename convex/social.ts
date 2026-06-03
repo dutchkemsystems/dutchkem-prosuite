@@ -469,8 +469,59 @@ export const getOAuthStatus = query({
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// ACTION: Start OAuth via Composio (alternative to direct platform OAuth)
+// COMPOSIO OAUTH (v3.1) — Primary OAuth provider
 // ═══════════════════════════════════════════════════════════════════
+// Flow:
+//   1. Find or create a Composio-managed auth_config for the toolkit
+//   2. POST /api/v3.1/connected_accounts/link → returns redirect_url + connected_account_id
+//   3. User completes OAuth at redirect_url
+//   4. GET /api/v3.1/connected_accounts/{id} → poll status until ACTIVE
+//   5. Save tokens to platform_connections table
+// ═══════════════════════════════════════════════════════════════════
+
+const COMPOSIO_BASE = "https://backend.composio.dev/api/v3.1";
+
+async function composioFetch(apiKey: string, path: string, init?: RequestInit): Promise<any> {
+  const res = await fetch(`${COMPOSIO_BASE}${path}`, {
+    ...init,
+    headers: {
+      "x-api-key": apiKey,
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`Composio ${res.status}: ${text}`);
+  }
+  return text ? JSON.parse(text) : {};
+}
+
+async function getOrCreateAuthConfigId(apiKey: string, toolkit: string): Promise<string> {
+  // 1) Look for an existing Composio-managed config for this toolkit
+  const list: any = await composioFetch(
+    apiKey,
+    `/auth_configs?toolkit_slug=${encodeURIComponent(toolkit)}&is_composio_managed=true&limit=1`
+  );
+  if (list?.items && list.items.length > 0) {
+    return list.items[0].id as string;
+  }
+
+  // 2) Create a new Composio-managed config for this toolkit
+  const created: any = await composioFetch(apiKey, "/auth_configs", {
+    method: "POST",
+    body: JSON.stringify({
+      toolkit: { slug: toolkit },
+      type: "use_composio_managed_auth",
+    }),
+  });
+  if (!created?.id) {
+    throw new Error(`Composio: failed to create auth config for ${toolkit}`);
+  }
+  return created.id as string;
+}
+
+// ACTION: Start OAuth via Composio
 export const startComposioOAuth = action({
   args: { platform: v.string() },
   handler: async (ctx, args): Promise<{ success: boolean; redirectUrl?: string; connectionId?: string; error?: string }> => {
@@ -489,26 +540,25 @@ export const startComposioOAuth = action({
 
       const redirectUri = getRedirectUri(args.platform);
 
-      const res = await fetch("https://backend.composio.dev/api/v1/connectedAccounts", {
+      const authConfigId = await getOrCreateAuthConfigId(apiKey, composioApp);
+
+      const link: any = await composioFetch(apiKey, "/connected_accounts/link", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": apiKey },
         body: JSON.stringify({
-          integrationId: composioApp,
-          userId: identity.subject,
-          callbackUrl: redirectUri,
+          auth_config_id: authConfigId,
+          user_id: identity.subject,
+          callback_url: redirectUri,
         }),
       });
 
-      if (!res.ok) {
-        const txt = await res.text();
-        return { success: false, error: `Composio start failed: ${txt}` };
+      if (!link?.redirect_url) {
+        return { success: false, error: "Composio did not return a redirect URL" };
       }
 
-      const data: any = await res.json();
       return {
         success: true,
-        redirectUrl: data.redirectUrl || data.redirect_url,
-        connectionId: data.id || data.connectionId,
+        redirectUrl: link.redirect_url,
+        connectionId: link.connected_account_id,
       };
     } catch (err: any) {
       return { success: false, error: `Composio OAuth start failed: ${err?.message || String(err)}` };
@@ -516,9 +566,7 @@ export const startComposioOAuth = action({
   },
 });
 
-// ═══════════════════════════════════════════════════════════════════
 // ACTION: Handle Composio callback (polled after user returns from redirect)
-// ═══════════════════════════════════════════════════════════════════
 export const handleComposioCallback = action({
   args: { platform: v.string(), connectionId: v.string() },
   handler: async (ctx, args): Promise<{ success: boolean; platformName?: string; username?: string; error?: string }> => {
@@ -532,33 +580,40 @@ export const handleComposioCallback = action({
       const apiKey = process.env.COMPOSIO_API_KEY;
       if (!apiKey) return { success: false, error: "COMPOSIO_API_KEY not configured" };
 
-      const res = await fetch(`https://backend.composio.dev/api/v1/connectedAccounts/${args.connectionId}`, {
-        method: "GET",
-        headers: { "x-api-key": apiKey },
-      });
+      const data: any = await composioFetch(
+        apiKey,
+        `/connected_accounts/${encodeURIComponent(args.connectionId)}`
+      );
 
-      if (!res.ok) {
-        const txt = await res.text();
-        return { success: false, error: `Composio status check failed: ${txt}` };
+      const status = data?.status;
+      if (status !== "ACTIVE") {
+        return { success: false, error: `Connection not active (status: ${status || "unknown"})` };
       }
 
-      const data: any = await res.json();
-      const status = data.status;
-      const accessToken = data.accessToken || data.access_token;
+      // Extract token from state.val (Composio's new v3 structure)
+      const tokenVal = data?.state?.val || data?.data || {};
+      const accessToken: string | undefined =
+        tokenVal.access_token || tokenVal.oauth_token || data?.accessToken || data?.access_token;
+      const refreshToken: string | undefined =
+        tokenVal.refresh_token || data?.refreshToken || data?.refresh_token || "";
 
-      if (status !== "ACTIVE" || !accessToken) {
-        return { success: false, error: `Connection not active (status: ${status})` };
+      if (!accessToken) {
+        return { success: false, error: "Composio connection active but no access token returned" };
       }
 
-      const username = data.username || data.account?.username || config.name;
+      const username: string =
+        data?.username || data?.meta?.username || config.name;
+
+      const platformUserId: string =
+        data?.id || data?.uuid || args.connectionId;
 
       await ctx.runMutation(internal.social.savePlatformConnection, {
         adminId: identity.subject,
         platform: args.platform,
         platformName: config.name,
         accessToken,
-        refreshToken: "",
-        platformUserId: data.accountId || data.account?.id || "",
+        refreshToken: refreshToken || "",
+        platformUserId,
         platformUsername: username,
         scopes: config.scopes.join(","),
         anonymousByDefault: config.anonymousSupported,
@@ -572,9 +627,7 @@ export const handleComposioCallback = action({
   },
 });
 
-// ═══════════════════════════════════════════════════════════════════
 // QUERY: Get OAuth provider status (direct vs composio)
-// ═══════════════════════════════════════════════════════════════════
 export const getOAuthProviderStatus = query({
   args: {},
   handler: async () => {

@@ -432,6 +432,7 @@ function SocialEnginePanel() {
   const getConnectedPlatformsAction = useAction(api.social.getConnectedPlatforms);
   const generateOAuthUrl = useAction(api.social.generateOAuthUrl);
   const startComposioOAuth = useAction(api.social.startComposioOAuth);
+  const handleComposioCallback = useAction(api.social.handleComposioCallback);
   const connectTelegramBot = useAction(api.social.connectTelegramBot);
   const connectBluesky = useAction(api.social.connectBluesky);
   const getOAuthProviderStatus = useAction(api.social.getOAuthProviderStatus);
@@ -449,6 +450,7 @@ function SocialEnginePanel() {
   const [postingStatus, setPostingStatus] = useState<{ platformId: string; status: string; error?: string } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
   const [providerStatus, setProviderStatus] = useState<{ composioEnabled: boolean; composioPlatforms: string[]; directEnabled: boolean } | null>(null);
+  const [composioPoll, setComposioPoll] = useState<{ connectionId: string; platformId: string; startedAt: number } | null>(null);
 
   const fetchPlatforms = useCallback(async () => {
     try {
@@ -504,6 +506,71 @@ function SocialEnginePanel() {
     return () => window.removeEventListener("message", handleMessage);
   }, [fetchPlatforms]);
 
+  // Composio postMessage: popup notifies us with the connected_account_id
+  useEffect(() => {
+    const handleComposioMessage = (event: MessageEvent) => {
+      const data: any = event.data;
+      if (data?.type === "composio_connection_complete" && data?.connectedAccountId) {
+        setComposioPoll({
+          connectionId: data.connectedAccountId,
+          platformId: data.platformId || "unknown",
+          startedAt: Date.now(),
+        });
+      }
+    };
+    window.addEventListener("message", handleComposioMessage);
+    return () => window.removeEventListener("message", handleComposioMessage);
+  }, []);
+
+  // Composio poll: keep asking the backend to extract tokens until ACTIVE
+  // (or 90s timeout)
+  useEffect(() => {
+    if (!composioPoll) return;
+    let cancelled = false;
+
+    const tick = async () => {
+      if (cancelled) return;
+      const result: any = await handleComposioCallback({
+        platform: composioPoll.platformId,
+        connectionId: composioPoll.connectionId,
+      });
+      if (cancelled) return;
+      if (result?.success) {
+        setToast({ message: `✅ Connected to ${result.platformName} via Composio${result.username ? ` (@${result.username})` : ""}`, type: "success" });
+        setConnecting(null);
+        setComposioPoll(null);
+        fetchPlatforms();
+        return;
+      }
+      if (result?.error && /not active/i.test(result.error)) {
+        // Still pending — keep polling
+        return;
+      }
+      if (result?.error) {
+        setToast({ message: `Composio: ${result.error}`, type: "error" });
+        setConnecting(null);
+        setComposioPoll(null);
+      }
+    };
+
+    const interval = setInterval(tick, 2500);
+    tick();
+
+    const timeout = setTimeout(() => {
+      if (!cancelled) {
+        setToast({ message: "Composio connection timed out (90s). You can retry from the dashboard.", type: "error" });
+        setConnecting(null);
+        setComposioPoll(null);
+      }
+    }, 90_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [composioPoll, handleComposioCallback, fetchPlatforms]);
+
   const showToast = (message: string, type: string) => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 5000);
@@ -540,6 +607,7 @@ function SocialEnginePanel() {
       // Direct OAuth is FALLBACK. This is deterministic — no parallel calls.
       let authUrl: string | null = null;
       let usingProvider: "composio" | "direct" = "direct";
+      let composioConnectionId: string | undefined = undefined;
 
       const composioAvailable =
         providerStatus?.composioEnabled === true &&
@@ -551,6 +619,7 @@ function SocialEnginePanel() {
         if (composioResult?.success && composioResult.redirectUrl) {
           authUrl = composioResult.redirectUrl;
           usingProvider = "composio";
+          composioConnectionId = composioResult.connectionId;
         } else if (composioResult?.error) {
           // Composio failed — fall back to direct
           console.warn("Composio failed, falling back to direct OAuth:", composioResult.error);
@@ -591,6 +660,18 @@ function SocialEnginePanel() {
           if (popup.closed) {
             clearInterval(popupCheck);
             setConnecting(null);
+            // If we used Composio and got back a connectionId, start polling
+            // so the dashboard picks up the ACTIVE tokens once the user
+            // finishes in the popup.
+            if (usingProvider === "composio" && composioConnectionId) {
+              setComposioPoll({
+                connectionId: composioConnectionId,
+                platformId,
+                startedAt: Date.now(),
+              });
+            } else {
+              fetchPlatforms();
+            }
           }
         }, 500);
       }

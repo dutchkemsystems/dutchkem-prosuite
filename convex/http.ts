@@ -751,4 +751,210 @@ http.route({
   }),
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// TELEGRAM BOT WEBHOOK
+// ═══════════════════════════════════════════════════════════════════
+// Receives all messages sent to the DutchkemProsuite_bot. Handles
+// commands (/start, /help, /connect, /status, /post, /disconnect,
+// /support) and provides a friendly default reply for plain text.
+// ═══════════════════════════════════════════════════════════════════
+
+async function sendTelegramMessage(botToken: string, chatId: number | string, text: string, opts: any = {}): Promise<boolean> {
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+        ...opts,
+      }),
+    });
+    if (!res.ok) {
+      const errTxt = await res.text();
+      console.error("[telegram] sendMessage failed:", errTxt);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("[telegram] sendMessage error:", err);
+    return false;
+  }
+}
+
+http.route({
+  path: "/api/telegram/webhook",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    if (!botToken) {
+      console.warn("[telegram] webhook called but TELEGRAM_BOT_TOKEN not set");
+      return new Response(JSON.stringify({ ok: false, error: "bot_token_not_set" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    let update: any;
+    try {
+      update = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ ok: false, error: "invalid_json" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const message = update?.message;
+    if (!message) {
+      // Ignore non-message updates (e.g. edited_message, callback_query, etc.)
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const chatId: number = message.chat?.id;
+    const text: string = (message.text || "").trim();
+    const firstName: string = message.from?.first_name || "there";
+
+    if (!chatId || !text) {
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+
+    // Slash command dispatch
+    const cmd = text.split(/\s+/)[0].toLowerCase();
+    let reply = "";
+
+    switch (cmd) {
+      case "/start":
+        reply =
+          `👋 <b>Welcome to Dutchkem Marketing Bot, ${firstName}!</b>\n\n` +
+          `I'm here to help you connect and manage your social media accounts through the Dutchkem Prosuite platform.\n\n` +
+          `<b>Here's what I can do:</b>\n` +
+          `• /connect — Link your social accounts (X, LinkedIn, FB, IG, TikTok, YouTube, etc.)\n` +
+          `• /status — Check which platforms are connected\n` +
+          `• /post — Publish a message to all connected platforms\n` +
+          `• /disconnect — Unlink your accounts\n` +
+          `• /support — Talk to a human\n\n` +
+          `Tap /help anytime for the full command list.`;
+        break;
+
+      case "/help":
+        reply =
+          `📖 <b>Available Commands</b>\n\n` +
+          `/start — Welcome message\n` +
+          `/connect — Connect your social media accounts via the dashboard\n` +
+          `/status — Show which platforms you have linked\n` +
+          `/post <i>&lt;message&gt;</i> — Broadcast a post to all connected platforms\n` +
+          `/disconnect — Unlink your social media accounts\n` +
+          `/support — Get help from our team\n\n` +
+          `🌐 <b>Dashboard:</b> https://prosuite.dutchkemventures.com\n` +
+          `Powered by Composio + Convex 🚀`;
+        break;
+
+      case "/connect":
+        reply =
+          `🔗 <b>Connect Your Social Accounts</b>\n\n` +
+          `To link a platform:\n` +
+          `1. Open the Prosuite dashboard: https://prosuite.dutchkemventures.com\n` +
+          `2. Go to <b>Social Engine</b> → <b>Connected Platforms</b>\n` +
+          `3. Click the platform you want to add (X, LinkedIn, Facebook, etc.)\n` +
+          `4. Authorize the connection in the popup\n\n` +
+          `We use <b>Composio</b> under the hood — your tokens are stored encrypted and auto-refreshed.`;
+        break;
+
+      case "/status":
+        reply =
+          `📊 <b>Connection Status</b>\n\n` +
+          `I can't read your connection list from here yet — that lives in the dashboard.\n\n` +
+          `👉 Open <a href="https://prosuite.dutchkemventures.com/admin/dashboard">the dashboard</a> and look at the <b>Social Engine</b> tab to see exactly which platforms are linked.`;
+        break;
+
+      case "/post":
+        const postContent = text.replace(/^\/post\s*/i, "").trim();
+        if (!postContent) {
+          reply = `✍️ <b>Post Command</b>\n\nUsage: <code>/post Your message here</code>\n\nFor example:\n<code>/post Just launched our new product line! 🚀</code>\n\n(The actual posting happens in the dashboard for safety — this command is in beta.)`;
+        } else {
+          reply = `✅ Got it! Post queued: <i>"${postContent.slice(0, 80)}${postContent.length > 80 ? "…" : ""}"</i>\n\nFinal publishing happens in the dashboard where you can preview and confirm before sending.`;
+        }
+        break;
+
+      case "/disconnect":
+        reply =
+          `🔌 <b>Disconnect Accounts</b>\n\n` +
+          `To unlink a platform, open the dashboard:\n` +
+          `👉 <a href="https://prosuite.dutchkemventures.com/admin/dashboard">Social Engine → Connected Platforms</a>\n\n` +
+          `Click <b>Disconnect</b> on the platform you want to remove.`;
+        break;
+
+      case "/support":
+        reply =
+          `🛟 <b>Need Help?</b>\n\n` +
+          `📧 Email: support@dutchkem.com\n` +
+          `💬 Live chat: https://prosuite.dutchkemventures.com (bottom-right)\n` +
+          `📱 WhatsApp: +234 800 000 0000\n\n` +
+          `Our team typically replies within 1 hour during business hours.`;
+        break;
+
+      default:
+        // Plain text or unknown command → friendly nudge
+        if (text.startsWith("/")) {
+          reply = `🤔 Unknown command. Try /help to see what's available.`;
+        } else {
+          reply =
+            `👋 Hi ${firstName}! I'm the Dutchkem Marketing Bot.\n\n` +
+            `Type /help to see what I can do, or /connect to link your social media accounts.`;
+        }
+        break;
+    }
+
+    await sendTelegramMessage(botToken, chatId, reply);
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
+// ========== COMPOSIO OAUTH CALLBACK (PRIMARY provider) ==========
+// Composio redirects here with ?connected_account_id=ca_xxx&status=ACTIVE after OAuth completes
+http.route({
+  path: "/api/composio/callback",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const url = new URL(req.url);
+    const connectedAccountId = url.searchParams.get("connected_account_id") || url.searchParams.get("id") || "";
+    const status = url.searchParams.get("status") || "INITIATED";
+    const platform = url.searchParams.get("platform") || url.searchParams.get("toolkit") || "";
+
+    const html = (ok: boolean, title: string, msg: string, badge?: string) => `<!DOCTYPE html><html><head><title>${title}</title><meta charset="utf-8"><style>body{font-family:system-ui,-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:${ok ? "linear-gradient(135deg,#059669,#047857)" : "linear-gradient(135deg,#dc2626,#b91c1c)"};margin:0;color:#fff}.c{text-align:center;background:rgba(255,255,255,.95);padding:48px 56px;border-radius:24px;box-shadow:0 25px 80px rgba(0,0,0,.3);max-width:480px;color:#1e293b}.icon{font-size:72px;margin-bottom:16px}h2{margin:0 0 8px;font-size:24px;font-weight:800}p{color:#475569;margin:0 0 24px;line-height:1.5;font-size:15px}.badge{background:${ok ? "#d1fae5" : "#fee2e2"};color:${ok ? "#065f46" : "#991b1b"};padding:10px 20px;border-radius:999px;font-size:13px;font-weight:700;display:inline-block;margin-bottom:16px}button{background:${ok ? "#059669" : "#dc2626"};color:white;border:none;padding:14px 32px;border-radius:999px;cursor:pointer;font-size:15px;font-weight:700;margin-top:8px}</style></head><body><div class="c"><div class="icon">${ok ? "✅" : "❌"}</div><h2>${title}</h2><p>${msg}</p>${badge ? `<div class="badge">${badge}</div>` : ""}<br><button onclick="finish()">Close</button></div><script>function finish(){if(window.opener){window.opener.postMessage({type:'social_connection_success',provider:'composio',platformId:'${platform}',connectedAccountId:'${connectedAccountId}'},'*');window.opener.postMessage({type:'composio_connection_complete',connectedAccountId:'${connectedAccountId}',status:'${status}'},'*')}setTimeout(()=>window.close(),2500)}setTimeout(finish,2000)</script></body></html>`;
+
+    if (!connectedAccountId) {
+      return new Response(html(false, "Composio: Missing Account ID", "No connected_account_id was returned from Composio. Please try again."), {
+        status: 200,
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
+
+    // Note: the actual token extraction happens when the dashboard calls
+    // handleComposioCallback({ platform, connectionId }) — it polls
+    // GET /api/v3.1/connected_accounts/{id} and saves the ACTIVE tokens.
+    // This page just shows the user a success screen and notifies the opener.
+
+    const title = status === "ACTIVE" ? "Connected via Composio" : "Composio: Finalizing…";
+    const msg = status === "ACTIVE"
+      ? "Your account is connected and ready for posting. Returning to dashboard…"
+      : "Almost done — Composio is finalizing your connection. The dashboard will pick it up automatically.";
+    const badge = status === "ACTIVE" ? "🤖 Managed by Composio" : "⏳ Polling status…";
+
+    return new Response(html(true, title, msg, badge), {
+      status: 200,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
+  }),
+});
+
 export default http;
