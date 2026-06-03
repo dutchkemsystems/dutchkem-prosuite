@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
+import { SuccessStoriesRotator, JoinCounter } from '~/components/SuccessStoriesRotator';
 
 function StatItem({ value, label }: { value: string, label: string }) {
   return (
@@ -329,11 +330,21 @@ function Home() {
           </div>
         </section>
 
+        {/* Rotating Success Stories — additive, uses real reviews from database */}
+        <section className="py-24 bg-white relative overflow-hidden">
+          <div className="max-w-3xl mx-auto px-4">
+            <SuccessStoriesRotator intervalMs={7000} />
+          </div>
+        </section>
+
         {/* Final CTA */}
         <section className="relative py-48 bg-slate-950 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-orange-600/10 to-indigo-600/10"></div>
-          
+
           <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
+            <div className="mb-8 flex justify-center">
+              <JoinCounter baseCount={10000} />
+            </div>
             <h2 className="text-5xl md:text-7xl font-black text-white mb-12 leading-[1.1] tracking-tighter">Ready to Deploy Your <br /><span className="text-gradient-primary">Digital Workforce?</span></h2>
             <Link to="/auth" className="inline-flex items-center gap-6 px-16 py-8 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-black text-2xl rounded-full shadow-[0_20px_80px_rgba(255,107,53,0.5)] hover:scale-105 active:scale-95 transition-all group animate-pulse-glow">
                    LAUNCH NOW 🚀

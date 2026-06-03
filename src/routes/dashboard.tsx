@@ -15,6 +15,7 @@ import { KDPRoyaltyDashboard } from '~/components/KDPRoyaltyDashboard';
 import { InactivityLogout } from '~/components/InactivityLogout';
 import { FlashSaleBanner } from '~/components/FlashSaleBanner';
 import { UrgencyTriggers } from '~/components/UrgencyTriggers';
+import { SocialProofFeed, ActivityStats } from '~/components/SocialProofFeed';
 import { isPushSupported, subscribeToPush, unsubscribeFromPush, getExistingSubscription, subscriptionToJSON } from '~/lib/push';
 
 export const Route = createFileRoute('/dashboard')({
@@ -335,32 +336,37 @@ function Overview({ data, setActiveTab, setModal }: { data: any, setActiveTab: (
         <StatCard label="Monthly Savings" value={`₦${data.stats.savingsThisMonth.toLocaleString()}`} icon="💰" color="teal" />
       </div>
 
-      {/* Usage Analytics Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <h3 className="text-lg font-bold mb-6 flex items-center gap-2">📈 Subscription Value</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="name" stroke="#64748b" fontSize={12} />
-                <YAxis stroke="#64748b" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px' }}
-                  itemStyle={{ color: '#6366f1' }}
-                />
-                <Line type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} dot={{ fill: '#6366f1' }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-          <h3 className="text-lg font-bold mb-6 flex items-center gap-2">🧩 Agent Usage</h3>
-          <div className="h-64 flex">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
+      {/* Social Proof Activity Stats — additive, no existing stats touched */}
+      <ActivityStats />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          {/* Usage Analytics Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+              <h3 className="text-lg font-bold mb-6 flex items-center gap-2">📈 Subscription Value</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    <XAxis dataKey="name" stroke="#64748b" fontSize={12} />
+                    <YAxis stroke="#64748b" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px' }}
+                      itemStyle={{ color: '#6366f1' }}
+                    />
+                    <Line type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} dot={{ fill: '#6366f1' }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+              <h3 className="text-lg font-bold mb-6 flex items-center gap-2">🧩 Agent Usage</h3>
+              <div className="h-64 flex">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -377,6 +383,13 @@ function Overview({ data, setActiveTab, setModal }: { data: any, setActiveTab: (
               </PieChart>
             </ResponsiveContainer>
           </div>
+        </div>
+          </div>
+        </div>
+
+        {/* Live Activity Feed — additive, doesn't break existing stats */}
+        <div className="lg:col-span-1">
+          <SocialProofFeed limit={8} />
         </div>
       </div>
 

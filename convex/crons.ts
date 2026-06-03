@@ -284,6 +284,14 @@ crons.interval(
   {}
 );
 
+// 📅 Scheduled Social Posts - Process every minute
+crons.interval(
+  "process scheduled social posts",
+  { minutes: 1 },
+  internal.scheduledPosts.processScheduledPosts,
+  {}
+);
+
 // Auto-backup synthetic agent configs every 12 hours
 crons.interval(
   "auto backup synthetic agents",
