@@ -953,4 +953,36 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_ad", ["adId"])
     .index("by_status", ["status", "createdAt"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // OAUTH STATES - Temp storage for OAuth flow
+  // ═══════════════════════════════════════════════════════════════════
+  oauth_states: defineTable({
+    state: v.string(),
+    platform: v.string(),
+    redirectUri: v.optional(v.string()),
+    adminId: v.string(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  }).index("by_state", ["state"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // PLATFORM CONNECTIONS - OAuth-connected social platforms
+  // ═══════════════════════════════════════════════════════════════════
+  platform_connections: defineTable({
+    adminId: v.string(),
+    platformId: v.string(),
+    platformName: v.string(),
+    integrationId: v.string(),
+    accessToken: v.string(),
+    refreshToken: v.optional(v.string()),
+    platformUserId: v.optional(v.string()),
+    platformUsername: v.optional(v.string()),
+    isConnected: v.boolean(),
+    autoPostEnabled: v.boolean(),
+    connectedAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_admin", ["adminId"])
+    .index("by_admin_platform", ["adminId", "platformId"]),
 });

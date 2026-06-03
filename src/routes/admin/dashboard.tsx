@@ -461,9 +461,9 @@ function SocialEnginePanel() {
           lastSyncAt: conn?.lastSyncAt,
           postsCount: conn?.postsCount || 0,
           followersCount: conn?.followersCount || 0,
-          postingMode: conn?.postingMode || "auto",
-          username: conn?.username,
-          postizIntegrationId: conn?.postizIntegrationId,
+          postingMode: conn?.autoPostEnabled ? "auto" : "manual",
+          username: conn?.platformUsername || conn?.username,
+          integrationId: conn?.integrationId,
         };
       });
       setPlatforms(merged);

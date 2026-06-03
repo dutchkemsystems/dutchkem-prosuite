@@ -80,31 +80,32 @@ crons.interval(
   {}
 );
 
-// 📣 Social Media Engine
-crons.cron(
-  "social post morning",
-  "0 9 * * *",
-  internal.social.rotateSocialAgents,
-  {}
-);
-crons.cron(
-  "social post afternoon",
-  "0 13 * * *",
-  internal.social.rotateSocialAgents,
-  {}
-);
-crons.cron(
-  "social post evening",
-  "0 18 * * *",
-  internal.social.rotateSocialAgents,
-  {}
-);
-crons.interval(
-  "process scheduled social",
-  { minutes: 10 },
-  internal.social.processScheduledPosts,
-  {}
-);
+// 📣 Social Media Engine (Disabled: rotateSocialAgents removed in social engine rewrite)
+// crons.cron(
+//   "social post morning",
+//   "0 9 * * *",
+//   internal.social.rotateSocialAgents,
+//   {}
+// );
+// crons.cron(
+//   "social post afternoon",
+//   "0 13 * * *",
+//   internal.social.rotateSocialAgents,
+//   {}
+// );
+// crons.cron(
+//   "social post evening",
+//   "0 18 * * *",
+//   internal.social.rotateSocialAgents,
+//   {}
+// );
+// Disabled: processScheduledPosts removed in social engine rewrite
+// crons.interval(
+//   "process scheduled social",
+//   { minutes: 10 },
+//   internal.social.processScheduledPosts,
+//   {}
+// );
 
 // 🛡️ Guardian Watch (Self-Healing)
 crons.interval(

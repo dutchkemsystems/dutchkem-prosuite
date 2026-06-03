@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { expect, test, beforeEach } from "vitest";
+import { expect, test } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
 
@@ -8,7 +8,6 @@ const modules = import.meta.glob("./**/*.ts");
 
 test("SUPPORTED_PLATFORMS has all 12 platforms", async () => {
   const t = convexTest(schema, modules);
-  // Query getOAuthStatus which uses SUPPORTED_PLATFORMS internally
   const status = await t.query(api.social.getOAuthStatus);
   expect(status).toHaveLength(12);
 
@@ -66,13 +65,11 @@ test("getConnectedPlatforms returns all platforms when none connected", async ()
   expect(result).toHaveProperty("platforms");
   expect(result).toHaveProperty("availablePlatforms");
   expect(result.isConnected).toBe(true);
-  // Should return 12 available platforms
   expect(result.availablePlatforms).toHaveLength(12);
 });
 
 test("disconnectPlatform handles non-existent platform gracefully", async () => {
   const t = convexTest(schema, modules);
-  // Should not throw
   const result = await t.action(api.social.disconnectPlatform, { platform: "nonexistent" });
   expect(result).toHaveProperty("success");
 });
@@ -97,25 +94,34 @@ test("manualPost fails for non-connected platform", async () => {
   ).rejects.toThrow("Platform not connected");
 });
 
-test("getOAuthUrl rejects unsupported platform", async () => {
+test("generateOAuthUrl rejects unsupported platform", async () => {
   const t = convexTest(schema, modules);
-  await expect(
-    t.action(api.social.getOAuthUrl, {
-      platform: "unsupported_platform",
-      redirectUri: "https://example.com/callback",
-    })
-  ).rejects.toThrow("Unsupported platform");
+  const result = await t.action(api.social.generateOAuthUrl, {
+    platform: "unsupported_platform",
+    redirectUri: "https://example.com/callback",
+  });
+  expect(result.success).toBe(false);
+  expect(result.error).toContain("Unsupported platform");
 });
 
-test("getOAuthUrl throws when Postiz API key not configured", async () => {
+test("getOAuthUrl is an alias for generateOAuthUrl", async () => {
   const t = convexTest(schema, modules);
-  // Without Postiz API key, should throw
-  await expect(
-    t.action(api.social.getOAuthUrl, {
-      platform: "x",
-      redirectUri: "https://example.com/callback",
-    })
-  ).rejects.toThrow("Postiz API key not configured");
+  const result = await t.action(api.social.getOAuthUrl, {
+    platform: "unsupported_platform",
+    redirectUri: "https://example.com/callback",
+  });
+  expect(result.success).toBe(false);
+  expect(result.error).toContain("Unsupported platform");
+});
+
+test("generateOAuthUrl throws when Postiz API key not configured", async () => {
+  const t = convexTest(schema, modules);
+  const result = await t.action(api.social.generateOAuthUrl, {
+    platform: "x",
+    redirectUri: "https://example.com/callback",
+  });
+  expect(result.success).toBe(false);
+  expect(result.error).toContain("Postiz API key not configured");
 });
 
 test("handleOAuthCallback rejects invalid state", async () => {
@@ -129,28 +135,16 @@ test("handleOAuthCallback rejects invalid state", async () => {
   expect(result.error).toContain("Invalid or expired OAuth state");
 });
 
-test("getPlatformsFromDb returns empty array when no platforms connected", async () => {
+test("getConnections returns empty array when no connections", async () => {
   const t = convexTest(schema, modules);
-  const platforms = await t.query(api.social.getPlatformsFromDb);
-  expect(Array.isArray(platforms)).toBe(true);
-  expect(platforms).toHaveLength(12);
-  // All should be disconnected
-  for (const p of platforms) {
-    expect(p.isConnected).toBe(false);
-  }
-});
-
-test("rotateSocialAgentsManual triggers agent rotation", async () => {
-  const t = convexTest(schema, modules);
-  const result = await t.mutation(api.social.rotateSocialAgentsManual, {});
-  expect(typeof result).toBe("string");
-  // Should be one of the agent IDs A1-A15
-  expect(result).toMatch(/^A\d{1,2}$/);
+  const connections = await t.query(api.social.getConnections);
+  expect(Array.isArray(connections)).toBe(true);
+  expect(connections).toHaveLength(0);
 });
 
 test("disconnectAllPlatforms returns success", async () => {
   const t = convexTest(schema, modules);
   const result = await t.action(api.social.disconnectAllPlatforms, {});
   expect(result.success).toBe(true);
-  expect(result.disconnected).toBe(0); // No platforms connected
+  expect(result.disconnected).toBe(0);
 });
