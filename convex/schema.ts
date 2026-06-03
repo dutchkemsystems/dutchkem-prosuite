@@ -1096,4 +1096,132 @@ export default defineSchema({
   })
     .index("by_type", ["popupType"])
     .index("by_action", ["action"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // PHASE 4: SEO ENGINE, TEAM ACCOUNTS, INFLUENCER RECRUITMENT
+  // ═══════════════════════════════════════════════════════════════════
+
+  seo_analyses: defineTable({
+    url: v.string(),
+    score: v.number(),
+    issues: v.any(),
+    suggestions: v.any(),
+    keywords: v.any(),
+    contentId: v.optional(v.string()),
+    analyzedAt: v.number(),
+  })
+    .index("by_url", ["url"])
+    .index("by_score", ["score"]),
+
+  content_calendar: defineTable({
+    title: v.string(),
+    contentType: v.string(),
+    platform: v.string(),
+    scheduledDate: v.number(),
+    keywords: v.array(v.string()),
+    notes: v.optional(v.string()),
+    status: v.union(
+      v.literal("draft"),
+      v.literal("scheduled"),
+      v.literal("published"),
+      v.literal("archived")
+    ),
+    createdAt: v.number(),
+  })
+    .index("by_date", ["scheduledDate"])
+    .index("by_status", ["status"]),
+
+  teams: defineTable({
+    name: v.string(),
+    ownerId: v.id("users"),
+    plan: v.union(v.literal("starter"), v.literal("professional"), v.literal("enterprise")),
+    maxMembers: v.number(),
+    currentMembers: v.number(),
+    status: v.union(v.literal("active"), v.literal("suspended"), v.literal("cancelled")),
+    createdAt: v.number(),
+  })
+    .index("by_owner", ["ownerId"])
+    .index("by_status", ["status"]),
+
+  team_members: defineTable({
+    teamId: v.id("teams"),
+    userId: v.id("users"),
+    role: v.union(
+      v.literal("owner"),
+      v.literal("admin"),
+      v.literal("manager"),
+      v.literal("member"),
+      v.literal("viewer")
+    ),
+    invitedBy: v.id("users"),
+    joinedAt: v.number(),
+    status: v.union(v.literal("active"), v.literal("inactive")),
+  })
+    .index("by_team", ["teamId"])
+    .index("by_user", ["userId"])
+    .index("by_team_user", ["teamId", "userId"]),
+
+  team_invites: defineTable({
+    teamId: v.id("teams"),
+    email: v.string(),
+    role: v.string(),
+    invitedBy: v.id("users"),
+    inviteCode: v.string(),
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("expired")),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_team", ["teamId"])
+    .index("by_email", ["email"])
+    .index("by_code", ["inviteCode"]),
+
+  influencers: defineTable({
+    name: v.string(),
+    platform: v.string(),
+    username: v.string(),
+    followers: v.number(),
+    engagementRate: v.number(),
+    niche: v.string(),
+    email: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    tier: v.string(),
+    status: v.union(
+      v.literal("prospecting"),
+      v.literal("contacted"),
+      v.literal("negotiating"),
+      v.literal("active"),
+      v.literal("inactive")
+    ),
+    score: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_tier", ["tier"])
+    .index("by_platform", ["platform"])
+    .index("by_status", ["status"])
+    .index("by_score", ["score"]),
+
+  influencer_campaigns: defineTable({
+    name: v.string(),
+    influencerId: v.id("influencers"),
+    campaignType: v.string(),
+    budget: v.number(),
+    startDate: v.number(),
+    endDate: v.number(),
+    deliverables: v.array(v.string()),
+    kpis: v.any(),
+    status: v.union(
+      v.literal("planning"),
+      v.literal("active"),
+      v.literal("completed"),
+      v.literal("cancelled")
+    ),
+    spend: v.number(),
+    reach: v.number(),
+    conversions: v.number(),
+    roi: v.number(),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_influencer", ["influencerId"])
+    .index("by_status", ["status"]),
 });
