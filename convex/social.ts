@@ -1,84 +1,60 @@
-import { mutation, query, action, internalQuery, internalMutation } from "./_generated/server";
+import { mutation, query, action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
-const POSTIZ_API_URL = "https://api.postiz.com/public/v1";
-
-function getPostizConfig() {
-  return {
-    apiKey: process.env.POSTIZ_API_KEY || "",
-    clientId: process.env.POSTIZ_CLIENT_ID || "",
-    clientSecret: process.env.POSTIZ_CLIENT_SECRET || "",
-  };
-}
-
-export const SUPPORTED_PLATFORMS = [
-  { id: "x", name: "X (Twitter)", icon: "🐦", color: "#1DA1F2" },
-  { id: "linkedin", name: "LinkedIn", icon: "💼", color: "#0A66C2" },
-  { id: "facebook", name: "Facebook", icon: "📘", color: "#1877F2" },
-  { id: "instagram", name: "Instagram", icon: "📸", color: "#E4405F" },
-  { id: "tiktok", name: "TikTok", icon: "🎵", color: "#000000" },
-  { id: "youtube", name: "YouTube", icon: "🎬", color: "#FF0000" },
-  { id: "pinterest", name: "Pinterest", icon: "📌", color: "#E60023" },
-  { id: "reddit", name: "Reddit", icon: "🤖", color: "#FF4500" },
-  { id: "threads", name: "Threads", icon: "🧵", color: "#000000" },
-  { id: "telegram", name: "Telegram", icon: "📱", color: "#0088CC" },
-  { id: "discord", name: "Discord", icon: "🎮", color: "#5865F2" },
-  { id: "bluesky", name: "Bluesky", icon: "🦋", color: "#0085FF" },
-] as const;
-
-// ═══════════════════════════════════════════════════════════════════
-// 1. ACTION: Generate OAuth URL (Calls Postiz API)
-// ═══════════════════════════════════════════════════════════════════
+// ========== ACTION: Generate OAuth URL (PUBLIC - Called from Client) ==========
 export const generateOAuthUrl = action({
-  args: { platform: v.string(), redirectUri: v.string() },
-  returns: v.any(),
-  handler: async (ctx, { platform, redirectUri }) => {
+  args: {
+    platform: v.string(),
+  },
+  handler: async (ctx, args) => {
     try {
-      const platformConfig = SUPPORTED_PLATFORMS.find((p) => p.id === platform);
-      if (!platformConfig) {
-        throw new Error(`Unsupported platform: ${platform}`);
+      const identity = await ctx.auth.getUserIdentity();
+      if (!identity) {
+        throw new Error("Not authenticated");
       }
 
-      const { apiKey } = getPostizConfig();
-      if (!apiKey) {
-        throw new Error("Postiz API key not configured");
-      }
+      const { platform } = args;
+      const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY;
+      const POSTIZ_API_URL = process.env.POSTIZ_API_URL || "https://api.postiz.com/v1";
+      const APP_URL = process.env.APP_URL || "https://yourdomain.com";
 
-      const state = crypto.randomUUID();
+      console.log(`[OAuth] Initiating for platform: ${platform}`);
 
-      const response = await fetch(`${POSTIZ_API_URL}/social/${platform}`, {
-        method: "GET",
+      const response = await fetch(`${POSTIZ_API_URL}/oauth/initiate`, {
+        method: "POST",
         headers: {
-          Authorization: apiKey,
+          "Authorization": `Bearer ${POSTIZ_API_KEY}`,
           "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          platform: platform,
+          redirect_uri: `${APP_URL}/api/postiz/callback/${platform}`,
+        }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.error(`Postiz API error: ${response.status}`, errorText);
         throw new Error(`Postiz API error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      if (!data.url) {
-        throw new Error("No OAuth URL returned from Postiz");
-      }
+      console.log(`[OAuth] Got auth URL for ${platform}`);
 
-      await ctx.runMutation(internal.social.storeOAuthState, {
-        state,
-        platform,
-        redirectUri,
+      await ctx.runAction(internal.social.storeOAuthStateInternal, {
+        state: data.state,
+        platform: platform,
+        adminId: identity.subject,
       });
 
       return {
         success: true,
-        authUrl: data.url,
-        state,
-        platform: platformConfig,
+        authUrl: data.auth_url,
+        platform: platform,
       };
     } catch (error) {
-      console.error("generateOAuthUrl error:", error);
+      console.error("[OAuth] generateOAuthUrl error:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -87,61 +63,97 @@ export const generateOAuthUrl = action({
   },
 });
 
-// Backward-compatible alias
-export const getOAuthUrl = generateOAuthUrl;
-
-// ═══════════════════════════════════════════════════════════════════
-// 2. INTERNAL MUTATION: Store OAuth State
-// ═══════════════════════════════════════════════════════════════════
-export const storeOAuthState = internalMutation({
+// ========== INTERNAL ACTION: Store OAuth State ==========
+export const storeOAuthStateInternal = internalAction({
   args: {
     state: v.string(),
     platform: v.string(),
-    redirectUri: v.string(),
+    adminId: v.string(),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.insert("oauth_states", {
+    await ctx.runMutation(internal.social.storeOAuthStateMutation, {
       state: args.state,
       platform: args.platform,
-      redirectUri: args.redirectUri,
-      adminId: "system",
-      expiresAt: Date.now() + 10 * 60 * 1000,
-      createdAt: Date.now(),
+      adminId: args.adminId,
     });
   },
 });
 
-// ═══════════════════════════════════════════════════════════════════
-// 3. ACTION: Handle OAuth Callback
-// ═══════════════════════════════════════════════════════════════════
+// ========== INTERNAL MUTATION: Actually Write to Database ==========
+export const storeOAuthStateMutation = internalMutation({
+  args: {
+    state: v.string(),
+    platform: v.string(),
+    adminId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("oauth_states", {
+      state: args.state,
+      platform: args.platform,
+      adminId: args.adminId,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+      createdAt: Date.now(),
+    });
+    console.log(`[DB] Stored OAuth state for ${args.platform}`);
+  },
+});
+
+// ========== INTERNAL QUERY: Get OAuth State ==========
+export const getOAuthStateInternal = internalQuery({
+  args: {
+    state: v.string(),
+    platform: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const states = await ctx.db
+      .query("oauth_states")
+      .withIndex("by_state", (q) => q.eq("state", args.state))
+      .collect();
+
+    const validState = states.find(
+      (s) => s.platform === args.platform && s.expiresAt > Date.now()
+    );
+
+    return validState || null;
+  },
+});
+
+// ========== ACTION: Handle OAuth Callback ==========
 export const handleOAuthCallback = action({
-  args: { platform: v.string(), code: v.string(), state: v.string() },
-  returns: v.any(),
-  handler: async (ctx, { platform, code, state }) => {
+  args: {
+    platform: v.string(),
+    code: v.string(),
+    state: v.string(),
+  },
+  handler: async (ctx, args) => {
     try {
-      const storedState = await ctx.runQuery(internal.social.getOAuthState, {
-        state,
-        platform,
+      const { platform, code, state } = args;
+
+      console.log(`[OAuth] Handling callback for ${platform}`);
+
+      const storedState = await ctx.runQuery(internal.social.getOAuthStateInternal, {
+        state: state,
+        platform: platform,
       });
 
       if (!storedState) {
         throw new Error("Invalid or expired OAuth state");
       }
 
-      const { clientId, clientSecret } = getPostizConfig();
-      if (!clientId || !clientSecret) {
-        throw new Error("Postiz OAuth credentials not configured");
-      }
+      const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY;
+      const POSTIZ_API_URL = process.env.POSTIZ_API_URL || "https://api.postiz.com/v1";
+      const APP_URL = process.env.APP_URL;
 
-      const tokenResponse = await fetch(`${POSTIZ_API_URL}/../oauth/token`, {
+      const tokenResponse = await fetch(`${POSTIZ_API_URL}/oauth/token`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Authorization": `Bearer ${POSTIZ_API_KEY}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          grant_type: "authorization_code",
-          code,
-          client_id: clientId,
-          client_secret: clientSecret,
+          platform: platform,
+          code: code,
+          redirect_uri: `${APP_URL}/api/postiz/callback/${platform}`,
         }),
       });
 
@@ -151,54 +163,52 @@ export const handleOAuthCallback = action({
       }
 
       const tokenData = await tokenResponse.json();
-      const accessToken = tokenData.access_token;
-      if (!accessToken) {
-        throw new Error("No access token returned");
+      console.log(`[OAuth] Got token for ${platform}`);
+
+      const connectResponse = await fetch(`${POSTIZ_API_URL}/platforms/connect`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${POSTIZ_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          platform: platform,
+          access_token: tokenData.access_token,
+          integration_id: tokenData.integration_id,
+        }),
+      });
+
+      if (!connectResponse.ok) {
+        const errorText = await connectResponse.text();
+        console.warn(`Postiz connection warning: ${connectResponse.status}`, errorText);
       }
 
-      let integrationId = "";
-      let username = "";
-      try {
-        const { apiKey } = getPostizConfig();
-        const integrationsRes = await fetch(`${POSTIZ_API_URL}/integrations`, {
-          method: "GET",
-          headers: { Authorization: apiKey, "Content-Type": "application/json" },
-        });
-        if (integrationsRes.ok) {
-          const integrations = await integrationsRes.json();
-          const arr = Array.isArray(integrations) ? integrations : integrations.connections || [];
-          const match = arr.find((i: any) => i.identifier === platform);
-          if (match) {
-            integrationId = match.id;
-            username = match.profile || match.name || "";
-          }
-        }
-      } catch (_) {}
+      const connectData = await connectResponse.json().catch(() => ({}));
 
-      await ctx.runMutation(internal.social.saveConnection, {
+      await ctx.runMutation(internal.social.saveConnectionMutation, {
         adminId: storedState.adminId,
         platformId: platform,
         platformName: getPlatformName(platform),
-        integrationId,
-        accessToken,
-        refreshToken: tokenData.refresh_token || "",
-        platformUserId: tokenData.platform_user_id || "",
-        platformUsername: username || tokenData.platform_username || "",
+        integrationId: connectData.integration_id || tokenData.integration_id || "",
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+        platformUserId: tokenData.platform_user_id,
+        platformUsername: tokenData.platform_username,
       });
 
-      await ctx.runMutation(internal.social.deleteOAuthState, {
+      await ctx.runMutation(internal.social.deleteOAuthStateMutation, {
         stateId: storedState._id,
       });
+
+      console.log(`[OAuth] Successfully connected ${platform}`);
 
       return {
         success: true,
         platformName: getPlatformName(platform),
-        username,
-        integrationId,
         message: `Successfully connected to ${getPlatformName(platform)}`,
       };
     } catch (error) {
-      console.error("handleOAuthCallback error:", error);
+      console.error("[OAuth] handleOAuthCallback error:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -207,46 +217,8 @@ export const handleOAuthCallback = action({
   },
 });
 
-// ═══════════════════════════════════════════════════════════════════
-// 4. INTERNAL QUERY: Get OAuth State
-// ═══════════════════════════════════════════════════════════════════
-export const getOAuthState = internalQuery({
-  args: { state: v.string(), platform: v.string() },
-  returns: v.any(),
-  handler: async (ctx, args) => {
-    const states = await ctx.db
-      .query("oauth_states")
-      .withIndex("by_state", (q) => q.eq("state", args.state))
-      .collect();
-    const validState = states.find(
-      (s) => s.platform === args.platform && s.expiresAt > Date.now()
-    );
-    return validState || null;
-  },
-});
-
-// Public query for HTTP callback
-export const validateOAuthState = query({
-  args: { state: v.string() },
-  returns: v.any(),
-  handler: async (ctx, { state }) => {
-    const doc = await ctx.db
-      .query("oauth_states")
-      .withIndex("by_state", (q) => q.eq("state", state))
-      .first();
-    if (!doc) return { valid: false, error: "Invalid or expired OAuth state" };
-    if (doc.expiresAt > Date.now()) {
-      return { valid: true, stateId: doc._id, platform: doc.platform, adminId: doc.adminId };
-    }
-    await ctx.db.delete(doc._id);
-    return { valid: false, error: "OAuth state expired" };
-  },
-});
-
-// ═══════════════════════════════════════════════════════════════════
-// 5. INTERNAL MUTATION: Save Connection
-// ═══════════════════════════════════════════════════════════════════
-export const saveConnection = internalMutation({
+// ========== INTERNAL MUTATION: Save Connection ==========
+export const saveConnectionMutation = internalMutation({
   args: {
     adminId: v.string(),
     platformId: v.string(),
@@ -257,7 +229,6 @@ export const saveConnection = internalMutation({
     platformUserId: v.optional(v.string()),
     platformUsername: v.optional(v.string()),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("platform_connections")
@@ -292,74 +263,68 @@ export const saveConnection = internalMutation({
         updatedAt: Date.now(),
       });
     }
+    console.log(`[DB] Saved connection for ${args.platformId}`);
   },
 });
 
-// Public mutation for HTTP callback
-export const saveOAuthCallbackConnection = mutation({
+// ========== INTERNAL MUTATION: Delete OAuth State ==========
+export const deleteOAuthStateMutation = internalMutation({
   args: {
-    platform: v.string(),
     stateId: v.id("oauth_states"),
-    accessToken: v.string(),
-    refreshToken: v.optional(v.string()),
-    integrationId: v.optional(v.string()),
-    username: v.optional(v.string()),
   },
-  returns: v.any(),
-  handler: async (ctx, { platform, stateId, accessToken, refreshToken, integrationId, username }) => {
-    await ctx.db.delete(stateId);
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.stateId);
+    console.log(`[DB] Deleted OAuth state`);
+  },
+});
 
-    const adminId = "system";
-    const existing = await ctx.db
+// ========== QUERY: Get All Connections (Called from Client) ==========
+export const getConnections = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return [];
+    }
+
+    const connections = await ctx.db
+      .query("platform_connections")
+      .withIndex("by_admin", (q) => q.eq("adminId", identity.subject))
+      .collect();
+
+    return connections;
+  },
+});
+
+// ========== MUTATION: Disconnect Platform (Called from Client) ==========
+export const disconnectPlatform = mutation({
+  args: {
+    platformId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const connection = await ctx.db
       .query("platform_connections")
       .withIndex("by_admin_platform", (q) =>
-        q.eq("adminId", adminId).eq("platformId", platform)
+        q.eq("adminId", identity.subject).eq("platformId", args.platformId)
       )
       .first();
 
-    const platformName = getPlatformName(platform);
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        integrationId: integrationId || "",
-        accessToken,
-        refreshToken: refreshToken || "",
-        platformUsername: username || "",
-        isConnected: true,
-        updatedAt: Date.now(),
-      });
-    } else {
-      await ctx.db.insert("platform_connections", {
-        adminId,
-        platformId: platform,
-        platformName,
-        integrationId: integrationId || "",
-        accessToken,
-        refreshToken: refreshToken || "",
-        platformUsername: username || "",
-        isConnected: true,
-        autoPostEnabled: true,
-        connectedAt: Date.now(),
+    if (connection) {
+      await ctx.db.patch(connection._id, {
+        isConnected: false,
         updatedAt: Date.now(),
       });
     }
-
-    return { success: true, platformName, username, integrationId, message: `${platformName} connected` };
   },
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// 6. INTERNAL MUTATION: Delete OAuth State
-// ═══════════════════════════════════════════════════════════════════
-export const deleteOAuthState = internalMutation({
-  args: { stateId: v.id("oauth_states") },
-  returns: v.null(),
-  handler: async (ctx, { stateId }) => {
-    await ctx.db.delete(stateId);
-  },
-});
-
-// ═══════════════════════════════════════════════════════════════════
-// 7. ACTION: Get Connected Platforms
+// DASHBOARD HELPER: Get Connected Platforms (action — calls Postiz API)
 // ═══════════════════════════════════════════════════════════════════
 export const getConnectedPlatforms = action({
   args: {},
@@ -367,13 +332,14 @@ export const getConnectedPlatforms = action({
   handler: async (ctx) => {
     try {
       const dbPlatforms = await ctx.runQuery(internal.social.getPlatformsFromDb);
-      const { apiKey } = getPostizConfig();
+      const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY;
+      const POSTIZ_API_URL = process.env.POSTIZ_API_URL || "https://api.postiz.com/v1";
       let postizIntegrations: any[] = [];
-      if (apiKey) {
+      if (POSTIZ_API_KEY) {
         try {
           const res = await fetch(`${POSTIZ_API_URL}/integrations`, {
             method: "GET",
-            headers: { Authorization: apiKey, "Content-Type": "application/json" },
+            headers: { Authorization: POSTIZ_API_KEY, "Content-Type": "application/json" },
           });
           if (res.ok) {
             const d = await res.json();
@@ -438,142 +404,7 @@ export const getPlatformsFromDb = internalQuery({
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// 8. QUERY: Get All Connections
-// ═══════════════════════════════════════════════════════════════════
-export const getConnections = query({
-  args: {},
-  returns: v.any(),
-  handler: async (ctx) => {
-    const connections = await ctx.db.query("platform_connections").collect();
-    return connections.map((c) => ({
-      ...c,
-      platformName: getPlatformName(c.platformId),
-    }));
-  },
-});
-
-// ═══════════════════════════════════════════════════════════════════
-// 9. ACTION: Disconnect Platform
-// ═══════════════════════════════════════════════════════════════════
-export const disconnectPlatform = action({
-  args: { platform: v.string() },
-  returns: v.any(),
-  handler: async (ctx, { platform }) => {
-    const connection = await ctx.runQuery(internal.social.getConnectionForPlatform, { platform });
-    if (connection?.integrationId) {
-      const { apiKey } = getPostizConfig();
-      if (apiKey) {
-        try {
-          await fetch(`${POSTIZ_API_URL}/integrations/${connection.integrationId}`, {
-            method: "DELETE",
-            headers: { Authorization: apiKey, "Content-Type": "application/json" },
-          });
-        } catch (_) {}
-      }
-    }
-    await ctx.runMutation(internal.social.clearConnection, { platform });
-    return { success: true };
-  },
-});
-
-export const getConnectionForPlatform = internalQuery({
-  args: { platform: v.string() },
-  returns: v.any(),
-  handler: async (ctx, { platform }) => {
-    return await ctx.db
-      .query("platform_connections")
-      .withIndex("by_admin_platform", (q) =>
-        q.eq("adminId", "system").eq("platformId", platform)
-      )
-      .first();
-  },
-});
-
-export const clearConnection = internalMutation({
-  args: { platform: v.string() },
-  returns: v.null(),
-  handler: async (ctx, { platform }) => {
-    const doc = await ctx.db
-      .query("platform_connections")
-      .withIndex("by_admin_platform", (q) =>
-        q.eq("adminId", "system").eq("platformId", platform)
-      )
-      .first();
-    if (doc) {
-      await ctx.db.patch(doc._id, {
-        isConnected: false,
-        accessToken: "",
-        refreshToken: undefined,
-        platformUserId: undefined,
-        platformUsername: undefined,
-        integrationId: undefined,
-      });
-    }
-  },
-});
-
-// ═══════════════════════════════════════════════════════════════════
-// 10. ACTION: Disconnect All Platforms
-// ═══════════════════════════════════════════════════════════════════
-export const disconnectAllPlatforms = action({
-  args: {},
-  returns: v.any(),
-  handler: async (ctx) => {
-    const platforms = await ctx.runQuery(internal.social.getAllConnected);
-    const { apiKey } = getPostizConfig();
-    let disconnected = 0;
-    for (const p of platforms) {
-      if (p.isConnected && p.integrationId && apiKey) {
-        try {
-          await fetch(`${POSTIZ_API_URL}/integrations/${p.integrationId}`, {
-            method: "DELETE",
-            headers: { Authorization: apiKey, "Content-Type": "application/json" },
-          });
-        } catch (_) {}
-      }
-      if (p.isConnected) {
-        await ctx.runMutation(internal.social.clearConnection, { platform: p.platformId });
-        disconnected++;
-      }
-    }
-    return { success: true, disconnected };
-  },
-});
-
-export const getAllConnected = internalQuery({
-  args: {},
-  returns: v.array(v.any()),
-  handler: async (ctx) => {
-    return await ctx.db.query("platform_connections").collect();
-  },
-});
-
-// ═══════════════════════════════════════════════════════════════════
-// 11. MUTATION: Update Posting Settings
-// ═══════════════════════════════════════════════════════════════════
-export const updatePostingSettings = mutation({
-  args: {
-    platformId: v.string(),
-    mode: v.union(v.literal("auto"), v.literal("manual"), v.literal("paused")),
-    scheduleTime: v.optional(v.string()),
-    postingFrequency: v.optional(v.string()),
-  },
-  returns: v.any(),
-  handler: async (ctx, args) => {
-    const doc = await ctx.db
-      .query("platform_connections")
-      .withIndex("by_admin_platform", (q) =>
-        q.eq("adminId", "system").eq("platformId", args.platformId)
-      )
-      .first();
-    if (!doc) throw new Error("Platform not connected");
-    await ctx.db.patch(doc._id, { autoPostEnabled: args.mode === "auto", updatedAt: Date.now() });
-    return { success: true, mode: args.mode };
-  },
-});
-
-// ═══════════════════════════════════════════════════════════════════
-// 12. ACTION: Manual Post
+// DASHBOARD HELPER: Manual Post (action — uses fetch)
 // ═══════════════════════════════════════════════════════════════════
 export const manualPost = action({
   args: {
@@ -586,20 +417,21 @@ export const manualPost = action({
     const connection = await ctx.runQuery(internal.social.getConnectionForPlatform, { platform: args.platformId });
     if (!connection || !connection.isConnected) throw new Error("Platform not connected");
 
-    const { apiKey } = getPostizConfig();
+    const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY;
+    const POSTIZ_API_URL = process.env.POSTIZ_API_URL || "https://api.postiz.com/v1";
     let externalId = `manual_${Date.now()}`;
     let success = false;
     let errorMsg = "";
 
     if (!connection.integrationId) {
       errorMsg = "No Postiz integration ID. Reconnect.";
-    } else if (!apiKey) {
+    } else if (!POSTIZ_API_KEY) {
       errorMsg = "Postiz API key not configured";
     } else {
       try {
         const response = await fetch(`${POSTIZ_API_URL}/posts`, {
           method: "POST",
-          headers: { Authorization: apiKey, "Content-Type": "application/json" },
+          headers: { Authorization: POSTIZ_API_KEY, "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "now",
             date: new Date().toISOString(),
@@ -636,6 +468,19 @@ export const manualPost = action({
   },
 });
 
+export const getConnectionForPlatform = internalQuery({
+  args: { platform: v.string() },
+  returns: v.any(),
+  handler: async (ctx, { platform }) => {
+    return await ctx.db
+      .query("platform_connections")
+      .withIndex("by_admin_platform", (q) =>
+        q.eq("adminId", "system").eq("platformId", platform)
+      )
+      .first();
+  },
+});
+
 export const logPost = internalMutation({
   args: {
     platformId: v.string(),
@@ -660,7 +505,31 @@ export const logPost = internalMutation({
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// 13. QUERIES: Analytics & Stats
+// DASHBOARD HELPER: Update Posting Settings (mutation — no fetch)
+// ═══════════════════════════════════════════════════════════════════
+export const updatePostingSettings = mutation({
+  args: {
+    platformId: v.string(),
+    mode: v.union(v.literal("auto"), v.literal("manual"), v.literal("paused")),
+    scheduleTime: v.optional(v.string()),
+    postingFrequency: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const doc = await ctx.db
+      .query("platform_connections")
+      .withIndex("by_admin_platform", (q) =>
+        q.eq("adminId", "system").eq("platformId", args.platformId)
+      )
+      .first();
+    if (!doc) throw new Error("Platform not connected");
+    await ctx.db.patch(doc._id, { autoPostEnabled: args.mode === "auto", updatedAt: Date.now() });
+    return { success: true, mode: args.mode };
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD HELPER: Analytics & Stats (queries — no fetch)
 // ═══════════════════════════════════════════════════════════════════
 export const getPlatformAnalytics = query({
   args: {},
@@ -674,9 +543,7 @@ export const getPlatformAnalytics = query({
           (l) => l.source === p.id || l.source === p.name.toLowerCase()
         );
         return {
-          platform: p.id,
-          name: p.name,
-          icon: p.icon,
+          platform: p.id, name: p.name, icon: p.icon,
           leads: platformLeads.length,
           registrations: platformLeads.filter((l) => l.status === "converted").length,
           conversions: platformLeads.filter((l) => l.status === "converted").length,
@@ -712,40 +579,46 @@ export const getSocialStats = query({
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// 14. QUERY: OAuth Status
+// QUERY: OAuth Status (no fetch)
 // ═══════════════════════════════════════════════════════════════════
 export const getOAuthStatus = query({
   args: {},
   returns: v.any(),
   handler: async () => {
-    const { apiKey, clientId, clientSecret } = getPostizConfig();
-    const hasPostiz = !!(apiKey && clientId && clientSecret);
+    const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY;
+    const POSTIZ_CLIENT_ID = process.env.POSTIZ_CLIENT_ID;
+    const POSTIZ_CLIENT_SECRET = process.env.POSTIZ_CLIENT_SECRET;
+    const hasPostiz = !!(POSTIZ_API_KEY && POSTIZ_CLIENT_ID && POSTIZ_CLIENT_SECRET);
     return SUPPORTED_PLATFORMS.map((p) => ({
-      id: p.id,
-      name: p.name,
-      icon: p.icon,
-      hasCredentials: hasPostiz,
+      id: p.id, name: p.name, icon: p.icon, hasCredentials: hasPostiz,
     }));
   },
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// Helper
+// CONSTANTS & HELPERS
 // ═══════════════════════════════════════════════════════════════════
+export const SUPPORTED_PLATFORMS = [
+  { id: "x", name: "X (Twitter)", icon: "🐦", color: "#1DA1F2" },
+  { id: "linkedin", name: "LinkedIn", icon: "💼", color: "#0A66C2" },
+  { id: "facebook", name: "Facebook", icon: "📘", color: "#1877F2" },
+  { id: "instagram", name: "Instagram", icon: "📸", color: "#E4405F" },
+  { id: "tiktok", name: "TikTok", icon: "🎵", color: "#000000" },
+  { id: "youtube", name: "YouTube", icon: "🎬", color: "#FF0000" },
+  { id: "pinterest", name: "Pinterest", icon: "📌", color: "#E60023" },
+  { id: "reddit", name: "Reddit", icon: "🤖", color: "#FF4500" },
+  { id: "threads", name: "Threads", icon: "🧵", color: "#000000" },
+  { id: "telegram", name: "Telegram", icon: "📱", color: "#0088CC" },
+  { id: "discord", name: "Discord", icon: "🎮", color: "#5865F2" },
+  { id: "bluesky", name: "Bluesky", icon: "🦋", color: "#0085FF" },
+] as const;
+
 function getPlatformName(platformId: string): string {
   const names: Record<string, string> = {
-    x: "X (Twitter)",
-    linkedin: "LinkedIn",
-    facebook: "Facebook",
-    instagram: "Instagram",
-    tiktok: "TikTok",
-    youtube: "YouTube",
-    pinterest: "Pinterest",
-    reddit: "Reddit",
-    threads: "Threads",
-    telegram: "Telegram",
-    discord: "Discord",
-    bluesky: "Bluesky",
+    x: "X (Twitter)", linkedin: "LinkedIn", facebook: "Facebook",
+    instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube",
+    pinterest: "Pinterest", reddit: "Reddit", threads: "Threads",
+    telegram: "Telegram", discord: "Discord", bluesky: "Bluesky",
   };
   return names[platformId] || platformId;
 }

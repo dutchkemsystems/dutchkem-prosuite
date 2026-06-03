@@ -650,26 +650,39 @@ http.route({
         throw new Error("Missing platform ID");
       }
 
-      const stateResult = await ctx.runQuery(api.social.validateOAuthState, { state });
-      if (!stateResult.valid) {
+      // Validate state via internal query
+      const storedState = await ctx.runQuery(api.social.getOAuthStateInternal, {
+        state,
+        platform: platformId,
+      });
+      if (!storedState) {
         return new Response(`
           <!DOCTYPE html>
           <html><head><title>Connection Failed</title>
           <style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#fee2e2;margin:0}.c{text-align:center;background:white;padding:40px;border-radius:20px;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.15)}h2{color:#dc2626;margin:0 0 10px}p{color:#666;margin:0 0 20px}button{background:#dc2626;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-size:16px}</style></head>
-          <body><div class="c"><h2>Connection Failed</h2><p>${stateResult.error}</p><button onclick="window.close()">Close</button></div></body></html>
+          <body><div class="c"><h2>Connection Failed</h2><p>Invalid or expired OAuth state</p><button onclick="window.close()">Close</button></div></body></html>
         `, { status: 200, headers: { "Content-Type": "text/html" } });
       }
 
-      const clientId = process.env.POSTIZ_CLIENT_ID || "";
-      const clientSecret = process.env.POSTIZ_CLIENT_SECRET || "";
-      if (!clientId || !clientSecret) {
+      // Exchange code for token
+      const POSTIZ_API_KEY = process.env.POSTIZ_API_KEY || "";
+      const POSTIZ_CLIENT_ID = process.env.POSTIZ_CLIENT_ID || "";
+      const POSTIZ_CLIENT_SECRET = process.env.POSTIZ_CLIENT_SECRET || "";
+      const POSTIZ_API_URL = process.env.POSTIZ_API_URL || "https://api.postiz.com/v1";
+      const APP_URL = process.env.APP_URL || "";
+
+      if (!POSTIZ_CLIENT_ID || !POSTIZ_CLIENT_SECRET) {
         throw new Error("Postiz OAuth credentials not configured");
       }
 
-      const tokenRes = await fetch("https://api.postiz.com/oauth/token", {
+      const tokenRes = await fetch(`${POSTIZ_API_URL}/oauth/token`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ grant_type: "authorization_code", code, client_id: clientId, client_secret: clientSecret }),
+        headers: { "Authorization": `Bearer ${POSTIZ_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform: platformId,
+          code,
+          redirect_uri: `${APP_URL}/api/postiz/callback/${platformId}`,
+        }),
       });
       if (!tokenRes.ok) {
         const err = await tokenRes.text();
@@ -679,90 +692,84 @@ http.route({
       const accessToken = tokenData.access_token;
       if (!accessToken) throw new Error("No access token returned");
 
-      let integrationId = "";
-      let username = "";
+      // Register connection with Postiz
+      let integrationId = tokenData.integration_id || "";
+      let username = tokenData.platform_username || "";
       try {
-        const apiKey = process.env.POSTIZ_API_KEY || "";
-        const integrationsRes = await fetch("https://api.postiz.com/public/v1/integrations", {
-          method: "GET",
-          headers: { Authorization: apiKey, "Content-Type": "application/json" },
+        const connectRes = await fetch(`${POSTIZ_API_URL}/platforms/connect`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${POSTIZ_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            platform: platformId,
+            access_token: accessToken,
+            integration_id: integrationId,
+          }),
         });
-        if (integrationsRes.ok) {
-          const integrations = await integrationsRes.json();
-          const arr = Array.isArray(integrations) ? integrations : integrations.connections || [];
-          const match = arr.find((i: any) => i.identifier === platformId);
-          if (match) { integrationId = match.id; username = match.profile || match.name || ""; }
+        if (connectRes.ok) {
+          const connectData = await connectRes.json().catch(() => ({}));
+          if (connectData.integration_id) integrationId = connectData.integration_id;
         }
       } catch (_) {}
 
-      const result = await ctx.runMutation(api.social.saveOAuthCallbackConnection, {
-        platform: platformId,
-        stateId: stateResult.stateId,
+      // Save connection via internal mutation
+      const platformNames: Record<string, string> = {
+        x: "X (Twitter)", linkedin: "LinkedIn", facebook: "Facebook",
+        instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube",
+        pinterest: "Pinterest", reddit: "Reddit", threads: "Threads",
+        telegram: "Telegram", discord: "Discord", bluesky: "Bluesky",
+      };
+      const platformName = platformNames[platformId] || platformId;
+
+      await ctx.runMutation(api.social.saveConnectionMutation, {
+        adminId: storedState.adminId,
+        platformId,
+        platformName,
+        integrationId,
         accessToken,
         refreshToken: tokenData.refresh_token || "",
-        integrationId,
-        username,
+        platformUserId: tokenData.platform_user_id || "",
+        platformUsername: username,
       });
 
-      if (result.success) {
-        const platformName = platformId.charAt(0).toUpperCase() + platformId.slice(1);
-        return new Response(`
-          <!DOCTYPE html>
-          <html><head><title>Connected to ${platformName}</title>
-          <style>
-            body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:linear-gradient(135deg,#059669,#047857);margin:0}
-            .c{text-align:center;background:white;padding:40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
-            .icon{font-size:64px;margin-bottom:20px}
-            h2{color:#065f46;margin:0 0 10px}p{color:#666;margin:0 0 20px}
-            .badge{background:#d1fae5;color:#065f46;padding:8px 16px;border-radius:30px;font-size:14px;display:inline-flex;align-items:center;gap:8px}
-            button{background:#059669;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-size:16px;font-weight:600;margin-top:20px}
-          </style></head>
-          <body><div class="c">
-            <div class="icon">✅</div>
-            <h2>Connected Successfully!</h2>
-            <p style="text-transform:capitalize"><strong>${platformName}</strong> is now connected and ready for posting.</p>
-            <div class="badge">🤖 Auto-posting enabled</div><br>
-            <button onclick="closeAndNotify()">Done</button>
-          </div>
-          <script>
-            function closeAndNotify(){
-              if(window.opener){window.opener.postMessage({type:'social_connection_success',platformId:'${platformId}',username:'${result.username || ''}'},'*')}
-              window.close();
-            }
-            setTimeout(closeAndNotify,2500);
-          </script>
-          </body></html>
-        `, { status: 200, headers: { "Content-Type": "text/html" } });
-      } else {
-        return new Response(`
-          <!DOCTYPE html>
-          <html><head><title>Connection Failed</title>
-          <style>
-            body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#fee2e2;margin:0}
-            .c{text-align:center;background:white;padding:40px;border-radius:20px;max-width:400px;margin:20px;box-shadow:0 20px 60px rgba(0,0,0,.15)}
-            .icon{font-size:64px;margin-bottom:20px}
-            h2{color:#dc2626;margin:0 0 10px}p{color:#666;margin:0 0 20px;word-break:break-word;font-size:14px}
-            button{background:#dc2626;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-size:16px}
-          </style></head>
-          <body><div class="c">
-            <div class="icon">❌</div>
-            <h2>Connection Failed</h2>
-            <p>${result.error || "Unknown error occurred"}</p>
-            <button onclick="window.close()">Close</button>
-          </div></body></html>
-        `, { status: 200, headers: { "Content-Type": "text/html" } });
-      }
+      // Delete used OAuth state
+      await ctx.runMutation(api.social.deleteOAuthStateMutation, {
+        stateId: storedState._id,
+      });
+
+      return new Response(`
+        <!DOCTYPE html>
+        <html><head><title>Connected to ${platformName}</title>
+        <style>
+          body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:linear-gradient(135deg,#059669,#047857);margin:0}
+          .c{text-align:center;background:white;padding:40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+          .icon{font-size:64px;margin-bottom:20px}
+          h2{color:#065f46;margin:0 0 10px}p{color:#666;margin:0 0 20px}
+          .badge{background:#d1fae5;color:#065f46;padding:8px 16px;border-radius:30px;font-size:14px;display:inline-flex;align-items:center;gap:8px}
+          button{background:#059669;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-size:16px;font-weight:600;margin-top:20px}
+        </style></head>
+        <body><div class="c">
+          <div class="icon">✅</div>
+          <h2>Connected Successfully!</h2>
+          <p style="text-transform:capitalize"><strong>${platformName}</strong> is now connected and ready for posting.</p>
+          <div class="badge">🤖 Auto-posting enabled</div><br>
+          <button onclick="closeAndNotify()">Done</button>
+        </div>
+        <script>
+          function closeAndNotify(){
+            if(window.opener){window.opener.postMessage({type:'social_connection_success',platformId:'${platformId}',username:'${username}'},'*')}
+            window.close();
+          }
+          setTimeout(closeAndNotify,2500);
+        </script>
+        </body></html>
+      `, { status: 200, headers: { "Content-Type": "text/html" } });
+
     } catch (error: any) {
       console.error("[OAUTH] Callback error:", error);
       return new Response(`
         <!DOCTYPE html>
         <html><head><title>Connection Error</title>
-        <style>
-          body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#fee2e2;margin:0}
-          .c{text-align:center;background:white;padding:40px;border-radius:20px;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.15)}
-          h2{color:#dc2626;margin:0 0 10px}p{color:#666;margin:0 0 20px;font-size:14px}
-          button{background:#dc2626;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-size:16px}
-        </style></head>
+        <style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#fee2e2;margin:0}.c{text-align:center;background:white;padding:40px;border-radius:20px;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.15)}h2{color:#dc2626;margin:0 0 10px}p{color:#666;margin:0 0 20px;font-size:14px}button{background:#dc2626;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-size:16px}</style></head>
         <body><div class="c">
           <h2>Connection Error</h2>
           <p>${error.message}</p>

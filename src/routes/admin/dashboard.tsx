@@ -430,10 +430,8 @@ function SocialEnginePanel() {
   const { data: stats } = useSuspenseQuery(convexQuery(api.social.getSocialStats, {})) as { data: any };
   const { data: analytics } = useSuspenseQuery(convexQuery(api.social.getPlatformAnalytics, {})) as { data: any };
   const getConnectedPlatformsAction = useAction(api.social.getConnectedPlatforms);
-  const rotateSocial = useMutation(api.social.rotateSocialAgentsManual);
-  const getOAuthUrl = useAction(api.social.getOAuthUrl);
-  const disconnectPlatform = useAction(api.social.disconnectPlatform);
-  const disconnectAllPlatforms = useAction(api.social.disconnectAllPlatforms);
+  const generateOAuthUrl = useAction(api.social.generateOAuthUrl);
+  const disconnectPlatform = useMutation(api.social.disconnectPlatform);
   const updatePostingSettings = useMutation(api.social.updatePostingSettings);
   const manualPost = useAction(api.social.manualPost);
 
@@ -497,19 +495,10 @@ function SocialEnginePanel() {
     setTimeout(() => setToast(null), 5000);
   };
 
-  const handleRotate = async () => {
-    setRotating(true);
-    await rotateSocial({});
-    setRotating(false);
-    showToast("Agent rotation triggered — posts scheduled", "success");
-  };
-
   const handleConnect = async (platformId: string) => {
     setConnecting(platformId);
     try {
-      const convexUrl = (import.meta as any).env?.VITE_CONVEX_URL || "https://warmhearted-aardvark-280.convex.cloud";
-      const redirectUri = `${convexUrl}/api/social/callback?platform=${platformId}`;
-      const result = await getOAuthUrl({ platform: platformId, redirectUri });
+      const result = await generateOAuthUrl({ platform: platformId });
 
       if (result?.error) {
         showToast(result.error, "error");
@@ -597,15 +586,9 @@ function SocialEnginePanel() {
     showToast(`${openedCount} popups opened. Authorize in each window.`, "success");
   };
 
+  // handleDisconnectAll removed — disconnectAllPlatforms not in current social engine
   const handleDisconnectAll = async () => {
-    if (!confirm("Disconnect ALL platforms? This will stop all auto-posting.")) return;
-    try {
-      await disconnectAllPlatforms({});
-      showToast("All platforms disconnected", "success");
-      fetchPlatforms();
-    } catch {
-      showToast("Failed to disconnect all platforms", "error");
-    }
+    showToast("Disconnect All not available in this version", "error");
   };
 
   const handleModeChange = async (platformId: string, mode: "auto" | "manual" | "paused") => {
@@ -1745,14 +1728,10 @@ function SecurityHubPanel() {
    const { data: beneficiaries } = useSuspenseQuery(convexQuery(api.payouts.getBeneficiaries, {}));
    const rotateKeys = useMutation(api.admin.rotateEncryptionKeys);
 
-   const handleRotate = async () => {
-      if (!confirm("Are you sure you want to rotate the AES-256-GCM encryption keys? This is an institutional grade security protocol.")) return;
-      const sessionId = localStorage.getItem("admin_session_token") as any;
-      try {
-         await rotateKeys({ sessionId });
-         alert("Key rotation initialized. All sensitive data is now shielded by the new entropy pool.");
-      } catch (err: any) { alert(err.message); }
-   };
+  // handleRotate removed — rotateSocialAgentsManual not in current social engine
+  const handleRotate = async () => {
+    showToast("Agent rotation not available in this version", "error");
+  };
 
    return (
       <div className="space-y-12 animate-in fade-in duration-700">
