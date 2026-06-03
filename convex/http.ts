@@ -650,10 +650,58 @@ http.route({
         throw new Error("Missing platform ID");
       }
 
-      const result = await ctx.runMutation(api.social.handleOAuthCallback, {
+      const stateResult = await ctx.runQuery(api.social.validateOAuthState, { state });
+      if (!stateResult.valid) {
+        return new Response(`
+          <!DOCTYPE html>
+          <html><head><title>Connection Failed</title>
+          <style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#fee2e2;margin:0}.c{text-align:center;background:white;padding:40px;border-radius:20px;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.15)}h2{color:#dc2626;margin:0 0 10px}p{color:#666;margin:0 0 20px}button{background:#dc2626;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-size:16px}</style></head>
+          <body><div class="c"><h2>Connection Failed</h2><p>${stateResult.error}</p><button onclick="window.close()">Close</button></div></body></html>
+        `, { status: 200, headers: { "Content-Type": "text/html" } });
+      }
+
+      const clientId = process.env.POSTIZ_CLIENT_ID || "";
+      const clientSecret = process.env.POSTIZ_CLIENT_SECRET || "";
+      if (!clientId || !clientSecret) {
+        throw new Error("Postiz OAuth credentials not configured");
+      }
+
+      const tokenRes = await fetch("https://api.postiz.com/oauth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ grant_type: "authorization_code", code, client_id: clientId, client_secret: clientSecret }),
+      });
+      if (!tokenRes.ok) {
+        const err = await tokenRes.text();
+        throw new Error(`Token exchange failed: ${err}`);
+      }
+      const tokenData = await tokenRes.json();
+      const accessToken = tokenData.access_token;
+      if (!accessToken) throw new Error("No access token returned");
+
+      let integrationId = "";
+      let username = "";
+      try {
+        const apiKey = process.env.POSTIZ_API_KEY || "";
+        const integrationsRes = await fetch("https://api.postiz.com/public/v1/integrations", {
+          method: "GET",
+          headers: { Authorization: apiKey, "Content-Type": "application/json" },
+        });
+        if (integrationsRes.ok) {
+          const integrations = await integrationsRes.json();
+          const arr = Array.isArray(integrations) ? integrations : integrations.connections || [];
+          const match = arr.find((i: any) => i.identifier === platformId);
+          if (match) { integrationId = match.id; username = match.profile || match.name || ""; }
+        }
+      } catch (_) {}
+
+      const result = await ctx.runMutation(api.social.saveOAuthCallbackConnection, {
         platform: platformId,
-        code: code,
-        state: state,
+        stateId: stateResult.stateId,
+        accessToken,
+        refreshToken: tokenData.refresh_token || "",
+        integrationId,
+        username,
       });
 
       if (result.success) {

@@ -173,6 +173,51 @@ export const getOAuthState = internalQuery({
   },
 });
 
+// Public query for HTTP handler to validate state
+export const validateOAuthState = query({
+  args: { state: v.string() },
+  returns: v.any(),
+  handler: async (ctx, { state }) => {
+    const doc = await ctx.db.query("system_config").withIndex("by_key", (q) => q.eq("key", `oauth_state_${state}`)).first();
+    if (!doc) return { valid: false, error: "Invalid or expired OAuth state" };
+    if (doc.value && typeof doc.value === "object" && "expiresAt" in doc.value) {
+      if (Date.now() > (doc.value as any).expiresAt) {
+        await ctx.db.delete(doc._id);
+        return { valid: false, error: "OAuth state expired" };
+      }
+    }
+    return { valid: true, stateId: doc._id, value: doc.value };
+  },
+});
+
+// Public mutation for HTTP handler to save connection after token exchange
+export const saveOAuthCallbackConnection = mutation({
+  args: {
+    platform: v.string(),
+    stateId: v.id("system_config"),
+    accessToken: v.string(),
+    refreshToken: v.optional(v.string()),
+    integrationId: v.optional(v.string()),
+    username: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, { platform, stateId, accessToken, refreshToken, integrationId, username }) => {
+    await ctx.db.delete(stateId);
+
+    const existing = await ctx.db.query("social_platforms").withIndex("by_platform", (q) => q.eq("platform", platform)).first();
+    const patch = {
+      isConnected: true, connectedAt: Date.now(), lastSyncAt: Date.now(),
+      accessToken, refreshToken: refreshToken || "",
+      postizIntegrationId: integrationId || "", username: username || "", postingMode: "auto" as const,
+    };
+    if (existing) { await ctx.db.patch(existing._id, patch); }
+    else { await ctx.db.insert("social_platforms", { ...patch, platform, postsCount: 0, followersCount: 0 }); }
+
+    const platformConfig = SUPPORTED_PLATFORMS.find((p) => p.id === platform);
+    return { success: true, platform, username, integrationId, message: `${platformConfig?.name || platform} connected` };
+  },
+});
+
 export const deleteOAuthState = internalMutation({
   args: { stateId: v.id("system_config") },
   returns: v.null(),
