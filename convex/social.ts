@@ -876,3 +876,6 @@ export const getOAuthStatus = query({
     }));
   },
 });
+
+// Backward-compatible alias — old deployments may still call generateOAuthUrl
+export const generateOAuthUrl = getOAuthUrl;
