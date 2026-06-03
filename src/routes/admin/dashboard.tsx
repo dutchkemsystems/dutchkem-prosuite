@@ -434,6 +434,7 @@ function SocialEnginePanel() {
   const startComposioOAuth = useAction(api.social.startComposioOAuth);
   const connectTelegramBot = useAction(api.social.connectTelegramBot);
   const connectBluesky = useAction(api.social.connectBluesky);
+  const getOAuthProviderStatus = useAction(api.social.getOAuthProviderStatus);
   const disconnectPlatform = useMutation(api.social.disconnectPlatform);
   const updatePostingSettings = useMutation(api.social.updatePostingSettings);
   const manualPost = useAction(api.social.manualPost);
@@ -447,6 +448,7 @@ function SocialEnginePanel() {
   const [manualPostContent, setManualPostContent] = useState("");
   const [postingStatus, setPostingStatus] = useState<{ platformId: string; status: string; error?: string } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+  const [providerStatus, setProviderStatus] = useState<{ composioEnabled: boolean; composioPlatforms: string[]; directEnabled: boolean } | null>(null);
 
   const fetchPlatforms = useCallback(async () => {
     try {
@@ -468,17 +470,26 @@ function SocialEnginePanel() {
         };
       });
       setPlatforms(merged);
-    } catch (error) {
-      console.error("Failed to fetch platforms:", error);
-      setPlatforms([]);
-    } finally {
+      setPlatformsLoading(false);
+    } catch (err) {
+      console.error("Failed to load platforms", err);
       setPlatformsLoading(false);
     }
   }, [getConnectedPlatformsAction]);
 
+  const fetchProviderStatus = useCallback(async () => {
+    try {
+      const status = await getOAuthProviderStatus();
+      setProviderStatus(status as any);
+    } catch (err) {
+      console.error("Failed to load provider status", err);
+    }
+  }, [getOAuthProviderStatus]);
+
   useEffect(() => {
     fetchPlatforms();
-  }, [fetchPlatforms]);
+    fetchProviderStatus();
+  }, [fetchPlatforms, fetchProviderStatus]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -525,28 +536,37 @@ function SocialEnginePanel() {
         return;
       }
 
-      // Try Composio first if enabled, else fall back to direct OAuth
-      let result: any = null;
+      // Provider selection: Composio is PRIMARY when enabled and supported.
+      // Direct OAuth is FALLBACK. This is deterministic — no parallel calls.
       let authUrl: string | null = null;
+      let usingProvider: "composio" | "direct" = "direct";
 
-      // Attempt direct OAuth (the dashboard doesn't know if COMPOSIO_API_KEY is set)
-      const directResult = await generateOAuthUrl({ platform: platformId });
-      if (directResult?.error) {
-        showToast(directResult.error, "error");
-        setConnecting(null);
-        return;
-      }
-      result = directResult;
-      authUrl = directResult.authUrl;
+      const composioAvailable =
+        providerStatus?.composioEnabled === true &&
+        providerStatus?.composioPlatforms?.includes(platformId);
 
-      // Also try Composio in parallel — if it succeeds, prefer its URL
-      try {
+      if (composioAvailable) {
+        // PRIMARY: Use Composio for managed OAuth
         const composioResult = await startComposioOAuth({ platform: platformId });
         if (composioResult?.success && composioResult.redirectUrl) {
           authUrl = composioResult.redirectUrl;
+          usingProvider = "composio";
+        } else if (composioResult?.error) {
+          // Composio failed — fall back to direct
+          console.warn("Composio failed, falling back to direct OAuth:", composioResult.error);
         }
-      } catch {
-        // Composio not enabled or failed — direct OAuth URL is used
+      }
+
+      if (!authUrl) {
+        // FALLBACK: Use direct platform OAuth
+        const directResult = await generateOAuthUrl({ platform: platformId });
+        if (directResult?.error) {
+          showToast(directResult.error, "error");
+          setConnecting(null);
+          return;
+        }
+        authUrl = directResult.authUrl;
+        usingProvider = "direct";
       }
 
       if (authUrl) {
@@ -754,6 +774,43 @@ function SocialEnginePanel() {
           {/* ── Connected Platforms Tab ── */}
           {activeSubTab === "platforms" && (
             <div className="space-y-6">
+              {/* OAuth provider banner — shows which provider is active */}
+              <div className={`p-5 rounded-2xl border ${
+                providerStatus?.composioEnabled
+                  ? "bg-emerald-500/5 border-emerald-500/20"
+                  : "bg-amber-500/5 border-amber-500/20"
+              }`}>
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${
+                      providerStatus?.composioEnabled ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"
+                    }`}>
+                      {providerStatus?.composioEnabled ? "✓" : "⚠"}
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-white uppercase tracking-widest">
+                        OAuth Provider: {providerStatus?.composioEnabled ? "Composio (Primary)" : "Direct Platform OAuth"}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {providerStatus?.composioEnabled
+                          ? `Composio manages ${providerStatus.composioPlatforms?.length || 0} platforms — managed OAuth, auto-refresh, 20k free calls/month`
+                          : "Set COMPOSIO_API_KEY env var to enable Composio (recommended — one key for all 11 platforms)"}
+                      </p>
+                    </div>
+                  </div>
+                  {!providerStatus?.composioEnabled && (
+                    <a
+                      href="https://app.composio.dev"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest rounded-lg"
+                    >
+                      Get Free Composio Key →
+                    </a>
+                  )}
+                </div>
+              </div>
+
               <div className="bg-slate-950 p-10 rounded-[2.5rem] border border-white/5">
                 <h3 className="text-lg font-black text-white uppercase tracking-tighter mb-8">Connect via OAuth</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -786,6 +843,11 @@ function SocialEnginePanel() {
                                 <span className="text-slate-500">Not Connected</span>
                               )}
                             </p>
+                            {!p.isConnected && providerStatus?.composioEnabled && providerStatus.composioPlatforms?.includes(p.id) && (
+                              <p className="text-[8px] text-emerald-500 font-bold uppercase tracking-widest mt-0.5">
+                                ⚡ via Composio
+                              </p>
+                            )}
                           </div>
                         </div>
                         <span

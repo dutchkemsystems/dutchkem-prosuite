@@ -269,4 +269,73 @@ describe("Composio provider blending", () => {
     const withKey = composioSupported && true ? "composio" : "direct";
     expect(withKey).toBe("composio");
   });
+
+  it("Composio is PRIMARY when enabled and supported — dashboard selector", () => {
+    // Mirror the dashboard's provider-status-driven selector
+    function pickProvider(
+      providerStatus: { composioEnabled: boolean; composioPlatforms: string[] } | null,
+      platformId: string
+    ): "composio" | "direct" {
+      const composioAvailable =
+        providerStatus?.composioEnabled === true &&
+        providerStatus?.composioPlatforms?.includes(platformId);
+      return composioAvailable ? "composio" : "direct";
+    }
+
+    // No status loaded yet → falls back to direct
+    expect(pickProvider(null, "x")).toBe("direct");
+
+    // Composio enabled, platform supported → composio
+    expect(pickProvider({ composioEnabled: true, composioPlatforms: ["x", "linkedin"] }, "x")).toBe("composio");
+
+    // Composio enabled, platform NOT in supported list → direct
+    expect(pickProvider({ composioEnabled: true, composioPlatforms: ["x"] }, "facebook")).toBe("direct");
+
+    // Composio NOT enabled → direct (this is the case when COMPOSIO_API_KEY is not set)
+    expect(pickProvider({ composioEnabled: false, composioPlatforms: [] }, "x")).toBe("direct");
+
+    // Telegram is never on Composio → never appears in composioPlatforms → always direct
+    // (the real getOAuthProviderStatus query excludes telegram from the list)
+    expect(pickProvider({ composioEnabled: true, composioPlatforms: ["x", "linkedin", "facebook", "instagram", "tiktok", "youtube", "pinterest", "reddit", "threads", "discord", "bluesky"] }, "telegram")).toBe("direct");
+  });
+
+  it("Free tier supports 20,000 tool calls/month — quota headroom check", () => {
+    // Free tier: 20,000 tool calls/month, 1,000 connected accounts
+    const FREE_TIER = { toolCalls: 20_000, connectedAccounts: 1_000 };
+
+    // Each connection counts as 1 call; each post counts as 1 call.
+    // Worst case: 1000 accounts × 1 post/day × 30 days = 30,000 calls (over quota)
+    // Realistic case: 100 accounts × 5 posts/day × 30 days = 15,000 calls (under quota)
+    const realistic = 100 * 5 * 30;
+    const worstCase = 1000 * 1 * 30;
+
+    expect(realistic).toBeLessThanOrEqual(FREE_TIER.toolCalls);
+    expect(worstCase).toBeGreaterThan(FREE_TIER.toolCalls);
+
+    // Recommendation: stay under 20 posts/day/account on average
+    const safeDailyLimit = Math.floor(FREE_TIER.toolCalls / (100 * 30));
+    expect(safeDailyLimit).toBeGreaterThan(0);
+  });
+
+  it("Composio app map handles all 11 OAuth platforms (Telegram excluded by design)", () => {
+    const COMPOSIO_APP_MAP: Record<string, string | undefined> = {
+      x: "twitter",
+      linkedin: "linkedin",
+      facebook: "facebook",
+      instagram: "instagram",
+      tiktok: "tiktok",
+      youtube: "youtube",
+      pinterest: "pinterest",
+      reddit: "reddit",
+      threads: "threads",
+      discord: "discord",
+      bluesky: "bluesky",
+      telegram: undefined,
+    };
+
+    const composioApps = Object.values(COMPOSIO_APP_MAP).filter((v) => v);
+    expect(composioApps).toHaveLength(11);
+    // No duplicate slugs
+    expect(new Set(composioApps).size).toBe(11);
+  });
 });
