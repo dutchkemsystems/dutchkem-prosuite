@@ -257,16 +257,6 @@ crons.interval(
 );
 
 // ═══════════════════════════════════════════════════════════════════
-// POSTIZ AD ENGINE (Disabled: postiz_ad_engine removed in direct OAuth rewrite)
-// ═══════════════════════════════════════════════════════════════════
-// crons.interval(
-//   "process scheduled ads",
-//   { minutes: 15 },
-//   internal.postiz_ad_engine.processScheduledAds,
-//   {}
-// );
-
-// ═══════════════════════════════════════════════════════════════════
 // PHASE 2: ABANDONED CHECKOUT RECOVERY & FLASH SALES
 // ═══════════════════════════════════════════════════════════════════
 

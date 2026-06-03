@@ -78,7 +78,6 @@ import type * as payments from "../payments.js";
 import type * as payouts from "../payouts.js";
 import type * as platformOAuth from "../platformOAuth.js";
 import type * as platform_analytics from "../platform_analytics.js";
-import type * as postiz_ad_engine from "../postiz_ad_engine.js";
 import type * as pushNotifications from "../pushNotifications.js";
 import type * as quick_setup from "../quick_setup.js";
 import type * as receipts from "../receipts.js";
@@ -190,7 +189,6 @@ declare const fullApi: ApiFromModules<{
   payouts: typeof payouts;
   platformOAuth: typeof platformOAuth;
   platform_analytics: typeof platform_analytics;
-  postiz_ad_engine: typeof postiz_ad_engine;
   pushNotifications: typeof pushNotifications;
   quick_setup: typeof quick_setup;
   receipts: typeof receipts;

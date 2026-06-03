@@ -11,7 +11,6 @@ const API_COSTS = {
   deepgram: { name: "Deepgram STT/TTS", costPerMinute: 0.004, unit: "minute" },
   livekit: { name: "LiveKit Cloud", costPerMinute: 0.02, unit: "minute" },
   nvidia: { name: "NVIDIA NIM AI", costPerRequest: 0.001, unit: "request" },
-  postiz: { name: "Postiz Social", costPerMonth: 29, unit: "month" },
   termii: { name: "Termii OTP", costPerSms: 4, unit: "sms" },
   resend: { name: "Resend Email", costPerEmail: 0.001, unit: "email" },
   kora: { name: "Kora Pay", costPerTransaction: 0.015, unit: "transaction", percentage: 1.5 },
