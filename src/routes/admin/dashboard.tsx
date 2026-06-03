@@ -4,7 +4,7 @@ import { convexQuery } from "@convex-dev/react-query"
 import { useConvexAuth, useMutation, useAction } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
 import { api, internal } from "../../../convex/_generated/api"
-import { useState, useEffect, Suspense, Component, type ReactNode } from "react"
+import { useState, useEffect, useCallback, Suspense, Component, type ReactNode } from "react"
 import { CompanyLogo } from "~/components/CompanyLogo";
 import { useSocket } from "~/lib/socket";
 import { LiveFeed } from "~/components/LiveFeed";
@@ -431,10 +431,12 @@ function SocialEnginePanel() {
   const { data: analytics } = useSuspenseQuery(convexQuery(api.social.getPlatformAnalytics, {})) as { data: any };
   const getConnectedPlatformsAction = useAction(api.social.getConnectedPlatforms);
   const rotateSocial = useMutation(api.social.rotateSocialAgentsManual);
-  const generateOAuth = useMutation(api.social.generateOAuthUrl);
+  const getOAuthUrl = useMutation(api.social.getOAuthUrl);
   const disconnectPlatform = useMutation(api.social.disconnectPlatform);
+  const disconnectAllPlatforms = useMutation(api.social.disconnectAllPlatforms);
   const updatePostingSettings = useMutation(api.social.updatePostingSettings);
   const manualPost = useMutation(api.social.manualPost);
+
   const [platforms, setPlatforms] = useState<any[]>([]);
   const [platformsLoading, setPlatformsLoading] = useState(true);
   const [rotating, setRotating] = useState(false);
@@ -445,47 +447,50 @@ function SocialEnginePanel() {
   const [postingStatus, setPostingStatus] = useState<{ platformId: string; status: string; error?: string } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
 
-  useEffect(() => {
-    const fetchPlatforms = async () => {
-      try {
-        const result = await getConnectedPlatformsAction();
-        const platformsData = result.platforms || [];
-        const availablePlatforms = result.availablePlatforms || [];
-        const merged = availablePlatforms.map((ap: any) => {
-          const conn = platformsData.find((p: any) => p.integration === ap.id || p.id === ap.id);
-          return {
-            ...ap,
-            isConnected: !!conn,
-            connectedAt: conn?.connectedAt,
-            lastSyncAt: conn?.lastSyncAt,
-            postsCount: conn?.postsCount || 0,
-            followersCount: conn?.followersCount || 0,
-            postingMode: conn?.postingMode || "auto",
-            username: conn?.username || conn?.name,
-          };
-        });
-        setPlatforms(merged);
-      } catch (error) {
-        console.error("Failed to fetch platforms:", error);
-        setPlatforms([]);
-      } finally {
-        setPlatformsLoading(false);
-      }
-    };
-    fetchPlatforms();
+  const fetchPlatforms = useCallback(async () => {
+    try {
+      const result = await getConnectedPlatformsAction();
+      const platformsData = result.platforms || [];
+      const availablePlatforms = result.availablePlatforms || [];
+      const merged = availablePlatforms.map((ap: any) => {
+        const conn = platformsData.find((p: any) => p.id === ap.id);
+        return {
+          ...ap,
+          isConnected: conn?.isConnected === true,
+          connectedAt: conn?.connectedAt,
+          lastSyncAt: conn?.lastSyncAt,
+          postsCount: conn?.postsCount || 0,
+          followersCount: conn?.followersCount || 0,
+          postingMode: conn?.postingMode || "auto",
+          username: conn?.username,
+          postizIntegrationId: conn?.postizIntegrationId,
+        };
+      });
+      setPlatforms(merged);
+    } catch (error) {
+      console.error("Failed to fetch platforms:", error);
+      setPlatforms([]);
+    } finally {
+      setPlatformsLoading(false);
+    }
   }, [getConnectedPlatformsAction]);
 
   useEffect(() => {
+    fetchPlatforms();
+  }, [fetchPlatforms]);
+
+  useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'social_connection_success') {
-        setToast({ message: `✅ Connected to ${event.data.platformId}! Auto-posting started.`, type: "success" });
+      if (event.data?.type === "social_connection_success") {
+        const platformName = event.data.platformId?.charAt(0).toUpperCase() + event.data.platformId?.slice(1);
+        setToast({ message: `✅ Connected to ${platformName}!`, type: "success" });
         setConnecting(null);
-        window.location.reload();
+        fetchPlatforms();
       }
     };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [fetchPlatforms]);
 
   const showToast = (message: string, type: string) => {
     setToast({ message, type });
@@ -496,66 +501,115 @@ function SocialEnginePanel() {
     setRotating(true);
     await rotateSocial({});
     setRotating(false);
-    showToast("Agent rotation triggered", "success");
+    showToast("Agent rotation triggered — posts scheduled", "success");
   };
 
   const handleConnect = async (platformId: string) => {
     setConnecting(platformId);
     try {
-      // Use the Convex HTTP endpoint for callback
-      const redirectUri = `${window.location.origin}/api/social/callback?platform=${platformId}`;
-      const result = await generateOAuth({ platform: platformId, redirectUri });
-      
+      const convexUrl = (import.meta as any).env?.VITE_CONVEX_URL || "https://warmhearted-aardvark-280.convex.cloud";
+      const redirectUri = `${convexUrl}/api/social/callback?platform=${platformId}`;
+      const result = await getOAuthUrl({ platform: platformId, redirectUri });
+
       if (result?.error) {
         showToast(result.error, "error");
         setConnecting(null);
         return;
       }
-      
+
       if (result?.authUrl) {
-        // Calculate popup dimensions
         const width = 600;
         const height = 700;
         const left = (window.screen.width / 2) - (width / 2);
         const top = (window.screen.height / 2) - (height / 2);
-        
-        // Open popup window for OAuth
+
         const popup = window.open(
-          result.authUrl, 
-          `connect-${platformId}`, 
+          result.authUrl,
+          `connect-${platformId}`,
           `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
         );
-        
+
         if (!popup) {
           showToast("Popup blocked. Please allow popups for this site.", "error");
           setConnecting(null);
           return;
         }
-        
-        // Monitor popup for closure
+
         const popupCheck = setInterval(() => {
           if (popup.closed) {
             clearInterval(popupCheck);
             setConnecting(null);
           }
         }, 500);
-      } else if (result?.devMode) {
-        showToast(result.message, "success");
-        window.location.reload();
       }
     } catch (err: any) {
-      showToast(err.message || "Failed to connect", "error");
+      showToast(err.message || "Failed to initiate connection", "error");
+      setConnecting(null);
     }
-    setConnecting(null);
   };
 
-  const handleDisconnect = async (platformId: string) => {
-    if (!confirm(`Disconnect ${platformId}? Auto-posting to this platform will stop.`)) return;
-    await disconnectPlatform({ platform: platformId });
+  const handleDisconnect = async (platformId: string, platformName: string) => {
+    if (!confirm(`Disconnect from ${platformName}? Auto-posting to this platform will stop.`)) return;
+    try {
+      await disconnectPlatform({ platform: platformId });
+      showToast(`Disconnected from ${platformName}`, "success");
+      fetchPlatforms();
+    } catch {
+      showToast(`Failed to disconnect from ${platformName}`, "error");
+    }
+  };
+
+  const handleConnectAll = async () => {
+    const unconnected = platforms.filter((p) => !p.isConnected);
+    if (unconnected.length === 0) {
+      showToast("All platforms are already connected!", "success");
+      return;
+    }
+    if (!confirm(`Connect all ${unconnected.length} platforms? Each will open its login page in a popup.`)) return;
+
+    showToast(`Opening ${unconnected.length} platform connections...`, "success");
+    const convexUrl = (import.meta as any).env?.VITE_CONVEX_URL || "https://warmhearted-aardvark-280.convex.cloud";
+    let openedCount = 0;
+
+    for (const p of unconnected) {
+      try {
+        const redirectUri = `${convexUrl}/api/social/callback?platform=${p.id}`;
+        const result = await getOAuthUrl({ platform: p.id, redirectUri });
+        if (result?.authUrl) {
+          const width = 600;
+          const height = 700;
+          const left = (window.screen.width / 2) - (width / 2);
+          const top = (window.screen.height / 2) - (height / 2);
+          window.open(
+            result.authUrl,
+            `connect-${p.id}`,
+            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+          );
+          openedCount++;
+          await new Promise((r) => setTimeout(r, 1500));
+        } else if (result?.error) {
+          showToast(`${p.name}: ${result.error}`, "error");
+        }
+      } catch (err: any) {
+        showToast(`${p.name}: ${err.message}`, "error");
+      }
+    }
+    showToast(`${openedCount} popups opened. Authorize in each window.`, "success");
+  };
+
+  const handleDisconnectAll = async () => {
+    if (!confirm("Disconnect ALL platforms? This will stop all auto-posting.")) return;
+    try {
+      await disconnectAllPlatforms({});
+      showToast("All platforms disconnected", "success");
+      fetchPlatforms();
+    } catch {
+      showToast("Failed to disconnect all platforms", "error");
+    }
   };
 
   const handleModeChange = async (platformId: string, mode: "auto" | "manual" | "paused") => {
-    setPostingMode({ ...postingMode, [platformId]: mode });
+    setPostingMode((prev) => ({ ...prev, [platformId]: mode }));
     const result = await updatePostingSettings({
       platformId,
       mode,
@@ -563,9 +617,7 @@ function SocialEnginePanel() {
       postingFrequency: mode === "auto" ? "daily" : undefined,
     });
     if (result?.success) {
-      showToast(`${platformId} posting mode set to ${mode.toUpperCase()}`, "success");
-    } else {
-      showToast(result?.message || "Failed to update posting mode", "error");
+      showToast(`${platformId.toUpperCase()} posting mode: ${mode.toUpperCase()}`, "success");
     }
   };
 
@@ -574,10 +626,8 @@ function SocialEnginePanel() {
       showToast("Please enter content to post", "error");
       return;
     }
-
     setPostingStatus({ platformId, status: "posting" });
     const result = await manualPost({ platformId, content: manualPostContent });
-
     if (result?.success) {
       setPostingStatus({ platformId, status: "success" });
       setManualPostContent("");
@@ -588,6 +638,17 @@ function SocialEnginePanel() {
       showToast(result?.message || "Post failed", "error");
     }
   };
+
+  if (platformsLoading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="text-center space-y-4">
+          <div className="w-10 h-10 border-3 border-slate-700 border-t-orange-500 rounded-full animate-spin mx-auto"></div>
+          <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Loading platforms...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700 relative">
@@ -604,23 +665,44 @@ function SocialEnginePanel() {
           {toast.message}
         </div>
       )}
+
+      {/* Header */}
       <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-orange-600/5 blur-[80px]"></div>
         <div className="relative z-10 space-y-10">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center flex-wrap gap-4">
             <div>
               <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Automated Social Engine</h2>
-              <p className="text-sm font-black text-orange-500 uppercase tracking-widest mt-1">OAuth Connection + AI Auto-Posting</p>
+              <p className="text-sm font-black text-orange-500 uppercase tracking-widest mt-1">
+                Direct OAuth + AI Auto-Posting via Postiz
+              </p>
             </div>
-            <button
-              onClick={handleRotate}
-              disabled={rotating}
-              className="px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-orange-600/20 disabled:opacity-50"
-            >
-              {rotating ? "Generating..." : "Force Agent Rotation"}
-            </button>
+            <div className="flex gap-3 flex-wrap">
+              <button
+                onClick={handleConnectAll}
+                disabled={connecting !== null}
+                className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-emerald-600/20 disabled:opacity-50"
+              >
+                🔗 Connect All
+              </button>
+              <button
+                onClick={handleDisconnectAll}
+                disabled={connecting !== null}
+                className="px-6 py-3 bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/30 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+              >
+                ⛓️‍💥 Disconnect All
+              </button>
+              <button
+                onClick={handleRotate}
+                disabled={rotating}
+                className="px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-orange-600/20 disabled:opacity-50"
+              >
+                {rotating ? "Generating..." : "Force Agent Rotation"}
+              </button>
+            </div>
           </div>
 
+          {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <MetricCard label="Total Generated" value={stats?.total || 0} icon="📝" color="blue" />
             <MetricCard label="Live Posts" value={stats?.posted || 0} icon="🌐" color="emerald" />
@@ -630,59 +712,66 @@ function SocialEnginePanel() {
 
           {/* Sub-tabs */}
           <div className="flex gap-2 bg-slate-950 p-2 rounded-2xl border border-white/5">
-            <button
-              onClick={() => setActiveSubTab("platforms")}
-              className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                activeSubTab === "platforms" ? "bg-orange-600 text-white" : "text-slate-500 hover:bg-slate-800"
-              }`}
-            >
-              Connected Platforms
-            </button>
-            <button
-              onClick={() => setActiveSubTab("analytics")}
-              className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                activeSubTab === "analytics" ? "bg-orange-600 text-white" : "text-slate-500 hover:bg-slate-800"
-              }`}
-            >
-              Platform Analytics
-            </button>
-            <button
-              onClick={() => setActiveSubTab("posts")}
-              className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                activeSubTab === "posts" ? "bg-orange-600 text-white" : "text-slate-500 hover:bg-slate-800"
-              }`}
-            >
-              Post History
-            </button>
+            {(["platforms", "analytics", "posts"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveSubTab(tab)}
+                className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                  activeSubTab === tab ? "bg-orange-600 text-white" : "text-slate-500 hover:bg-slate-800"
+                }`}
+              >
+                {tab === "platforms" ? "Connected Platforms" : tab === "analytics" ? "Platform Analytics" : "Post History"}
+              </button>
+            ))}
           </div>
 
-          {/* Connected Platforms Tab */}
+          {/* ── Connected Platforms Tab ── */}
           {activeSubTab === "platforms" && (
             <div className="space-y-6">
               <div className="bg-slate-950 p-10 rounded-[2.5rem] border border-white/5">
                 <h3 className="text-lg font-black text-white uppercase tracking-tighter mb-8">Connect via OAuth</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {platforms?.map((p: any) => (
-                    <div key={p.id} className={`p-6 rounded-2xl border transition-all ${
-                      p.isConnected 
-                        ? 'bg-emerald-500/5 border-emerald-500/20' 
-                        : 'bg-slate-900 border-white/5 hover:border-slate-700'
-                    }`}>
+                    <div
+                      key={p.id}
+                      className={`p-6 rounded-2xl border transition-all ${
+                        p.isConnected
+                          ? "bg-emerald-500/5 border-emerald-500/20"
+                          : "bg-slate-900 border-white/5 hover:border-slate-700"
+                      }`}
+                    >
+                      {/* Platform header */}
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">{p.icon}</span>
+                          <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center text-lg text-white"
+                            style={{ backgroundColor: p.color || "#333" }}
+                          >
+                            {p.icon}
+                          </div>
                           <div>
                             <p className="text-sm font-black text-white">{p.name}</p>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                              {p.isConnected ? "Connected" : "Not Connected"}
+                            <p className="text-[9px] font-bold uppercase tracking-widest">
+                              {p.isConnected ? (
+                                <span className="text-emerald-500">
+                                  Connected{p.username ? ` @${p.username}` : ""}
+                                </span>
+                              ) : (
+                                <span className="text-slate-500">Not Connected</span>
+                              )}
                             </p>
                           </div>
                         </div>
-                        <span className={`w-3 h-3 rounded-full ${p.isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-600'}`}></span>
+                        <span
+                          className={`w-3 h-3 rounded-full ${
+                            p.isConnected ? "bg-emerald-500 animate-pulse" : "bg-slate-600"
+                          }`}
+                        ></span>
                       </div>
-                      
+
                       {p.isConnected ? (
                         <div className="space-y-3">
+                          {/* Stats */}
                           <div className="flex justify-between text-[9px] font-bold">
                             <span className="text-slate-500 uppercase">Posts</span>
                             <span className="text-white">{p.postsCount}</span>
@@ -691,43 +780,30 @@ function SocialEnginePanel() {
                             <span className="text-slate-500 uppercase">Followers</span>
                             <span className="text-white">{p.followersCount.toLocaleString()}</span>
                           </div>
-                          
-                          {/* Auto/Manual/Pause Controls */}
+
+                          {/* Auto / Manual / Pause controls */}
                           <div className="flex gap-1 mt-3">
-                            <button
-                              onClick={() => handleModeChange(p.id, "auto")}
-                              className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${
-                                (postingMode[p.id] || p.postingMode) === "auto"
-                                  ? "bg-emerald-600 text-white"
-                                  : "bg-slate-800 text-slate-500 hover:bg-slate-700"
-                              }`}
-                            >
-                              🤖 Auto
-                            </button>
-                            <button
-                              onClick={() => handleModeChange(p.id, "manual")}
-                              className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${
-                                postingMode[p.id] === "manual"
-                                  ? "bg-blue-600 text-white"
-                                  : "bg-slate-800 text-slate-500 hover:bg-slate-700"
-                              }`}
-                            >
-                              ✍️ Manual
-                            </button>
-                            <button
-                              onClick={() => handleModeChange(p.id, "paused")}
-                              className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${
-                                postingMode[p.id] === "paused"
-                                  ? "bg-amber-600 text-white"
-                                  : "bg-slate-800 text-slate-500 hover:bg-slate-700"
-                              }`}
-                            >
-                              ⏸️ Pause
-                            </button>
+                            {(["auto", "manual", "paused"] as const).map((mode) => (
+                              <button
+                                key={mode}
+                                onClick={() => handleModeChange(p.id, mode)}
+                                className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${
+                                  (postingMode[p.id] || p.postingMode) === mode
+                                    ? mode === "auto"
+                                      ? "bg-emerald-600 text-white"
+                                      : mode === "manual"
+                                        ? "bg-blue-600 text-white"
+                                        : "bg-amber-600 text-white"
+                                    : "bg-slate-800 text-slate-500 hover:bg-slate-700"
+                                }`}
+                              >
+                                {mode === "auto" ? "🤖 Auto" : mode === "manual" ? "✍️ Manual" : "⏸️ Pause"}
+                              </button>
+                            ))}
                           </div>
 
-                          {/* Manual Post Input */}
-                          {(postingMode[p.id] === "manual" || (!postingMode[p.id] && !p.postingMode)) && (
+                          {/* Manual post input */}
+                          {(postingMode[p.id] || p.postingMode) === "manual" && (
                             <div className="mt-3 space-y-2">
                               <textarea
                                 placeholder="Write your post content here..."
@@ -741,34 +817,36 @@ function SocialEnginePanel() {
                                 disabled={postingStatus?.status === "posting"}
                                 className="w-full py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
                               >
-                                {postingStatus?.status === "posting" ? "Posting..." : "📤 Post Now"}
+                                {postingStatus?.status === "posting" && postingStatus?.platformId === p.id
+                                  ? "Posting..."
+                                  : "📤 Post Now"}
                               </button>
-                              {postingStatus?.platformId === p.id && postingStatus.status === "success" && (
-                                <p className="text-emerald-500 text-[9px] font-bold text-center">✅ Posted successfully!</p>
+                              {postingStatus?.platformId === p.id && postingStatus?.status === "success" && (
+                                <p className="text-emerald-500 text-[9px] font-bold text-center">✅ Posted!</p>
                               )}
-                              {postingStatus?.platformId === p.id && postingStatus.status === "error" && (
-                                <p className="text-red-500 text-[9px] font-bold text-center">❌ {postingStatus.error}</p>
+                              {postingStatus?.platformId === p.id && postingStatus?.status === "error" && (
+                                <p className="text-red-500 text-[9px] font-bold text-center">❌ {postingStatus?.error}</p>
                               )}
                             </div>
                           )}
 
-                          {/* Auto Mode Info */}
-                          {postingMode[p.id] === "auto" && (
+                          {/* Auto mode info */}
+                          {(postingMode[p.id] || p.postingMode) === "auto" && (
                             <div className="mt-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
                               <p className="text-emerald-500 text-[9px] font-bold">📅 Auto-posting active</p>
                               <p className="text-slate-500 text-[8px] mt-1">Schedule: Daily at 9:00 AM, 3:00 PM, 9:00 PM</p>
                             </div>
                           )}
 
-                          {/* Paused State */}
-                          {postingMode[p.id] === "paused" && (
+                          {/* Paused state */}
+                          {(postingMode[p.id] || p.postingMode) === "paused" && (
                             <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
                               <p className="text-amber-500 text-[9px] font-bold">⏸️ Posting is paused</p>
                             </div>
                           )}
 
                           <button
-                            onClick={() => handleDisconnect(p.id)}
+                            onClick={() => handleDisconnect(p.id, p.name)}
                             className="w-full mt-2 py-2 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all"
                           >
                             Disconnect
@@ -780,7 +858,14 @@ function SocialEnginePanel() {
                           disabled={connecting === p.id}
                           className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-600/20 disabled:opacity-50"
                         >
-                          {connecting === p.id ? "Connecting..." : "Connect OAuth"}
+                          {connecting === p.id ? (
+                            <span className="flex items-center justify-center gap-2">
+                              <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                              Connecting...
+                            </span>
+                          ) : (
+                            `🔗 Connect ${p.name}`
+                          )}
                         </button>
                       )}
                     </div>
@@ -790,7 +875,7 @@ function SocialEnginePanel() {
             </div>
           )}
 
-          {/* Platform Analytics Tab */}
+          {/* ── Analytics Tab ── */}
           {activeSubTab === "analytics" && (
             <div className="space-y-6">
               <div className="bg-slate-950 p-10 rounded-[2.5rem] border border-white/5">
@@ -798,56 +883,79 @@ function SocialEnginePanel() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                   <MetricCard label="Total Leads" value={analytics?.totalLeads || 0} icon="📊" color="blue" />
                   <MetricCard label="Total Users" value={analytics?.totalUsers || 0} icon="👥" color="emerald" />
-                  <MetricCard label="Total Revenue" value={`₦${(analytics?.totalRevenue || 0).toLocaleString()}`} icon="💰" color="amber" />
+                  <MetricCard
+                    label="Total Revenue"
+                    value={`₦${(analytics?.totalRevenue || 0).toLocaleString()}`}
+                    icon="💰"
+                    color="amber"
+                  />
                 </div>
                 <div className="space-y-4">
-                  {analytics?.platforms?.filter((p: any) => p.leads > 0 || p.registrations > 0).map((p: any) => (
-                    <div key={p.platform} className="flex items-center justify-between p-6 bg-slate-900 rounded-2xl border border-white/5">
-                      <div className="flex items-center gap-4">
-                        <span className="text-2xl">{p.icon}</span>
-                        <div>
-                          <p className="text-sm font-black text-white">{p.name}</p>
-                          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                            {p.leads} leads • {p.registrations} registered • {p.conversions} converted
-                          </p>
+                  {analytics?.platforms
+                    ?.filter((p: any) => p.leads > 0 || p.registrations > 0)
+                    .map((p: any) => (
+                      <div
+                        key={p.platform}
+                        className="flex items-center justify-between p-6 bg-slate-900 rounded-2xl border border-white/5"
+                      >
+                        <div className="flex items-center gap-4">
+                          <span className="text-2xl">{p.icon}</span>
+                          <div>
+                            <p className="text-sm font-black text-white">{p.name}</p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                              {p.leads} leads • {p.registrations} registered • {p.conversions} converted
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-black text-emerald-500">₦{(p.revenue || 0).toLocaleString()}</p>
+                          <p className="text-[9px] text-slate-600 font-bold">Revenue</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-black text-emerald-500">₦{(p.revenue || 0).toLocaleString()}</p>
-                        <p className="text-[9px] text-slate-600 font-bold">Revenue</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               </div>
             </div>
           )}
 
-          {/* Post History Tab */}
+          {/* ── Post History Tab ── */}
           {activeSubTab === "posts" && (
             <div className="bg-slate-950 p-10 rounded-[2.5rem] border border-white/5">
-              <h3 className="text-lg font-black text-white uppercase tracking-tighter mb-8">Pulse History</h3>
+              <h3 className="text-lg font-black text-white uppercase tracking-tighter mb-8">Post History</h3>
               <div className="space-y-4">
                 {stats?.history?.map((p: any) => (
-                  <div key={p._id} className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-slate-900 rounded-3xl border border-white/5 gap-4">
+                  <div
+                    key={p._id}
+                    className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-slate-900 rounded-3xl border border-white/5 gap-4"
+                  >
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-slate-950 rounded-2xl flex items-center justify-center text-xl">{p.platform === 'X' ? '𝕏' : '📱'}</div>
+                      <div className="w-12 h-12 bg-slate-950 rounded-2xl flex items-center justify-center text-xl">
+                        {p.platform === "x" ? "🐦" : p.platform === "linkedin" ? "💼" : "📱"}
+                      </div>
                       <div>
                         <p className="text-sm font-bold text-white line-clamp-1 max-w-md">{p.content}</p>
-                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">{p.agentId} • {new Date(p.scheduledFor).toLocaleString()}</p>
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">
+                          {p.agentId} • {new Date(p.scheduledFor).toLocaleString()}
+                        </p>
                       </div>
                     </div>
-                    <span className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
-                      p.status === 'posted' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                      p.status === 'failed' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                      'bg-indigo-500/10 text-indigo-500 border-indigo-500/20'
-                    }`}>
+                    <span
+                      className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
+                        p.status === "posted"
+                          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                          : p.status === "failed"
+                            ? "bg-red-500/10 text-red-500 border-red-500/20"
+                            : "bg-indigo-500/10 text-indigo-500 border-indigo-500/20"
+                      }`}
+                    >
                       {p.status}
                     </span>
                   </div>
                 ))}
-                {stats.history.length === 0 && (
-                  <div className="text-center py-20 text-slate-600 font-bold uppercase tracking-widest italic opacity-30">Waiting for first pulse...</div>
+                {stats?.history?.length === 0 && (
+                  <div className="text-center py-20 text-slate-600 font-bold uppercase tracking-widest italic opacity-30">
+                    Waiting for first post...
+                  </div>
                 )}
               </div>
             </div>
@@ -1664,15 +1772,15 @@ function SecurityHubPanel() {
                   <div className="bg-slate-950/50 p-10 rounded-[2.5rem] border border-white/5 space-y-6">
                      <p className="text-xs font-black text-slate-500 uppercase tracking-[0.3em]">Encrypted Beneficiaries</p>
                      <div className="space-y-4">
-                        {beneficiaries.map((b: any) => (
-                           <div key={b._id} className="flex justify-between items-center py-4 border-b border-white/5">
-                              <div>
-                                 <p className="text-sm font-black text-white">{b.bankName}</p>
-                                 <p className="text-[10px] font-mono text-slate-500 truncate max-w-[150px]">AES256:{b.encryptedAccountNumber.slice(0,12)}...</p>
-                              </div>
-                              <span className="px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-full text-[8px] font-black uppercase">ACTIVE</span>
-                           </div>
-                        ))}
+                         {beneficiaries.map((b: any) => (
+                            <div key={b._id} className="flex justify-between items-center py-4 border-b border-white/5">
+                               <div>
+                                  <p className="text-sm font-black text-white">{b.bankName}</p>
+                                  <p className="text-[10px] font-mono text-slate-500 truncate max-w-[150px]">AES256:{b.encryptedAccountNumber.slice(0,12)}...</p>
+                               </div>
+                               <span className="px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-full text-[8px] font-black uppercase">ACTIVE</span>
+                            </div>
+                         ))}
                      </div>
                      <button className="w-full py-4 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-400 hover:bg-white hover:text-slate-950 transition-all">+ Add Encrypted Destination</button>
                   </div>

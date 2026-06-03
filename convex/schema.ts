@@ -478,6 +478,7 @@ export default defineSchema({
     scheduleTime: v.optional(v.string()),
     postingFrequency: v.optional(v.string()),
     platformUserId: v.optional(v.string()),
+    postizIntegrationId: v.optional(v.string()),
   }).index("by_platform", ["platform"])
     .index("by_connected", ["isConnected"])
     .index("by_user_id", ["userId"])

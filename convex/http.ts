@@ -623,179 +623,104 @@ http.route({
       const platformId = url.searchParams.get("platform");
       const code = url.searchParams.get("code");
       const state = url.searchParams.get("state");
+      const error = url.searchParams.get("error");
+
+      if (error) {
+        return new Response(`
+          <!DOCTYPE html>
+          <html><head><title>Connection Cancelled</title>
+          <style>
+            body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#fee2e2;margin:0}
+            .c{text-align:center;background:white;padding:40px;border-radius:20px;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+            h2{color:#dc2626;margin:0 0 10px}p{color:#666;margin:0 0 20px}
+            button{background:#dc2626;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-size:16px}
+          </style></head>
+          <body><div class="c">
+            <h2>Connection Cancelled</h2>
+            <p>${error === 'access_denied' ? 'You denied access to this platform.' : error}</p>
+            <button onclick="window.close()">Close</button>
+          </div></body></html>
+        `, { status: 200, headers: { "Content-Type": "text/html" } });
+      }
 
       if (!code || !state) {
         throw new Error("Missing code or state parameter");
       }
-
       if (!platformId) {
         throw new Error("Missing platform ID");
       }
 
-      // Call handleOAuthCallback mutation
       const result = await ctx.runMutation(api.social.handleOAuthCallback, {
         platform: platformId,
         code: code,
         state: state,
       });
-      
+
       if (result.success) {
-        // Return success HTML that closes popup and notifies parent
+        const platformName = platformId.charAt(0).toUpperCase() + platformId.slice(1);
         return new Response(`
           <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Connection Successful</title>
-            <style>
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                margin: 0;
-              }
-              .container {
-                text-align: center;
-                background: white;
-                padding: 40px;
-                border-radius: 20px;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-              }
-              .success-icon { font-size: 64px; margin-bottom: 20px; }
-              h2 { color: #1E3A8A; margin-bottom: 10px; }
-              p { color: #666; margin-bottom: 20px; }
-              .platform-name {
-                background: #f0f0f0;
-                padding: 5px 12px;
-                border-radius: 20px;
-                display: inline-block;
-                margin-bottom: 20px;
-                font-size: 14px;
-              }
-              .close-btn {
-                background: #FF6B35;
-                color: white;
-                border: none;
-                padding: 10px 24px;
-                border-radius: 30px;
-                cursor: pointer;
-                font-size: 16px;
-                font-weight: 600;
-              }
-              .auto-post-badge {
-                background: #d1fae5;
-                color: #065f46;
-                padding: 8px 16px;
-                border-radius: 30px;
-                font-size: 14px;
-                margin-top: 20px;
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="success-icon">✅</div>
-              <h2>Connected Successfully!</h2>
-              <div class="platform-name">${platformId.toUpperCase()}</div>
-              <p>Your account has been connected.<br>Auto-posting has started automatically.</p>
-              <div class="auto-post-badge">
-                <span>🤖</span> Auto-posting active
-              </div>
-              <button class="close-btn" onclick="closeAndNotify()">Close Window</button>
-            </div>
-            <script>
-              function closeAndNotify() {
-                if (window.opener) {
-                  window.opener.postMessage({
-                    type: 'social_connection_success',
-                    platformId: '${platformId}'
-                  }, window.location.origin);
-                }
-                window.close();
-              }
-              setTimeout(closeAndNotify, 2000);
-            </script>
-          </body>
-          </html>
-        `, {
-          status: 200,
-          headers: { "Content-Type": "text/html" },
-        });
+          <html><head><title>Connected to ${platformName}</title>
+          <style>
+            body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:linear-gradient(135deg,#059669,#047857);margin:0}
+            .c{text-align:center;background:white;padding:40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+            .icon{font-size:64px;margin-bottom:20px}
+            h2{color:#065f46;margin:0 0 10px}p{color:#666;margin:0 0 20px}
+            .badge{background:#d1fae5;color:#065f46;padding:8px 16px;border-radius:30px;font-size:14px;display:inline-flex;align-items:center;gap:8px}
+            button{background:#059669;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-size:16px;font-weight:600;margin-top:20px}
+          </style></head>
+          <body><div class="c">
+            <div class="icon">✅</div>
+            <h2>Connected Successfully!</h2>
+            <p style="text-transform:capitalize"><strong>${platformName}</strong> is now connected and ready for posting.</p>
+            <div class="badge">🤖 Auto-posting enabled</div><br>
+            <button onclick="closeAndNotify()">Done</button>
+          </div>
+          <script>
+            function closeAndNotify(){
+              if(window.opener){window.opener.postMessage({type:'social_connection_success',platformId:'${platformId}',username:'${result.username || ''}'},'*')}
+              window.close();
+            }
+            setTimeout(closeAndNotify,2500);
+          </script>
+          </body></html>
+        `, { status: 200, headers: { "Content-Type": "text/html" } });
       } else {
-        // Return error HTML
         return new Response(`
           <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Connection Failed</title>
-            <style>
-              body {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
-                margin: 0;
-              }
-              .container {
-                text-align: center;
-                background: white;
-                padding: 40px;
-                border-radius: 20px;
-                max-width: 400px;
-                margin: 20px;
-              }
-              .error-icon { font-size: 64px; margin-bottom: 20px; }
-              h2 { color: #dc2626; margin-bottom: 10px; }
-              p { color: #666; margin-bottom: 20px; word-break: break-word; }
-              .close-btn {
-                background: #dc2626;
-                color: white;
-                border: none;
-                padding: 10px 24px;
-                border-radius: 30px;
-                cursor: pointer;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              <div class="error-icon">❌</div>
-              <h2>Connection Failed</h2>
-              <p>${result.error || "Unknown error"}</p>
-              <button class="close-btn" onclick="window.close()">Close Window</button>
-            </div>
-          </body>
-          </html>
-        `, {
-          status: 200,
-          headers: { "Content-Type": "text/html" },
-        });
+          <html><head><title>Connection Failed</title>
+          <style>
+            body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#fee2e2;margin:0}
+            .c{text-align:center;background:white;padding:40px;border-radius:20px;max-width:400px;margin:20px;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+            .icon{font-size:64px;margin-bottom:20px}
+            h2{color:#dc2626;margin:0 0 10px}p{color:#666;margin:0 0 20px;word-break:break-word;font-size:14px}
+            button{background:#dc2626;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-size:16px}
+          </style></head>
+          <body><div class="c">
+            <div class="icon">❌</div>
+            <h2>Connection Failed</h2>
+            <p>${result.error || "Unknown error occurred"}</p>
+            <button onclick="window.close()">Close</button>
+          </div></body></html>
+        `, { status: 200, headers: { "Content-Type": "text/html" } });
       }
     } catch (error: any) {
       console.error("[OAUTH] Callback error:", error);
       return new Response(`
         <!DOCTYPE html>
-        <html>
-        <head><title>Error</title></head>
-        <body style="font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #fee2e2;">
-          <div style="text-align: center; background: white; padding: 40px; border-radius: 20px;">
-            <h2 style="color: #dc2626;">Error</h2>
-            <p>${error.message}</p>
-            <button onclick="window.close()" style="background: #dc2626; color: white; border: none; padding: 10px 24px; border-radius: 30px; cursor: pointer;">Close</button>
-          </div>
-        </body>
-        </html>
-      `, {
-        status: 200,
-        headers: { "Content-Type": "text/html" },
-      });
+        <html><head><title>Connection Error</title>
+        <style>
+          body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#fee2e2;margin:0}
+          .c{text-align:center;background:white;padding:40px;border-radius:20px;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+          h2{color:#dc2626;margin:0 0 10px}p{color:#666;margin:0 0 20px;font-size:14px}
+          button{background:#dc2626;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-size:16px}
+        </style></head>
+        <body><div class="c">
+          <h2>Connection Error</h2>
+          <p>${error.message}</p>
+          <button onclick="window.close()">Close</button>
+        </div></body></html>
+      `, { status: 200, headers: { "Content-Type": "text/html" } });
     }
   }),
 });

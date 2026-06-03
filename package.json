@@ -44,6 +44,7 @@
   },
   "devDependencies": {
     "@convex-dev/eslint-plugin": "^1.1.1",
+    "@edge-runtime/vm": "^5.0.0",
     "@tailwindcss/vite": "^4.3.0",
     "@tanstack/eslint-config": "^0.4.0",
     "@types/node": "^25.9.1",
@@ -51,10 +52,12 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "concurrently": "~9.2.1",
+    "convex-test": "^0.0.53",
     "prettier": "^3.8.3",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.14",
-    "vite-tsconfig-paths": "^6.1.1"
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^4.1.8"
   }
 }
