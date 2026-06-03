@@ -266,6 +266,34 @@ crons.interval(
 //   {}
 // );
 
+// ═══════════════════════════════════════════════════════════════════
+// PHASE 2: ABANDONED CHECKOUT RECOVERY & FLASH SALES
+// ═══════════════════════════════════════════════════════════════════
+
+// 🛒 Abandoned Checkout Recovery - Check every hour
+crons.interval(
+  "process abandoned checkouts",
+  { hours: 1 },
+  api.abandonedCheckouts.processAbandonedCheckouts,
+  {}
+);
+
+// 🛒 Cancel old abandoned checkouts - Daily at 3 AM
+crons.cron(
+  "cancel old abandoned checkouts",
+  "0 3 * * *",
+  internal.abandonedCheckouts.cancelOldCheckouts,
+  {}
+);
+
+// ⚡ Flash Sale Expiry - Check every 5 minutes
+crons.interval(
+  "expire flash sales",
+  { minutes: 5 },
+  internal.flashSales.expireFlashSales,
+  {}
+);
+
 // Auto-backup synthetic agent configs every 12 hours
 crons.interval(
   "auto backup synthetic agents",

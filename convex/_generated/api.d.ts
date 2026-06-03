@@ -10,6 +10,7 @@
 
 import type * as ResendOTP from "../ResendOTP.js";
 import type * as TermiiOTP from "../TermiiOTP.js";
+import type * as abandonedCheckouts from "../abandonedCheckouts.js";
 import type * as academic_agent from "../academic_agent.js";
 import type * as academic_chat from "../academic_chat.js";
 import type * as admin from "../admin.js";
@@ -47,6 +48,7 @@ import type * as feature_flags from "../feature_flags.js";
 import type * as finance_agent from "../finance_agent.js";
 import type * as finance_chat from "../finance_chat.js";
 import type * as fintech from "../fintech.js";
+import type * as flashSales from "../flashSales.js";
 import type * as geo_tracking from "../geo_tracking.js";
 import type * as guardian from "../guardian.js";
 import type * as guardian_watch from "../guardian_watch.js";
@@ -71,6 +73,7 @@ import type * as payouts from "../payouts.js";
 import type * as platformOAuth from "../platformOAuth.js";
 import type * as platform_analytics from "../platform_analytics.js";
 import type * as postiz_ad_engine from "../postiz_ad_engine.js";
+import type * as pushNotifications from "../pushNotifications.js";
 import type * as quick_setup from "../quick_setup.js";
 import type * as receipts from "../receipts.js";
 import type * as referrals from "../referrals.js";
@@ -110,6 +113,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   ResendOTP: typeof ResendOTP;
   TermiiOTP: typeof TermiiOTP;
+  abandonedCheckouts: typeof abandonedCheckouts;
   academic_agent: typeof academic_agent;
   academic_chat: typeof academic_chat;
   admin: typeof admin;
@@ -147,6 +151,7 @@ declare const fullApi: ApiFromModules<{
   finance_agent: typeof finance_agent;
   finance_chat: typeof finance_chat;
   fintech: typeof fintech;
+  flashSales: typeof flashSales;
   geo_tracking: typeof geo_tracking;
   guardian: typeof guardian;
   guardian_watch: typeof guardian_watch;
@@ -171,6 +176,7 @@ declare const fullApi: ApiFromModules<{
   platformOAuth: typeof platformOAuth;
   platform_analytics: typeof platform_analytics;
   postiz_ad_engine: typeof postiz_ad_engine;
+  pushNotifications: typeof pushNotifications;
   quick_setup: typeof quick_setup;
   receipts: typeof receipts;
   referrals: typeof referrals;

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
-import { useConvexAuth } from "convex/react"
+import { useConvexAuth, useMutation, useAction } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
 import { api } from "../../convex/_generated/api"
 import { useState, useEffect } from "react"
@@ -13,6 +13,9 @@ import {
 import { KDPProjectHub } from '~/components/KDPProjectHub';
 import { KDPRoyaltyDashboard } from '~/components/KDPRoyaltyDashboard';
 import { InactivityLogout } from '~/components/InactivityLogout';
+import { FlashSaleBanner } from '~/components/FlashSaleBanner';
+import { UrgencyTriggers } from '~/components/UrgencyTriggers';
+import { isPushSupported, subscribeToPush, unsubscribeFromPush, getExistingSubscription, subscriptionToJSON } from '~/lib/push';
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -169,11 +172,40 @@ function TabButton({ active, onClick, icon, label }: { active: boolean, onClick:
 function Header({ user, notifications }: { user: any, notifications: any[] }) {
   const [time, setTime] = useState(new Date().toLocaleTimeString());
   const [showNotifs, setShowNotifs] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushSupported, setPushSupported] = useState(false);
+  const subscribeToPushAction = useAction(api.pushNotifications.subscribe);
+  const unsubscribeFromPushAction = useAction(api.pushNotifications.unsubscribe);
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date().toLocaleTimeString()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    setPushSupported(isPushSupported());
+    checkPushStatus();
+  }, []);
+
+  const checkPushStatus = async () => {
+    const subscription = await getExistingSubscription();
+    setPushEnabled(!!subscription);
+  };
+
+  const handlePushToggle = async () => {
+    if (pushEnabled) {
+      await unsubscribeFromPush();
+      await unsubscribeFromPushAction({});
+      setPushEnabled(false);
+    } else {
+      const subscription = await subscribeToPush();
+      if (subscription) {
+        const json = subscriptionToJSON(subscription);
+        await subscribeToPushAction(json);
+        setPushEnabled(true);
+      }
+    }
+  };
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -188,6 +220,26 @@ function Header({ user, notifications }: { user: any, notifications: any[] }) {
             </div>
           </div>
       <div className="flex items-center gap-4">
+        {/* Flash Sale Banner */}
+        <div className="hidden md:block">
+          <FlashSaleBanner />
+        </div>
+
+        {/* Push Notification Toggle */}
+        {pushSupported && (
+          <button
+            onClick={handlePushToggle}
+            className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all border ${
+              pushEnabled
+                ? 'bg-green-600 border-green-500 text-white shadow-lg'
+                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+            }`}
+            title={pushEnabled ? 'Push notifications enabled' : 'Enable push notifications'}
+          >
+            {pushEnabled ? '🔔' : '🔕'}
+          </button>
+        )}
+
         <div className="relative">
           <button 
             onClick={() => setShowNotifs(!showNotifs)}
@@ -269,6 +321,11 @@ function Overview({ data, setActiveTab, setModal }: { data: any, setActiveTab: (
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Flash Sale Banner - Mobile */}
+      <div className="md:hidden">
+        <FlashSaleBanner />
+      </div>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard label="Active Plans" value={data.stats.activeSubscriptions} icon="💳" color="indigo" />

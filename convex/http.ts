@@ -493,6 +493,17 @@ http.route({
       service: body.metadata?.service,
     });
 
+    // Phase 2: Mark checkout session as completed if payment approved
+    if (verification.approved) {
+      try {
+        await ctx.runMutation(internal.abandonedCheckouts.completeCheckout, {
+          reference: body.reference,
+        });
+      } catch {
+        // Checkout session might not exist (legacy payment)
+      }
+    }
+
     return new Response(JSON.stringify({ webhookStatus: "processed", ...verification }), {
       status: 200,
       headers: { "Content-Type": "application/json" },

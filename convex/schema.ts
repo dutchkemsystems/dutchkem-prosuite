@@ -956,4 +956,84 @@ export default defineSchema({
     verified: v.boolean(),
     createdAt: v.number(),
   }).index("by_agent", ["agentId", "createdAt"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // PHASE 2: PUSH NOTIFICATIONS, ABANDONED CHECKOUTS, FLASH SALES
+  // ═══════════════════════════════════════════════════════════════════
+
+  push_subscriptions: defineTable({
+    userId: v.id("users"),
+    endpoint: v.string(),
+    p256dh: v.string(),
+    auth: v.string(),
+    userAgent: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_endpoint", ["endpoint"]),
+
+  push_queue: defineTable({
+    endpoint: v.string(),
+    p256dh: v.string(),
+    auth: v.string(),
+    title: v.string(),
+    body: v.string(),
+    url: v.string(),
+    tag: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("sent"),
+      v.literal("failed")
+    ),
+    createdAt: v.number(),
+    sentAt: v.optional(v.number()),
+  }).index("by_status", ["status"]),
+
+  checkout_sessions: defineTable({
+    userId: v.id("users"),
+    planId: v.string(),
+    planName: v.string(),
+    amount: v.number(),
+    reference: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("completed"),
+      v.literal("abandoned"),
+      v.literal("cancelled")
+    ),
+    recoveryStage: v.number(),
+    createdAt: v.number(),
+    abandonedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    lastRecoveryAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_reference", ["reference"])
+    .index("by_status", ["status"]),
+
+  flash_sales: defineTable({
+    name: v.string(),
+    discountPercent: v.number(),
+    startsAt: v.number(),
+    endsAt: v.number(),
+    maxUses: v.optional(v.number()),
+    currentUses: v.number(),
+    applicablePlans: v.array(v.string()),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_active", ["isActive"])
+    .index("by_endsAt", ["endsAt"]),
+
+  promo_codes: defineTable({
+    code: v.string(),
+    discountPercent: v.number(),
+    maxUses: v.number(),
+    currentUses: v.number(),
+    expiresAt: v.number(),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_code", ["code"])
+    .index("by_active", ["isActive"]),
 });
