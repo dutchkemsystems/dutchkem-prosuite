@@ -292,6 +292,14 @@ crons.interval(
   {}
 );
 
+// 📢 Scheduled Ad Posts - Process every minute
+crons.interval(
+  "process scheduled ad posts",
+  { minutes: 1 },
+  internal.adEngine.processScheduledAds,
+  {}
+);
+
 // Auto-backup synthetic agent configs every 12 hours
 crons.interval(
   "auto backup synthetic agents",

@@ -13,6 +13,7 @@ import type * as TermiiOTP from "../TermiiOTP.js";
 import type * as abandonedCheckouts from "../abandonedCheckouts.js";
 import type * as academic_agent from "../academic_agent.js";
 import type * as academic_chat from "../academic_chat.js";
+import type * as adEngine from "../adEngine.js";
 import type * as admin from "../admin.js";
 import type * as admin_auth from "../admin_auth.js";
 import type * as agent_backups from "../agent_backups.js";
@@ -126,6 +127,7 @@ declare const fullApi: ApiFromModules<{
   abandonedCheckouts: typeof abandonedCheckouts;
   academic_agent: typeof academic_agent;
   academic_chat: typeof academic_chat;
+  adEngine: typeof adEngine;
   admin: typeof admin;
   admin_auth: typeof admin_auth;
   agent_backups: typeof agent_backups;

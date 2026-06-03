@@ -462,6 +462,87 @@ export default defineSchema({
     .index("by_scheduled", ["scheduledFor"])
     .index("by_status_and_scheduled", ["status", "scheduledFor"]),
 
+  // ═══════════════════════════════════════════════════════════════════
+  // AD ENGINE — Built on top of existing platform_connections (no Postiz)
+  // ═══════════════════════════════════════════════════════════════════
+  ad_engine_status: defineTable({
+    singleton: v.string(), // always "global" — single-row table
+    enabled: v.boolean(),
+    autoPost: v.boolean(),
+    dailyPostLimit: v.number(),
+    postsToday: v.number(),
+    lastResetDate: v.string(), // YYYY-MM-DD
+    updatedAt: v.number(),
+  }).index("by_singleton", ["singleton"]),
+
+  ad_campaigns: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    platform: v.string(), // single platform per campaign: "x", "linkedin", etc.
+    status: v.union(v.literal("draft"), v.literal("active"), v.literal("paused"), v.literal("completed"), v.literal("archived")),
+    budget: v.optional(v.number()),
+    dailyBudget: v.optional(v.number()),
+    spent: v.number(),
+    startDate: v.number(),
+    endDate: v.optional(v.number()),
+    goals: v.optional(v.string()),
+    targetAudience: v.optional(v.string()),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_status", ["status"])
+    .index("by_platform", ["platform"])
+    .index("by_createdAt", ["createdAt"]),
+
+  ad_ads: defineTable({
+    campaignId: v.id("ad_campaigns"),
+    title: v.string(),
+    content: v.string(),
+    imageUrl: v.optional(v.string()),
+    flyerId: v.optional(v.id("ad_flyers")),
+    platform: v.string(),
+    status: v.union(v.literal("draft"), v.literal("scheduled"), v.literal("posted"), v.literal("failed")),
+    scheduledFor: v.optional(v.number()),
+    postedAt: v.optional(v.number()),
+    externalId: v.optional(v.string()),
+    error: v.optional(v.string()),
+    impressions: v.number(),
+    clicks: v.number(),
+    engagements: v.number(),
+    createdAt: v.number(),
+  }).index("by_campaign", ["campaignId"])
+    .index("by_status", ["status"])
+    .index("by_status_and_scheduled", ["status", "scheduledFor"]),
+
+  ad_flyers: defineTable({
+    campaignId: v.optional(v.id("ad_campaigns")),
+    prompt: v.string(),
+    style: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    headline: v.optional(v.string()),
+    body: v.optional(v.string()),
+    cta: v.optional(v.string()),
+    colorScheme: v.optional(v.string()),
+    width: v.optional(v.number()),
+    height: v.optional(v.number()),
+    generatedBy: v.string(), // "ai" or "manual"
+    createdAt: v.number(),
+  }).index("by_campaign", ["campaignId"]),
+
+  ad_analytics: defineTable({
+    adId: v.id("ad_ads"),
+    campaignId: v.id("ad_campaigns"),
+    platform: v.string(),
+    date: v.string(), // YYYY-MM-DD
+    impressions: v.number(),
+    clicks: v.number(),
+    engagements: v.number(),
+    conversions: v.number(),
+    spend: v.number(),
+  }).index("by_ad", ["adId"])
+    .index("by_campaign", ["campaignId"])
+    .index("by_date", ["date"]),
+
   social_platforms: defineTable({
     userId: v.optional(v.id("users")), // Owner of this connection
     platform: v.string(), // "x", "linkedin", "facebook", "instagram", "threads", etc.
