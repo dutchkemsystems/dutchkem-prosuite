@@ -67,13 +67,13 @@ test("getConnectedPlatforms returns all platforms when none connected", async ()
   expect(result.availablePlatforms).toHaveLength(12);
 });
 
-test("generateOAuthUrl returns error for unsupported platform", async () => {
+test("generateOAuthUrl throws when not authenticated", async () => {
   const t = convexTest(schema, modules);
-  const result = await t.action(api.social.generateOAuthUrl, {
-    platform: "unsupported_platform",
-  });
-  expect(result.success).toBe(false);
-  expect(result.error).toBeDefined();
+  await expect(
+    t.action(api.social.generateOAuthUrl, {
+      platform: "unsupported_platform",
+    })
+  ).rejects.toThrow("Not authenticated");
 });
 
 test("handleOAuthCallback rejects invalid state", async () => {
