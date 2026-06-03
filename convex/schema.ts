@@ -1036,4 +1036,64 @@ export default defineSchema({
   })
     .index("by_code", ["code"])
     .index("by_active", ["isActive"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // PHASE 3: GAMIFICATION, CROSS-SELL, EXIT-INTENT
+  // ═══════════════════════════════════════════════════════════════════
+
+  gamification_profiles: defineTable({
+    userId: v.id("users"),
+    totalXp: v.number(),
+    level: v.number(),
+    currentStreak: v.number(),
+    longestStreak: v.number(),
+    lastActiveDate: v.string(),
+    totalActions: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_level", ["level"])
+    .index("by_xp", ["totalXp"]),
+
+  gamification_log: defineTable({
+    userId: v.id("users"),
+    action: v.string(),
+    points: v.number(),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_action", ["action"]),
+
+  user_achievements: defineTable({
+    userId: v.id("users"),
+    achievementId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    icon: v.string(),
+    rarity: v.union(
+      v.literal("common"),
+      v.literal("uncommon"),
+      v.literal("rare"),
+      v.literal("epic"),
+      v.literal("legendary")
+    ),
+    earnedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_achievement", ["achievementId"]),
+
+  popup_analytics: defineTable({
+    userId: v.string(),
+    popupType: v.string(),
+    action: v.union(
+      v.literal("shown"),
+      v.literal("dismissed"),
+      v.literal("converted")
+    ),
+    createdAt: v.number(),
+  })
+    .index("by_type", ["popupType"])
+    .index("by_action", ["action"]),
 });
