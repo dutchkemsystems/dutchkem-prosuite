@@ -1,13 +1,12 @@
 // convex/social.ts
 // Direct OAuth + API integration for 12 social media platforms
-// NO Postiz dependency — all platform APIs called directly
 
 import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
-// PLATFORM CONFIGURATIONS — Direct OAuth endpoints per platform
+// PLATFORM CONFIGURATIONS
 // ═══════════════════════════════════════════════════════════════════
 export const PLATFORM_CONFIGS: Record<string, {
   name: string; icon: string; color: string;
@@ -111,14 +110,6 @@ export const SUPPORTED_PLATFORMS = Object.entries(PLATFORM_CONFIGS).map(([id, co
   id, ...config,
 }));
 
-// Composio app slugs — maps our platform IDs to Composio integration IDs.
-// Only platforms that ACTUALLY exist in Composio are listed. Others fall back to direct OAuth.
-// Verified against backend.composio.dev/api/v3.1/toolkits on 2026-06-04.
-// Telegram is NOT in Composio (it uses bot tokens).
-// Note: Composio has "twitter" but it requires the user to provide their own
-//   X API credentials in the auth_config; no "default" managed creds.
-// Instagram is NOT in Composio's catalog.
-// TikTok, Pinterest, Threads, Bluesky are NOT in Composio's catalog.
 export const COMPOSIO_APP_MAP: Record<string, string | undefined> = {
   x: "twitter",
   linkedin: "linkedin",
@@ -126,20 +117,22 @@ export const COMPOSIO_APP_MAP: Record<string, string | undefined> = {
   youtube: "youtube",
   reddit: "reddit",
   discord: "discord",
-  // Fallback to direct OAuth (no Composio support):
   instagram: undefined,
   tiktok: undefined,
   pinterest: undefined,
   threads: undefined,
   bluesky: undefined,
-  telegram: undefined, // bot token only
+  telegram: undefined,
 };
 
 // ═══════════════════════════════════════════════════════════════════
 // OAUTH STATE MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════
 export const storeOAuthState = internalMutation({
-  args: { state: v.string(), platform: v.string(), adminId: v.string(), codeVerifier: v.optional(v.string()) },
+  args: {
+    state: v.string(), platform: v.string(), adminId: v.string(),
+    codeVerifier: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     await ctx.db.insert("oauth_states", {
       state: args.state, platform: args.platform, adminId: args.adminId,
@@ -152,7 +145,10 @@ export const storeOAuthState = internalMutation({
 export const getOAuthState = internalQuery({
   args: { state: v.string() },
   handler: async (ctx, { state }) => {
-    const doc = await ctx.db.query("oauth_states").withIndex("by_state", (q) => q.eq("state", state)).first();
+    const doc = await ctx.db
+      .query("oauth_states")
+      .withIndex("by_state", (q) => q.eq("state", state))
+      .first();
     if (!doc) return null;
     if (doc.expiresAt <= Date.now()) { await ctx.db.delete(doc._id); return null; }
     return doc;
@@ -176,7 +172,12 @@ export const generateOAuthUrl = action({
 
       const config = PLATFORM_CONFIGS[args.platform];
       if (!config) return { success: false, error: `Unsupported platform: ${args.platform}` };
-      if (!config.authUrl) return { success: false, error: `${config.name} uses ${args.platform === 'telegram' ? 'bot token' : 'AT Protocol'} — connect via settings instead` };
+      if (!config.authUrl) {
+        return {
+          success: false,
+          error: `${config.name} uses ${args.platform === "telegram" ? "bot token" : "AT Protocol"} — connect via settings instead`,
+        };
+      }
 
       const state = uuidV4();
       let codeVerifier = "";
@@ -187,8 +188,12 @@ export const generateOAuthUrl = action({
         codeChallenge = generateCodeChallenge(codeVerifier);
       }
 
+      // FIX: Only store codeVerifier when it's actually set
       await ctx.runMutation(internal.social.storeOAuthState, {
-        state, platform: args.platform, adminId: identity.subject, codeVerifier,
+        state,
+        platform: args.platform,
+        adminId: identity.subject,
+        ...(codeVerifier ? { codeVerifier } : {}),
       });
 
       const clientId = getPlatformClientId(args.platform);
@@ -254,18 +259,25 @@ export const handleOAuthCallback = action({
     const redirectUri = getRedirectUri(platform);
 
     try {
-      const tokenData = await exchangeCodeForToken(platform, code, clientId, clientSecret, redirectUri, storedState.codeVerifier);
+      const tokenData = await exchangeCodeForToken(
+        platform, code, clientId, clientSecret, redirectUri, storedState.codeVerifier
+      );
       if (!tokenData.access_token) return { success: false, error: "No access token returned" };
 
       const userInfo = await fetchUserInfo(platform, tokenData.access_token);
 
       await ctx.runMutation(internal.social.savePlatformConnection, {
-        adminId: storedState.adminId, platform, platformName: config.name,
-        accessToken: tokenData.access_token, refreshToken: tokenData.refresh_token || "",
-        platformUserId: userInfo.id || "", platformUsername: userInfo.username || userInfo.name || "",
+        adminId: storedState.adminId,
+        platform,
+        platformName: config.name,
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token || "",
+        platformUserId: userInfo.id || "",
+        platformUsername: userInfo.username || userInfo.name || "",
         expiresAt: tokenData.expires_in ? Date.now() + tokenData.expires_in * 1000 : undefined,
         scopes: config.scopes.join(","),
         anonymousByDefault: config.anonymousSupported,
+        // FIX: no integrationId here — schema doesn't include it in handleOAuthCallback path
       });
 
       await ctx.runMutation(internal.social.deleteOAuthState, { stateId: storedState._id });
@@ -278,31 +290,54 @@ export const handleOAuthCallback = action({
 
 // ═══════════════════════════════════════════════════════════════════
 // MUTATION: Save platform connection
+// FIX: Added integrationId as an optional arg so Composio callback doesn't crash
 // ═══════════════════════════════════════════════════════════════════
 export const savePlatformConnection = internalMutation({
   args: {
-    adminId: v.string(), platform: v.string(), platformName: v.string(),
-    accessToken: v.string(), refreshToken: v.optional(v.string()),
-    platformUserId: v.optional(v.string()), platformUsername: v.optional(v.string()),
-    expiresAt: v.optional(v.number()), scopes: v.optional(v.string()),
+    adminId: v.string(),
+    platform: v.string(),
+    platformName: v.string(),
+    accessToken: v.string(),
+    refreshToken: v.optional(v.string()),
+    platformUserId: v.optional(v.string()),
+    platformUsername: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+    scopes: v.optional(v.string()),
     anonymousByDefault: v.optional(v.boolean()),
+    // FIX: was missing — handleComposioCallback passes this field
+    integrationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db.query("platform_connections")
-      .withIndex("by_admin_platform", (q) => q.eq("adminId", args.adminId).eq("platformId", args.platform)).first();
+    const existing = await ctx.db
+      .query("platform_connections")
+      .withIndex("by_admin_platform", (q) =>
+        q.eq("adminId", args.adminId).eq("platformId", args.platform)
+      )
+      .first();
 
     const patch = {
-      accessToken: args.accessToken, refreshToken: args.refreshToken || "",
-      platformUserId: args.platformUserId || "", platformUsername: args.platformUsername || "",
-      isConnected: true, expiresAt: args.expiresAt, scopes: args.scopes || "",
-      anonymousByDefault: args.anonymousByDefault || false, updatedAt: Date.now(),
+      accessToken: args.accessToken,
+      refreshToken: args.refreshToken || "",
+      platformUserId: args.platformUserId || "",
+      platformUsername: args.platformUsername || "",
+      isConnected: true,
+      expiresAt: args.expiresAt,
+      scopes: args.scopes || "",
+      anonymousByDefault: args.anonymousByDefault || false,
+      updatedAt: Date.now(),
+      integrationId: args.integrationId || "",
     };
 
-    if (existing) { await ctx.db.patch(existing._id, patch); }
-    else {
+    if (existing) {
+      await ctx.db.patch(existing._id, patch);
+    } else {
       await ctx.db.insert("platform_connections", {
-        adminId: args.adminId, platformId: args.platform, platformName: args.platformName,
-        integrationId: "", ...patch, autoPostEnabled: true, connectedAt: Date.now(),
+        adminId: args.adminId,
+        platformId: args.platform,
+        platformName: args.platformName,
+        ...patch,
+        autoPostEnabled: true,
+        connectedAt: Date.now(),
       });
     }
   },
@@ -313,22 +348,36 @@ export const savePlatformConnection = internalMutation({
 // ═══════════════════════════════════════════════════════════════════
 export const postToPlatform = action({
   args: {
-    platform: v.string(), content: v.string(),
+    platform: v.string(),
+    content: v.string(),
     mediaUrls: v.optional(v.array(v.string())),
     anonymous: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const connection = await ctx.runQuery(internal.social.getConnectionForPlatform, { platform: args.platform });
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    // FIX: was hardcoded to "system" — now uses actual user identity
+    const connection = await ctx.runQuery(internal.social.getConnectionForPlatform, {
+      platform: args.platform,
+      adminId: identity.subject,
+    });
     if (!connection || !connection.isConnected) throw new Error("Platform not connected");
 
     const config = PLATFORM_CONFIGS[args.platform];
     if (!config) throw new Error(`Unknown platform: ${args.platform}`);
 
-    const result = await postToPlatformApi(args.platform, connection.accessToken, args.content, args.mediaUrls, args.anonymous);
+    const result = await postToPlatformApi(
+      args.platform, connection.accessToken, args.content, args.mediaUrls, args.anonymous
+    );
 
     await ctx.runMutation(internal.social.logPost, {
-      platformId: args.platform, content: args.content, success: result.success,
-      externalId: result.postId || "", errorMsg: result.error || "", anonymous: args.anonymous || false,
+      platformId: args.platform,
+      content: args.content,
+      success: result.success,
+      externalId: result.postId || "",
+      errorMsg: result.error || "",
+      anonymous: args.anonymous || false,
     });
 
     return result;
@@ -341,22 +390,30 @@ export const postToPlatform = action({
 export const getConnectedPlatforms = action({
   args: {},
   handler: async (ctx) => {
-    const dbPlatforms = await ctx.runQuery(internal.social.getPlatformsFromDb);
+    const identity = await ctx.auth.getUserIdentity();
+    const adminId = identity?.subject || "system";
+    const dbPlatforms = await ctx.runQuery(internal.social.getPlatformsFromDb, { adminId });
     return {
       platforms: dbPlatforms,
       availablePlatforms: SUPPORTED_PLATFORMS.map((p) => ({
-        id: p.id, name: p.name, icon: p.icon, color: p.color, anonymousSupported: p.anonymousSupported,
+        id: p.id, name: p.name, icon: p.icon, color: p.color,
+        anonymousSupported: p.anonymousSupported,
       })),
     };
   },
 });
 
 export const getPlatformsFromDb = internalQuery({
-  args: {},
-  handler: async (ctx) => {
-    const connected = await ctx.db.query("platform_connections").collect();
+  // FIX: accepts adminId so it filters correctly per user
+  args: { adminId: v.string() },
+  handler: async (ctx, { adminId }) => {
+    const connected = await ctx.db
+      .query("platform_connections")
+      .collect();
     return SUPPORTED_PLATFORMS.map((p) => {
-      const conn = connected.find((c) => c.platformId === p.id && c.isConnected);
+      const conn = connected.find(
+        (c) => c.platformId === p.id && c.isConnected && c.adminId === adminId
+      );
       return {
         platformId: p.id, platformName: p.name, icon: p.icon, color: p.color,
         isConnected: conn?.isConnected || false, connectedAt: conn?.connectedAt,
@@ -369,11 +426,16 @@ export const getPlatformsFromDb = internalQuery({
   },
 });
 
+// FIX: now accepts adminId parameter instead of hardcoding "system"
 export const getConnectionForPlatform = internalQuery({
-  args: { platform: v.string() },
-  handler: async (ctx, { platform }) => {
-    return await ctx.db.query("platform_connections")
-      .withIndex("by_admin_platform", (q) => q.eq("adminId", "system").eq("platformId", platform)).first();
+  args: { platform: v.string(), adminId: v.string() },
+  handler: async (ctx, { platform, adminId }) => {
+    return await ctx.db
+      .query("platform_connections")
+      .withIndex("by_admin_platform", (q) =>
+        q.eq("adminId", adminId).eq("platformId", platform)
+      )
+      .first();
   },
 });
 
@@ -385,9 +447,17 @@ export const disconnectPlatform = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
-    const conn = await ctx.db.query("platform_connections")
-      .withIndex("by_admin_platform", (q) => q.eq("adminId", identity.subject).eq("platformId", args.platformId)).first();
-    if (conn) await ctx.db.patch(conn._id, { isConnected: false, accessToken: "", refreshToken: "", updatedAt: Date.now() });
+    const conn = await ctx.db
+      .query("platform_connections")
+      .withIndex("by_admin_platform", (q) =>
+        q.eq("adminId", identity.subject).eq("platformId", args.platformId)
+      )
+      .first();
+    if (conn) {
+      await ctx.db.patch(conn._id, {
+        isConnected: false, accessToken: "", refreshToken: "", updatedAt: Date.now(),
+      });
+    }
   },
 });
 
@@ -401,11 +471,20 @@ export const updatePostingSettings = mutation({
     anonymous: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const doc = await ctx.db.query("platform_connections")
-      .withIndex("by_admin_platform", (q) => q.eq("adminId", "system").eq("platformId", args.platformId)).first();
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const doc = await ctx.db
+      .query("platform_connections")
+      .withIndex("by_admin_platform", (q) =>
+        // FIX: was hardcoded to "system"
+        q.eq("adminId", identity.subject).eq("platformId", args.platformId)
+      )
+      .first();
     if (!doc) throw new Error("Platform not connected");
     await ctx.db.patch(doc._id, {
-      autoPostEnabled: args.mode === "auto", anonymousByDefault: args.anonymous || false, updatedAt: Date.now(),
+      autoPostEnabled: args.mode === "auto",
+      anonymousByDefault: args.anonymous || false,
+      updatedAt: Date.now(),
     });
     return { success: true, mode: args.mode };
   },
@@ -421,10 +500,14 @@ export const logPost = internalMutation({
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("social_posts", {
-      agentId: args.anonymous ? "anonymous" : "admin", platform: args.platformId,
-      content: args.content, status: args.success ? "posted" : "failed",
-      scheduledFor: Date.now(), postedAt: args.success ? Date.now() : undefined,
-      externalId: args.externalId, error: args.success ? undefined : args.errorMsg,
+      agentId: args.anonymous ? "anonymous" : "admin",
+      platform: args.platformId,
+      content: args.content,
+      status: args.success ? "posted" : "failed",
+      scheduledFor: Date.now(),
+      postedAt: args.success ? Date.now() : undefined,
+      externalId: args.externalId,
+      error: args.success ? undefined : args.errorMsg,
     });
   },
 });
@@ -437,7 +520,8 @@ export const getSocialStats = query({
   handler: async (ctx) => {
     const posts = await ctx.db.query("social_posts").take(100);
     return {
-      total: posts.length, posted: posts.filter((p) => p.status === "posted").length,
+      total: posts.length,
+      posted: posts.filter((p) => p.status === "posted").length,
       failed: posts.filter((p) => p.status === "failed").length,
       scheduled: posts.filter((p) => p.status === "scheduled").length,
       history: posts.slice(-20).reverse(),
@@ -452,15 +536,27 @@ export const getPlatformAnalytics = query({
       const leads = await ctx.db.query("leads").collect();
       const transactions = await ctx.db.query("marketplace_transactions").collect();
       const platformStats = SUPPORTED_PLATFORMS.map((p) => {
-        const platformLeads = leads.filter((l) => l.source === p.id || l.source === p.name.toLowerCase());
-        return { platform: p.id, name: p.name, icon: p.icon, leads: platformLeads.length,
+        const platformLeads = leads.filter(
+          (l) => l.source === p.id || l.source === p.name.toLowerCase()
+        );
+        return {
+          platform: p.id, name: p.name, icon: p.icon,
+          leads: platformLeads.length,
           registrations: platformLeads.filter((l) => l.status === "converted").length,
-          conversions: platformLeads.filter((l) => l.status === "converted").length, revenue: 0 };
+          conversions: platformLeads.filter((l) => l.status === "converted").length,
+          revenue: 0,
+        };
       });
       platformStats.sort((a, b) => b.leads - a.leads);
-      return { platforms: platformStats, totalLeads: leads.length, totalUsers: leads.length,
-        totalRevenue: transactions.reduce((sum, t) => sum + t.amount, 0) };
-    } catch { return { platforms: [], totalLeads: 0, totalUsers: 0, totalRevenue: 0 }; }
+      return {
+        platforms: platformStats,
+        totalLeads: leads.length,
+        totalUsers: leads.length,
+        totalRevenue: transactions.reduce((sum, t) => sum + t.amount, 0),
+      };
+    } catch {
+      return { platforms: [], totalLeads: 0, totalUsers: 0, totalRevenue: 0 };
+    }
   },
 });
 
@@ -476,16 +572,8 @@ export const getOAuthStatus = query({
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// COMPOSIO OAUTH (v3.1) — Primary OAuth provider
+// COMPOSIO OAUTH (v3.1)
 // ═══════════════════════════════════════════════════════════════════
-// Flow:
-//   1. Find or create a Composio-managed auth_config for the toolkit
-//   2. POST /api/v3.1/connected_accounts/link → returns redirect_url + connected_account_id
-//   3. User completes OAuth at redirect_url
-//   4. GET /api/v3.1/connected_accounts/{id} → poll status until ACTIVE
-//   5. Save tokens to platform_connections table
-// ═══════════════════════════════════════════════════════════════════
-
 const COMPOSIO_BASE = "https://backend.composio.dev/api/v3.1";
 
 async function composioFetch(apiKey: string, path: string, init?: RequestInit): Promise<any> {
@@ -498,14 +586,11 @@ async function composioFetch(apiKey: string, path: string, init?: RequestInit): 
     },
   });
   const text = await res.text();
-  if (!res.ok) {
-    throw new Error(`Composio ${res.status}: ${text}`);
-  }
+  if (!res.ok) throw new Error(`Composio ${res.status}: ${text}`);
   return text ? JSON.parse(text) : {};
 }
 
 async function getOrCreateAuthConfigId(apiKey: string, toolkit: string): Promise<string> {
-  // 1) Look for an existing Composio-managed config for this toolkit
   const list: any = await composioFetch(
     apiKey,
     `/auth_configs?toolkit_slug=${encodeURIComponent(toolkit)}&is_composio_managed=true&limit=1`
@@ -514,27 +599,24 @@ async function getOrCreateAuthConfigId(apiKey: string, toolkit: string): Promise
   if (listItems.length > 0) {
     return (listItems[0].id || listItems[0].auth_config?.id) as string;
   }
-
-  // 2) Create a new Composio-managed config for this toolkit
   const created: any = await composioFetch(apiKey, "/auth_configs", {
     method: "POST",
-    body: JSON.stringify({
-      toolkit: { slug: toolkit },
-      type: "use_composio_managed_auth",
-    }),
+    body: JSON.stringify({ toolkit: { slug: toolkit }, type: "use_composio_managed_auth" }),
   });
-  // Response shape: { toolkit: {...}, auth_config: { id, auth_scheme, is_composio_managed, ... } }
   const newId = created?.auth_config?.id || created?.id;
   if (!newId) {
-    throw new Error(`Composio: failed to create auth config for ${toolkit} — response: ${JSON.stringify(created).slice(0, 200)}`);
+    throw new Error(
+      `Composio: failed to create auth config for ${toolkit} — response: ${JSON.stringify(created).slice(0, 200)}`
+    );
   }
   return newId as string;
 }
 
-// ACTION: Start OAuth via Composio
 export const startComposioOAuth = action({
   args: { platform: v.string() },
-  handler: async (ctx, args): Promise<{ success: boolean; redirectUrl?: string; connectionId?: string; error?: string }> => {
+  handler: async (ctx, args): Promise<{
+    success: boolean; redirectUrl?: string; connectionId?: string; error?: string;
+  }> => {
     try {
       const identity = await ctx.auth.getUserIdentity();
       if (!identity) return { success: false, error: "Not authenticated" };
@@ -543,13 +625,16 @@ export const startComposioOAuth = action({
       if (!config) return { success: false, error: `Unsupported platform: ${args.platform}` };
 
       const apiKey = process.env.COMPOSIO_API_KEY;
-      if (!apiKey) return { success: false, error: "COMPOSIO_API_KEY not configured — set it in Convex dashboard env vars" };
+      if (!apiKey) {
+        return { success: false, error: "COMPOSIO_API_KEY not configured — set it in Convex dashboard env vars" };
+      }
 
       const composioApp = COMPOSIO_APP_MAP[args.platform];
-      if (!composioApp) return { success: false, error: `${config.name} does not support Composio (use Telegram bot token instead)` };
+      if (!composioApp) {
+        return { success: false, error: `${config.name} does not support Composio (use Telegram bot token instead)` };
+      }
 
       const redirectUri = getRedirectUri(args.platform);
-
       const authConfigId = await getOrCreateAuthConfigId(apiKey, composioApp);
 
       const link: any = await composioFetch(apiKey, "/connected_accounts/link", {
@@ -561,30 +646,28 @@ export const startComposioOAuth = action({
         }),
       });
 
-      // Response shape: { link_token, redirect_url, expires_at, connected_account_id, ... }
-      // Some endpoints also nest under "data".
       const payload = link?.data ?? link;
       const redirectUrl = payload?.redirect_url;
       const connectionId = payload?.connected_account_id;
       if (!redirectUrl) {
-        return { success: false, error: `Composio did not return a redirect URL — response: ${JSON.stringify(link).slice(0, 200)}` };
+        return {
+          success: false,
+          error: `Composio did not return a redirect URL — response: ${JSON.stringify(link).slice(0, 200)}`,
+        };
       }
 
-      return {
-        success: true,
-        redirectUrl,
-        connectionId,
-      };
+      return { success: true, redirectUrl, connectionId };
     } catch (err: any) {
       return { success: false, error: `Composio OAuth start failed: ${err?.message || String(err)}` };
     }
   },
 });
 
-// ACTION: Handle Composio callback (polled after user returns from redirect)
 export const handleComposioCallback = action({
   args: { platform: v.string(), connectionId: v.string() },
-  handler: async (ctx, args): Promise<{ success: boolean; platformName?: string; username?: string; error?: string }> => {
+  handler: async (ctx, args): Promise<{
+    success: boolean; platformName?: string; username?: string; error?: string;
+  }> => {
     try {
       const identity = await ctx.auth.getUserIdentity();
       if (!identity) return { success: false, error: "Not authenticated" };
@@ -596,8 +679,7 @@ export const handleComposioCallback = action({
       if (!apiKey) return { success: false, error: "COMPOSIO_API_KEY not configured" };
 
       const data: any = await composioFetch(
-        apiKey,
-        `/connected_accounts/${encodeURIComponent(args.connectionId)}`
+        apiKey, `/connected_accounts/${encodeURIComponent(args.connectionId)}`
       );
 
       const status = data?.status;
@@ -605,34 +687,30 @@ export const handleComposioCallback = action({
         return { success: false, error: `Connection not active (status: ${status || "unknown"})` };
       }
 
-      // Extract token from state.val (Composio's new v3 structure)
       const tokenVal = data?.state?.val || data?.data || {};
       const accessToken: string | undefined =
         tokenVal.access_token || tokenVal.oauth_token || data?.accessToken || data?.access_token;
-      const refreshToken: string | undefined =
+      const refreshToken: string =
         tokenVal.refresh_token || data?.refreshToken || data?.refresh_token || "";
 
       if (!accessToken) {
         return { success: false, error: "Composio connection active but no access token returned" };
       }
 
-      const username: string =
-        data?.username || data?.meta?.username || config.name;
-
-      const platformUserId: string =
-        data?.id || data?.uuid || args.connectionId;
+      const username: string = data?.username || data?.meta?.username || config.name;
+      const platformUserId: string = data?.id || data?.uuid || args.connectionId;
 
       await ctx.runMutation(internal.social.savePlatformConnection, {
         adminId: identity.subject,
         platform: args.platform,
         platformName: config.name,
         accessToken,
-        refreshToken: refreshToken || "",
+        refreshToken,
         platformUserId,
         platformUsername: username,
         scopes: config.scopes.join(","),
         anonymousByDefault: config.anonymousSupported,
-        integrationId: "composio",
+        integrationId: "composio", // FIX: now accepted by savePlatformConnection
       });
 
       return { success: true, platformName: config.name, username };
@@ -642,8 +720,6 @@ export const handleComposioCallback = action({
   },
 });
 
-// QUERY: Get OAuth provider status (direct vs composio)
-// Only includes platforms that ACTUALLY exist in Composio. Others fall back to direct OAuth.
 export const getOAuthProviderStatus = query({
   args: {},
   handler: async () => {
@@ -651,51 +727,42 @@ export const getOAuthProviderStatus = query({
     const composioPlatforms = Object.entries(COMPOSIO_APP_MAP)
       .filter(([, slug]) => slug)
       .map(([id]) => id);
-    return {
-      directEnabled: true,
-      composioEnabled: composioKeySet,
-      composioPlatforms,
-    };
+    return { directEnabled: true, composioEnabled: composioKeySet, composioPlatforms };
   },
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// ACTION: Connect Telegram via bot token (Telegram uses bot tokens, not OAuth)
+// ACTION: Connect Telegram via bot token
 // ═══════════════════════════════════════════════════════════════════
 export const connectTelegramBot = action({
   args: { botToken: v.string() },
-  handler: async (ctx, args): Promise<{ success: boolean; username?: string; botId?: number; error?: string }> => {
+  handler: async (ctx, args): Promise<{
+    success: boolean; username?: string; botId?: number; error?: string;
+  }> => {
     try {
       const identity = await ctx.auth.getUserIdentity();
       if (!identity) return { success: false, error: "Not authenticated" };
 
       if (!args.botToken || !args.botToken.includes(":")) {
-        return { success: false, error: "Invalid bot token format. Expected: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz" };
+        return {
+          success: false,
+          error: "Invalid bot token format. Expected: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz",
+        };
       }
 
       const res = await fetch(`https://api.telegram.org/bot${args.botToken}/getMe`);
-      if (!res.ok) {
-        return { success: false, error: "Invalid bot token — Telegram rejected the token" };
-      }
+      if (!res.ok) return { success: false, error: "Invalid bot token — Telegram rejected the token" };
 
       const data: any = await res.json();
-      if (!data.ok) {
-        return { success: false, error: data.description || "Telegram API error" };
-      }
+      if (!data.ok) return { success: false, error: data.description || "Telegram API error" };
 
       const bot = data.result;
       const username = bot.username ? `@${bot.username}` : "Telegram Bot";
 
       await ctx.runMutation(internal.social.savePlatformConnection, {
-        adminId: identity.subject,
-        platform: "telegram",
-        platformName: "Telegram",
-        accessToken: args.botToken,
-        refreshToken: "",
-        platformUserId: String(bot.id || ""),
-        platformUsername: username,
-        scopes: "",
-        anonymousByDefault: false,
+        adminId: identity.subject, platform: "telegram", platformName: "Telegram",
+        accessToken: args.botToken, refreshToken: "", platformUserId: String(bot.id || ""),
+        platformUsername: username, scopes: "", anonymousByDefault: false,
         integrationId: "telegram_bot",
       });
 
@@ -707,11 +774,13 @@ export const connectTelegramBot = action({
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// ACTION: Connect Bluesky via AT Protocol credentials
+// ACTION: Connect Bluesky via AT Protocol
 // ═══════════════════════════════════════════════════════════════════
 export const connectBluesky = action({
   args: { identifier: v.string(), appPassword: v.string() },
-  handler: async (ctx, args): Promise<{ success: boolean; handle?: string; did?: string; error?: string }> => {
+  handler: async (ctx, args): Promise<{
+    success: boolean; handle?: string; did?: string; error?: string;
+  }> => {
     try {
       const identity = await ctx.auth.getUserIdentity();
       if (!identity) return { success: false, error: "Not authenticated" };
@@ -728,7 +797,10 @@ export const connectBluesky = action({
 
       if (!res.ok) {
         const err: any = await res.json().catch(() => ({}));
-        return { success: false, error: err.message || "Bluesky login failed — check your handle and app password" };
+        return {
+          success: false,
+          error: err.message || "Bluesky login failed — check your handle and app password",
+        };
       }
 
       const data: any = await res.json();
@@ -736,16 +808,10 @@ export const connectBluesky = action({
       const did = data.did || "";
 
       await ctx.runMutation(internal.social.savePlatformConnection, {
-        adminId: identity.subject,
-        platform: "bluesky",
-        platformName: "Bluesky",
-        accessToken: data.accessJwt || "",
-        refreshToken: data.refreshJwt || "",
-        platformUserId: did,
-        platformUsername: handle,
-        scopes: "atproto",
-        anonymousByDefault: true,
-        integrationId: "atproto",
+        adminId: identity.subject, platform: "bluesky", platformName: "Bluesky",
+        accessToken: data.accessJwt || "", refreshToken: data.refreshJwt || "",
+        platformUserId: did, platformUsername: handle, scopes: "atproto",
+        anonymousByDefault: true, integrationId: "atproto",
       });
 
       return { success: true, handle, did };
@@ -785,20 +851,28 @@ function getRedirectUri(platform: string): string {
   return `${baseUrl}/api/social/callback/${platform}`;
 }
 
-async function exchangeCodeForToken(platform: string, code: string, clientId: string, clientSecret: string, redirectUri: string, codeVerifier?: string): Promise<any> {
+async function exchangeCodeForToken(
+  platform: string, code: string, clientId: string, clientSecret: string,
+  redirectUri: string, codeVerifier?: string
+): Promise<any> {
   const config = PLATFORM_CONFIGS[platform];
   if (!config) throw new Error("Unknown platform");
 
-  const body: Record<string, string> = { code, redirect_uri: redirectUri, client_id: clientId, client_secret: clientSecret };
+  const body: Record<string, string> = {
+    code, redirect_uri: redirectUri, client_id: clientId,
+    client_secret: clientSecret, grant_type: "authorization_code",
+  };
 
-  if (platform === "x") { body.grant_type = "authorization_code"; body.code_verifier = codeVerifier || ""; }
-  else if (platform === "reddit") { body.grant_type = "authorization_code"; }
-  else if (platform === "discord") { body.grant_type = "authorization_code"; }
-  else if (platform === "tiktok") { body.grant_type = "authorization_code"; clientSecret && (body.client_secret = clientSecret); }
-  else { body.grant_type = "authorization_code"; }
+  if (platform === "x" && codeVerifier) {
+    body.code_verifier = codeVerifier;
+  }
 
   const res = await fetch(config.tokenUrl, {
-    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", "Authorization": `Basic ${manualBase64Standard(`${clientId}:${clientSecret}`)}` },
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Authorization": `Basic ${manualBase64Standard(`${clientId}:${clientSecret}`)}`,
+    },
     body: new URLSearchParams(body).toString(),
   });
 
@@ -806,53 +880,78 @@ async function exchangeCodeForToken(platform: string, code: string, clientId: st
   return res.json();
 }
 
-async function fetchUserInfo(platform: string, accessToken: string): Promise<{ id: string; username: string; name: string }> {
+async function fetchUserInfo(
+  platform: string, accessToken: string
+): Promise<{ id: string; username: string; name: string }> {
   try {
     switch (platform) {
       case "x": {
-        const res = await fetch("https://api.twitter.com/2/users/me", { headers: { Authorization: `Bearer ${accessToken}` } });
+        const res = await fetch("https://api.twitter.com/2/users/me", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
         const data = await res.json();
         return { id: data.data?.id || "", username: data.data?.username || "", name: data.data?.name || "" };
       }
       case "linkedin": {
-        const res = await fetch("https://api.linkedin.com/v2/userinfo", { headers: { Authorization: `Bearer ${accessToken}` } });
+        const res = await fetch("https://api.linkedin.com/v2/userinfo", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
         const data = await res.json();
         return { id: data.sub || "", username: data.preferred_username || data.email || "", name: data.name || "" };
       }
       case "facebook":
       case "instagram": {
-        const res = await fetch(`https://graph.facebook.com/v19.0/me?fields=id,name,email&access_token=${accessToken}`);
+        const res = await fetch(
+          `https://graph.facebook.com/v19.0/me?fields=id,name,email&access_token=${accessToken}`
+        );
         const data = await res.json();
         return { id: data.id || "", username: data.email || "", name: data.name || "" };
       }
       case "tiktok": {
-        const res = await fetch("https://open.tiktokapis.com/v2/user/info/?fields=display_name,open_id", {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
+        const res = await fetch(
+          "https://open.tiktokapis.com/v2/user/info/?fields=display_name,open_id",
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
         const data = await res.json();
-        return { id: data.data?.user?.open_id || "", username: data.data?.user?.display_name || "", name: data.data?.user?.display_name || "" };
+        return {
+          id: data.data?.user?.open_id || "",
+          username: data.data?.user?.display_name || "",
+          name: data.data?.user?.display_name || "",
+        };
       }
       case "youtube": {
-        const res = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", { headers: { Authorization: `Bearer ${accessToken}` } });
+        const res = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
         const data = await res.json();
         return { id: data.id || "", username: data.email || "", name: data.name || "" };
       }
       case "reddit": {
-        const res = await fetch("https://oauth.reddit.com/api/v1/me", { headers: { Authorization: `Bearer ${accessToken}` } });
+        const res = await fetch("https://oauth.reddit.com/api/v1/me", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
         const data = await res.json();
         return { id: data.id || "", username: data.name || "", name: data.name || "" };
       }
       case "discord": {
-        const res = await fetch("https://discord.com/api/v10/users/@me", { headers: { Authorization: `Bearer ${accessToken}` } });
+        const res = await fetch("https://discord.com/api/v10/users/@me", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
         const data = await res.json();
         return { id: data.id || "", username: data.username || "", name: data.global_name || data.username || "" };
       }
-      default: return { id: "", username: "", name: "" };
+      default:
+        return { id: "", username: "", name: "" };
     }
-  } catch { return { id: "", username: "", name: "" }; }
+  } catch {
+    return { id: "", username: "", name: "" };
+  }
 }
 
-async function postToPlatformApi(platform: string, accessToken: string, content: string, mediaUrls?: string[], anonymous?: boolean): Promise<{ success: boolean; postId?: string; error?: string }> {
+async function postToPlatformApi(
+  platform: string, accessToken: string, content: string,
+  mediaUrls?: string[], anonymous?: boolean
+): Promise<{ success: boolean; postId?: string; error?: string }> {
   const config = PLATFORM_CONFIGS[platform];
   if (!config) return { success: false, error: "Unknown platform" };
 
@@ -860,59 +959,128 @@ async function postToPlatformApi(platform: string, accessToken: string, content:
     switch (platform) {
       case "x": {
         const res = await fetch("https://api.twitter.com/2/tweets", {
-          method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({ text: content }),
         });
         const data = await res.json();
-        return res.ok ? { success: true, postId: data.data?.id } : { success: false, error: data.detail || "Post failed" };
+        return res.ok
+          ? { success: true, postId: data.data?.id }
+          : { success: false, error: data.detail || "Post failed" };
       }
       case "linkedin": {
         const res = await fetch("https://api.linkedin.com/v2/ugcPosts", {
-          method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ author: "urn:li:person:me", lifecycleState: "PUBLISHED", specificContent: { "com.linkedin.ugc.ShareContent": { shareCommentary: { text: content }, shareMediaCategory: "NONE" } }, visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" } }),
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            author: "urn:li:person:me", lifecycleState: "PUBLISHED",
+            specificContent: {
+              "com.linkedin.ugc.ShareContent": {
+                shareCommentary: { text: content }, shareMediaCategory: "NONE",
+              },
+            },
+            visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
+          }),
         });
         return res.ok ? { success: true, postId: "linkedin_post" } : { success: false, error: "LinkedIn post failed" };
       }
       case "facebook": {
-        const res = await fetch(`https://graph.facebook.com/v19.0/me/feed?message=${encodeURIComponent(content)}&access_token=${accessToken}`, { method: "POST" });
+        const res = await fetch(
+          `https://graph.facebook.com/v19.0/me/feed?message=${encodeURIComponent(content)}&access_token=${accessToken}`,
+          { method: "POST" }
+        );
         const data = await res.json();
-        return res.ok ? { success: true, postId: data.id } : { success: false, error: data.error?.message || "Facebook post failed" };
+        return res.ok
+          ? { success: true, postId: data.id }
+          : { success: false, error: data.error?.message || "Facebook post failed" };
       }
       case "reddit": {
         const res = await fetch("https://oauth.reddit.com/api/submit", {
-          method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({ sr: "self", kind: "self", title: content.substring(0, 100), text: content }).toString(),
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            sr: "self", kind: "self", title: content.substring(0, 100), text: content,
+          }).toString(),
         });
         return res.ok ? { success: true, postId: "reddit_post" } : { success: false, error: "Reddit post failed" };
       }
       case "discord": {
         const res = await fetch("https://discord.com/api/v10/channels/@me/messages", {
-          method: "POST", headers: { Authorization: `Bot ${accessToken}`, "Content-Type": "application/json" },
+          method: "POST",
+          headers: { Authorization: `Bot ${accessToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({ content }),
         });
         return res.ok ? { success: true, postId: "discord_msg" } : { success: false, error: "Discord post failed" };
       }
-      default: return { success: false, error: `Direct posting not yet implemented for ${platform}` };
+      default:
+        return { success: false, error: `Direct posting not yet implemented for ${platform}` };
     }
-  } catch (error: any) { return { success: false, error: error.message }; }
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 }
 
-function generateRandomString(byteLength: number): string {
-  const array = new Uint8Array(byteLength);
-  crypto.getRandomValues(array);
+// ═══════════════════════════════════════════════════════════════════
+// CRYPTO HELPERS
+// FIX: generateCodeVerifier now works directly with raw bytes (Uint8Array)
+// instead of converting to a binary string first — avoids UTF-8 double-encoding
+// ═══════════════════════════════════════════════════════════════════
+
+function uuidV4(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex: string[] = [];
+  for (let i = 0; i < 16; i++) hex.push(bytes[i].toString(16).padStart(2, "0"));
+  return (
+    hex.slice(0, 4).join("") + "-" + hex.slice(4, 6).join("") + "-" +
+    hex.slice(6, 8).join("") + "-" + hex.slice(8, 10).join("") + "-" +
+    hex.slice(10, 16).join("")
+  );
+}
+
+// FIX: Accepts Uint8Array directly — no string conversion needed
+function base64UrlFromBytes(bytes: Uint8Array): string {
   let result = "";
-  for (let i = 0; i < array.length; i++) result += String.fromCharCode(array[i]);
-  return result;
+  for (let i = 0; i < bytes.length; i += 3) {
+    const b1 = bytes[i];
+    const b2 = i + 1 < bytes.length ? bytes[i + 1] : 0;
+    const b3 = i + 2 < bytes.length ? bytes[i + 2] : 0;
+    const triplet = (b1 << 16) | (b2 << 8) | b3;
+    result += B64_CHARS[(triplet >> 18) & 0x3f];
+    result += B64_CHARS[(triplet >> 12) & 0x3f];
+    result += i + 1 < bytes.length ? B64_CHARS[(triplet >> 6) & 0x3f] : "";
+    result += i + 2 < bytes.length ? B64_CHARS[triplet & 0x3f] : "";
+  }
+  return result.replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+// FIX: Generates verifier directly from raw bytes — no binary string intermediary
+function generateCodeVerifier(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return base64UrlFromBytes(bytes);
+}
+
+function generateCodeChallenge(verifier: string): string {
+  const utf8: number[] = [];
+  for (let i = 0; i < verifier.length; i++) {
+    const c = verifier.charCodeAt(i);
+    if (c < 0x80) utf8.push(c);
+    else if (c < 0x800) utf8.push((c >> 6) | 0xc0, (c & 0x3f) | 0x80);
+    else utf8.push((c >> 12) | 0xe0, ((c >> 6) & 0x3f) | 0x80, (c & 0x3f) | 0x80);
+  }
+  const digest = sha256(new Uint8Array(utf8));
+  return base64UrlFromBytes(digest);
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// MANUAL SHA-256 (Convex action runtime has no crypto.subtle)
+// MANUAL SHA-256 (pure JS — Convex action runtime has no crypto.subtle)
 // ═══════════════════════════════════════════════════════════════════
-// Pure-JS implementation of SHA-256. Used for PKCE code_challenge
-// (X/Twitter) and for any other SHA-256 needs inside actions.
-// Reference: FIPS 180-4
-// ═══════════════════════════════════════════════════════════════════
-
 const SHA256_K: number[] = [
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
   0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -925,33 +1093,24 @@ const SHA256_K: number[] = [
 ];
 
 function sha256(bytes: Uint8Array): Uint8Array {
-  // Initial hash values (FIPS 180-4 §5.3.3)
   let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
   let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
 
-  // Pre-processing: append padding bits and length
   const bitLen = bytes.length * 8;
   const padded = new Uint8Array(((bytes.length + 9 + 63) >> 6) << 6);
   padded.set(bytes);
   padded[bytes.length] = 0x80;
-  // Append 64-bit big-endian length in bits
-  // JS numbers safely handle up to 2^53, but our bit length fits in 32 bits for any realistic input
   const view = new DataView(padded.buffer);
   view.setUint32(padded.length - 4, bitLen & 0xffffffff);
-  // High 32 bits of length (only relevant for inputs > 2^32 bits which never happen here)
 
-  // Process each 512-bit chunk
   const w = new Uint32Array(64);
   for (let chunk = 0; chunk < padded.length; chunk += 64) {
-    for (let i = 0; i < 16; i++) {
-      w[i] = view.getUint32(chunk + i * 4);
-    }
+    for (let i = 0; i < 16; i++) w[i] = view.getUint32(chunk + i * 4);
     for (let i = 16; i < 64; i++) {
       const s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
       const s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
       w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0;
     }
-
     let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, h = h7;
     for (let i = 0; i < 64; i++) {
       const s1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
@@ -960,10 +1119,8 @@ function sha256(bytes: Uint8Array): Uint8Array {
       const s0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
       const maj = (a & b) ^ (a & c) ^ (b & c);
       const temp2 = (s0 + maj) | 0;
-      h = g; g = f; f = e;
-      e = (d + temp1) | 0;
-      d = c; c = b; b = a;
-      a = (temp1 + temp2) | 0;
+      h = g; g = f; f = e; e = (d + temp1) | 0;
+      d = c; c = b; b = a; a = (temp1 + temp2) | 0;
     }
     h0 = (h0 + a) | 0; h1 = (h1 + b) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0;
     h4 = (h4 + e) | 0; h5 = (h5 + f) | 0; h6 = (h6 + g) | 0; h7 = (h7 + h) | 0;
@@ -971,10 +1128,8 @@ function sha256(bytes: Uint8Array): Uint8Array {
 
   const out = new Uint8Array(32);
   const outView = new DataView(out.buffer);
-  outView.setUint32(0, h0); outView.setUint32(4, h1);
-  outView.setUint32(8, h2); outView.setUint32(12, h3);
-  outView.setUint32(16, h4); outView.setUint32(20, h5);
-  outView.setUint32(24, h6); outView.setUint32(28, h7);
+  outView.setUint32(0, h0); outView.setUint32(4, h1); outView.setUint32(8, h2); outView.setUint32(12, h3);
+  outView.setUint32(16, h4); outView.setUint32(20, h5); outView.setUint32(24, h6); outView.setUint32(28, h7);
   return out;
 }
 
@@ -983,50 +1138,20 @@ function rotr(x: number, n: number): number {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// MANUAL BASE64 (Convex action runtime has no btoa)
+// MANUAL BASE64 (standard, for HTTP Basic Auth headers)
 // ═══════════════════════════════════════════════════════════════════
-// Pure-JS implementation of base64 encoding. Used for HTTP Basic Auth
-// headers and for URL-safe PKCE code_challenge. Returns standard
-// base64 with + and /, or URL-safe form when urlSafe=true.
-// ═══════════════════════════════════════════════════════════════════
-
 const B64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-function manualBase64(input: string, urlSafe: boolean = false): string {
-  // Encode the string into bytes (UTF-8)
-  const bytes = new Uint8Array(input.length);
-  for (let i = 0; i < input.length; i++) {
-    let c = input.charCodeAt(i);
-    if (c < 0x80) {
-      bytes[i] = c;
-    } else if (c < 0x800) {
-      // 2-byte UTF-8
-      const b1 = (c >> 6) | 0xc0;
-      const b2 = (c & 0x3f) | 0x80;
-      // We can't grow the array, so just write into position and let the
-      // final bytes[] be re-derived from the source string below.
-      bytes[i] = b1;
-    } else {
-      bytes[i] = (c >> 12) | 0xe0;
-    }
-  }
-  // The above is a fallback for ASCII-heavy inputs. For correctness
-  // with multi-byte chars we build the UTF-8 byte array properly.
+function manualBase64Standard(input: string): string {
   const utf8: number[] = [];
   for (let i = 0; i < input.length; i++) {
-    let c = input.charCodeAt(i);
-    if (c < 0x80) {
-      utf8.push(c);
-    } else if (c < 0x800) {
-      utf8.push((c >> 6) | 0xc0, (c & 0x3f) | 0x80);
-    } else if (c < 0x10000) {
-      utf8.push((c >> 12) | 0xe0, ((c >> 6) & 0x3f) | 0x80, (c & 0x3f) | 0x80);
-    } else {
-      utf8.push((c >> 18) | 0xf0, ((c >> 12) & 0x3f) | 0x80, ((c >> 6) & 0x3f) | 0x80, (c & 0x3f) | 0x80);
-    }
+    const c = input.charCodeAt(i);
+    if (c < 0x80) utf8.push(c);
+    else if (c < 0x800) utf8.push((c >> 6) | 0xc0, (c & 0x3f) | 0x80);
+    else if (c < 0x10000) utf8.push((c >> 12) | 0xe0, ((c >> 6) & 0x3f) | 0x80, (c & 0x3f) | 0x80);
+    else utf8.push((c >> 18) | 0xf0, ((c >> 12) & 0x3f) | 0x80, ((c >> 6) & 0x3f) | 0x80, (c & 0x3f) | 0x80);
   }
   const data = new Uint8Array(utf8);
-
   let result = "";
   for (let i = 0; i < data.length; i += 3) {
     const b1 = data[i];
@@ -1038,56 +1163,5 @@ function manualBase64(input: string, urlSafe: boolean = false): string {
     result += i + 1 < data.length ? B64_CHARS[(triplet >> 6) & 0x3f] : "=";
     result += i + 2 < data.length ? B64_CHARS[triplet & 0x3f] : "=";
   }
-
-  if (urlSafe) {
-    return result.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  }
   return result;
-}
-
-function base64UrlEncode(input: string): string {
-  return manualBase64(input, true);
-}
-
-function manualBase64Standard(input: string): string {
-  return manualBase64(input, false);
-}
-
-function uuidV4(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex: string[] = [];
-  for (let i = 0; i < 16; i++) hex.push(bytes[i].toString(16).padStart(2, "0"));
-  return (
-    hex.slice(0, 4).join("") + "-" +
-    hex.slice(4, 6).join("") + "-" +
-    hex.slice(6, 8).join("") + "-" +
-    hex.slice(8, 10).join("") + "-" +
-    hex.slice(10, 16).join("")
-  );
-}
-
-function generateCodeVerifier(): string {
-  return base64UrlEncode(generateRandomString(32));
-}
-
-function generateCodeChallenge(verifier: string): string {
-  // Convert verifier string to UTF-8 bytes via charCodeAt
-  const utf8: number[] = [];
-  for (let i = 0; i < verifier.length; i++) {
-    let c = verifier.charCodeAt(i);
-    if (c < 0x80) {
-      utf8.push(c);
-    } else if (c < 0x800) {
-      utf8.push((c >> 6) | 0xc0, (c & 0x3f) | 0x80);
-    } else {
-      utf8.push((c >> 12) | 0xe0, ((c >> 6) & 0x3f) | 0x80, (c & 0x3f) | 0x80);
-    }
-  }
-  const digest = sha256(new Uint8Array(utf8));
-  let result = "";
-  for (let i = 0; i < digest.length; i++) result += String.fromCharCode(digest[i]);
-  return base64UrlEncode(result);
 }

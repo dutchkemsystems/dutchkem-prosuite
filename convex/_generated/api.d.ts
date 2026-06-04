@@ -37,6 +37,7 @@ import type * as classification from "../classification.js";
 import type * as clientAnalytics from "../clientAnalytics.js";
 import type * as cloud_memory from "../cloud_memory.js";
 import type * as communication from "../communication.js";
+import type * as composio_admin from "../composio_admin.js";
 import type * as content_agent from "../content_agent.js";
 import type * as content_chat from "../content_chat.js";
 import type * as crm_hygiene from "../crm_hygiene.js";
@@ -151,6 +152,7 @@ declare const fullApi: ApiFromModules<{
   clientAnalytics: typeof clientAnalytics;
   cloud_memory: typeof cloud_memory;
   communication: typeof communication;
+  composio_admin: typeof composio_admin;
   content_agent: typeof content_agent;
   content_chat: typeof content_chat;
   crm_hygiene: typeof crm_hygiene;

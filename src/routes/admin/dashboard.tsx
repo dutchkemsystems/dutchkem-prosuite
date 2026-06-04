@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
-import { useConvexAuth, useMutation, useAction } from "convex/react"
+import { useConvexAuth, useMutation, useAction, useQuery } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
 import { api, internal } from "../../../convex/_generated/api"
 import { useState, useEffect, useCallback, Suspense, Component, type ReactNode } from "react"
@@ -435,7 +435,15 @@ function SocialEnginePanel() {
   const handleComposioCallback = useAction(api.social.handleComposioCallback);
   const connectTelegramBot = useAction(api.social.connectTelegramBot);
   const connectBluesky = useAction(api.social.connectBluesky);
-  const getOAuthProviderStatus = useAction(api.social.getOAuthProviderStatus);
+  // FIX: getOAuthProviderStatus is a QUERY on the backend, NOT an action.
+  // Using useAction here was the actual root cause of the [CONVEX M(...)] errors —
+  // the dashboard was calling a query via /api/action, which always failed,
+  // so providerStatus was always null, so the dashboard ALWAYS fell back to
+  // direct OAuth instead of using Composio as primary.
+  // Now using useQuery (which goes to /api/query) so the value actually loads.
+  const providerStatus = useQuery(api.social.getOAuthProviderStatus, {}) as
+    | { composioEnabled: boolean; composioPlatforms: string[]; directEnabled: boolean }
+    | undefined;
   const disconnectPlatform = useMutation(api.social.disconnectPlatform);
   const updatePostingSettings = useMutation(api.social.updatePostingSettings);
   const manualPost = useAction(api.social.manualPost);
@@ -449,7 +457,6 @@ function SocialEnginePanel() {
   const [manualPostContent, setManualPostContent] = useState("");
   const [postingStatus, setPostingStatus] = useState<{ platformId: string; status: string; error?: string } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
-  const [providerStatus, setProviderStatus] = useState<{ composioEnabled: boolean; composioPlatforms: string[]; directEnabled: boolean } | null>(null);
   const [composioPoll, setComposioPoll] = useState<{ connectionId: string; platformId: string; startedAt: number } | null>(null);
 
   const fetchPlatforms = useCallback(async () => {
@@ -479,19 +486,9 @@ function SocialEnginePanel() {
     }
   }, [getConnectedPlatformsAction]);
 
-  const fetchProviderStatus = useCallback(async () => {
-    try {
-      const status = await getOAuthProviderStatus();
-      setProviderStatus(status as any);
-    } catch (err) {
-      console.error("Failed to load provider status", err);
-    }
-  }, [getOAuthProviderStatus]);
-
   useEffect(() => {
     fetchPlatforms();
-    fetchProviderStatus();
-  }, [fetchPlatforms, fetchProviderStatus]);
+  }, [fetchPlatforms]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {

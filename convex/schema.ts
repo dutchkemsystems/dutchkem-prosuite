@@ -1361,4 +1361,17 @@ export default defineSchema({
     .index("by_service", ["service"])
     .index("by_featured", ["featured"])
     .index("by_rating", ["rating"]),
+
+  // Composio auth_config cache — one row per toolkit. Avoids hitting
+  // /auth_configs on every OAuth start and lets us pre-warm configs
+  // at startup via ensureComposioAuthConfigs (admin-only).
+  composio_auth_configs: defineTable({
+    toolkit: v.string(),                // "twitter", "linkedin", etc.
+    authConfigId: v.string(),           // Composio ac_xxx id
+    isManaged: v.boolean(),             // true = Composio managed
+    createdAt: v.number(),
+    lastVerifiedAt: v.number(),
+    lastError: v.optional(v.string()),
+  })
+    .index("by_toolkit", ["toolkit"]),
 });
