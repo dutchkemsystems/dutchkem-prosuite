@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "convex/react";
-import { convexQuery } from "@convex-dev/react";
 import { api } from "../../convex/_generated/api";
 
 interface FlashSale {
@@ -20,9 +19,7 @@ interface Countdown {
 }
 
 export function FlashSaleBanner() {
-  const flashSales = useQuery(
-    convexQuery(api.flashSales.getActiveFlashSales, {})
-  );
+  const flashSales = useQuery(api.flashSales.getActiveFlashSales, {});
   const [countdowns, setCountdowns] = useState<Record<string, Countdown>>({});
 
   useEffect(() => {

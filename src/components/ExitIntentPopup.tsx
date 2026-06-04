@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
-import { convexQuery } from "@convex-dev/react";
+
 import { api } from "../../convex/_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -17,8 +17,8 @@ export function ExitIntentPopup({ onDismiss, onConvert }: ExitIntentPopupProps) 
   const [hasShown, setHasShown] = useState(false);
   const [countdown, setCountdown] = useState({ hours: 24, minutes: 0, seconds: 0 });
 
-  const popupConfig = useQuery(convexQuery(api.exitIntent.getPopupConfig, {}));
-  const displaySettings = useQuery(convexQuery(api.exitIntent.getDisplaySettings, {}));
+  const popupConfig = useQuery(api.exitIntent.getPopupConfig, {});
+  const displaySettings = useQuery(api.exitIntent.getDisplaySettings, {});
 
   // Exit intent detection
   useEffect(() => {

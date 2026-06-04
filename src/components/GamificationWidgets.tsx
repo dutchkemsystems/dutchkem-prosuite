@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
-import { convexQuery } from "@convex-dev/react";
+
 import { api } from "../../convex/_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -8,7 +8,7 @@ import { api } from "../../convex/_generated/api";
 // ═══════════════════════════════════════════════════════════════════
 
 export function GamificationProfile() {
-  const profile = useQuery(convexQuery(api.gamification.getUserProfile, {}));
+  const profile = useQuery(api.gamification.getUserProfile, {});
 
   if (!profile) return null;
 
@@ -89,8 +89,8 @@ const RARITY_COLORS = {
 };
 
 export function AchievementsList() {
-  const achievements = useQuery(convexQuery(api.gamification.getAchievements, {}));
-  const allAchievements = useQuery(convexQuery(api.gamification.getAllAchievements, {}));
+  const achievements = useQuery(api.gamification.getAchievements, {});
+  const allAchievements = useQuery(api.gamification.getAllAchievements, {});
 
   if (!achievements || !allAchievements) return null;
 
@@ -141,7 +141,7 @@ export function AchievementsList() {
 // ═══════════════════════════════════════════════════════════════════
 
 export function PointsHistory() {
-  const history = useQuery(convexQuery(api.gamification.getPointHistory, { limit: 10 }));
+  const history = useQuery(api.gamification.getPointHistory, { limit: 10 });
 
   if (!history || history.length === 0) return null;
 
@@ -199,7 +199,7 @@ export function PointsHistory() {
 // ═══════════════════════════════════════════════════════════════════
 
 export function Leaderboard() {
-  const leaderboard = useQuery(convexQuery(api.gamification.getLeaderboard, { limit: 10 }));
+  const leaderboard = useQuery(api.gamification.getLeaderboard, { limit: 10 });
 
   if (!leaderboard || leaderboard.length === 0) return null;
 

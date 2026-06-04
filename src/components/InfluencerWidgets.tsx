@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "convex/react";
-import { convexQuery } from "@convex-dev/react";
+
 import { api } from "../../convex/_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -8,9 +8,9 @@ import { api } from "../../convex/_generated/api";
 // ═══════════════════════════════════════════════════════════════════
 
 export function InfluencerDashboard() {
-  const stats = useQuery(convexQuery(api.influencerRecruitment.getCampaignStats, {}));
-  const influencers = useQuery(convexQuery(api.influencerRecruitment.getInfluencers, {}));
-  const campaigns = useQuery(convexQuery(api.influencerRecruitment.getCampaigns, {}));
+  const stats = useQuery(api.influencerRecruitment.getCampaignStats, {});
+  const influencers = useQuery(api.influencerRecruitment.getInfluencers, {});
+  const campaigns = useQuery(api.influencerRecruitment.getCampaigns, {});
 
   if (!stats || !influencers || !campaigns) return null;
 
@@ -104,12 +104,10 @@ export function InfluencerDashboard() {
 export function InfluencerList() {
   const [filter, setFilter] = useState({ tier: "", platform: "" });
 
-  const influencers = useQuery(
-    convexQuery(api.influencerRecruitment.getInfluencers, {
+  const influencers = useQuery(api.influencerRecruitment.getInfluencers, {
       tier: filter.tier || undefined,
       platform: filter.platform || undefined,
-    })
-  );
+    });
 
   if (!influencers) return null;
 
@@ -215,7 +213,7 @@ export function InfluencerList() {
 // ═══════════════════════════════════════════════════════════════════
 
 export function CampaignList() {
-  const campaigns = useQuery(convexQuery(api.influencerRecruitment.getCampaigns, {}));
+  const campaigns = useQuery(api.influencerRecruitment.getCampaigns, {});
 
   if (!campaigns || campaigns.length === 0) {
     return (

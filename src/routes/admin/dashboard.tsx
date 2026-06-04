@@ -701,27 +701,41 @@ function SocialEnginePanel() {
     if (!confirm(`Connect all ${unconnected.length} platforms? Each will open its login page in a popup.`)) return;
 
     showToast(`Opening ${unconnected.length} platform connections...`, "success");
-    const convexUrl = (import.meta as any).env?.VITE_CONVEX_URL || "https://warmhearted-aardvark-280.convex.cloud";
     let openedCount = 0;
 
     for (const p of unconnected) {
       try {
-        const redirectUri = `${convexUrl}/api/social/callback?platform=${p.id}`;
-        const result = await getOAuthUrl({ platform: p.id, redirectUri });
-        if (result?.authUrl) {
+        // Try Composio first (PRIMARY), fall back to direct OAuth.
+        // Note: generateOAuthUrl only accepts { platform }, not redirectUri —
+        // the redirect URI is read from APP_URL on the backend.
+        let authUrl: string | null = null;
+        const composioAvailable =
+          providerStatus?.composioEnabled === true &&
+          providerStatus?.composioPlatforms?.includes(p.id);
+        if (composioAvailable) {
+          const cr = await startComposioOAuth({ platform: p.id });
+          if (cr?.success && cr?.redirectUrl) authUrl = cr.redirectUrl;
+        }
+        if (!authUrl) {
+          const dr = await generateOAuthUrl({ platform: p.id });
+          if (dr?.authUrl) authUrl = dr.authUrl;
+          else if (dr?.error) {
+            showToast(`${p.name}: ${dr.error}`, "error");
+            continue;
+          }
+        }
+        if (authUrl) {
           const width = 600;
           const height = 700;
           const left = (window.screen.width / 2) - (width / 2);
           const top = (window.screen.height / 2) - (height / 2);
           window.open(
-            result.authUrl,
+            authUrl,
             `connect-${p.id}`,
             `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
           );
           openedCount++;
           await new Promise((r) => setTimeout(r, 1500));
-        } else if (result?.error) {
-          showToast(`${p.name}: ${result.error}`, "error");
         }
       } catch (err: any) {
         showToast(`${p.name}: ${err.message}`, "error");

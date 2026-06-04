@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
-import { convexQuery } from "@convex-dev/react";
+
 import { api } from "../../convex/_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -8,7 +8,7 @@ import { api } from "../../convex/_generated/api";
 // ═══════════════════════════════════════════════════════════════════
 
 export function SEODashboard() {
-  const seoData = useQuery(convexQuery(api.seoEngine.getSEODashboard, {}));
+  const seoData = useQuery(api.seoEngine.getSEODashboard, {});
 
   if (!seoData) return null;
 
@@ -184,7 +184,7 @@ export function SEOAnalyzer({ content, contentType, targetKeywords, onAnalysis }
 // ═══════════════════════════════════════════════════════════════════
 
 export function ContentCalendar() {
-  const calendar = useQuery(convexQuery(api.seoEngine.getContentCalendar, {}));
+  const calendar = useQuery(api.seoEngine.getContentCalendar, {});
 
   if (!calendar || calendar.length === 0) {
     return (

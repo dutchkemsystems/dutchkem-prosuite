@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { convexQuery } from "@convex-dev/react";
+
 import { api } from "../../convex/_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -236,8 +236,8 @@ export function ChatbotWidget({
 // ═══════════════════════════════════════════════════════════════════
 
 export function ChatbotAdminPanel() {
-  const stats = useQuery(convexQuery(api.chatbotLeads.getChatbotStats, {}));
-  const conversations = useQuery(convexQuery(api.chatbotLeads.getConversations, {}));
+  const stats = useQuery(api.chatbotLeads.getChatbotStats, {});
+  const conversations = useQuery(api.chatbotLeads.getConversations, {});
 
   if (!stats || !conversations) return null;
 
