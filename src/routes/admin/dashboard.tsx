@@ -448,54 +448,16 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
   const updatePostingSettings = useMutation(api.social.updatePostingSettings);
   const manualPost = useAction(api.social.manualPost);
 
-  // Ayrshare hooks — unified multi-platform posting via Ayrshare's API.
-  // Used by the "Broadcast via Ayrshare" sub-tab.
-  const aysAccount = useQuery(api.ayrshare.getAyrshareAccount, { adminToken }) as
-    | { ok: boolean; error?: string; account?: { email?: string; title?: string; monthlyPostQuota?: number; monthlyPostCount?: number; monthlyApiCalls?: number; refId?: string } }
-    | undefined;
-  const aysStats = useQuery(api.ayrshare.getAyrshareStats, {}) as
-    | { postsCached: number; scheduledCount: number; publishedCount: number; deletedCount: number }
-    | undefined;
-  const aysHistory = useQuery(api.ayrshare.getCachedAyrsharePosts, {}) as any[] | undefined;
-  const aysBroadcast = useAction(api.ayrshare.ayrsharePost);
-  const aysDelete = useAction(api.ayrshare.deleteAyrsharePost);
-  const aysRefreshAccount = useAction(api.ayrshare.refreshAyrshareAccount);
-  const [aysRefreshing, setAysRefreshing] = useState(false);
-
   const [platforms, setPlatforms] = useState<any[]>([]);
   const [platformsLoading, setPlatformsLoading] = useState(true);
   const [rotating, setRotating] = useState(false);
   const [connecting, setConnecting] = useState<string | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<"platforms" | "analytics" | "posts" | "broadcast">("platforms");
+  const [activeSubTab, setActiveSubTab] = useState<"platforms" | "analytics" | "posts">("platforms");
   const [postingMode, setPostingMode] = useState<Record<string, string>>({});
   const [manualPostContent, setManualPostContent] = useState("");
   const [postingStatus, setPostingStatus] = useState<{ platformId: string; status: string; error?: string } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
   const [composioPoll, setComposioPoll] = useState<{ connectionId: string; platformId: string; startedAt: number } | null>(null);
-
-  // Ayrshare broadcast state
-  const [broadcastContent, setBroadcastContent] = useState("");
-  const [broadcastPlatforms, setBroadcastPlatforms] = useState<string[]>([]);
-  const [broadcastSchedule, setBroadcastSchedule] = useState("");
-
-  // REGRESSION FIX: getAyrshareAccount is now a query (reads cache).
-  // The cache is populated by refreshAyrshareAccount (an action). We
-  // trigger a refresh on mount so the user sees fresh data.
-  useEffect(() => {
-    if (activeSubTab === "broadcast" && adminToken) {
-      aysRefreshAccount({ adminToken }).catch(() => {});
-    }
-  }, [activeSubTab, adminToken, aysRefreshAccount]);
-
-  const handleAysRefresh = useCallback(async () => {
-    if (!adminToken) return;
-    setAysRefreshing(true);
-    try {
-      await aysRefreshAccount({ adminToken });
-    } finally {
-      setAysRefreshing(false);
-    }
-  }, [adminToken, aysRefreshAccount]);
 
   const fetchPlatforms = useCallback(async () => {
     try {
@@ -890,7 +852,7 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
 
           {/* Sub-tabs */}
           <div className="flex gap-2 bg-slate-950 p-2 rounded-2xl border border-white/5">
-            {(["platforms", "analytics", "posts", "broadcast"] as const).map((tab) => (
+            {(["platforms", "analytics", "posts"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveSubTab(tab)}
@@ -898,7 +860,7 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
                   activeSubTab === tab ? "bg-orange-600 text-white" : "text-slate-500 hover:bg-slate-800"
                 }`}
               >
-                {tab === "platforms" ? "Connected Platforms" : tab === "analytics" ? "Platform Analytics" : tab === "posts" ? "Post History" : "Ayrshare Broadcast"}
+                {tab === "platforms" ? "Connected Platforms" : tab === "analytics" ? "Platform Analytics" : "Post History"}
               </button>
             ))}
           </div>
@@ -1181,265 +1143,8 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
             </div>
           )}
 
-          {/* ── Ayrshare Broadcast Tab ── */}
-          {activeSubTab === "broadcast" && (
-            <div className="space-y-8">
-              {/* Account info card */}
-              <div className={`p-6 rounded-3xl border ${
-                aysAccount?.ok
-                  ? "bg-cyan-500/5 border-cyan-500/20"
-                  : "bg-amber-500/5 border-amber-500/20"
-              }`}>
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl ${
-                      aysAccount?.ok ? "bg-cyan-500/20 text-cyan-400" : "bg-amber-500/20 text-amber-400"
-                    }`}>
-                      {aysAccount?.ok ? "📡" : "⚠"}
-                    </div>
-                    <div>
-                      <p className="text-sm font-black text-white uppercase tracking-widest">
-                        Ayrshare {aysAccount?.ok ? "Connected" : "Not Configured"}
-                      </p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
-                        {aysAccount?.ok
-                          ? `${aysAccount.account?.email} — ${aysAccount.account?.monthlyPostCount || 0} / ${aysAccount.account?.monthlyPostQuota || 0} posts this month`
-                          : aysAccount?.error || "Loading..."}
-                      </p>
-                      {aysAccount?.refreshedAt && (
-                        <p className="text-[9px] text-slate-500 mt-0.5">
-                          Last refreshed: {new Date(aysAccount.refreshedAt).toLocaleTimeString()}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleAysRefresh}
-                    disabled={aysRefreshing}
-                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-cyan-400 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-1.5"
-                  >
-                    <span className={aysRefreshing ? "animate-spin" : ""}>{aysRefreshing ? "⟳" : "↻"}</span>
-                    {aysRefreshing ? "Refreshing..." : "Refresh"}
-                  </button>
-                  {aysAccount?.ok && aysStats && (
-                    <div className="flex gap-4 text-[10px] font-black uppercase tracking-widest">
-                      <div className="px-4 py-2 bg-slate-950 rounded-xl">
-                        <span className="text-slate-500">Cached: </span>
-                        <span className="text-cyan-400">{aysStats.postsCached}</span>
-                      </div>
-                      <div className="px-4 py-2 bg-slate-950 rounded-xl">
-                        <span className="text-slate-500">Scheduled: </span>
-                        <span className="text-indigo-400">{aysStats.scheduledCount}</span>
-                      </div>
-                      <div className="px-4 py-2 bg-slate-950 rounded-xl">
-                        <span className="text-slate-500">Published: </span>
-                        <span className="text-emerald-400">{aysStats.publishedCount}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                {!aysAccount?.ok && aysAccount?.error?.includes("not configured") && (
-                  <p className="text-[10px] text-amber-300 mt-3 font-bold">
-                    Set AYRSHARE_API_KEY in Convex env: <code className="bg-slate-950 px-2 py-1 rounded">npx convex env set AYRSHARE_API_KEY &lt;your-key&gt;</code>
-                  </p>
-                )}
-              </div>
 
-              {/* Broadcast form */}
-              <div className="bg-slate-950 p-10 rounded-[2.5rem] border border-white/5 space-y-8">
-                <div>
-                  <h3 className="text-lg font-black text-white uppercase tracking-tighter">Broadcast via Ayrshare</h3>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">
-                    One post → Many platforms. Ayrshare handles per-platform formatting & scheduling.
-                  </p>
-                </div>
 
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Post Content</label>
-                  <textarea
-                    value={broadcastContent}
-                    onChange={(e) => setBroadcastContent(e.target.value)}
-                    placeholder="What do you want to broadcast?"
-                    className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-sm text-white placeholder-slate-600 focus:border-cyan-500 focus:outline-none min-h-[120px] resize-y"
-                    maxLength={2000}
-                  />
-                  <p className="text-[9px] text-slate-600 mt-2 text-right font-bold">{broadcastContent.length} / 2000</p>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Target Platforms (multi-select)</label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      { id: "x", label: "𝕏 Twitter" },
-                      { id: "linkedin", label: "LinkedIn" },
-                      { id: "facebook", label: "Facebook" },
-                      { id: "instagram", label: "Instagram" },
-                      { id: "tiktok", label: "TikTok" },
-                      { id: "youtube", label: "YouTube" },
-                      { id: "pinterest", label: "Pinterest" },
-                      { id: "reddit", label: "Reddit" },
-                      { id: "threads", label: "Threads" },
-                      { id: "telegram", label: "Telegram" },
-                      { id: "bluesky", label: "Bluesky" },
-                    ].map((p) => {
-                      const selected = broadcastPlatforms.includes(p.id);
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => {
-                            setBroadcastPlatforms((prev) =>
-                              selected ? prev.filter((x) => x !== p.id) : [...prev, p.id]
-                            );
-                          }}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
-                            selected
-                              ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
-                              : "bg-slate-900 text-slate-500 border-slate-800 hover:border-slate-700"
-                          }`}
-                        >
-                          {selected ? "✓ " : ""}{p.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[9px] text-slate-600 mt-2 font-bold">
-                    {broadcastPlatforms.length === 0 ? "Select at least one platform" : `${broadcastPlatforms.length} platform${broadcastPlatforms.length === 1 ? "" : "s"} selected`}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">Schedule (optional, leave blank to publish now)</label>
-                  <input
-                    type="datetime-local"
-                    value={broadcastSchedule}
-                    onChange={(e) => setBroadcastSchedule(e.target.value)}
-                    className="bg-slate-900 border border-slate-800 rounded-2xl p-3 text-sm text-white focus:border-cyan-500 focus:outline-none"
-                  />
-                </div>
-
-                <div className="flex gap-4">
-                  <button
-                    onClick={async () => {
-                      if (!broadcastContent.trim()) {
-                        showToast("Post content is required", "error");
-                        return;
-                      }
-                      if (broadcastPlatforms.length === 0) {
-                        showToast("Select at least one platform", "error");
-                        return;
-                      }
-                      try {
-                        const scheduleDate = broadcastSchedule
-                          ? new Date(broadcastSchedule).toISOString()
-                          : undefined;
-                        const result: any = await aysBroadcast({
-                          content: broadcastContent,
-                          platforms: broadcastPlatforms,
-                          ...(scheduleDate ? { scheduleDate } : {}),
-                          adminToken,
-                        });
-                        if (result?.ok) {
-                          const platforms = result.platformResults?.length || broadcastPlatforms.length;
-                          showToast(
-                            result.scheduled
-                              ? `⏰ Scheduled for ${new Date(broadcastSchedule).toLocaleString()} on ${platforms} platform(s)`
-                              : `✅ Broadcast sent to ${platforms} platform(s)!`,
-                            "success"
-                          );
-                          setBroadcastContent("");
-                          setBroadcastPlatforms([]);
-                          setBroadcastSchedule("");
-                        } else {
-                          showToast(result?.error || "Broadcast failed", "error");
-                        }
-                      } catch (err: any) {
-                        showToast(err?.message || "Broadcast failed", "error");
-                      }
-                    }}
-                    disabled={!broadcastContent.trim() || broadcastPlatforms.length === 0}
-                    className="flex-1 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-600 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all"
-                  >
-                    {broadcastSchedule ? "⏰ Schedule Broadcast" : "🚀 Broadcast Now"}
-                  </button>
-                </div>
-              </div>
-
-              {/* Broadcast history */}
-              <div className="bg-slate-950 p-10 rounded-[2.5rem] border border-white/5 space-y-6">
-                <h3 className="text-lg font-black text-white uppercase tracking-tighter">Broadcast History</h3>
-                <div className="space-y-4">
-                  {aysHistory && aysHistory.length > 0 ? (
-                    aysHistory.map((p: any) => (
-                      <div
-                        key={p._id}
-                        className="flex flex-col md:flex-row justify-between items-start md:items-center p-6 bg-slate-900 rounded-3xl border border-white/5 gap-4"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-white line-clamp-2 max-w-2xl">{p.content}</p>
-                          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-2">
-                            {p.scheduled ? "⏰ Scheduled" : "🚀 Published"} • {new Date(p.createdAt).toLocaleString()}
-                            {p.platforms?.length > 0 && ` • ${p.platforms.length} platform${p.platforms.length === 1 ? "" : "s"}`}
-                          </p>
-                          {p.platformResults && p.platformResults.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {p.platformResults.map((pr: any, idx: number) => (
-                                <span
-                                  key={idx}
-                                  className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${
-                                    pr.status === "success"
-                                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                      : "bg-red-500/10 text-red-400 border-red-500/20"
-                                  }`}
-                                >
-                                  {pr.platform}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span
-                            className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
-                              p.status === "published"
-                                ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                                : p.status === "scheduled"
-                                  ? "bg-indigo-500/10 text-indigo-500 border-indigo-500/20"
-                                  : p.status === "deleted"
-                                    ? "bg-slate-700/30 text-slate-500 border-slate-700/30"
-                                    : "bg-red-500/10 text-red-500 border-red-500/20"
-                            }`}
-                          >
-                            {p.status}
-                          </span>
-                          {!p.deletedAt && (
-                            <button
-                              onClick={async () => {
-                                if (!confirm("Delete this post from Ayrshare?")) return;
-                                try {
-                                  await aysDelete({ aysPostId: p.aysPostId, adminToken });
-                                  showToast("Post deleted", "success");
-                                } catch (err: any) {
-                                  showToast(err?.message || "Delete failed", "error");
-                                }
-                              }}
-                              className="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[8px] font-black uppercase tracking-widest rounded-full border border-red-500/20"
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-20 text-slate-600 font-bold uppercase tracking-widest italic opacity-30">
-                      No broadcasts yet — create your first one above
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
