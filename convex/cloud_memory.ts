@@ -1,6 +1,7 @@
-import { internalAction, internalMutation, mutation, query, internalQuery } from "./_generated/server";
+import { action, internalAction, internalMutation, mutation, query, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { tryGetAdminSessionInAction } from "./auth_helpers";
 
 /**
  * CLOUD MEMORY & SELF-HEALING SYSTEM
@@ -257,16 +258,27 @@ export const runSelfHealing = internalAction({
 });
 
 /**
- * Get stuck social posts (scheduled but past time)
+ * Get stuck social posts (scheduled for past time, still in scheduled state)
+ * A post is "stuck" if its scheduledFor is in the past (more than 1 hour ago)
+ * but it's still in "scheduled" status — meaning the cron processor never
+ * picked it up.
+ *
+ * REGRESSION FIX: Previously used the index with a complicated lte filter
+ * that limited the index range. Now uses the simple status="scheduled" index
+ * range, then filters by scheduledFor < now - 1h in JS.
  */
 export const getStuckPosts = internalQuery({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
     const now = Date.now();
-    return await ctx.db.query("social_posts")
-      .withIndex("by_status_and_scheduled", q => q.eq("status", "scheduled").lte("scheduledFor", now - 3600000)) // 1 hour old
+    const oneHourAgo = now - 3600000;
+    // Use the composite index to fetch all "scheduled" posts efficiently,
+    // then filter by 1-hour grace period in JS.
+    const allScheduled = await ctx.db.query("social_posts")
+      .withIndex("by_status", q => q.eq("status", "scheduled"))
       .collect();
+    return allScheduled.filter((p: any) => p.scheduledFor < oneHourAgo);
   },
 });
 
@@ -288,6 +300,9 @@ export const fixStuckPosts = internalMutation({
 
 /**
  * Get expired sessions
+ * Returns sessions that are either expired (expiresAt < now) OR revoked.
+ * REGRESSION FIX: Previously only checked expiresAt, so revoked sessions
+ * lingered in the DB until they naturally expired.
  */
 export const getExpiredSessions = internalQuery({
   args: {},
@@ -295,7 +310,12 @@ export const getExpiredSessions = internalQuery({
   handler: async (ctx) => {
     const now = Date.now();
     return await ctx.db.query("user_sessions")
-      .filter(q => q.lt(q.field("expiresAt"), now))
+      .filter(q =>
+        q.or(
+          q.lt(q.field("expiresAt"), now),
+          q.eq(q.field("isRevoked"), true)
+        )
+      )
       .collect();
   },
 });
@@ -523,5 +543,105 @@ export const getSystemHealth = query({
         isLive: true,
       };
     }
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// PUBLIC ACTIONS — client-callable from dashboard
+// REGRESSION FIX: the dashboard's CloudMemoryPanel uses useAction()
+// which only works on public actions. The original runSelfHealing and
+// autoBackupSystem were internalAction, which can only be called from
+// server-side code (crons, other actions). This caused the
+// [CONVEX A(cloud_memory:runSelfHealing)] Server Error.
+//
+// The pattern: keep the internalAction versions for cron use, and add
+// public action wrappers that require admin auth and delegate to the
+// internal versions. This preserves cron functionality while making
+// them client-callable.
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Public wrapper for runSelfHealing — requires admin auth.
+ * The dashboard's "Run Self-Healing" button calls this.
+ */
+export const runSelfHealingAction = action({
+  args: { adminToken: v.optional(v.string()) },
+  returns: v.object({
+    issues: v.array(v.string()),
+    fixes: v.array(v.string()),
+    healed: v.boolean(),
+    timestamp: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
+    if (!identity) {
+      throw new Error("Not authenticated as admin");
+    }
+    return await ctx.runAction(internal.cloud_memory.runSelfHealing, {});
+  },
+});
+
+/**
+ * Public wrapper for autoBackupSystem — requires admin auth.
+ * The dashboard's "Manual Backup" button calls this.
+ */
+export const autoBackupAction = action({
+  args: { adminToken: v.optional(v.string()) },
+  returns: v.object({
+    timestamp: v.number(),
+    results: v.array(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
+    if (!identity) {
+      throw new Error("Not authenticated as admin");
+    }
+    return await ctx.runAction(internal.cloud_memory.autoBackupSystem, {});
+  },
+});
+
+/**
+ * Public wrapper for sendHealingReport — requires admin auth.
+ */
+export const sendHealingReportAction = action({
+  args: {
+    adminToken: v.optional(v.string()),
+    report: v.any(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
+    if (!identity) {
+      throw new Error("Not authenticated as admin");
+    }
+    await ctx.runAction(internal.cloud_memory.sendHealingReport, {
+      report: args.report,
+    });
+    return null;
+  },
+});
+
+/**
+ * Get healing history — reads the system_config rows where the key
+ * starts with "healing_log_". Returns the most recent N entries.
+ */
+export const getHealingHistory = query({
+  args: { limit: v.optional(v.number()) },
+  returns: v.array(v.object({
+    _id: v.id("system_config"),
+    _creationTime: v.number(),
+    key: v.string(),
+    value: v.any(),
+    description: v.optional(v.string()),
+    updatedAt: v.optional(v.number()),
+  })),
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 20;
+    // Get all system_config rows, filter to healing_log_ keys
+    const all = await ctx.db.query("system_config").collect();
+    return all
+      .filter((r: any) => typeof r.key === "string" && r.key.startsWith("healing_log_"))
+      .sort((a: any, b: any) => (b.updatedAt ?? b._creationTime) - (a.updatedAt ?? a._creationTime))
+      .slice(0, limit) as any;
   },
 });

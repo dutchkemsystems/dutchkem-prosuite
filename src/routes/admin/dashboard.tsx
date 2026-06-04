@@ -156,7 +156,7 @@ function AdminDashboardPage() {
             {activeTab === "updates" && <AutoUpdatesPanel />}
             {activeTab === "charity" && <CharityDashboardPanel />}
             {activeTab === "marketplace" && <FreelancerMarketplacePanel />}
-            {activeTab === "cloud-memory" && <CloudMemoryPanel />}
+            {activeTab === "cloud-memory" && <CloudMemoryPanel adminToken={adminToken} />}
             {activeTab === "voice-roi" && <VoiceROIPanel />}
             {activeTab === "live-chats" && <LiveChatsPanel />}
             {activeTab === "api-costs" && <APICostsPanel />}
@@ -2780,11 +2780,14 @@ function FreelancerMarketplacePanel() {
   );
 }
 
-function CloudMemoryPanel() {
+function CloudMemoryPanel({ adminToken }: { adminToken: string }) {
   const { data: health } = useSuspenseQuery(convexQuery(api.cloud_memory.getSystemHealth, {}));
   const { data: backups } = useSuspenseQuery(convexQuery(api.cloud_memory.getAllBackups, {}));
-  const runSelfHealing = useAction(internal.cloud_memory.runSelfHealing);
-  const autoBackup = useAction(internal.cloud_memory.autoBackupSystem);
+  const { data: healingHistory } = useSuspenseQuery(convexQuery(api.cloud_memory.getHealingHistory, { limit: 10 })) as { data: any[] };
+  // REGRESSION FIX: Use public *Action wrappers (not the internalAction
+  // versions) — useAction(internal.*) returns [CONVEX A] Server Error.
+  const runSelfHealing = useAction(api.cloud_memory.runSelfHealingAction);
+  const autoBackup = useAction(api.cloud_memory.autoBackupAction);
   const [healing, setHealing] = useState(false);
   const [backing, setBacking] = useState(false);
   const [lastHealingResult, setLastHealingResult] = useState<any>(null);
@@ -2792,10 +2795,10 @@ function CloudMemoryPanel() {
   const handleSelfHealing = async () => {
     setHealing(true);
     try {
-      const result = await runSelfHealing({});
+      const result: any = await runSelfHealing({ adminToken });
       setLastHealingResult(result);
     } catch (err: any) {
-      alert(err.message);
+      alert(`Self-healing failed: ${err.message}`);
     }
     setHealing(false);
   };
@@ -2803,10 +2806,10 @@ function CloudMemoryPanel() {
   const handleAutoBackup = async () => {
     setBacking(true);
     try {
-      await autoBackup({});
-      alert("System backup initiated successfully!");
+      await autoBackup({ adminToken });
+      alert("System backup completed successfully!");
     } catch (err: any) {
-      alert(err.message);
+      alert(`Backup failed: ${err.message}`);
     }
     setBacking(false);
   };
@@ -2907,6 +2910,65 @@ function CloudMemoryPanel() {
               ))}
               {(!backups || backups.length === 0) && (
                 <div className="text-center py-20 text-slate-600 font-bold uppercase tracking-widest italic opacity-30">No backups yet</div>
+              )}
+            </div>
+          </div>
+
+          {/* Healing History */}
+          <div className="bg-slate-950 p-10 rounded-[2.5rem] border border-white/5">
+            <h3 className="text-lg font-black text-white uppercase tracking-tighter mb-8">Self-Healing History</h3>
+            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+              {healingHistory && healingHistory.length > 0 ? (
+                healingHistory.map((entry: any) => {
+                  const v = entry.value || {};
+                  const issues = v.issues || [];
+                  const fixes = v.fixes || [];
+                  const ts = v.timestamp || entry.updatedAt || entry._creationTime;
+                  return (
+                    <div key={entry._id} className="p-6 bg-slate-900 rounded-2xl border border-white/5">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-black text-white">
+                          {new Date(ts).toLocaleString()}
+                        </p>
+                        <div className="flex gap-2">
+                          {fixes.length > 0 && (
+                            <span className="px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-full text-[8px] font-black uppercase">
+                              {fixes.length} fix{fixes.length === 1 ? "" : "es"}
+                            </span>
+                          )}
+                          {issues.length > 0 && (
+                            <span className="px-3 py-1 bg-amber-500/10 text-amber-500 rounded-full text-[8px] font-black uppercase">
+                              {issues.length} issue{issues.length === 1 ? "" : "s"}
+                            </span>
+                          )}
+                          {fixes.length === 0 && issues.length === 0 && (
+                            <span className="px-3 py-1 bg-cyan-500/10 text-cyan-500 rounded-full text-[8px] font-black uppercase">
+                              OK
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {issues.length > 0 && (
+                        <div className="mb-2">
+                          {issues.map((issue: string, i: number) => (
+                            <p key={i} className="text-[10px] text-amber-400 font-bold">• {issue}</p>
+                          ))}
+                        </div>
+                      )}
+                      {fixes.length > 0 && (
+                        <div>
+                          {fixes.map((fix: string, i: number) => (
+                            <p key={i} className="text-[10px] text-emerald-400 font-bold">✓ {fix}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-20 text-slate-600 font-bold uppercase tracking-widest italic opacity-30">
+                  No healing attempts yet
+                </div>
               )}
             </div>
           </div>
