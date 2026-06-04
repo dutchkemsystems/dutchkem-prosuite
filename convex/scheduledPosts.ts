@@ -4,7 +4,7 @@
 
 import { action, mutation, query, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
 // MUTATION: Schedule a post for the future
@@ -163,7 +163,7 @@ export const processScheduledPosts = internalAction({
       }
 
       try {
-        const result: any = await ctx.runAction(internal.autoPosting.postToOnePlatform, {
+        const result: any = await ctx.runAction(api.autoPosting.postToOnePlatformPublic, {
           platform: post.platform,
           accessToken: conn.accessToken,
           content: post.content,
