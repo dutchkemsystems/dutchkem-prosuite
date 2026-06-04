@@ -6,7 +6,7 @@
 
 import { query, mutation, action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
 // ENGINE STATUS (singleton row, id="global")
@@ -415,7 +415,7 @@ export const executeAdPost = action({
     }
 
     try {
-      const result: any = await ctx.runAction(internal.autoPosting.postToOnePlatform, {
+      const result: any = await ctx.runAction(api.autoPosting.postToOnePlatformPublic, {
         platform: ad.platform,
         accessToken: conn.accessToken,
         content: ad.content,
@@ -524,7 +524,7 @@ export const executeAdInternal = internalAction({
     }
 
     try {
-      const result: any = await ctx.runAction(internal.autoPosting.postToOnePlatform, {
+      const result: any = await ctx.runAction(api.autoPosting.postToOnePlatformPublic, {
         platform: ad.platform,
         accessToken: conn.accessToken,
         content: ad.content,
@@ -601,5 +601,137 @@ export const recordAdClick = mutation({
     const ad = await ctx.db.get(args.adId);
     if (!ad) return;
     await ctx.db.patch(args.adId, { clicks: (ad.clicks || 0) + 1 });
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// LIVE ANALYTICS — Real-time metrics for dashboard
+// ═══════════════════════════════════════════════════════════════════
+
+export const getLiveAdAnalytics = query({
+  args: { campaignId: v.optional(v.id("ad_campaigns")) },
+  handler: async (ctx, args) => {
+    const ads = args.campaignId
+      ? await ctx.db.query("ad_ads").withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId!)).collect()
+      : await ctx.db.query("ad_ads").collect();
+
+    const campaigns = args.campaignId
+      ? [await ctx.db.get(args.campaignId)].filter(Boolean)
+      : await ctx.db.query("ad_campaigns").take(50);
+
+    const totalImpressions = ads.reduce((sum, a) => sum + (a.impressions || 0), 0);
+    const totalClicks = ads.reduce((sum, a) => sum + (a.clicks || 0), 0);
+    const totalEngagements = ads.reduce((sum, a) => sum + (a.engagements || 0), 0);
+    const ctr = totalImpressions > 0 ? parseFloat(((totalClicks / totalImpressions) * 100).toFixed(2)) : 0;
+
+    const statusBreakdown = {
+      draft: ads.filter((a) => a.status === "draft").length,
+      scheduled: ads.filter((a) => a.status === "scheduled").length,
+      posted: ads.filter((a) => a.status === "posted").length,
+      failed: ads.filter((a) => a.status === "failed").length,
+    };
+
+    // Platform breakdown
+    const platformMap: Record<string, { impressions: number; clicks: number; engagements: number; ads: number }> = {};
+    for (const ad of ads) {
+      if (!platformMap[ad.platform]) platformMap[ad.platform] = { impressions: 0, clicks: 0, engagements: 0, ads: 0 };
+      platformMap[ad.platform].impressions += ad.impressions || 0;
+      platformMap[ad.platform].clicks += ad.clicks || 0;
+      platformMap[ad.platform].engagements += ad.engagements || 0;
+      platformMap[ad.platform].ads++;
+    }
+
+    const platformBreakdown = Object.entries(platformMap).map(([platform, stats]) => ({
+      platform,
+      ...stats,
+      ctr: stats.impressions > 0 ? parseFloat(((stats.clicks / stats.impressions) * 100).toFixed(2)) : 0,
+    }));
+
+    // Top performing ads
+    const topAds = [...ads]
+      .filter((a) => a.status === "posted")
+      .sort((a, b) => (b.engagements || 0) - (a.engagements || 0))
+      .slice(0, 10)
+      .map((a) => ({ adId: a._id, title: a.title, platform: a.platform, engagements: a.engagements || 0, clicks: a.clicks || 0, impressions: a.impressions || 0 }));
+
+    const activeCampaigns = (campaigns as any[]).filter((c) => c && c.status === "active").length;
+
+    return {
+      totalAds: ads.length,
+      activeCampaigns,
+      totalImpressions,
+      totalClicks,
+      totalEngagements,
+      ctr,
+      statusBreakdown,
+      platformBreakdown,
+      topAds,
+      estimatedSpend: parseFloat((totalImpressions * 0.001).toFixed(2)),
+    };
+  },
+});
+
+export const recordAdMetrics = mutation({
+  args: {
+    adId: v.id("ad_ads"),
+    impressions: v.optional(v.number()),
+    clicks: v.optional(v.number()),
+    engagements: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const ad = await ctx.db.get(args.adId);
+    if (!ad) return;
+    const patch: any = {};
+    if (args.impressions !== undefined) patch.impressions = (ad.impressions || 0) + args.impressions;
+    if (args.clicks !== undefined) patch.clicks = (ad.clicks || 0) + args.clicks;
+    if (args.engagements !== undefined) patch.engagements = (ad.engagements || 0) + args.engagements;
+    await ctx.db.patch(args.adId, patch);
+  },
+});
+
+export const getCampaignPerformance = query({
+  args: { campaignId: v.id("ad_campaigns") },
+  handler: async (ctx, args) => {
+    const campaign = await ctx.db.get(args.campaignId);
+    if (!campaign) return null;
+
+    const ads = await ctx.db
+      .query("ad_ads")
+      .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId))
+      .collect();
+
+    const totalImpressions = ads.reduce((sum, a) => sum + (a.impressions || 0), 0);
+    const totalClicks = ads.reduce((sum, a) => sum + (a.clicks || 0), 0);
+    const totalEngagements = ads.reduce((sum, a) => sum + (a.engagements || 0), 0);
+    const ctr = totalImpressions > 0 ? parseFloat(((totalClicks / totalImpressions) * 100).toFixed(2)) : 0;
+    const estimatedCost = parseFloat((totalImpressions * 0.001).toFixed(2));
+
+    const adSummaries = ads.map((a) => ({
+      adId: a._id,
+      title: a.title,
+      status: a.status,
+      impressions: a.impressions || 0,
+      clicks: a.clicks || 0,
+      engagements: a.engagements || 0,
+      ctr: a.impressions > 0 ? parseFloat(((a.clicks || 0) / a.impressions * 100).toFixed(2)) : 0,
+      postedAt: a.postedAt,
+    }));
+
+    return {
+      campaign,
+      adCount: ads.length,
+      totalImpressions,
+      totalClicks,
+      totalEngagements,
+      ctr,
+      estimatedCost,
+      statusBreakdown: {
+        draft: ads.filter((a) => a.status === "draft").length,
+        scheduled: ads.filter((a) => a.status === "scheduled").length,
+        posted: ads.filter((a) => a.status === "posted").length,
+        failed: ads.filter((a) => a.status === "failed").length,
+      },
+      adSummaries,
+    };
   },
 });

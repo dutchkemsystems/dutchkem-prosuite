@@ -569,12 +569,32 @@ http.route({
 });
 
 // Helper: verify admin session from bearer token
+// Manual base64 decode (no btoa in Convex edge runtime)
+function manualAtop(input: string): string {
+  const B64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  input = input.replace(/-/g, '+').replace(/_/g, '/');
+  while (input.length % 4) input += '=';
+  const bytes: number[] = [];
+  for (let i = 0; i < input.length; i += 4) {
+    const idx0 = B64_CHARS.indexOf(input[i]);
+    const idx1 = B64_CHARS.indexOf(input[i + 1]);
+    const idx2 = input[i + 2] === '=' ? 0 : B64_CHARS.indexOf(input[i + 2]);
+    const idx3 = input[i + 3] === '=' ? 0 : B64_CHARS.indexOf(input[i + 3]);
+    bytes.push((idx0 << 2) | (idx1 >> 4));
+    if (input[i + 2] !== '=') bytes.push(((idx1 & 0xf) << 4) | (idx2 >> 2));
+    if (input[i + 3] !== '=') bytes.push(((idx2 & 0x3) << 6) | idx3);
+  }
+  let result = "";
+  for (const b of bytes) result += String.fromCharCode(b);
+  return result;
+}
+
 async function verifyAdminToken(req: Request): Promise<string | null> {
   const authHeader = req.headers.get("authorization") || "";
   const token = authHeader.replace("Bearer ", "");
   if (!token) return null;
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
+    const payload = JSON.parse(manualAtop(token.split(".")[1]));
     if (payload.role !== "admin") return null;
     return payload.sub || null;
   } catch {
@@ -686,7 +706,7 @@ http.route({
       // Platform-specific token exchange
       const clientId = process.env[`${platform.toUpperCase()}_CLIENT_ID`] || process.env[`${platform.toUpperCase()}_APP_ID`] || process.env[`${platform.toUpperCase()}_CLIENT_KEY`] || "";
       const clientSecret = process.env[`${platform.toUpperCase()}_CLIENT_SECRET`] || process.env[`${platform.toUpperCase()}_APP_SECRET`] || "";
-      const redirectUri = `${process.env.APP_URL || "https://prosuite.dutchkemventures.com"}/api/social/callback/${platform}`;
+      const redirectUri = `${process.env.APP_URL || "https://dutchkem-prosuite.onrender.com"}/api/social/callback/${platform}`;
 
       let tokenData: any = {};
       let username = "";
@@ -752,6 +772,7 @@ http.route({
         expiresAt: tokenData.expires_in ? Date.now() + tokenData.expires_in * 1000 : undefined,
         scopes: storedState.platform || "",
         anonymousByDefault: true,
+        integrationId: "direct",
       });
 
       // Delete used state
@@ -879,7 +900,7 @@ http.route({
           `/post <i>&lt;message&gt;</i> — Broadcast a post to all connected platforms\n` +
           `/disconnect — Unlink your social media accounts\n` +
           `/support — Get help from our team\n\n` +
-          `🌐 <b>Dashboard:</b> https://prosuite.dutchkemventures.com\n` +
+          `🌐 <b>Dashboard:</b> https://dutchkem-prosuite.onrender.com\n` +
           `Powered by Composio + Convex 🚀`;
         break;
 
@@ -887,7 +908,7 @@ http.route({
         reply =
           `🔗 <b>Connect Your Social Accounts</b>\n\n` +
           `To link a platform:\n` +
-          `1. Open the Prosuite dashboard: https://prosuite.dutchkemventures.com\n` +
+          `1. Open the Prosuite dashboard: https://dutchkem-prosuite.onrender.com\n` +
           `2. Go to <b>Social Engine</b> → <b>Connected Platforms</b>\n` +
           `3. Click the platform you want to add (X, LinkedIn, Facebook, etc.)\n` +
           `4. Authorize the connection in the popup\n\n` +
@@ -898,7 +919,7 @@ http.route({
         reply =
           `📊 <b>Connection Status</b>\n\n` +
           `I can't read your connection list from here yet — that lives in the dashboard.\n\n` +
-          `👉 Open <a href="https://prosuite.dutchkemventures.com/admin/dashboard">the dashboard</a> and look at the <b>Social Engine</b> tab to see exactly which platforms are linked.`;
+          `👉 Open <a href="https://dutchkem-prosuite.onrender.com/admin/dashboard">the dashboard</a> and look at the <b>Social Engine</b> tab to see exactly which platforms are linked.`;
         break;
 
       case "/post":
@@ -914,7 +935,7 @@ http.route({
         reply =
           `🔌 <b>Disconnect Accounts</b>\n\n` +
           `To unlink a platform, open the dashboard:\n` +
-          `👉 <a href="https://prosuite.dutchkemventures.com/admin/dashboard">Social Engine → Connected Platforms</a>\n\n` +
+          `👉 <a href="https://dutchkem-prosuite.onrender.com/admin/dashboard">Social Engine → Connected Platforms</a>\n\n` +
           `Click <b>Disconnect</b> on the platform you want to remove.`;
         break;
 
@@ -922,7 +943,7 @@ http.route({
         reply =
           `🛟 <b>Need Help?</b>\n\n` +
           `📧 Email: support@dutchkem.com\n` +
-          `💬 Live chat: https://prosuite.dutchkemventures.com (bottom-right)\n` +
+          `💬 Live chat: https://dutchkem-prosuite.onrender.com (bottom-right)\n` +
           `📱 WhatsApp: +234 800 000 0000\n\n` +
           `Our team typically replies within 1 hour during business hours.`;
         break;

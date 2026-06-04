@@ -781,7 +781,7 @@ function getPlatformClientSecret(platform: string): string {
 }
 
 function getRedirectUri(platform: string): string {
-  const baseUrl = process.env.APP_URL || "https://prosuite.dutchkemventures.com";
+  const baseUrl = process.env.APP_URL || "https://dutchkem-prosuite.onrender.com";
   return `${baseUrl}/api/social/callback/${platform}`;
 }
 
