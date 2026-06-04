@@ -119,27 +119,30 @@ describe("getOAuthProviderStatus", () => {
     // (this is set in prod Convex but not in test env, so we just check shape)
     expect(typeof status.composioEnabled).toBe("boolean");
     expect(Array.isArray(status.composioPlatforms)).toBe(true);
-    // 11 platforms (telegram excluded)
-    expect(status.composioPlatforms).toHaveLength(11);
+    // 6 platforms verified to exist in Composio (telegram excluded)
+    // Updated 2026-06-04 to match what actually exists in Composio's catalog
+    expect(status.composioPlatforms).toHaveLength(6);
     expect(status.composioPlatforms).toContain("x");
     expect(status.composioPlatforms).toContain("linkedin");
     expect(status.composioPlatforms).toContain("facebook");
-    expect(status.composioPlatforms).toContain("instagram");
-    expect(status.composioPlatforms).toContain("tiktok");
     expect(status.composioPlatforms).toContain("youtube");
-    expect(status.composioPlatforms).toContain("pinterest");
     expect(status.composioPlatforms).toContain("reddit");
-    expect(status.composioPlatforms).toContain("threads");
     expect(status.composioPlatforms).toContain("discord");
-    expect(status.composioPlatforms).toContain("bluesky");
+    // Not in Composio (use direct OAuth)
+    expect(status.composioPlatforms).not.toContain("instagram");
+    expect(status.composioPlatforms).not.toContain("tiktok");
+    expect(status.composioPlatforms).not.toContain("pinterest");
+    expect(status.composioPlatforms).not.toContain("threads");
+    expect(status.composioPlatforms).not.toContain("bluesky");
     expect(status.composioPlatforms).not.toContain("telegram");
   });
 
   test("composioPlatforms shape is consistent with the COMPOSIO_APP_MAP (test stub)", () => {
-    // The 11 OAuth platforms supported by Composio (telegram excluded)
-    const expected = ["x", "linkedin", "facebook", "instagram", "tiktok", "youtube", "pinterest", "reddit", "threads", "discord", "bluesky"];
-    expect(expected).toHaveLength(11);
-    expect(new Set(expected).size).toBe(11);
+    // The 6 OAuth platforms verified to exist in Composio (telegram excluded)
+    // Updated 2026-06-04 to match what actually exists in Composio's catalog
+    const expected = ["x", "linkedin", "facebook", "youtube", "reddit", "discord"];
+    expect(expected).toHaveLength(6);
+    expect(new Set(expected).size).toBe(6);
   });
 });
 

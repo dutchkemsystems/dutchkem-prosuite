@@ -201,35 +201,34 @@ describe("disconnectPlatform", () => {
 // ═══════════════════════════════════════════════════════════════════
 
 describe("Composio provider blending", () => {
-  it("Composio app map covers 11 platforms (excludes telegram)", () => {
+  it("Composio app map covers 6 verified platforms (excludes telegram + unsupported)", () => {
+    // Updated 2026-06-04 to match what actually exists in Composio:
+    //   twitter, linkedin, facebook, youtube, reddit, discord
+    // Other platforms (instagram, tiktok, pinterest, threads, bluesky)
+    // are NOT in Composio's catalog — they use direct OAuth.
     const COMPOSIO_APP_MAP: Record<string, string | undefined> = {
       x: "twitter",
       linkedin: "linkedin",
       facebook: "facebook",
-      instagram: "instagram",
-      tiktok: "tiktok",
       youtube: "youtube",
-      pinterest: "pinterest",
       reddit: "reddit",
-      threads: "threads",
       discord: "discord",
-      bluesky: "bluesky",
+      instagram: undefined,
+      tiktok: undefined,
+      pinterest: undefined,
+      threads: undefined,
+      bluesky: undefined,
       telegram: undefined,
     };
 
     const composioPlatforms = Object.entries(COMPOSIO_APP_MAP).filter(([, v]) => v).map(([k]) => k);
-    expect(composioPlatforms).toHaveLength(11);
+    expect(composioPlatforms).toHaveLength(6);
     expect(composioPlatforms).toContain("x");
     expect(composioPlatforms).toContain("linkedin");
     expect(composioPlatforms).toContain("facebook");
-    expect(composioPlatforms).toContain("instagram");
-    expect(composioPlatforms).toContain("tiktok");
     expect(composioPlatforms).toContain("youtube");
-    expect(composioPlatforms).toContain("pinterest");
     expect(composioPlatforms).toContain("reddit");
-    expect(composioPlatforms).toContain("threads");
     expect(composioPlatforms).toContain("discord");
-    expect(composioPlatforms).toContain("bluesky");
     expect(composioPlatforms).not.toContain("telegram");
   });
 
@@ -238,15 +237,16 @@ describe("Composio provider blending", () => {
       x: { composioSupported: true, composioApp: "twitter" },
       linkedin: { composioSupported: true, composioApp: "linkedin" },
       facebook: { composioSupported: true, composioApp: "facebook" },
-      instagram: { composioSupported: true, composioApp: "instagram" },
-      tiktok: { composioSupported: true, composioApp: "tiktok" },
       youtube: { composioSupported: true, composioApp: "youtube" },
-      pinterest: { composioSupported: true, composioApp: "pinterest" },
       reddit: { composioSupported: true, composioApp: "reddit" },
-      threads: { composioSupported: true, composioApp: "threads" },
-      telegram: { composioSupported: false },
       discord: { composioSupported: true, composioApp: "discord" },
-      bluesky: { composioSupported: true, composioApp: "bluesky" },
+      // No Composio support — direct OAuth only
+      instagram: { composioSupported: false },
+      tiktok: { composioSupported: false },
+      pinterest: { composioSupported: false },
+      threads: { composioSupported: false },
+      bluesky: { composioSupported: false },
+      telegram: { composioSupported: false },
     };
 
     for (const [id, cfg] of Object.entries(PLATFORM_OAUTH_CONFIGS)) {

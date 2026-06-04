@@ -112,19 +112,26 @@ export const SUPPORTED_PLATFORMS = Object.entries(PLATFORM_CONFIGS).map(([id, co
 }));
 
 // Composio app slugs — maps our platform IDs to Composio integration IDs.
-// Telegram is NOT supported by Composio (it uses bot tokens).
+// Only platforms that ACTUALLY exist in Composio are listed. Others fall back to direct OAuth.
+// Verified against backend.composio.dev/api/v3.1/toolkits on 2026-06-04.
+// Telegram is NOT in Composio (it uses bot tokens).
+// Note: Composio has "twitter" but it requires the user to provide their own
+//   X API credentials in the auth_config; no "default" managed creds.
+// Instagram is NOT in Composio's catalog.
+// TikTok, Pinterest, Threads, Bluesky are NOT in Composio's catalog.
 export const COMPOSIO_APP_MAP: Record<string, string | undefined> = {
   x: "twitter",
   linkedin: "linkedin",
   facebook: "facebook",
-  instagram: "instagram",
-  tiktok: "tiktok",
   youtube: "youtube",
-  pinterest: "pinterest",
   reddit: "reddit",
-  threads: "threads",
   discord: "discord",
-  bluesky: "bluesky",
+  // Fallback to direct OAuth (no Composio support):
+  instagram: undefined,
+  tiktok: undefined,
+  pinterest: undefined,
+  threads: undefined,
+  bluesky: undefined,
   telegram: undefined, // bot token only
 };
 
@@ -503,8 +510,9 @@ async function getOrCreateAuthConfigId(apiKey: string, toolkit: string): Promise
     apiKey,
     `/auth_configs?toolkit_slug=${encodeURIComponent(toolkit)}&is_composio_managed=true&limit=1`
   );
-  if (list?.items && list.items.length > 0) {
-    return list.items[0].id as string;
+  const listItems = list?.items || list?.data?.items || [];
+  if (listItems.length > 0) {
+    return (listItems[0].id || listItems[0].auth_config?.id) as string;
   }
 
   // 2) Create a new Composio-managed config for this toolkit
@@ -515,10 +523,12 @@ async function getOrCreateAuthConfigId(apiKey: string, toolkit: string): Promise
       type: "use_composio_managed_auth",
     }),
   });
-  if (!created?.id) {
-    throw new Error(`Composio: failed to create auth config for ${toolkit}`);
+  // Response shape: { toolkit: {...}, auth_config: { id, auth_scheme, is_composio_managed, ... } }
+  const newId = created?.auth_config?.id || created?.id;
+  if (!newId) {
+    throw new Error(`Composio: failed to create auth config for ${toolkit} — response: ${JSON.stringify(created).slice(0, 200)}`);
   }
-  return created.id as string;
+  return newId as string;
 }
 
 // ACTION: Start OAuth via Composio
@@ -551,14 +561,19 @@ export const startComposioOAuth = action({
         }),
       });
 
-      if (!link?.redirect_url) {
-        return { success: false, error: "Composio did not return a redirect URL" };
+      // Response shape: { link_token, redirect_url, expires_at, connected_account_id, ... }
+      // Some endpoints also nest under "data".
+      const payload = link?.data ?? link;
+      const redirectUrl = payload?.redirect_url;
+      const connectionId = payload?.connected_account_id;
+      if (!redirectUrl) {
+        return { success: false, error: `Composio did not return a redirect URL — response: ${JSON.stringify(link).slice(0, 200)}` };
       }
 
       return {
         success: true,
-        redirectUrl: link.redirect_url,
-        connectionId: link.connected_account_id,
+        redirectUrl,
+        connectionId,
       };
     } catch (err: any) {
       return { success: false, error: `Composio OAuth start failed: ${err?.message || String(err)}` };
@@ -628,14 +643,18 @@ export const handleComposioCallback = action({
 });
 
 // QUERY: Get OAuth provider status (direct vs composio)
+// Only includes platforms that ACTUALLY exist in Composio. Others fall back to direct OAuth.
 export const getOAuthProviderStatus = query({
   args: {},
   handler: async () => {
     const composioKeySet = !!process.env.COMPOSIO_API_KEY;
+    const composioPlatforms = Object.entries(COMPOSIO_APP_MAP)
+      .filter(([, slug]) => slug)
+      .map(([id]) => id);
     return {
       directEnabled: true,
       composioEnabled: composioKeySet,
-      composioPlatforms: ["x", "linkedin", "facebook", "instagram", "tiktok", "youtube", "pinterest", "reddit", "threads", "discord", "bluesky"],
+      composioPlatforms,
     };
   },
 });
