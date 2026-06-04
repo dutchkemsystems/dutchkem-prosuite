@@ -93,11 +93,19 @@ async function ayrshareFetch<T = any>(
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// QUERY: Account info (quota, plan, email)
+// QUERY: Account info (quota, plan, email) — reads from DB cache
 // ═══════════════════════════════════════════════════════════════════
+// REGRESSION FIX: this used to be an `action`, but the dashboard was
+// subscribing to it via `useQuery` (which routes to /api/query). Convex
+// does NOT support reactive subscriptions on actions, so it returned
+// [CONVEX Q(ayrshare:getAyrshareAccount)] Server Error. The fix is to
+// make this a query that reads a cached DB row, and have a separate
+// `refreshAyrshareAccount` action that fetches from the API and writes
+// the row. The dashboard calls the action on mount/refresh and the
+// query for auto-updating UI.
 
-export const getAyrshareAccount = action({
-  args: { adminToken: v.optional(v.string()) },
+export const getAyrshareAccount = query({
+  args: {},
   returns: v.object({
     ok: v.boolean(),
     error: v.optional(v.string()),
@@ -109,24 +117,93 @@ export const getAyrshareAccount = action({
       monthlyApiCalls: v.optional(v.number()),
       refId: v.optional(v.string()),
     })),
+    refreshedAt: v.optional(v.number()),
+  }),
+  handler: async (ctx) => {
+    const row = await ctx.db.query("ayrshare_account").first();
+    if (!row) {
+      return {
+        ok: false,
+        error: "Ayrshare account not yet loaded. Click 'Refresh' to fetch.",
+      };
+    }
+    return {
+      ok: row.ok,
+      error: row.lastError,
+      account: row.ok
+        ? {
+            email: row.email,
+            title: row.title,
+            monthlyPostQuota: row.monthlyPostQuota,
+            monthlyPostCount: row.monthlyPostCount,
+            monthlyApiCalls: row.monthlyApiCalls,
+            refId: row.refId,
+          }
+        : undefined,
+      refreshedAt: row.refreshedAt,
+    };
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// ACTION: Refresh account cache — fetches from Ayrshare and writes to DB
+// ═══════════════════════════════════════════════════════════════════
+
+export const refreshAyrshareAccount = action({
+  args: { adminToken: v.optional(v.string()) },
+  returns: v.object({
+    ok: v.boolean(),
+    error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!identity) return { ok: false, error: "Not authenticated" };
     const r = await ayrshareFetch("/user");
-    if (!r.ok) return { ok: false, error: r.error || "Ayrshare API error" };
+    if (!r.ok) {
+      await ctx.runMutation(internal.ayrshare.cacheAyrshareAccountRow, {
+        ok: false,
+        lastError: r.error || "Ayrshare API error",
+        refreshedAt: Date.now(),
+      });
+      return { ok: false, error: r.error || "Ayrshare API error" };
+    }
     const d: any = r.data || {};
-    return {
+    await ctx.runMutation(internal.ayrshare.cacheAyrshareAccountRow, {
       ok: true,
-      account: {
-        email: d.email,
-        title: d.title,
-        monthlyPostQuota: d.monthlyPostQuota,
-        monthlyPostCount: d.monthlyPostCount,
-        monthlyApiCalls: d.monthlyApiCalls,
-        refId: d.refId,
-      },
-    };
+      email: d.email,
+      title: d.title,
+      monthlyPostQuota: d.monthlyPostQuota,
+      monthlyPostCount: d.monthlyPostCount,
+      monthlyApiCalls: d.monthlyApiCalls,
+      refId: d.refId,
+      refreshedAt: Date.now(),
+    });
+    return { ok: true };
+  },
+});
+
+// Internal mutation: writes the singleton ayrshare_account row.
+export const cacheAyrshareAccountRow = internalMutation({
+  args: {
+    ok: v.boolean(),
+    email: v.optional(v.string()),
+    title: v.optional(v.string()),
+    monthlyPostQuota: v.optional(v.number()),
+    monthlyPostCount: v.optional(v.number()),
+    monthlyApiCalls: v.optional(v.number()),
+    refId: v.optional(v.string()),
+    lastError: v.optional(v.string()),
+    refreshedAt: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const existing = await ctx.db.query("ayrshare_account").first();
+    if (existing) {
+      await ctx.db.patch(existing._id, args);
+    } else {
+      await ctx.db.insert("ayrshare_account", args);
+    }
+    return null;
   },
 });
 

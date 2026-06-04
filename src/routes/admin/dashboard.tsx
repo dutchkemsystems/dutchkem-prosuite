@@ -459,6 +459,8 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
   const aysHistory = useQuery(api.ayrshare.getCachedAyrsharePosts, {}) as any[] | undefined;
   const aysBroadcast = useAction(api.ayrshare.ayrsharePost);
   const aysDelete = useAction(api.ayrshare.deleteAyrsharePost);
+  const aysRefreshAccount = useAction(api.ayrshare.refreshAyrshareAccount);
+  const [aysRefreshing, setAysRefreshing] = useState(false);
 
   const [platforms, setPlatforms] = useState<any[]>([]);
   const [platformsLoading, setPlatformsLoading] = useState(true);
@@ -475,6 +477,25 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
   const [broadcastContent, setBroadcastContent] = useState("");
   const [broadcastPlatforms, setBroadcastPlatforms] = useState<string[]>([]);
   const [broadcastSchedule, setBroadcastSchedule] = useState("");
+
+  // REGRESSION FIX: getAyrshareAccount is now a query (reads cache).
+  // The cache is populated by refreshAyrshareAccount (an action). We
+  // trigger a refresh on mount so the user sees fresh data.
+  useEffect(() => {
+    if (activeSubTab === "broadcast" && adminToken) {
+      aysRefreshAccount({ adminToken }).catch(() => {});
+    }
+  }, [activeSubTab, adminToken, aysRefreshAccount]);
+
+  const handleAysRefresh = useCallback(async () => {
+    if (!adminToken) return;
+    setAysRefreshing(true);
+    try {
+      await aysRefreshAccount({ adminToken });
+    } finally {
+      setAysRefreshing(false);
+    }
+  }, [adminToken, aysRefreshAccount]);
 
   const fetchPlatforms = useCallback(async () => {
     try {
@@ -1185,8 +1206,21 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
                           ? `${aysAccount.account?.email} — ${aysAccount.account?.monthlyPostCount || 0} / ${aysAccount.account?.monthlyPostQuota || 0} posts this month`
                           : aysAccount?.error || "Loading..."}
                       </p>
+                      {aysAccount?.refreshedAt && (
+                        <p className="text-[9px] text-slate-500 mt-0.5">
+                          Last refreshed: {new Date(aysAccount.refreshedAt).toLocaleTimeString()}
+                        </p>
+                      )}
                     </div>
                   </div>
+                  <button
+                    onClick={handleAysRefresh}
+                    disabled={aysRefreshing}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-cyan-400 text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-1.5"
+                  >
+                    <span className={aysRefreshing ? "animate-spin" : ""}>{aysRefreshing ? "⟳" : "↻"}</span>
+                    {aysRefreshing ? "Refreshing..." : "Refresh"}
+                  </button>
                   {aysAccount?.ok && aysStats && (
                     <div className="flex gap-4 text-[10px] font-black uppercase tracking-widest">
                       <div className="px-4 py-2 bg-slate-950 rounded-xl">

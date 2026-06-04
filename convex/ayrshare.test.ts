@@ -6,7 +6,7 @@
 
 import { convexTest } from "convex-test";
 import { expect, test, describe } from "vitest";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -62,11 +62,93 @@ describe("AYRSHARE_PLATFORM_MAP", () => {
 // ═══════════════════════════════════════════════════════════════════
 
 describe("Ayrshare auth gate", () => {
-  test("getAyrshareAccount returns error when not authenticated", async () => {
+  test("getAyrshareAccount returns 'not yet loaded' when no cache row exists", async () => {
+    // REGRESSION FIX: getAyrshareAccount is now a QUERY (reads cache),
+    // not an action. It returns the cached row from ayrshare_account.
+    // On a fresh deployment with no cached row, it returns a "not yet
+    // loaded" error so the dashboard knows to call refreshAyrshareAccount.
     const t = convexTest(schema, modules);
-    const result: any = await t.action(api.ayrshare.getAyrshareAccount, {});
+    const result: any = await t.query(api.ayrshare.getAyrshareAccount, {});
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/not yet loaded|Refresh/);
+  });
+
+  test("refreshAyrshareAccount returns error when not authenticated", async () => {
+    const t = convexTest(schema, modules);
+    const result: any = await t.action(api.ayrshare.refreshAyrshareAccount, {});
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/Not authenticated|AYRSHARE_API_KEY/);
+  });
+
+  test("getAyrshareAccount is callable via t.query (not t.action)", async () => {
+    // REGRESSION GUARD: This is the exact bug we fixed. The dashboard
+    // was using useQuery() (which goes to /api/query) on a function
+    // declared as action() (which only works via /api/action and
+    // returns [CONVEX Q(...)] Server Error on useQuery).
+    // The proof is: t.query succeeds (returns the cached row or the
+    // "not yet loaded" error). If it were still an action, t.query
+    // would throw "is not a query" or similar.
+    const t = convexTest(schema, modules);
+    const r: any = await t.query(api.ayrshare.getAyrshareAccount, {});
+    expect(r).toBeDefined();
+    // No cache row exists in a fresh test deployment, so the query
+    // returns the "not yet loaded" error shape. This proves the
+    // function is registered as a query and can be subscribed to.
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/not yet loaded|Refresh/);
+  });
+
+  test("cacheAyrshareAccountRow writes singleton row (insert)", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.ayrshare.cacheAyrshareAccountRow, {
+      ok: true,
+      email: "test@example.com",
+      monthlyPostQuota: 20,
+      monthlyPostCount: 5,
+      refreshedAt: Date.now(),
+    });
+    const r: any = await t.query(api.ayrshare.getAyrshareAccount, {});
+    expect(r.ok).toBe(true);
+    expect(r.account?.email).toBe("test@example.com");
+    expect(r.account?.monthlyPostQuota).toBe(20);
+    expect(r.account?.monthlyPostCount).toBe(5);
+    expect(r.refreshedAt).toBeGreaterThan(0);
+  });
+
+  test("cacheAyrshareAccountRow updates existing row (patch)", async () => {
+    const t = convexTest(schema, modules);
+    const ts = Date.now();
+    await t.mutation(internal.ayrshare.cacheAyrshareAccountRow, {
+      ok: true,
+      email: "first@example.com",
+      monthlyPostCount: 1,
+      refreshedAt: ts,
+    });
+    await t.mutation(internal.ayrshare.cacheAyrshareAccountRow, {
+      ok: true,
+      email: "second@example.com",
+      monthlyPostCount: 2,
+      refreshedAt: ts + 1000,
+    });
+    const r: any = await t.query(api.ayrshare.getAyrshareAccount, {});
+    expect(r.account?.email).toBe("second@example.com");
+    expect(r.account?.monthlyPostCount).toBe(2);
+    // Should still be a single row (singleton)
+    const all = await t.run(async (ctx) => await ctx.db.query("ayrshare_account").collect());
+    expect(all.length).toBe(1);
+  });
+
+  test("cacheAyrshareAccountRow with ok=false stores error", async () => {
+    const t = convexTest(schema, modules);
+    await t.mutation(internal.ayrshare.cacheAyrshareAccountRow, {
+      ok: false,
+      lastError: "Network error",
+      refreshedAt: Date.now(),
+    });
+    const r: any = await t.query(api.ayrshare.getAyrshareAccount, {});
+    expect(r.ok).toBe(false);
+    expect(r.error).toBe("Network error");
+    expect(r.account).toBeUndefined();
   });
 
   test("getAyrshareProfiles returns error when not authenticated", async () => {

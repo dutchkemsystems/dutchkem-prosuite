@@ -1401,4 +1401,21 @@ export default defineSchema({
     .index("by_admin", ["adminId"])
     .index("by_ays_id", ["aysPostId"])
     .index("by_scheduled", ["scheduled", "scheduledFor"]),
+
+  // Ayrshare account cache — single row (id="singleton"). Populated by
+  // refreshAyrshareAccount action; read by getAyrshareAccount query.
+  // This avoids the [CONVEX Q(ayrshare:getAyrshareAccount)] Server Error
+  // that occurs when a useQuery subscribes to an action (Convex queries
+  // cannot call actions, and actions cannot be subscribed to reactively).
+  ayrshare_account: defineTable({
+    email: v.optional(v.string()),
+    title: v.optional(v.string()),
+    monthlyPostQuota: v.optional(v.number()),
+    monthlyPostCount: v.optional(v.number()),
+    monthlyApiCalls: v.optional(v.number()),
+    refId: v.optional(v.string()),
+    lastError: v.optional(v.string()),
+    ok: v.boolean(),                     // last fetch succeeded
+    refreshedAt: v.number(),
+  }),
 });
