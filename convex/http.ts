@@ -7,6 +7,34 @@ const http = httpRouter();
 
 auth.addHttpRoutes(http);
 
+// ═══════════════════════════════════════════════════════════════════
+// MANUAL BASE64 (Convex action runtime has no btoa)
+// ═══════════════════════════════════════════════════════════════════
+const B64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+function manualBase64(input: string): string {
+  const utf8: number[] = [];
+  for (let i = 0; i < input.length; i++) {
+    let c = input.charCodeAt(i);
+    if (c < 0x80) utf8.push(c);
+    else if (c < 0x800) utf8.push((c >> 6) | 0xc0, (c & 0x3f) | 0x80);
+    else if (c < 0x10000) utf8.push((c >> 12) | 0xe0, ((c >> 6) & 0x3f) | 0x80, (c & 0x3f) | 0x80);
+    else utf8.push((c >> 18) | 0xf0, ((c >> 12) & 0x3f) | 0x80, ((c >> 6) & 0x3f) | 0x80, (c & 0x3f) | 0x80);
+  }
+  const data = new Uint8Array(utf8);
+  let result = "";
+  for (let i = 0; i < data.length; i += 3) {
+    const b1 = data[i];
+    const b2 = i + 1 < data.length ? data[i + 1] : 0;
+    const b3 = i + 2 < data.length ? data[i + 2] : 0;
+    const triplet = (b1 << 16) | (b2 << 8) | b3;
+    result += B64_CHARS[(triplet >> 18) & 0x3f];
+    result += B64_CHARS[(triplet >> 12) & 0x3f];
+    result += i + 1 < data.length ? B64_CHARS[(triplet >> 6) & 0x3f] : "=";
+    result += i + 2 < data.length ? B64_CHARS[triplet & 0x3f] : "=";
+  }
+  return result;
+}
+
 // --- OTP Endpoints (Standalone) ---
 
 http.route({
@@ -666,7 +694,7 @@ http.route({
       if (platform === "x") {
         const res = await fetch("https://api.twitter.com/2/oauth2/token", {
           method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded", "Authorization": `Basic ${btoa(unescape(encodeURIComponent(`${clientId}:${clientSecret}`)))}` },
+          headers: { "Content-Type": "application/x-www-form-urlencoded", "Authorization": `Basic ${manualBase64(`${clientId}:${clientSecret}`)}` },
           body: new URLSearchParams({ code, grant_type: "authorization_code", redirect_uri: redirectUri, code_verifier: storedState.codeVerifier || "" }).toString(),
         });
         tokenData = await res.json();
@@ -683,7 +711,7 @@ http.route({
       } else if (platform === "reddit") {
         const res = await fetch("https://www.reddit.com/api/v1/access_token", {
           method: "POST",
-          headers: { "Authorization": `Basic ${btoa(`${clientId}:${clientSecret}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
+          headers: { "Authorization": `Basic ${manualBase64(`${clientId}:${clientSecret}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({ code, grant_type: "authorization_code", redirect_uri: redirectUri }).toString(),
         });
         tokenData = await res.json();
