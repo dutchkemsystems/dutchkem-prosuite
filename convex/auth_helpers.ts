@@ -1,6 +1,104 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 import { hashPassword, verifyPassword } from "./encryption";
+
+// ═══════════════════════════════════════════════════════════════════
+// ADMIN SESSION AUTH (custom auth, NOT Convex Auth)
+// ═══════════════════════════════════════════════════════════════════
+// The Dutchkem dashboard uses a custom admin auth system (admin_auth.ts):
+//   - Login via api.admin_auth.adminLogin returns { token: sessionId }
+//   - Dashboard stores the token in localStorage as "admin_session_token"
+//   - All Convex actions/mutations must validate this token to know
+//     which admin is calling them
+//
+// The helpers below replace ctx.auth.getUserIdentity()
+// (which is Convex Auth and never gets populated) with our custom check.
+
+export type AdminIdentity = {
+  _id: Id<"users">;
+  email: string;
+  name?: string;
+  role: "admin";
+};
+
+/**
+ * Core validation logic. Works from any ctx that has `db`
+ * (query, mutation). Actions must use the `validateAdminSession`
+ * query below (via ctx.runQuery) because actions do not have
+ * direct `ctx.db` access.
+ */
+async function validateAdminSessionCore(
+  ctx: { db: { get: (id: any) => Promise<any> } },
+  adminToken: string | null | undefined,
+): Promise<AdminIdentity | null> {
+  if (!adminToken) return null;
+  let session: any = null;
+  try {
+    session = await ctx.db.get(adminToken as Id<"user_sessions">);
+  } catch {
+    return null;
+  }
+  if (!session) return null;
+  if (session.isRevoked) return null;
+  if (typeof session.expiresAt === "number" && session.expiresAt < Date.now()) {
+    return null;
+  }
+  if (session.userType !== "admin") return null;
+  let user: any = null;
+  try {
+    user = await ctx.db.get(session.userId);
+  } catch {
+    return null;
+  }
+  if (!user) return null;
+  if (user.role !== "admin") return null;
+  return { _id: user._id, email: user.email, name: user.name, role: "admin" };
+}
+
+/**
+ * Query wrapper for use in ACTIONS (which have no direct ctx.db).
+ * Call from an action via: ctx.runQuery(internal.auth_helpers.validateAdminSession, { adminToken })
+ */
+export const validateAdminSession = query({
+  args: { adminToken: v.optional(v.string()) },
+  returns: v.union(
+    v.null(),
+    v.object({
+      _id: v.string(),
+      email: v.string(),
+      name: v.optional(v.string()),
+      role: v.literal("admin"),
+    }),
+  ),
+  handler: async (ctx, { adminToken }) => {
+    return await validateAdminSessionCore(ctx, adminToken);
+  },
+});
+
+/**
+ * For queries and mutations that have direct ctx.db access.
+ * Returns the identity or null.
+ */
+export async function tryGetAdminSession(
+  ctx: { db: { get: (id: any) => Promise<any> } },
+  adminToken: string | null | undefined,
+): Promise<AdminIdentity | null> {
+  return await validateAdminSessionCore(ctx, adminToken);
+}
+
+/**
+ * For queries and mutations that have direct ctx.db access.
+ * Throws "Not authenticated" if invalid.
+ */
+export async function requireAdminSession(
+  ctx: { db: { get: (id: any) => Promise<any> } },
+  adminToken: string | null | undefined,
+): Promise<AdminIdentity> {
+  const identity = await validateAdminSessionCore(ctx, adminToken);
+  if (!identity) throw new Error("Not authenticated");
+  return identity;
+}
 
 // ─── Rate Limiting / Failed Logins ───
 

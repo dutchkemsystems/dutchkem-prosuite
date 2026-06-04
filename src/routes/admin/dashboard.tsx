@@ -144,7 +144,7 @@ function AdminDashboardPage() {
             {activeTab === "live-charts" && <LiveCharts />}
             {activeTab === "payments" && <PaymentMonitor />}
             {activeTab === "manual-task" && <ManualAgentTaskPanel />}
-            {activeTab === "social" && <SocialEnginePanel />}
+            {activeTab === "social" && <SocialEnginePanel adminToken={adminToken} />}
             {activeTab === "guardian" && <GuardianWatchPanel />}
             {activeTab === "tax" && <TaxDashboardPanel />}
             {activeTab === "payouts" && <DailySweepStatusPanel />}
@@ -426,7 +426,7 @@ function TaxDashboardPanel() {
   );
 }
 
-function SocialEnginePanel() {
+function SocialEnginePanel({ adminToken }: { adminToken: string }) {
   const { data: stats } = useSuspenseQuery(convexQuery(api.social.getSocialStats, {})) as { data: any };
   const { data: analytics } = useSuspenseQuery(convexQuery(api.social.getPlatformAnalytics, {})) as { data: any };
   const getConnectedPlatformsAction = useAction(api.social.getConnectedPlatforms);
@@ -461,7 +461,7 @@ function SocialEnginePanel() {
 
   const fetchPlatforms = useCallback(async () => {
     try {
-      const result = await getConnectedPlatformsAction();
+      const result = await getConnectedPlatformsAction({ adminToken });
       const platformsData = result.platforms || [];
       const availablePlatforms = result.availablePlatforms || [];
       const merged = availablePlatforms.map((ap: any) => {
@@ -530,6 +530,7 @@ function SocialEnginePanel() {
       const result: any = await handleComposioCallback({
         platform: composioPoll.platformId,
         connectionId: composioPoll.connectionId,
+        adminToken,
       });
       if (cancelled) return;
       if (result?.success) {
@@ -580,7 +581,7 @@ function SocialEnginePanel() {
       if (platformId === "telegram") {
         const botToken = prompt("Enter your Telegram Bot Token (from @BotFather):\n\nFormat: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz");
         if (!botToken) { setConnecting(null); return; }
-        const result = await connectTelegramBot({ botToken });
+        const result = await connectTelegramBot({ botToken, adminToken });
         if (result?.error) { showToast(result.error, "error"); }
         else { showToast(`Connected to Telegram (${result.username || "bot"})`, "success"); fetchPlatforms(); }
         setConnecting(null);
@@ -593,7 +594,7 @@ function SocialEnginePanel() {
         if (!identifier) { setConnecting(null); return; }
         const appPassword = prompt("Enter your Bluesky App Password (create one at bsky.social/settings/app-passwords):");
         if (!appPassword) { setConnecting(null); return; }
-        const result = await connectBluesky({ identifier, appPassword });
+        const result = await connectBluesky({ identifier, appPassword, adminToken });
         if (result?.error) { showToast(result.error, "error"); }
         else { showToast(`Connected to Bluesky (@${result.handle})`, "success"); fetchPlatforms(); }
         setConnecting(null);
@@ -612,7 +613,7 @@ function SocialEnginePanel() {
 
       if (composioAvailable) {
         // PRIMARY: Use Composio for managed OAuth
-        const composioResult = await startComposioOAuth({ platform: platformId });
+        const composioResult = await startComposioOAuth({ platform: platformId, adminToken });
         if (composioResult?.success && composioResult.redirectUrl) {
           authUrl = composioResult.redirectUrl;
           usingProvider = "composio";
@@ -625,7 +626,7 @@ function SocialEnginePanel() {
 
       if (!authUrl) {
         // FALLBACK: Use direct platform OAuth
-        const directResult = await generateOAuthUrl({ platform: platformId });
+        const directResult = await generateOAuthUrl({ platform: platformId, adminToken });
         if (directResult?.error) {
           showToast(directResult.error, "error");
           setConnecting(null);
@@ -681,7 +682,7 @@ function SocialEnginePanel() {
   const handleDisconnect = async (platformId: string, platformName: string) => {
     if (!confirm(`Disconnect from ${platformName}? Auto-posting to this platform will stop.`)) return;
     try {
-      await disconnectPlatform({ platformId });
+      await disconnectPlatform({ platformId, adminToken });
       showToast(`Disconnected from ${platformName}`, "success");
       fetchPlatforms();
     } catch {
@@ -710,11 +711,11 @@ function SocialEnginePanel() {
           providerStatus?.composioEnabled === true &&
           providerStatus?.composioPlatforms?.includes(p.id);
         if (composioAvailable) {
-          const cr = await startComposioOAuth({ platform: p.id });
+          const cr = await startComposioOAuth({ platform: p.id, adminToken });
           if (cr?.success && cr?.redirectUrl) authUrl = cr.redirectUrl;
         }
         if (!authUrl) {
-          const dr = await generateOAuthUrl({ platform: p.id });
+          const dr = await generateOAuthUrl({ platform: p.id, adminToken });
           if (dr?.authUrl) authUrl = dr.authUrl;
           else if (dr?.error) {
             showToast(`${p.name}: ${dr.error}`, "error");
@@ -751,6 +752,7 @@ function SocialEnginePanel() {
     const result = await updatePostingSettings({
       platformId,
       mode,
+      adminToken,
       scheduleTime: mode === "auto" ? "09:00,15:00,21:00" : undefined,
       postingFrequency: mode === "auto" ? "daily" : undefined,
     });

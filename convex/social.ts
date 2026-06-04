@@ -4,6 +4,19 @@
 import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { requireAdminSession, tryGetAdminSession, validateAdminSession } from "./auth_helpers";
+
+/**
+ * Helper for ACTIONS (no ctx.db) to validate an admin session.
+ * Uses ctx.runQuery to invoke the validateAdminSession query.
+ * Returns identity or null.
+ */
+async function tryGetAdminSessionInAction(
+  ctx: { runQuery: (fn: any, args: any) => Promise<any> },
+  adminToken: string | null | undefined,
+) {
+  return await ctx.runQuery(internal.auth_helpers.validateAdminSession, { adminToken });
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // PLATFORM CONFIGURATIONS
@@ -164,10 +177,13 @@ export const deleteOAuthState = internalMutation({
 // ACTION: Generate OAuth URL for any platform
 // ═══════════════════════════════════════════════════════════════════
 export const generateOAuthUrl = action({
-  args: { platform: v.string() },
+  args: {
+    platform: v.string(),
+    adminToken: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     try {
-      const identity = await ctx.auth.getUserIdentity();
+      const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
       if (!identity) return { success: false, error: "Not authenticated" };
 
       const config = PLATFORM_CONFIGS[args.platform];
@@ -192,7 +208,7 @@ export const generateOAuthUrl = action({
       await ctx.runMutation(internal.social.storeOAuthState, {
         state,
         platform: args.platform,
-        adminId: identity.subject,
+        adminId: identity._id,
         ...(codeVerifier ? { codeVerifier } : {}),
       });
 
@@ -352,15 +368,16 @@ export const postToPlatform = action({
     content: v.string(),
     mediaUrls: v.optional(v.array(v.string())),
     anonymous: v.optional(v.boolean()),
+    adminToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
+    const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
 
     // FIX: was hardcoded to "system" — now uses actual user identity
     const connection = await ctx.runQuery(internal.social.getConnectionForPlatform, {
       platform: args.platform,
-      adminId: identity.subject,
+      adminId: identity._id,
     });
     if (!connection || !connection.isConnected) throw new Error("Platform not connected");
 
@@ -388,10 +405,12 @@ export const postToPlatform = action({
 // ACTION: Get connected platforms
 // ═══════════════════════════════════════════════════════════════════
 export const getConnectedPlatforms = action({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    const adminId = identity?.subject || "system";
+  args: {
+    adminToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
+    const adminId = identity?._id || "system";
     const dbPlatforms = await ctx.runQuery(internal.social.getPlatformsFromDb, { adminId });
     return {
       platforms: dbPlatforms,
@@ -443,14 +462,17 @@ export const getConnectionForPlatform = internalQuery({
 // MUTATION: Disconnect platform
 // ═══════════════════════════════════════════════════════════════════
 export const disconnectPlatform = mutation({
-  args: { platformId: v.string() },
+  args: {
+    platformId: v.string(),
+    adminToken: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
     const conn = await ctx.db
       .query("platform_connections")
       .withIndex("by_admin_platform", (q) =>
-        q.eq("adminId", identity.subject).eq("platformId", args.platformId)
+        q.eq("adminId", identity._id).eq("platformId", args.platformId)
       )
       .first();
     if (conn) {
@@ -469,15 +491,16 @@ export const updatePostingSettings = mutation({
     platformId: v.string(),
     mode: v.union(v.literal("auto"), v.literal("manual"), v.literal("paused")),
     anonymous: v.optional(v.boolean()),
+    adminToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
     const doc = await ctx.db
       .query("platform_connections")
       .withIndex("by_admin_platform", (q) =>
         // FIX: was hardcoded to "system"
-        q.eq("adminId", identity.subject).eq("platformId", args.platformId)
+        q.eq("adminId", identity._id).eq("platformId", args.platformId)
       )
       .first();
     if (!doc) throw new Error("Platform not connected");
@@ -613,12 +636,15 @@ async function getOrCreateAuthConfigId(apiKey: string, toolkit: string): Promise
 }
 
 export const startComposioOAuth = action({
-  args: { platform: v.string() },
+  args: {
+    platform: v.string(),
+    adminToken: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<{
     success: boolean; redirectUrl?: string; connectionId?: string; error?: string;
   }> => {
     try {
-      const identity = await ctx.auth.getUserIdentity();
+      const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
       if (!identity) return { success: false, error: "Not authenticated" };
 
       const config = PLATFORM_CONFIGS[args.platform];
@@ -641,7 +667,7 @@ export const startComposioOAuth = action({
         method: "POST",
         body: JSON.stringify({
           auth_config_id: authConfigId,
-          user_id: identity.subject,
+          user_id: identity._id,
           callback_url: redirectUri,
         }),
       });
@@ -664,12 +690,16 @@ export const startComposioOAuth = action({
 });
 
 export const handleComposioCallback = action({
-  args: { platform: v.string(), connectionId: v.string() },
+  args: {
+    platform: v.string(),
+    connectionId: v.string(),
+    adminToken: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<{
     success: boolean; platformName?: string; username?: string; error?: string;
   }> => {
     try {
-      const identity = await ctx.auth.getUserIdentity();
+      const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
       if (!identity) return { success: false, error: "Not authenticated" };
 
       const config = PLATFORM_CONFIGS[args.platform];
@@ -701,7 +731,7 @@ export const handleComposioCallback = action({
       const platformUserId: string = data?.id || data?.uuid || args.connectionId;
 
       await ctx.runMutation(internal.social.savePlatformConnection, {
-        adminId: identity.subject,
+        adminId: identity._id,
         platform: args.platform,
         platformName: config.name,
         accessToken,
@@ -735,12 +765,15 @@ export const getOAuthProviderStatus = query({
 // ACTION: Connect Telegram via bot token
 // ═══════════════════════════════════════════════════════════════════
 export const connectTelegramBot = action({
-  args: { botToken: v.string() },
+  args: {
+    botToken: v.string(),
+    adminToken: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<{
     success: boolean; username?: string; botId?: number; error?: string;
   }> => {
     try {
-      const identity = await ctx.auth.getUserIdentity();
+      const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
       if (!identity) return { success: false, error: "Not authenticated" };
 
       if (!args.botToken || !args.botToken.includes(":")) {
@@ -760,7 +793,7 @@ export const connectTelegramBot = action({
       const username = bot.username ? `@${bot.username}` : "Telegram Bot";
 
       await ctx.runMutation(internal.social.savePlatformConnection, {
-        adminId: identity.subject, platform: "telegram", platformName: "Telegram",
+        adminId: identity._id, platform: "telegram", platformName: "Telegram",
         accessToken: args.botToken, refreshToken: "", platformUserId: String(bot.id || ""),
         platformUsername: username, scopes: "", anonymousByDefault: false,
         integrationId: "telegram_bot",
@@ -777,12 +810,16 @@ export const connectTelegramBot = action({
 // ACTION: Connect Bluesky via AT Protocol
 // ═══════════════════════════════════════════════════════════════════
 export const connectBluesky = action({
-  args: { identifier: v.string(), appPassword: v.string() },
+  args: {
+    identifier: v.string(),
+    appPassword: v.string(),
+    adminToken: v.optional(v.string()),
+  },
   handler: async (ctx, args): Promise<{
     success: boolean; handle?: string; did?: string; error?: string;
   }> => {
     try {
-      const identity = await ctx.auth.getUserIdentity();
+      const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
       if (!identity) return { success: false, error: "Not authenticated" };
 
       if (!args.identifier || !args.appPassword) {
@@ -808,7 +845,7 @@ export const connectBluesky = action({
       const did = data.did || "";
 
       await ctx.runMutation(internal.social.savePlatformConnection, {
-        adminId: identity.subject, platform: "bluesky", platformName: "Bluesky",
+        adminId: identity._id, platform: "bluesky", platformName: "Bluesky",
         accessToken: data.accessJwt || "", refreshToken: data.refreshJwt || "",
         platformUserId: did, platformUsername: handle, scopes: "atproto",
         anonymousByDefault: true, integrationId: "atproto",
