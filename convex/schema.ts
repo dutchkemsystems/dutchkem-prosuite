@@ -1374,48 +1374,4 @@ export default defineSchema({
     lastError: v.optional(v.string()),
   })
     .index("by_toolkit", ["toolkit"]),
-
-  // Ayrshare posts cache — one row per Ayrshare post created via our
-  // ayrshare.ts integration. Used for history, analytics, and delete
-  // operations without re-hitting the Ayrshare API.
-  ayrshare_posts: defineTable({
-    adminId: v.string(),                 // our internal admin user _id
-    aysPostId: v.string(),               // Ayrshare's post id (string)
-    content: v.string(),
-    platforms: v.array(v.string()),      // our internal platform IDs
-    aysPlatforms: v.array(v.string()),   // Ayrshare's platform names
-    mediaUrls: v.array(v.string()),
-    scheduled: v.boolean(),
-    scheduledFor: v.optional(v.number()),
-    platformResults: v.array(v.object({
-      platform: v.string(),
-      status: v.string(),
-      postUrl: v.optional(v.string()),
-      error: v.optional(v.string()),
-    })),
-    status: v.string(),                  // "published" | "scheduled" | "deleted" | "error"
-    createdAt: v.number(),
-    updatedAt: v.number(),
-    deletedAt: v.optional(v.number()),
-  })
-    .index("by_admin", ["adminId"])
-    .index("by_ays_id", ["aysPostId"])
-    .index("by_scheduled", ["scheduled", "scheduledFor"]),
-
-  // Ayrshare account cache — single row (id="singleton"). Populated by
-  // refreshAyrshareAccount action; read by getAyrshareAccount query.
-  // This avoids the [CONVEX Q(ayrshare:getAyrshareAccount)] Server Error
-  // that occurs when a useQuery subscribes to an action (Convex queries
-  // cannot call actions, and actions cannot be subscribed to reactively).
-  ayrshare_account: defineTable({
-    email: v.optional(v.string()),
-    title: v.optional(v.string()),
-    monthlyPostQuota: v.optional(v.number()),
-    monthlyPostCount: v.optional(v.number()),
-    monthlyApiCalls: v.optional(v.number()),
-    refId: v.optional(v.string()),
-    lastError: v.optional(v.string()),
-    ok: v.boolean(),                     // last fetch succeeded
-    refreshedAt: v.number(),
-  }),
 });
