@@ -213,47 +213,56 @@ export const runSelfHealing = internalAction({
   handler: async (ctx) => {
     const issues: string[] = [];
     const fixes: string[] = [];
+    const timestamp = Date.now();
 
-    // Check for stuck social posts
     try {
-      const stuckPosts = await ctx.runQuery(internal.cloud_memory.getStuckPosts);
-      if (stuckPosts.length > 0) {
-        await ctx.runMutation(internal.cloud_memory.fixStuckPosts, { postIds: stuckPosts.map((p: any) => p._id) });
-        fixes.push(`Fixed ${stuckPosts.length} stuck social posts`);
+      // Check for stuck social posts
+      try {
+        const stuckPosts = await ctx.runQuery(internal.cloud_memory.getStuckPosts);
+        if (stuckPosts.length > 0) {
+          await ctx.runMutation(internal.cloud_memory.fixStuckPosts, { postIds: stuckPosts.map((p: any) => p._id) });
+          fixes.push(`Fixed ${stuckPosts.length} stuck social posts`);
+        }
+      } catch (e: any) {
+        issues.push(`Social post check failed: ${e.message}`);
+      }
+
+      // Check for expired sessions
+      try {
+        const expiredSessions = await ctx.runQuery(internal.cloud_memory.getExpiredSessions);
+        if (expiredSessions.length > 0) {
+          await ctx.runMutation(internal.cloud_memory.cleanupExpiredSessions, { sessionIds: expiredSessions.map((s: any) => s._id) });
+          fixes.push(`Cleaned up ${expiredSessions.length} expired sessions`);
+        }
+      } catch (e: any) {
+        issues.push(`Session cleanup failed: ${e.message}`);
+      }
+
+      // Check wallet balances
+      try {
+        const walletCheck = await ctx.runQuery(internal.cloud_memory.checkWalletBalances);
+        if (walletCheck.hasIssue) {
+          issues.push(`Wallet balance issue: ${walletCheck.message}`);
+        }
+      } catch (e: any) {
+        issues.push(`Wallet check failed: ${e.message}`);
       }
     } catch (e: any) {
-      issues.push(`Social post check failed: ${e.message}`);
+      issues.push(`Unexpected error during healing checks: ${e.message}`);
     }
 
-    // Check for expired sessions
+    // Log the healing attempt (wrapped in try/catch — must never crash the action)
     try {
-      const expiredSessions = await ctx.runQuery(internal.cloud_memory.getExpiredSessions);
-      if (expiredSessions.length > 0) {
-        await ctx.runMutation(internal.cloud_memory.cleanupExpiredSessions, { sessionIds: expiredSessions.map((s: any) => s._id) });
-        fixes.push(`Cleaned up ${expiredSessions.length} expired sessions`);
-      }
+      await ctx.runMutation(internal.cloud_memory.logHealingAttempt, {
+        issues,
+        fixes,
+        timestamp,
+      });
     } catch (e: any) {
-      issues.push(`Session cleanup failed: ${e.message}`);
+      issues.push(`Failed to log healing attempt: ${e.message}`);
     }
 
-    // Check wallet balances
-    try {
-      const walletCheck = await ctx.runQuery(internal.cloud_memory.checkWalletBalances);
-      if (walletCheck.hasIssue) {
-        issues.push(`Wallet balance issue: ${walletCheck.message}`);
-      }
-    } catch (e: any) {
-      issues.push(`Wallet check failed: ${e.message}`);
-    }
-
-    // Log the healing attempt
-    await ctx.runMutation(internal.cloud_memory.logHealingAttempt, {
-      issues,
-      fixes,
-      timestamp: Date.now(),
-    });
-
-    return { issues, fixes, healed: fixes.length > 0, timestamp: Date.now() };
+    return { issues, fixes, healed: fixes.length > 0, timestamp };
   },
 });
 
@@ -577,7 +586,16 @@ export const runSelfHealingAction = action({
     if (!identity) {
       throw new Error("Not authenticated as admin");
     }
-    return await ctx.runAction(internal.cloud_memory.runSelfHealing, {});
+    try {
+      return await ctx.runAction(internal.cloud_memory.runSelfHealing, {});
+    } catch (e: any) {
+      return {
+        issues: [`Self-healing action failed: ${e.message}`],
+        fixes: [],
+        healed: false,
+        timestamp: Date.now(),
+      };
+    }
   },
 });
 
@@ -596,7 +614,14 @@ export const autoBackupAction = action({
     if (!identity) {
       throw new Error("Not authenticated as admin");
     }
-    return await ctx.runAction(internal.cloud_memory.autoBackupSystem, {});
+    try {
+      return await ctx.runAction(internal.cloud_memory.autoBackupSystem, {});
+    } catch (e: any) {
+      return {
+        timestamp: Date.now(),
+        results: [`Backup failed: ${e.message}`],
+      };
+    }
   },
 });
 
@@ -614,9 +639,13 @@ export const sendHealingReportAction = action({
     if (!identity) {
       throw new Error("Not authenticated as admin");
     }
-    await ctx.runAction(internal.cloud_memory.sendHealingReport, {
-      report: args.report,
-    });
+    try {
+      await ctx.runAction(internal.cloud_memory.sendHealingReport, {
+        report: args.report,
+      });
+    } catch (e: any) {
+      console.error("sendHealingReportAction failed:", e.message);
+    }
     return null;
   },
 });
