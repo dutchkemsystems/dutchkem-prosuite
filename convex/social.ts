@@ -1027,11 +1027,23 @@ async function postToPlatformApi(
 // CRYPTO HELPERS
 // FIX: generateCodeVerifier now works directly with raw bytes (Uint8Array)
 // instead of converting to a binary string first — avoids UTF-8 double-encoding
+// PLUS: replaced crypto.getRandomValues with safeRandomBytes because
+//       `crypto` is NOT defined in the Convex action runtime.
 // ═══════════════════════════════════════════════════════════════════
 
+// Safe random bytes — Convex action runtime has no `crypto` global
+function safeRandomBytes(n: number): Uint8Array {
+  const bytes = new Uint8Array(n);
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < n; i++) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  return bytes;
+}
+
 function uuidV4(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
+  const bytes = safeRandomBytes(16);
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
   const hex: string[] = [];
@@ -1061,8 +1073,7 @@ function base64UrlFromBytes(bytes: Uint8Array): string {
 
 // FIX: Generates verifier directly from raw bytes — no binary string intermediary
 function generateCodeVerifier(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
+  const bytes = safeRandomBytes(32);
   return base64UrlFromBytes(bytes);
 }
 
