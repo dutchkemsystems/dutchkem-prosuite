@@ -4,19 +4,7 @@
 import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { requireAdminSession, tryGetAdminSession, validateAdminSession } from "./auth_helpers";
-
-/**
- * Helper for ACTIONS (no ctx.db) to validate an admin session.
- * Uses ctx.runQuery to invoke the validateAdminSession query.
- * Returns identity or null.
- */
-async function tryGetAdminSessionInAction(
-  ctx: { runQuery: (fn: any, args: any) => Promise<any> },
-  adminToken: string | null | undefined,
-) {
-  return await ctx.runQuery(internal.auth_helpers.validateAdminSession, { adminToken });
-}
+import { requireAdminSession, tryGetAdminSession, tryGetAdminSessionInAction, validateAdminSession } from "./auth_helpers";
 
 // ═══════════════════════════════════════════════════════════════════
 // PLATFORM CONFIGURATIONS

@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
 import { hashPassword, verifyPassword } from "./encryption";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -98,6 +99,18 @@ export async function requireAdminSession(
   const identity = await validateAdminSessionCore(ctx, adminToken);
   if (!identity) throw new Error("Not authenticated");
   return identity;
+}
+
+/**
+ * For ACTIONS (which have no direct ctx.db access).
+ * Uses ctx.runQuery to invoke the validateAdminSession query.
+ * Returns identity or null.
+ */
+export async function tryGetAdminSessionInAction(
+  ctx: { runQuery: (fn: any, args: any) => Promise<any> },
+  adminToken: string | null | undefined,
+): Promise<AdminIdentity | null> {
+  return await ctx.runQuery(internal.auth_helpers.validateAdminSession, { adminToken });
 }
 
 // ─── Rate Limiting / Failed Logins ───
