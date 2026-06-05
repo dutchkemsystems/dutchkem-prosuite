@@ -294,6 +294,45 @@ export const getPerformanceSummary = query({
   },
 });
 
+// ─── QUICK ACTION TRIGGER ───
+// Records that the client triggered an action; agents will execute it
+
+export const triggerQuickAction = mutation({
+  args: { actionId: v.string() },
+  returns: v.object({ message: v.string(), actionId: v.string() }),
+  handler: async (ctx, { actionId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const predefinedActions = [
+      "generate_content", "research", "business_plan", "resume",
+      "exam_prep", "finance", "video", "wellness", "home_services", "translation",
+    ];
+    if (!predefinedActions.includes(actionId)) {
+      throw new Error("Invalid action");
+    }
+
+    const agentIdMap: Record<string, string> = {
+      generate_content: "A3", research: "A1", business_plan: "A2",
+      resume: "A4", exam_prep: "A6", finance: "A7",
+      video: "A8", wellness: "A9", home_services: "A10", translation: "A14",
+    };
+
+    await ctx.db.insert("composio_action_logs", {
+      clientId: userId,
+      platform: "system",
+      action: "quick_action",
+      agentId: agentIdMap[actionId],
+      status: "queued",
+      content: `Client triggered: ${actionId}`,
+      timestamp: Date.now(),
+      durationMs: 0,
+    });
+
+    return { message: `Action queued: ${actionId}`, actionId };
+  },
+});
+
 // ─── HELPERS ───
 
 function getPlatformIcon(platform: string): string {
