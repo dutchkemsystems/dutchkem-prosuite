@@ -1,6 +1,5 @@
-import { query, mutation, action, internalMutation, internalQuery } from "./_generated/server";
+﻿import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
 
 /**
  * SECURE SWEEPS - Daily Auto Sweep with Auto/Manual/Pause Controls
@@ -162,8 +161,9 @@ export const verifyPasskey = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
+    const passkeyId = args.passkeyId;
     const record = await ctx.db.query("system_config")
-      .withIndex("by_key", q => q.eq("key", args.passkeyId))
+      .withIndex("by_key", q => q.eq("key", passkeyId))
       .first();
 
     if (!record) return { success: false, error: "Passkey not found" };
@@ -199,9 +199,9 @@ export const performSweep = mutation({
   handler: async (ctx, args) => {
     try {
       // Verify passkey for manual sweeps
-      if (args.type === "manual" && args.passkeyId && args.passkey) {
+      if (args.type === "manual" && args.passkeyId && args.passkey) { const passkeyId = args.passkeyId;
         const passkeyRecord = await ctx.db.query("system_config")
-          .withIndex("by_key", q => q.eq("key", args.passkeyId))
+          .withIndex("by_key", q => q.eq("key", passkeyId))
           .first();
 
         if (!passkeyRecord) return { success: false, error: "Passkey not found" };
@@ -352,7 +352,7 @@ export const performSweep = mutation({
           reference: sweepId,
           koraReference: result.data?.reference || reference,
           receipt,
-          message: `₦${sweepAmount.toLocaleString()} transferred successfully`,
+          message: `â‚¦${sweepAmount.toLocaleString()} transferred successfully`,
         };
       } catch (apiError: any) {
         // Log failed attempt

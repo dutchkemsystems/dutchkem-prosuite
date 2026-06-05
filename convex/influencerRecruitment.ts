@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation, action, internalMutation } from "./_generated/server";
+import { query, mutation } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // INFLUENCER RECRUITMENT — Find, track, and manage influencer campaigns
@@ -100,17 +100,22 @@ export const getInfluencers = query({
     status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let query = ctx.db.query("influencers");
+    const tier = args.tier;
+    const platform = args.platform;
+    const status = args.status;
 
-    if (args.tier) {
-      query = query.withIndex("by_tier", (q) => q.eq("tier", args.tier!));
-    } else if (args.platform) {
-      query = query.withIndex("by_platform", (q) => q.eq("platform", args.platform!));
-    } else if (args.status) {
-      query = query.withIndex("by_status", (q) => q.eq("status", args.status!));
+    let q;
+    if (tier) {
+      q = ctx.db.query("influencers").withIndex("by_tier", (qi) => qi.eq("tier", tier));
+    } else if (platform) {
+      q = ctx.db.query("influencers").withIndex("by_platform", (qi) => qi.eq("platform", platform));
+    } else if (status) {
+      q = ctx.db.query("influencers").withIndex("by_status", (qi) => qi.eq("status", status as any));
+    } else {
+      q = ctx.db.query("influencers");
     }
 
-    return await query.order("desc").collect();
+    return await q.order("desc").collect();
   },
 });
 
@@ -187,22 +192,26 @@ export const getCampaigns = query({
     influencerId: v.optional(v.id("influencers")),
   },
   handler: async (ctx, args) => {
-    let query = ctx.db.query("influencer_campaigns");
+    const influencerId = args.influencerId;
+    const status = args.status;
 
-    if (args.influencerId) {
-      query = query.withIndex("by_influencer", (q) =>
-        q.eq("influencerId", args.influencerId!)
+    let q;
+    if (influencerId) {
+      q = ctx.db.query("influencer_campaigns").withIndex("by_influencer", (qi) =>
+        qi.eq("influencerId", influencerId)
       );
-    } else if (args.status) {
-      query = query.withIndex("by_status", (q) => q.eq("status", args.status!));
+    } else if (status) {
+      q = ctx.db.query("influencer_campaigns").withIndex("by_status", (qi) => qi.eq("status", status as any));
+    } else {
+      q = ctx.db.query("influencer_campaigns");
     }
 
-    const campaigns = await query.order("desc").collect();
+    const campaigns = await q.order("desc").collect();
 
     // Enrich with influencer data
     return Promise.all(
-      campaigns.map(async (campaign) => {
-        const influencer = await ctx.db.get(campaign.influencerId);
+      campaigns.map(async (campaign: any) => {
+        const influencer: any = await ctx.db.get(campaign.influencerId);
         return {
           ...campaign,
           influencerName: influencer?.name || "Unknown",

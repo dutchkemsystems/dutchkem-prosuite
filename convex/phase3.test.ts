@@ -99,9 +99,9 @@ describe("Gamification", () => {
     });
 
     it("resets streak when gap > 1 day", () => {
-      const lastActive = "2026-06-01";
-      const today = "2026-06-03"; // 2 days gap
-      const yesterday = "2026-06-02";
+      const lastActive: string = "2026-06-01";
+      const today: string = "2026-06-03"; // 2 days gap
+      const yesterday: string = "2026-06-02";
 
       const isConsecutive = lastActive === yesterday || lastActive === today;
       expect(isConsecutive).toBe(false);

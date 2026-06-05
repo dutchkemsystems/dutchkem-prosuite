@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation, internalMutation } from "./_generated/server";
+import { query, internalMutation } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // CLIENT ANALYTICS DASHBOARD — User behavior insights & metrics
@@ -149,7 +149,7 @@ export const getAdminAnalytics = query({
     if (!identity) return null;
 
     // Check admin role
-    const user = await ctx.db.get(identity.subject as any);
+    const user = await ctx.db.get(identity.subject as any) as any;
     if (!user || user.role !== "admin") return null;
 
     const events = await ctx.db.query("analytics_events").collect();
@@ -231,9 +231,10 @@ export const getFunnelAnalysis = query({
       { name: "Retention", event: "return_visit" },
     ];
 
-    const funnel = funnelSteps.map((step) => ({
+    const funnel: Array<{ name: string; event: string; count: number; conversionRate: number }> = funnelSteps.map((step) => ({
       ...step,
       count: events.filter((e) => e.event === step.event).length,
+      conversionRate: 0,
     }));
 
     // Calculate conversion rates

@@ -1,7 +1,6 @@
-import { query, mutation, action } from "./_generated/server";
+import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
-import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
+import { tryGetAdminSession } from "./auth_helpers";
 
 // ═══════════════════════════════════════════════════════════════════
 // COMPOSIO ADMIN HUB — Full control panel for admin dashboard

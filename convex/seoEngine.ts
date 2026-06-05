@@ -1,12 +1,12 @@
-import { v } from "convex/values";
-import { query, mutation, action, internalMutation, internalQuery } from "./_generated/server";
+﻿import { v } from "convex/values";
+import { query, mutation, action, internalMutation } from "./_generated/server";
 
-// ═══════════════════════════════════════════════════════════════════
-// SEO & CONTENT MARKETING ENGINE — AI-powered optimization
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// SEO & CONTENT MARKETING ENGINE â€” AI-powered optimization
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 // SEO Analysis Result
-interface SEOAnalysis {
+interface _SEOAnalysis {
   score: number;
   issues: SEOIssue[];
   suggestions: SEOSuggestion[];
@@ -282,7 +282,7 @@ export const getContentCalendar = query({
   },
   handler: async (ctx, args) => {
     const start = args.startDate || Date.now();
-    const end = args.end || start + 30 * 24 * 60 * 60 * 1000; // 30 days
+    const end = args.endDate || start + 30 * 24 * 60 * 60 * 1000; // 30 days
 
     return await ctx.db
       .query("content_calendar")

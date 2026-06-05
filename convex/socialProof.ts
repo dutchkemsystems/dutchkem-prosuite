@@ -77,15 +77,11 @@ export const getActivityStats = query({
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const monthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
-    const recent = await ctx.db
-      .query("social_activities")
-      .withIndex("by_created", (q) =>
-        args.agentName
-          ? q.eq("agentName", args.agentName)
-          : q,
-      )
-      .order("desc")
-      .take(100);
+    let query = ctx.db.query("social_activities").withIndex("by_created");
+    if (args.agentName) {
+      query = query.filter((q) => q.eq(q.field("agentName"), args.agentName!));
+    }
+    const recent = await query.order("desc").take(100);
 
     const thisWeek = recent.filter((a) => a.createdAt > weekAgo);
     const thisMonth = recent.filter((a) => a.createdAt > monthAgo);
@@ -119,7 +115,7 @@ export const recordViewer = mutation({
     const existing = await ctx.db
       .query("active_viewers")
       .withIndex("by_agent", (q) =>
-        q.eq("agentId", args.agentId).eq("sessionId", args.sessionId),
+        q.eq("agentId", args.agentId).eq("lastSeen", args.sessionId as any),
       )
       .first();
 

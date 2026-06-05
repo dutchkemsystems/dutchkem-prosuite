@@ -89,7 +89,7 @@ describe("Client Analytics", () => {
 
   describe("Funnel Analysis", () => {
     it("calculates funnel conversion rates", () => {
-      const funnel = [
+      const funnel: Array<{ name: string; count: number; conversionRate?: number }> = [
         { name: "Visit", count: 1000 },
         { name: "Sign Up", count: 200 },
         { name: "First Action", count: 150 },
@@ -322,14 +322,14 @@ describe("Phase 5 Integration", () => {
   });
 
   it("analytics tracks chatbot interactions", () => {
-    const events = [
+    const events: Array<{ event: string; page?: string; properties?: any }> = [
       { event: "chatbot_open", page: "/pricing" },
       { event: "chatbot_message", properties: { state: "routing" } },
       { event: "chatbot_lead_captured", properties: { score: 75 } },
     ];
 
     expect(events.length).toBe(3);
-    expect(events[2].properties.score).toBe(75);
+    expect(events[2].properties?.score).toBe(75);
   });
 
   it("testimonial verification boosts credibility", () => {

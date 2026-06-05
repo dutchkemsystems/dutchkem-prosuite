@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
@@ -50,7 +50,7 @@ export function FlashSaleBanner() {
 
   return (
     <div className="space-y-3">
-      {flashSales.map((sale) => {
+      {flashSales.map((sale: any) => {
         const countdown = countdowns[sale._id];
         if (!countdown) return null;
 

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation, action, internalMutation, internalQuery } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // FLASH SALES & URGENCY TRIGGERS — Time-limited offers, promo codes

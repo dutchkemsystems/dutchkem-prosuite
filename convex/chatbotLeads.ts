@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation, internalMutation } from "./_generated/server";
+import { query, mutation } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // CHATBOT LEAD CAPTURE — Automated lead qualification & routing
@@ -103,17 +103,19 @@ export const sendMessage = mutation({
     // If conversation is closing, create lead
     if (botResponse.nextState === "closing" && conversation.leadData) {
       await ctx.db.insert("leads", {
-        visitorId: conversation.visitorId,
         name: conversation.leadData.name || "Unknown",
         email: conversation.leadData.email || "",
         phone: conversation.leadData.phone,
         source: "chatbot",
-        page: conversation.page,
-        referrer: conversation.referrer,
-        qualification: conversation.leadData,
+        metadata: {
+          visitorId: conversation.visitorId,
+          page: conversation.page,
+          referrer: conversation.referrer,
+          qualification: conversation.leadData,
+          score: calculateLeadScore(conversation.leadData),
+        },
         status: "new",
-        score: calculateLeadScore(conversation.leadData),
-        createdAt: Date.now(),
+        receivedAt: Date.now(),
       });
     }
 
@@ -301,13 +303,17 @@ export const getConversations = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    let query = ctx.db.query("chatbot_conversations");
-
-    if (args.status) {
-      query = query.withIndex("by_status", (q) => q.eq("status", args.status!));
+    const status = args.status as "active" | "ended" | undefined;
+    if (status) {
+      return await ctx.db.query("chatbot_conversations")
+        .withIndex("by_status", (q) => q.eq("status", status))
+        .order("desc")
+        .take(args.limit || 20);
     }
 
-    return await query.order("desc").take(args.limit || 20);
+    return await ctx.db.query("chatbot_conversations")
+      .order("desc")
+      .take(args.limit || 20);
   },
 });
 
@@ -365,7 +371,7 @@ export const getStateOptions = query({
   args: { state: v.string() },
   handler: async (_, args) => {
     const stateConfig =
-      CONVERSATION_STATES[args.state as keyof typeof CONVERSATION_STATES];
-    return stateConfig?.options || [];
+      CONVERSATION_STATES[args.state as keyof typeof CONVERSATION_STATES] as { message: string; options?: string[]; fields?: string[] } | undefined;
+    return (stateConfig as any)?.options || [];
   },
 });

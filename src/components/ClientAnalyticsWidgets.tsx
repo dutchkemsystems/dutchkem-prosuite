@@ -1,11 +1,11 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useQuery } from "convex/react";
 
 import { api } from "../../convex/_generated/api";
 
-// ═══════════════════════════════════════════════════════════════════
-// CLIENT ANALYTICS DASHBOARD — User behavior insights
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// CLIENT ANALYTICS DASHBOARD â€” User behavior insights
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function ClientAnalyticsDashboard() {
   const [period, setPeriod] = useState<"7d" | "30d" | "90d">("7d");
@@ -52,7 +52,7 @@ export function ClientAnalyticsDashboard() {
           <div className="text-2xl font-black text-white">
             {analytics.dailyActivity.length > 0
               ? Math.round(
-                  analytics.dailyActivity.reduce((s, d) => s + d.count, 0) /
+                  analytics.dailyActivity.reduce((s: number, d: any) => s + d.count, 0) /
                     analytics.dailyActivity.length
                 )
               : 0}
@@ -63,10 +63,10 @@ export function ClientAnalyticsDashboard() {
 
       {/* Daily Activity Chart */}
       <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-        <h4 className="mb-3 text-sm font-black text-white">📈 Daily Activity</h4>
+        <h4 className="mb-3 text-sm font-black text-white">ðŸ“ˆ Daily Activity</h4>
         <div className="flex items-end gap-1 h-32">
-          {analytics.dailyActivity.map((day, i) => {
-            const maxCount = Math.max(...analytics.dailyActivity.map((d) => d.count));
+          {analytics.dailyActivity.map((day: any, i: number) => {
+            const maxCount = Math.max(...analytics.dailyActivity.map((d: any) => d.count));
             const height = maxCount > 0 ? (day.count / maxCount) * 100 : 0;
             return (
               <div key={i} className="flex-1 flex flex-col items-center gap-1">
@@ -87,9 +87,9 @@ export function ClientAnalyticsDashboard() {
       {/* Top Pages */}
       {analytics.pageViews.length > 0 && (
         <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-          <h4 className="mb-3 text-sm font-black text-white">📄 Top Pages</h4>
+          <h4 className="mb-3 text-sm font-black text-white">ðŸ“„ Top Pages</h4>
           <div className="space-y-2">
-            {analytics.pageViews.map((item, i) => (
+            {analytics.pageViews.map((item: any, i: number) => (
               <div key={i} className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-3">
                 <div className="text-xs text-slate-400 truncate max-w-[200px]">{item.page}</div>
                 <div className="text-xs font-bold text-white">{item.count}</div>
@@ -102,9 +102,9 @@ export function ClientAnalyticsDashboard() {
       {/* Device & Browser Breakdown */}
       <div className="grid grid-cols-2 gap-4">
         <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-          <h4 className="mb-3 text-sm font-black text-white">📱 Devices</h4>
+          <h4 className="mb-3 text-sm font-black text-white">ðŸ“± Devices</h4>
           <div className="space-y-2">
-            {analytics.devices.map((item, i) => (
+            {analytics.devices.map((item: any, i: number) => (
               <div key={i} className="flex items-center justify-between text-xs">
                 <span className="text-slate-400 capitalize">{item.device}</span>
                 <div className="flex items-center gap-2">
@@ -122,9 +122,9 @@ export function ClientAnalyticsDashboard() {
         </div>
 
         <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-          <h4 className="mb-3 text-sm font-black text-white">🌐 Browsers</h4>
+          <h4 className="mb-3 text-sm font-black text-white">ðŸŒ Browsers</h4>
           <div className="space-y-2">
-            {analytics.browsers.map((item, i) => (
+            {analytics.browsers.map((item: any, i: number) => (
               <div key={i} className="flex items-center justify-between text-xs">
                 <span className="text-slate-400">{item.browser}</span>
                 <div className="flex items-center gap-2">

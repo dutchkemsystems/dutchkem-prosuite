@@ -1,11 +1,11 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useQuery } from "convex/react";
 
 import { api } from "../../convex/_generated/api";
 
-// ═══════════════════════════════════════════════════════════════════
-// INFLUENCER DASHBOARD — Campaign management & analytics
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// INFLUENCER DASHBOARD â€” Campaign management & analytics
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function InfluencerDashboard() {
   const stats = useQuery(api.influencerRecruitment.getCampaignStats, {});
@@ -32,7 +32,7 @@ export function InfluencerDashboard() {
         </div>
         <div className="rounded-2xl border border-white/5 bg-white/5 p-4 text-center">
           <div className="text-2xl font-black text-white">
-            ₦{(stats.totalSpend / 1000).toFixed(0)}k
+            â‚¦{(stats.totalSpend / 1000).toFixed(0)}k
           </div>
           <div className="text-[10px] text-slate-400">Total Spend</div>
         </div>
@@ -44,7 +44,7 @@ export function InfluencerDashboard() {
 
       {/* Influencers by Tier */}
       <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-        <h4 className="mb-3 text-sm font-black text-white">👥 Influencers by Tier</h4>
+        <h4 className="mb-3 text-sm font-black text-white">ðŸ‘¥ Influencers by Tier</h4>
         <div className="grid grid-cols-5 gap-2">
           {Object.entries(stats.byTier).map(([tier, count]) => (
             <div
@@ -60,9 +60,9 @@ export function InfluencerDashboard() {
 
       {/* Recent Campaigns */}
       <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-        <h4 className="mb-3 text-sm font-black text-white">📋 Recent Campaigns</h4>
+        <h4 className="mb-3 text-sm font-black text-white">ðŸ“‹ Recent Campaigns</h4>
         <div className="space-y-2">
-          {campaigns.slice(0, 5).map((campaign) => (
+          {campaigns.slice(0, 5).map((campaign: any) => (
             <div
               key={campaign._id}
               className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-3"
@@ -70,12 +70,12 @@ export function InfluencerDashboard() {
               <div>
                 <div className="text-xs font-bold text-white">{campaign.name}</div>
                 <div className="text-[10px] text-slate-400">
-                  {campaign.influencerName} · {campaign.campaignType}
+                  {campaign.influencerName} Â· {campaign.campaignType}
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <div className="text-xs font-bold text-white">
-                  ₦{campaign.budget.toLocaleString()}
+                  â‚¦{campaign.budget.toLocaleString()}
                 </div>
                 <div
                   className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
@@ -97,9 +97,9 @@ export function InfluencerDashboard() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// INFLUENCER LIST — Browse and filter influencers
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// INFLUENCER LIST â€” Browse and filter influencers
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function InfluencerList() {
   const [filter, setFilter] = useState({ tier: "", platform: "" });
@@ -150,7 +150,7 @@ export function InfluencerList() {
 
       {/* Influencer Grid */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-        {influencers.map((inf) => (
+        {influencers.map((inf: any) => (
           <div
             key={inf._id}
             className="rounded-2xl border border-white/5 bg-white/5 p-4"
@@ -208,9 +208,9 @@ export function InfluencerList() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// CAMPAIGN LIST — Active campaigns view
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// CAMPAIGN LIST â€” Active campaigns view
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function CampaignList() {
   const campaigns = useQuery(api.influencerRecruitment.getCampaigns, {});
@@ -218,7 +218,7 @@ export function CampaignList() {
   if (!campaigns || campaigns.length === 0) {
     return (
       <div className="rounded-2xl border border-white/5 bg-white/5 p-6 text-center">
-        <div className="text-3xl">📊</div>
+        <div className="text-3xl">ðŸ“Š</div>
         <div className="mt-2 text-sm font-bold text-white">No Campaigns Yet</div>
         <div className="mt-1 text-[10px] text-slate-400">
           Create your first influencer campaign
@@ -229,7 +229,7 @@ export function CampaignList() {
 
   return (
     <div className="space-y-3">
-      {campaigns.map((campaign) => (
+      {campaigns.map((campaign: any) => (
         <div
           key={campaign._id}
           className="rounded-2xl border border-white/5 bg-white/5 p-4"
@@ -238,7 +238,7 @@ export function CampaignList() {
             <div>
               <div className="text-sm font-bold text-white">{campaign.name}</div>
               <div className="text-[10px] text-slate-400">
-                {campaign.influencerName} · {campaign.campaignType}
+                {campaign.influencerName} Â· {campaign.campaignType}
               </div>
             </div>
             <div
@@ -257,7 +257,7 @@ export function CampaignList() {
           <div className="mt-3 grid grid-cols-4 gap-2">
             <div className="text-center">
               <div className="text-xs font-bold text-white">
-                ₦{campaign.spend.toLocaleString()}
+                â‚¦{campaign.spend.toLocaleString()}
               </div>
               <div className="text-[9px] text-slate-500">Spend</div>
             </div>
@@ -287,8 +287,8 @@ export function CampaignList() {
             />
           </div>
           <div className="mt-1 flex justify-between text-[9px] text-slate-500">
-            <span>₦{campaign.spend.toLocaleString()} spent</span>
-            <span>₦{campaign.budget.toLocaleString()} budget</span>
+            <span>â‚¦{campaign.spend.toLocaleString()} spent</span>
+            <span>â‚¦{campaign.budget.toLocaleString()} budget</span>
           </div>
         </div>
       ))}

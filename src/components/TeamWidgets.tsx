@@ -1,11 +1,11 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 
 import { api } from "../../convex/_generated/api";
 
-// ═══════════════════════════════════════════════════════════════════
-// TEAM ACCOUNTS UI — Team management dashboard
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// TEAM ACCOUNTS UI â€” Team management dashboard
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function TeamDashboard() {
   const teams = useQuery(api.teamAccounts.getUserTeams, {});
@@ -16,7 +16,7 @@ export function TeamDashboard() {
   if (teams.length === 0) {
     return (
       <div className="rounded-2xl border border-white/5 bg-white/5 p-6 text-center">
-        <div className="text-3xl">👥</div>
+        <div className="text-3xl">ðŸ‘¥</div>
         <div className="mt-2 text-sm font-bold text-white">No Teams Yet</div>
         <div className="mt-1 text-[10px] text-slate-400">
           Create a team to collaborate with your colleagues
@@ -32,7 +32,7 @@ export function TeamDashboard() {
     <div className="space-y-4">
       {/* Team List */}
       <div className="space-y-2">
-        {teams.map((team) => (
+        {teams.map((team: any) => (
           <div
             key={team._id}
             onClick={() => setSelectedTeam(team._id)}
@@ -46,7 +46,7 @@ export function TeamDashboard() {
               <div>
                 <div className="text-sm font-bold text-white">{team.name}</div>
                 <div className="text-[10px] text-slate-400">
-                  {team.plan} plan · {team.currentMembers}/{team.maxMembers} members
+                  {team.plan} plan Â· {team.currentMembers}/{team.maxMembers} members
                 </div>
               </div>
               <div className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[9px] font-bold text-indigo-400">
@@ -60,9 +60,9 @@ export function TeamDashboard() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TEAM MEMBERS LIST
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 interface TeamMembersProps {
   teamId: string;
@@ -89,12 +89,12 @@ export function TeamMembers({ teamId }: TeamMembersProps) {
           <div>
             <div className="text-sm font-black text-white">{teamDetails.name}</div>
             <div className="text-[10px] text-slate-400">
-              {teamDetails.planDetails.name} · {teamDetails.currentMembers}/{teamDetails.maxMembers} members
+              {teamDetails.planDetails.name} Â· {teamDetails.currentMembers}/{teamDetails.maxMembers} members
             </div>
           </div>
           <div className="text-right">
             <div className="text-lg font-black text-white">
-              {teamDetails.planDetails.price.toLocaleString()} ₦
+              {teamDetails.planDetails.price.toLocaleString()} â‚¦
             </div>
             <div className="text-[9px] text-slate-500">/month</div>
           </div>
@@ -142,7 +142,7 @@ export function TeamMembers({ teamId }: TeamMembersProps) {
         <div className="space-y-1">
           {teamDetails.planDetails.features.map((feature: string, i: number) => (
             <div key={i} className="flex items-center gap-2 text-[10px] text-slate-400">
-              <span className="text-green-400">✓</span>
+              <span className="text-green-400">âœ“</span>
               {feature}
             </div>
           ))}
@@ -152,9 +152,9 @@ export function TeamMembers({ teamId }: TeamMembersProps) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TEAM PLANS COMPARISON
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function TeamPlans() {
   const plans = useQuery(api.teamAccounts.getTeamPlans, {});
@@ -163,7 +163,7 @@ export function TeamPlans() {
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-      {plans.map((plan) => (
+      {plans.map((plan: any) => (
         <div
           key={plan.id}
           className={`rounded-2xl border p-4 ${
@@ -179,7 +179,7 @@ export function TeamPlans() {
           )}
           <div className="text-sm font-black text-white">{plan.name}</div>
           <div className="mt-1 text-2xl font-black text-white">
-            ₦{plan.price.toLocaleString()}
+            â‚¦{plan.price.toLocaleString()}
             <span className="text-xs text-slate-400">/mo</span>
           </div>
           <div className="mt-2 text-[10px] text-slate-400">
@@ -188,7 +188,7 @@ export function TeamPlans() {
           <div className="mt-4 space-y-2">
             {plan.features.map((feature: string, i: number) => (
               <div key={i} className="flex items-center gap-2 text-[10px] text-slate-400">
-                <span className="text-green-400">✓</span>
+                <span className="text-green-400">âœ“</span>
                 {feature}
               </div>
             ))}

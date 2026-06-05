@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, action, internalMutation, internalQuery } from "./_generated/server";
+import { query, internalMutation } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // AI CROSS-SELL ENGINE — Smart service recommendations
@@ -108,7 +108,7 @@ export const getRecommendations = query({
 
     const platforms = await ctx.db
       .query("platform_connections")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_admin", (q) => q.eq("adminId", userId))
       .collect();
 
     const projects = await ctx.db
@@ -126,7 +126,7 @@ export const getRecommendations = query({
       planHistory: subscriptions.map((s) => s.service || "standard"),
       connectedPlatforms: platforms.length,
       marketplaceJobs: projects.length,
-      booksPublished: projects.filter((p) => p.type === "kdp").length,
+      booksPublished: projects.filter((p) => p.format === "kdp").length,
       totalSpent: purchases
         .filter((p) => p.status === "completed")
         .reduce((sum, p) => sum + p.amount, 0),
@@ -177,7 +177,7 @@ export const getCrossSells = query({
       .map((cs) => ({
         id: cs,
         ...(SERVICE_CATALOG[cs as keyof typeof SERVICE_CATALOG] || {}),
-        isPurchased: activeServices.includes(cs),
+        isPurchased: activeServices.includes(cs as any),
       }))
       .filter((s) => !s.isPurchased);
 
@@ -193,10 +193,12 @@ export const trackAction = internalMutation({
     metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
-    await ctx.db.insert("user行为_log", {
+    await ctx.db.insert("audit_logs", {
       userId: args.userId,
       action: args.action,
-      metadata: args.metadata,
+      details: JSON.stringify(args.metadata || {}),
+      ip: "system",
+      userAgent: "cross_sell_tracker",
       createdAt: Date.now(),
     });
   },
@@ -345,7 +347,7 @@ function calculateRelevanceScore(recommendation: any, behavior: UserBehavior): n
 }
 
 // Helper: Get recommendation reason
-function getRecommendationReason(recommendation: any, behavior: UserBehavior): string {
+function getRecommendationReason(recommendation: any, _behavior: UserBehavior): string {
   const reasons: Record<string, string> = {
     upgrade_monthly: "You're on a weekly plan — save 33% with monthly",
     upgrade_quarterly: "Upgrade to quarterly for even more savings",

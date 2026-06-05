@@ -1,4 +1,4 @@
-import { mutation, query, internalAction, action } from "./_generated/server";
+﻿import { mutation, query, internalAction, action, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -14,10 +14,10 @@ export const runHygieneScan = internalAction({
     details: v.any(),
   })),
   handler: async (ctx, args) => {
-    const results = [];
+    const results: Array<{ type: string; severity: string; affectedCount: number; details: any }> = [];
 
     // 1. Check for duplicate emails
-    const duplicateEmails = await ctx.runQuery(internal.crm_hygiene.findDuplicateEmails);
+    const duplicateEmails: Array<{ email: string; userIds: Id<"users">[]; count: number }> = await ctx.runQuery(internal.crm_hygiene.findDuplicateEmails);
     if (duplicateEmails.length > 0) {
       results.push({
         type: "duplicate_email",
@@ -28,7 +28,7 @@ export const runHygieneScan = internalAction({
     }
 
     // 2. Check for duplicate phones
-    const duplicatePhones = await ctx.runQuery(internal.crm_hygiene.findDuplicatePhones);
+    const duplicatePhones: Array<{ phone: string; userIds: Id<"users">[]; count: number }> = await ctx.runQuery(internal.crm_hygiene.findDuplicatePhones);
     if (duplicatePhones.length > 0) {
       results.push({
         type: "duplicate_phone",
@@ -39,7 +39,7 @@ export const runHygieneScan = internalAction({
     }
 
     // 3. Check for incomplete profiles
-    const incompleteProfiles = await ctx.runQuery(internal.crm_hygiene.findIncompleteProfiles);
+    const incompleteProfiles: Array<{ userId: Id<"users">; missingFields: string[]; completionPercentage: number }> = await ctx.runQuery(internal.crm_hygiene.findIncompleteProfiles);
     if (incompleteProfiles.length > 0) {
       results.push({
         type: "incomplete_profile",
@@ -73,12 +73,12 @@ export const triggerHygieneScan = action({
     details: v.any(),
   })),
   handler: async (ctx, args) => {
-    const results = await ctx.runAction(internal.crm_hygiene.runHygieneScan, {});
+    const results: Array<{ type: string; severity: string; affectedCount: number; details: any }> = await ctx.runAction(internal.crm_hygiene.runHygieneScan, {});
     return results;
   },
 });
 
-export const findDuplicateEmails = query({
+export const findDuplicateEmails = internalQuery({
   args: {},
   returns: v.array(v.object({
     email: v.string(),
@@ -108,7 +108,7 @@ export const findDuplicateEmails = query({
   },
 });
 
-export const findDuplicatePhones = query({
+export const findDuplicatePhones = internalQuery({
   args: {},
   returns: v.array(v.object({
     phone: v.string(),
@@ -138,7 +138,7 @@ export const findDuplicatePhones = query({
   },
 });
 
-export const findIncompleteProfiles = query({
+export const findIncompleteProfiles = internalQuery({
   args: {},
   returns: v.array(v.object({
     userId: v.id("users"),
@@ -183,7 +183,7 @@ export const findIncompleteProfiles = query({
   },
 });
 
-export const logHygieneReport = mutation({
+export const logHygieneReport = internalMutation({
   args: {
     type: v.union(v.literal("duplicate_email"), v.literal("duplicate_phone"), v.literal("incomplete_profile")),
     severity: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),

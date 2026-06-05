@@ -4,7 +4,7 @@
 import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import { requireAdminSession, tryGetAdminSession, tryGetAdminSessionInAction, validateAdminSession } from "./auth_helpers";
+import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 
 // ═══════════════════════════════════════════════════════════════════
 // PLATFORM CONFIGURATIONS
@@ -151,7 +151,7 @@ export const getOAuthState = internalQuery({
       .withIndex("by_state", (q) => q.eq("state", state))
       .first();
     if (!doc) return null;
-    if (doc.expiresAt <= Date.now()) { await ctx.db.delete(doc._id); return null; }
+    if (doc.expiresAt <= Date.now()) return null;
     return doc;
   },
 });
@@ -350,6 +350,36 @@ export const savePlatformConnection = internalMutation({
 // ═══════════════════════════════════════════════════════════════════
 // ACTION: Post to platform directly
 // ═══════════════════════════════════════════════════════════════════
+export async function postToPlatformHandler(ctx: any, args: any): Promise<any> {
+  const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
+  if (!identity) throw new Error("Not authenticated");
+
+  // FIX: was hardcoded to "system" — now uses actual user identity
+  const connection = await ctx.runQuery(internal.social.getConnectionForPlatform, {
+    platform: args.platform,
+    adminId: identity._id,
+  });
+  if (!connection || !connection.isConnected) throw new Error("Platform not connected");
+
+  const config = PLATFORM_CONFIGS[args.platform];
+  if (!config) throw new Error(`Unknown platform: ${args.platform}`);
+
+  const result = await postToPlatformApi(
+    args.platform, connection.accessToken, args.content, args.mediaUrls, args.anonymous
+  );
+
+  await ctx.runMutation(internal.social.logPost, {
+    platformId: args.platform,
+    content: args.content,
+    success: result.success,
+    externalId: result.postId || "",
+    errorMsg: result.error || "",
+    anonymous: args.anonymous || false,
+  });
+
+  return result;
+}
+
 export const postToPlatform = action({
   args: {
     platform: v.string(),
@@ -359,33 +389,7 @@ export const postToPlatform = action({
     adminToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
-
-    // FIX: was hardcoded to "system" — now uses actual user identity
-    const connection = await ctx.runQuery(internal.social.getConnectionForPlatform, {
-      platform: args.platform,
-      adminId: identity._id,
-    });
-    if (!connection || !connection.isConnected) throw new Error("Platform not connected");
-
-    const config = PLATFORM_CONFIGS[args.platform];
-    if (!config) throw new Error(`Unknown platform: ${args.platform}`);
-
-    const result = await postToPlatformApi(
-      args.platform, connection.accessToken, args.content, args.mediaUrls, args.anonymous
-    );
-
-    await ctx.runMutation(internal.social.logPost, {
-      platformId: args.platform,
-      content: args.content,
-      success: result.success,
-      externalId: result.postId || "",
-      errorMsg: result.error || "",
-      anonymous: args.anonymous || false,
-    });
-
-    return result;
+    return await postToPlatformHandler(ctx, args);
   },
 });
 
@@ -396,17 +400,30 @@ export const getConnectedPlatforms = action({
   args: {
     adminToken: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx: any, args: any): Promise<any> => {
     const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
     const adminId = identity?._id || "system";
-    const dbPlatforms = await ctx.runQuery(internal.social.getPlatformsFromDb, { adminId });
+    const dbPlatforms: any = await ctx.runQuery(internal.social.getPlatformsFromDb, { adminId });
     return {
       platforms: dbPlatforms,
-      availablePlatforms: SUPPORTED_PLATFORMS.map((p) => ({
+      availablePlatforms: SUPPORTED_PLATFORMS.map((p: any) => ({
         id: p.id, name: p.name, icon: p.icon, color: p.color,
         anonymousSupported: p.anonymousSupported,
       })),
     };
+  },
+});
+
+export const manualPost = action({
+  args: {
+    platform: v.string(),
+    content: v.string(),
+    mediaUrls: v.optional(v.array(v.string())),
+    anonymous: v.optional(v.boolean()),
+    adminToken: v.optional(v.string()),
+  },
+  handler: async (ctx: any, args: any) => {
+    return await postToPlatformHandler(ctx, args);
   },
 });
 
@@ -975,7 +992,7 @@ async function fetchUserInfo(
 
 async function postToPlatformApi(
   platform: string, accessToken: string, content: string,
-  mediaUrls?: string[], anonymous?: boolean
+  _mediaUrls?: string[], _anonymous?: boolean
 ): Promise<{ success: boolean; postId?: string; error?: string }> {
   const config = PLATFORM_CONFIGS[platform];
   if (!config) return { success: false, error: "Unknown platform" };

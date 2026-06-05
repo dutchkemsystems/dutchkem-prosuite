@@ -321,7 +321,7 @@ export const triggerQuickAction = mutation({
       platform: "system",
       action: "quick_action",
       agentId: agentIdMap[actionId],
-      status: "queued",
+      status: "pending",
       content: `Client triggered: ${actionId}`,
       timestamp: Date.now(),
       durationMs: 0,

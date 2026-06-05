@@ -6,7 +6,7 @@
 // configs on every call.
 // ═══════════════════════════════════════════════════════════════════
 
-import { action, mutation, query, internalMutation } from "./_generated/server";
+import { action, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 
@@ -126,7 +126,6 @@ export const getOrCreateAuthConfigIdCached = action({
 
     // 2) List existing configs from Composio
     let existingId: string | null = null;
-    let listError: string | undefined;
     try {
       const list = await composioFetch(
         apiKey,
@@ -137,7 +136,7 @@ export const getOrCreateAuthConfigIdCached = action({
         existingId = items[0].id || items[0].auth_config?.id;
       }
     } catch (e: any) {
-      listError = e?.message || String(e);
+      console.warn("List auth configs error:", e?.message || String(e));
     }
 
     if (existingId) {

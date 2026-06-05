@@ -1,4 +1,4 @@
-import { mutation, query, internalAction, internalQuery, action } from "./_generated/server";
+import { mutation, query, internalAction, internalQuery, internalMutation, action } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -268,7 +268,7 @@ export const calculateAllLeadScores = internalAction({
   },
 });
 
-export const _getAllUsers = query({
+export const _getAllUsers = internalQuery({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx, _args) => {
@@ -276,7 +276,7 @@ export const _getAllUsers = query({
   },
 });
 
-export const _getLatestScore = query({
+export const _getLatestScore = internalQuery({
   args: { userId: v.id("users") },
   returns: v.any(),
   handler: async (ctx, args) => {
@@ -294,7 +294,7 @@ export const _getLatestScore = query({
   },
 });
 
-export const _updateStoredScore = mutation({
+export const _updateStoredScore = internalMutation({
   args: {
     userId: v.id("users"),
     score: v.number(),

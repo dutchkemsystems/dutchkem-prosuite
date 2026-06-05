@@ -22,7 +22,7 @@ export const SYSTEM_BACKUPS = [
 /**
  * Create a system backup snapshot
  */
-export const createBackup = mutation({
+export const createBackup = internalMutation({
   args: { 
     backupType: v.string(),
     data: v.any(),

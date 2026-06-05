@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery } from "convex/react";
 
 import { api } from "../../convex/_generated/api";
 
-// ═══════════════════════════════════════════════════════════════════
-// CHATBOT WIDGET — Lead capture chatbot
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// CHATBOT WIDGET â€” Lead capture chatbot
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 interface ChatbotWidgetProps {
   position?: "bottom-right" | "bottom-left";
@@ -90,7 +90,7 @@ export function ChatbotWidget({
     if (lower.includes("pricing") || lower === "Pricing") {
       return {
         role: "bot",
-        content: "Our plans start from ₦2,000/week. Would you like to see our pricing options?",
+        content: "Our plans start from â‚¦2,000/week. Would you like to see our pricing options?",
         options: ["View Plans", "Compare Plans", "Custom Quote"],
       };
     }
@@ -132,7 +132,7 @@ export function ChatbotWidget({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-sm">
-                  🤖
+                  ðŸ¤–
                 </div>
                 <div>
                   <div className="text-sm font-bold text-white">Dutchkem Assistant</div>
@@ -143,7 +143,7 @@ export function ChatbotWidget({
                 onClick={() => setIsOpen(false)}
                 className="text-white/70 hover:text-white"
               >
-                ✕
+                âœ•
               </button>
             </div>
           </div>
@@ -222,18 +222,18 @@ export function ChatbotWidget({
         }`}
       >
         {isOpen ? (
-          <span className="text-xl">✕</span>
+          <span className="text-xl">âœ•</span>
         ) : (
-          <span className="text-xl">💬</span>
+          <span className="text-xl">ðŸ’¬</span>
         )}
       </button>
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// CHATBOT ADMIN PANEL — Conversation management
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// CHATBOT ADMIN PANEL â€” Conversation management
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function ChatbotAdminPanel() {
   const stats = useQuery(api.chatbotLeads.getChatbotStats, {});
@@ -265,9 +265,9 @@ export function ChatbotAdminPanel() {
 
       {/* Recent Conversations */}
       <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-        <h4 className="mb-3 text-sm font-black text-white">💬 Recent Conversations</h4>
+        <h4 className="mb-3 text-sm font-black text-white">ðŸ’¬ Recent Conversations</h4>
         <div className="space-y-2">
-          {conversations.slice(0, 10).map((conv) => (
+          {conversations.slice(0, 10).map((conv: any) => (
             <div
               key={conv._id}
               className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-3"
@@ -277,7 +277,7 @@ export function ChatbotAdminPanel() {
                   {conv.visitorId.slice(0, 8)}...
                 </div>
                 <div className="text-[10px] text-slate-400">
-                  {conv.messages.length} messages · {conv.state}
+                  {conv.messages.length} messages Â· {conv.state}
                 </div>
               </div>
               <div className="flex items-center gap-2">

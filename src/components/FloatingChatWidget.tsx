@@ -17,7 +17,7 @@ export function FloatingChatWidget() {
   const sendMessage = useConvexMutation(api.chatbot.sendMessage as any);
 
   const chatHistory = useQuery(
-    chatId ? convexQuery(api.chatbot.getChatHistory, { chatId: chatId as any }) : null
+    chatId ? convexQuery(api.chatbot.getChatHistory, { chatId: chatId as any }) : { queryKey: [], enabled: false, queryFn: () => Promise.resolve(null) } as any
   ) as any;
 
   useEffect(() => {

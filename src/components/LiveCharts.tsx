@@ -312,7 +312,7 @@ export function LiveCharts() {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="day" tick={{ fill: '#64748b', fontSize: 10 }} interval={4} />
               <YAxis tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={v => `₦${(v/1000).toFixed(0)}k`} />
-              <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', color: '#fff' }} formatter={(v: number) => `₦${v.toLocaleString()}`} />
+              <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', color: '#fff' }} formatter={(v: any) => `₦${(v as number).toLocaleString()}`} />
               <Legend />
               <Area type="monotone" dataKey="income" stroke="#FF6B35" fill="url(#incomeGrad)" name="Income" strokeWidth={2} />
               <Area type="monotone" dataKey="expenses" stroke="#EF4444" fill="url(#expenseGrad)" name="Expenses" strokeWidth={2} />

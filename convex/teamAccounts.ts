@@ -257,7 +257,7 @@ export const acceptInvite = mutation({
     await ctx.db.insert("team_members", {
       teamId: invite.teamId,
       userId,
-      role: invite.role,
+      role: invite.role as "admin" | "owner" | "manager" | "member" | "viewer",
       invitedBy: invite.invitedBy,
       joinedAt: Date.now(),
       status: "active",

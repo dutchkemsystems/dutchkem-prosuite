@@ -392,7 +392,7 @@ describe("getSystemHealth", () => {
 
   test("returns 100 score when a recent backup exists", async () => {
     const t = convexTest(schema, modules);
-    await t.mutation(api.cloud_memory.createBackup, {
+    await t.mutation(internal.cloud_memory.createBackup, {
       backupType: "test_health",
       data: { hello: "world" },
     });
@@ -430,7 +430,7 @@ describe("getSystemHealth", () => {
 describe("Backup and restore", () => {
   test("createBackup creates a system_backups row with checksum", async () => {
     const t = convexTest(schema, modules);
-    const id: any = await t.mutation(api.cloud_memory.createBackup, {
+    const id: any = await t.mutation(internal.cloud_memory.createBackup, {
       backupType: "test_config",
       data: { foo: "bar" },
       description: "Test backup",
@@ -445,12 +445,12 @@ describe("Backup and restore", () => {
 
   test("getLatestBackup returns most recent for a type", async () => {
     const t = convexTest(schema, modules);
-    await t.mutation(api.cloud_memory.createBackup, {
+    await t.mutation(internal.cloud_memory.createBackup, {
       backupType: "test_latest",
       data: { v: 1 },
     });
     await new Promise((r) => setTimeout(r, 10));
-    await t.mutation(api.cloud_memory.createBackup, {
+    await t.mutation(internal.cloud_memory.createBackup, {
       backupType: "test_latest",
       data: { v: 2 },
     });
@@ -462,7 +462,7 @@ describe("Backup and restore", () => {
 
   test("getAllBackups returns all active backups", async () => {
     const t = convexTest(schema, modules);
-    await t.mutation(api.cloud_memory.createBackup, {
+    await t.mutation(internal.cloud_memory.createBackup, {
       backupType: "test_all",
       data: {},
     });
@@ -473,7 +473,7 @@ describe("Backup and restore", () => {
 
   test("restoreFromBackup returns the backup data", async () => {
     const t = convexTest(schema, modules);
-    const id: any = await t.mutation(api.cloud_memory.createBackup, {
+    const id: any = await t.mutation(internal.cloud_memory.createBackup, {
       backupType: "test_restore",
       data: { restored: true },
     });
@@ -487,7 +487,7 @@ describe("Backup and restore", () => {
   test("restoreFromBackup throws 'Backup not found' for missing id", async () => {
     const t = convexTest(schema, modules);
     // Create a backup, then delete it, then try to restore
-    const id: any = await t.mutation(api.cloud_memory.createBackup, {
+    const id: any = await t.mutation(internal.cloud_memory.createBackup, {
       backupType: "test_delete",
       data: { x: 1 },
     });

@@ -33,22 +33,23 @@ export const getApiCostSummary = query({
     const costs: Record<string, { name: string; usage: number; cost: number; unit: string }> = {};
     
     for (const [key, config] of Object.entries(API_COSTS)) {
+      const cfg = config as any;
       const log = usageLogs.find(l => l.key === `API_USE_${key.toUpperCase()}`);
       const usage = (log?.value as number) || 0;
       
       let cost = 0;
-      if ("costPerMinute" in config) {
-        cost = usage * config.costPerMinute;
-      } else if ("costPerRequest" in config) {
-        cost = usage * config.costPerRequest;
-      } else if ("costPerMonth" in config) {
-        cost = config.costPerMonth;
-      } else if ("costPerSms" in config) {
-        cost = usage * config.costPerSms;
-      } else if ("costPerEmail" in config) {
-        cost = usage * config.costPerEmail;
-      } else if ("costPerTransaction" in config) {
-        cost = usage * config.costPerTransaction;
+      if ("costPerMinute" in cfg) {
+        cost = usage * cfg.costPerMinute;
+      } else if ("costPerRequest" in cfg) {
+        cost = usage * cfg.costPerRequest;
+      } else if ("costPerMonth" in cfg) {
+        cost = cfg.costPerMonth;
+      } else if ("costPerSms" in cfg) {
+        cost = usage * cfg.costPerSms;
+      } else if ("costPerEmail" in cfg) {
+        cost = usage * cfg.costPerEmail;
+      } else if ("costPerTransaction" in cfg) {
+        cost = usage * cfg.costPerTransaction;
       }
 
       costs[key] = {
@@ -124,22 +125,23 @@ export const getApiCostSummaryInternal = internalQuery({
     const costs: Record<string, { name: string; usage: number; cost: number; unit: string }> = {};
     
     for (const [key, config] of Object.entries(API_COSTS)) {
+      const cfg = config as any;
       const log = usageLogs.find(l => l.key === `API_USE_${key.toUpperCase()}`);
       const usage = (log?.value as number) || 0;
       
       let cost = 0;
-      if ("costPerMinute" in config) {
-        cost = usage * config.costPerMinute;
-      } else if ("costPerRequest" in config) {
-        cost = usage * config.costPerRequest;
-      } else if ("costPerMonth" in config) {
-        cost = config.costPerMonth;
-      } else if ("costPerSms" in config) {
-        cost = usage * config.costPerSms;
-      } else if ("costPerEmail" in config) {
-        cost = usage * config.costPerEmail;
-      } else if ("costPerTransaction" in config) {
-        cost = usage * config.costPerTransaction;
+      if ("costPerMinute" in cfg) {
+        cost = usage * cfg.costPerMinute;
+      } else if ("costPerRequest" in cfg) {
+        cost = usage * cfg.costPerRequest;
+      } else if ("costPerMonth" in cfg) {
+        cost = cfg.costPerMonth;
+      } else if ("costPerSms" in cfg) {
+        cost = usage * cfg.costPerSms;
+      } else if ("costPerEmail" in cfg) {
+        cost = usage * cfg.costPerEmail;
+      } else if ("costPerTransaction" in cfg) {
+        cost = usage * cfg.costPerTransaction;
       }
 
       costs[key] = {

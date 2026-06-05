@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
 
 import { api } from "../../convex/_generated/api";
 
-// ═══════════════════════════════════════════════════════════════════
-// SEO DASHBOARD — Content optimization analytics
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// SEO DASHBOARD â€” Content optimization analytics
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function SEODashboard() {
   const seoData = useQuery(api.seoEngine.getSEODashboard, {});
@@ -49,9 +49,9 @@ export function SEODashboard() {
       {/* Recent Scores */}
       {seoData.recentScores.length > 0 && (
         <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-          <h4 className="mb-3 text-sm font-black text-white">📈 Recent Analyses</h4>
+          <h4 className="mb-3 text-sm font-black text-white">ðŸ“ˆ Recent Analyses</h4>
           <div className="space-y-2">
-            {seoData.recentScores.map((item, i) => (
+            {seoData.recentScores.map((item: any, i: number) => (
               <div
                 key={i}
                 className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-3"
@@ -82,9 +82,9 @@ export function SEODashboard() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// SEO ANALYZER — Real-time content analysis
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// SEO ANALYZER â€” Real-time content analysis
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 interface SEOAnalyzerProps {
   content: string;
@@ -133,7 +133,7 @@ export function SEOAnalyzer({ content, contentType, targetKeywords, onAnalysis }
         <div>
           <div className="text-sm font-bold text-white">SEO Score</div>
           <div className="text-[10px] text-slate-400">
-            {analysis.wordCount} words · {analysis.readTime} read
+            {analysis.wordCount} words Â· {analysis.readTime} read
           </div>
         </div>
       </div>
@@ -179,9 +179,9 @@ export function SEOAnalyzer({ content, contentType, targetKeywords, onAnalysis }
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// CONTENT CALENDAR — Scheduled content view
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// CONTENT CALENDAR â€” Scheduled content view
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function ContentCalendar() {
   const calendar = useQuery(api.seoEngine.getContentCalendar, {});
@@ -189,7 +189,7 @@ export function ContentCalendar() {
   if (!calendar || calendar.length === 0) {
     return (
       <div className="rounded-2xl border border-white/5 bg-white/5 p-6 text-center">
-        <div className="text-2xl">📅</div>
+        <div className="text-2xl">ðŸ“…</div>
         <div className="mt-2 text-sm text-slate-400">No scheduled content</div>
         <div className="mt-1 text-[10px] text-slate-500">Schedule content to see it here</div>
       </div>
@@ -214,7 +214,7 @@ export function ContentCalendar() {
           <div className="flex-1">
             <div className="text-xs font-bold text-white">{item.title}</div>
             <div className="text-[10px] text-slate-400">
-              {item.contentType} · {item.platform}
+              {item.contentType} Â· {item.platform}
             </div>
           </div>
           <div

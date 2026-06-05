@@ -11,6 +11,7 @@ import { LiveFeed } from "~/components/LiveFeed";
 import { LiveCharts } from "~/components/LiveCharts";
 import { PaymentMonitor } from "~/components/PaymentMonitor";
 import { InactivityLogout } from "~/components/InactivityLogout";
+import { ComposioAdminHub } from "~/components/ComposioAdminHub";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -448,7 +449,7 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
     | undefined;
   const disconnectPlatform = useMutation(api.social.disconnectPlatform);
   const updatePostingSettings = useMutation(api.social.updatePostingSettings);
-  const manualPost = useAction(api.social.manualPost);
+  const manualPost = useAction(api.social.postToPlatform);
 
   const [platforms, setPlatforms] = useState<any[]>([]);
   const [platformsLoading, setPlatformsLoading] = useState(true);
@@ -634,7 +635,7 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
           setConnecting(null);
           return;
         }
-        authUrl = directResult.authUrl;
+        authUrl = directResult.authUrl || null;
         usingProvider = "direct";
       }
 
@@ -755,8 +756,6 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
       platformId,
       mode,
       adminToken,
-      scheduleTime: mode === "auto" ? "09:00,15:00,21:00" : undefined,
-      postingFrequency: mode === "auto" ? "daily" : undefined,
     });
     if (result?.success) {
       showToast(`${platformId.toUpperCase()} posting mode: ${mode.toUpperCase()}`, "success");
@@ -769,7 +768,7 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
       return;
     }
     setPostingStatus({ platformId, status: "posting" });
-    const result = await manualPost({ platformId, content: manualPostContent });
+    const result = await manualPost({ platform: platformId, content: manualPostContent });
     if (result?.success) {
       setPostingStatus({ platformId, status: "success" });
       setManualPostContent("");
@@ -1155,7 +1154,7 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
 
 function GuardianWatchPanel() {
   const { data: logs } = useSuspenseQuery(convexQuery(api.guardian_watch.getGuardianLogs, {}));
-  const runDiagnosis = useAction(internal.guardian_watch.runFullDiagnosis);
+  const runDiagnosis = useAction(api.guardian_watch.runFullDiagnosis);
   const [running, setRunning] = useState(false);
 
   const handleRun = async () => {
@@ -1457,7 +1456,7 @@ function DailySweepStatusPanel() {
          });
 
          if (result?.success) {
-            setOtpId(result.otpId);
+            setOtpId(result.otpId || "");
             setShowOTPModal(true);
             setTransferStatus({ message: "OTP sent! Check your email or screen.", type: "otp" });
          } else {
@@ -1934,7 +1933,7 @@ function SecurityHubPanel() {
 
   // handleRotate removed — rotateSocialAgentsManual not in current social engine
   const handleRotate = async () => {
-    showToast("Agent rotation not available in this version", "error");
+    alert("Agent rotation not available in this version");
   };
 
    return (
@@ -2847,9 +2846,9 @@ function CloudMemoryPanel({ adminToken }: { adminToken: string }) {
           {/* Health Status */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <MetricCard label="System Health" value={`${health?.healthScore || 100}%`} icon="🛡️" color={health?.status === 'optimal' ? 'emerald' : 'amber'} subValue={health?.status === 'optimal' ? 'OPTIMAL' : 'DEGRADED'} />
-            <MetricCard label="Active Backups" value={health?.backupCount || 0} icon="☁️" color="cyan" subValue="Auto-synced" />
-            <MetricCard label="Active Sessions" value={health?.activeSessions || 0} icon="👥" color="blue" />
-            <MetricCard label="Stuck Posts" value={health?.stuckPosts || 0} icon="⚠️" color={health?.stuckPosts > 0 ? 'red' : 'emerald'} subValue={health?.stuckPosts > 0 ? 'Needs attention' : 'All clear'} />
+            <MetricCard label="Active Backups" value={health?.database?.tables?.backups || 0} icon="☁️" color="cyan" subValue="Auto-synced" />
+            <MetricCard label="Active Sessions" value={health?.database?.tables?.sessions || 0} icon="👥" color="blue" />
+            <MetricCard label="Stuck Posts" value={health?.database?.tables?.posts || 0} icon="⚠️" color={(health?.database?.tables?.posts || 0) > 0 ? 'red' : 'emerald'} subValue={(health?.database?.tables?.posts || 0) > 0 ? 'Needs attention' : 'All clear'} />
           </div>
 
           {/* Last Healing Result */}

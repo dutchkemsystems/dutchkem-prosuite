@@ -1,4 +1,4 @@
-import { mutation, query, internalAction } from "./_generated/server";
+import { mutation, query, internalAction, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -100,7 +100,7 @@ export const calculateLeaderboard = internalAction({
   },
 });
 
-export const getFreelancers = query({
+export const getFreelancers = internalQuery({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx, _args) => {
@@ -111,7 +111,7 @@ export const getFreelancers = query({
   },
 });
 
-export const calculateFreelancerMetrics = query({
+export const calculateFreelancerMetrics = internalQuery({
   args: { userId: v.id("users"), periodStart: v.string(), periodEnd: v.string() },
   returns: v.object({
     sales: v.number(),
@@ -156,7 +156,7 @@ export const calculateFreelancerMetrics = query({
   },
 });
 
-export const getExistingEntry = query({
+export const getExistingEntry = internalQuery({
   args: { userId: v.id("users"), period: v.string(), periodStart: v.string(), periodEnd: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {
@@ -172,7 +172,7 @@ export const getExistingEntry = query({
   },
 });
 
-export const getEntriesByPeriod = query({
+export const getEntriesByPeriod = internalQuery({
   args: { period: v.string(), periodStart: v.string(), periodEnd: v.string() },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
@@ -187,7 +187,7 @@ export const getEntriesByPeriod = query({
   },
 });
 
-export const createLeaderboardEntry = mutation({
+export const createLeaderboardEntry = internalMutation({
   args: {
     userId: v.id("users"),
     period: v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"), v.literal("all_time")),
@@ -211,7 +211,7 @@ export const createLeaderboardEntry = mutation({
   },
 });
 
-export const updateLeaderboardEntry = mutation({
+export const updateLeaderboardEntry = internalMutation({
   args: {
     entryId: v.id("leaderboard_entries"),
     rank: v.number(),
@@ -235,7 +235,7 @@ export const updateLeaderboardEntry = mutation({
   },
 });
 
-export const updateEntryRank = mutation({
+export const updateEntryRank = internalMutation({
   args: { entryId: v.id("leaderboard_entries"), rank: v.number() },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -410,7 +410,7 @@ export const checkBadgeAwards = internalAction({
   },
 });
 
-export const getAllActiveBadges = query({
+export const getAllActiveBadges = internalQuery({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx, _args) => {
@@ -418,7 +418,7 @@ export const getAllActiveBadges = query({
   },
 });
 
-export const userHasBadge = query({
+export const userHasBadge = internalQuery({
   args: { userId: v.id("users"), badgeId: v.id("badges") },
   returns: v.boolean(),
   handler: async (ctx, args) => {
@@ -431,7 +431,7 @@ export const userHasBadge = query({
   },
 });
 
-export const awardBadge = mutation({
+export const awardBadge = internalMutation({
   args: { userId: v.id("users"), badgeId: v.id("badges"), milestone: v.optional(v.string()) },
   returns: v.null(),
   handler: async (ctx, args) => {

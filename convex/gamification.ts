@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { query, mutation, action, internalMutation, internalQuery } from "./_generated/server";
+import { query, internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
 // GAMIFICATION & LOYALTY POINTS — XP, levels, streaks, achievements
@@ -322,7 +323,7 @@ export const awardAchievement = internalMutation({
 // Get all available achievements
 export const getAllAchievements = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async (_ctx) => {
     return ACHIEVEMENTS;
   },
 });
@@ -388,7 +389,7 @@ export const checkAchievements = internalMutation({
 
     // Check streak achievements
     if (profile.currentStreak >= 30 && !earnedIds.has("streak_warrior")) {
-      await awardAchievement(ctx, {
+      await ctx.runMutation(internal.gamification.awardAchievement, {
         userId: args.userId,
         achievementId: "streak_warrior",
         name: "Streak Warrior",
@@ -400,7 +401,7 @@ export const checkAchievements = internalMutation({
 
     // Check level achievements
     if (profile.level >= 100 && !earnedIds.has("century")) {
-      await awardAchievement(ctx, {
+      await ctx.runMutation(internal.gamification.awardAchievement, {
         userId: args.userId,
         achievementId: "century",
         name: "Century",

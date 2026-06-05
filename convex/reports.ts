@@ -1,4 +1,4 @@
-import { mutation, query, internalAction, action } from "./_generated/server";
+import { mutation, query, internalAction, action, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -78,10 +78,11 @@ export const getReports = query({
   args: { createdBy: v.optional(v.id("users")) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    if (args.createdBy) {
+    const createdBy = args.createdBy;
+    if (createdBy) {
       return await ctx.db
         .query("saved_reports")
-        .withIndex("by_creator", (q) => q.eq("createdBy", args.createdBy))
+        .withIndex("by_creator", (q) => q.eq("createdBy", createdBy))
         .collect();
     }
     return await ctx.db.query("saved_reports").collect();
@@ -146,13 +147,13 @@ export const generateReport = internalAction({
 export const triggerGenerateReport = action({
   args: { reportId: v.id("saved_reports") },
   returns: v.any(),
-  handler: async (ctx, args) => {
-    const result = await ctx.runAction(internal.reports.generateReport, { reportId: args.reportId });
+  handler: async (ctx, args): Promise<any> => {
+    const result: any = await ctx.runAction(internal.reports.generateReport, { reportId: args.reportId });
     return result;
   },
 });
 
-export const getReportById = query({
+export const getReportById = internalQuery({
   args: { reportId: v.id("saved_reports") },
   returns: v.any(),
   handler: async (ctx, args) => {
@@ -160,7 +161,7 @@ export const getReportById = query({
   },
 });
 
-export const updateLastGenerated = mutation({
+export const updateLastGenerated = internalMutation({
   args: { reportId: v.id("saved_reports") },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -170,7 +171,7 @@ export const updateLastGenerated = mutation({
 });
 
 // Metric aggregation functions
-export const getRevenueMetric = query({
+export const getRevenueMetric = internalQuery({
   args: { field: v.string(), aggregation: v.string() },
   returns: v.number(),
   handler: async (ctx, args) => {
@@ -188,7 +189,7 @@ export const getRevenueMetric = query({
   },
 });
 
-export const getSubscriptionMetric = query({
+export const getSubscriptionMetric = internalQuery({
   args: { field: v.string(), aggregation: v.string() },
   returns: v.number(),
   handler: async (ctx, args) => {
@@ -203,7 +204,7 @@ export const getSubscriptionMetric = query({
   },
 });
 
-export const getUserMetric = query({
+export const getUserMetric = internalQuery({
   args: { field: v.string(), aggregation: v.string() },
   returns: v.number(),
   handler: async (ctx, args) => {
@@ -216,7 +217,7 @@ export const getUserMetric = query({
   },
 });
 
-export const getAgentUsageMetric = query({
+export const getAgentUsageMetric = internalQuery({
   args: { field: v.string(), aggregation: v.string() },
   returns: v.number(),
   handler: async (ctx, args) => {
@@ -229,7 +230,7 @@ export const getAgentUsageMetric = query({
   },
 });
 
-export const getPerformanceMetric = query({
+export const getPerformanceMetric = internalQuery({
   args: { field: v.string(), aggregation: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {
@@ -272,7 +273,7 @@ export const processScheduledReports = internalAction({
   },
 });
 
-export const getScheduledReports = query({
+export const getScheduledReports = internalQuery({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
@@ -285,15 +286,15 @@ export const getScheduledReports = query({
 export const exportReportToCsv = internalAction({
   args: { reportId: v.id("saved_reports") },
   returns: v.string(), // Returns CSV string
-  handler: async (ctx, args) => {
-    const report = await ctx.runQuery(internal.reports.getReportById, { reportId: args.reportId });
+  handler: async (ctx, args): Promise<string> => {
+    const report: any = await ctx.runQuery(internal.reports.getReportById, { reportId: args.reportId });
     if (!report) throw new Error("Report not found");
 
-    const result = await ctx.runAction(internal.reports.generateReport, { reportId: args.reportId });
+    const result: any = await ctx.runAction(internal.reports.generateReport, { reportId: args.reportId });
 
     // Convert to CSV
-    const headers = report.metrics.map(m => `${m.type}.${m.field}`);
-    const rows = [headers.join(",")];
+    const headers: string[] = report.metrics.map((m: any) => `${m.type}.${m.field}`);
+    const rows: string[] = [headers.join(",")];
     rows.push(Object.values(result.data).join(","));
 
     return rows.join("\n");

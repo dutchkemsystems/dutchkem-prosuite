@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+﻿import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
 import { useMutation } from "convex/react";
@@ -192,7 +192,7 @@ export function KDPProjectHub({ userId: _userId }: { userId: any }) {
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="space-y-2">
             <h2 className="text-3xl font-black text-white uppercase tracking-tighter">KDP Author Command Center</h2>
-            <p className="text-sm font-bold text-indigo-400 uppercase tracking-widest">Publish directly to Amazon • Keep 100% Royalties</p>
+            <p className="text-sm font-bold text-indigo-400 uppercase tracking-widest">Publish directly to Amazon â€¢ Keep 100% Royalties</p>
           </div>
           <button
             onClick={() => setShowForm(true)}
@@ -204,10 +204,10 @@ export function KDPProjectHub({ userId: _userId }: { userId: any }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {projects.map((p) => (
+        {projects.map((p: any) => (
           <div key={p._id} className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 space-y-6 group hover:border-indigo-500/50 transition-all">
             <div className="flex justify-between items-start">
-              <div className="w-14 h-14 bg-slate-950 rounded-2xl flex items-center justify-center text-3xl shadow-inner group-hover:scale-110 transition-transform">📖</div>
+              <div className="w-14 h-14 bg-slate-950 rounded-2xl flex items-center justify-center text-3xl shadow-inner group-hover:scale-110 transition-transform">ðŸ“–</div>
               <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${
                 p.status === "published" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-indigo-500/10 text-indigo-500 border-indigo-500/20"
               }`}>
@@ -245,12 +245,12 @@ export function KDPProjectHub({ userId: _userId }: { userId: any }) {
 
             {(p.coverFiles.length > 0 || p.interiorFiles.length > 0) && (
               <div className="space-y-1">
-                {p.coverFiles.map((f, i) => (
+                {p.coverFiles.map((f: any, i: number) => (
                   <a key={`cover-${i}`} href={f.fileUrl} target="_blank" className="block py-2 px-3 bg-slate-950 rounded-xl border border-white/5 text-[9px] font-black text-indigo-400 uppercase tracking-widest hover:bg-slate-800 transition-all">
                     Cover: {f.fileName}
                   </a>
                 ))}
-                {p.interiorFiles.map((f, i) => (
+                {p.interiorFiles.map((f: any, i: number) => (
                   <a key={`interior-${i}`} href={f.fileUrl} target="_blank" className="block py-2 px-3 bg-slate-950 rounded-xl border border-white/5 text-[9px] font-black text-indigo-400 uppercase tracking-widest hover:bg-slate-800 transition-all">
                     Interior: {f.fileName}
                   </a>

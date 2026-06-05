@@ -10,9 +10,9 @@ import {
 export function PaymentMonitor() {
   const [timeframe, setTimeframe] = useState<'today' | 'week' | 'month'>('month')
   const [refreshKey, setRefreshKey] = useState(0)
-  const { data: earnings } = useSuspenseQuery(convexQuery(api.admin.getEarningsSummary, {}))
-  const { data: transactions } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, {}))
-  const { data: stats } = useSuspenseQuery(convexQuery(api.admin.getAdminStats, {}))
+  const { data: earnings } = useSuspenseQuery(convexQuery(api.admin.getEarningsSummary, {})) as { data: any }
+  const { data: transactions } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, {})) as { data: any }
+  const { data: stats } = useSuspenseQuery(convexQuery(api.admin.getAdminStats, {})) as { data: any }
 
   useEffect(() => {
     const interval = setInterval(() => setRefreshKey(k => k + 1), 5000)
@@ -148,7 +148,7 @@ export function PaymentMonitor() {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="day" tick={{ fill: '#64748b', fontSize: 10 }} />
               <YAxis tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={v => `₦${(v/1000).toFixed(0)}k`} />
-              <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', color: '#fff' }} formatter={(v: number) => `₦${v.toLocaleString()}`} />
+              <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', color: '#fff' }} formatter={(v: any) => `₦${(v as number).toLocaleString()}`} />
               <Legend />
               <Bar dataKey="income" fill="#00A86B" radius={[4, 4, 0, 0]} name="Income" />
               <Bar dataKey="payouts" fill="#F59E0B" radius={[4, 4, 0, 0]} name="Payouts" />

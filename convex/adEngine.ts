@@ -143,17 +143,19 @@ export const getCampaigns = query({
   },
   handler: async (ctx, args) => {
     const limit = Math.min(args.limit || 50, 100);
-    if (args.status) {
+    const status = args.status;
+    const platform = args.platform;
+    if (status) {
       return await ctx.db
         .query("ad_campaigns")
-        .withIndex("by_status", (q) => q.eq("status", args.status as any))
+        .withIndex("by_status", (q) => q.eq("status", status as any))
         .order("desc")
         .take(limit);
     }
-    if (args.platform) {
+    if (platform) {
       return await ctx.db
         .query("ad_campaigns")
-        .withIndex("by_platform", (q) => q.eq("platform", args.platform))
+        .withIndex("by_platform", (q) => q.eq("platform", platform))
         .order("desc")
         .take(limit);
     }
@@ -288,10 +290,11 @@ export const getAds = query({
   },
   handler: async (ctx, args) => {
     const limit = Math.min(args.limit || 50, 100);
-    if (args.campaignId) {
+    const campaignId = args.campaignId;
+    if (campaignId) {
       return await ctx.db
         .query("ad_ads")
-        .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId))
+        .withIndex("by_campaign", (q) => q.eq("campaignId", campaignId))
         .order("desc")
         .take(limit);
     }

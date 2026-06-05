@@ -1,4 +1,4 @@
-import { httpRouter } from "convex/server";
+﻿import { httpRouter } from "convex/server";
 import { auth } from "./auth";
 import { httpAction } from "./_generated/server";
 import { internal, api } from "./_generated/api";
@@ -37,7 +37,7 @@ const DASHBOARD_URL = "https://dutchkem-prosuite-app.vercel.app/admin/dashboard"
 http.route({
   path: "/api/otp/send",
   method: "POST",
-  handler: httpAction(async (ctx, req) => {
+  handler: httpAction(async (_ctx, req) => {
     try {
       const body = await req.json();
       let { phone } = body;
@@ -63,7 +63,7 @@ http.route({
 http.route({
   path: "/api/otp/verify",
   method: "POST",
-  handler: httpAction(async (ctx, req) => {
+  handler: httpAction(async (_ctx, req) => {
     try {
       const { pinId, pin } = await req.json();
       if (!pinId || !pin) return new Response(JSON.stringify({ success: false, verified: false, message: 'Pin ID and PIN are required' }), { status: 400, headers: { "Content-Type": "application/json" } });
@@ -110,7 +110,7 @@ http.route({
     const body = await req.json();
     const ip = req.headers.get("x-forwarded-for") || "unknown";
     const verification = await ctx.runMutation(internal.guardian.verifyPayment, { reference: body.reference, amount: body.amount, currency: body.currency, ip, userId: body.metadata?.userId || body.userId, signature, agentId: body.metadata?.agentId, service: body.metadata?.service });
-    if (verification.approved) { try { await ctx.runMutation(internal.abandonedCheckouts.completeCheckout, { reference: body.reference }); } catch { } }
+    if (verification.status === "approved") { try { await ctx.runMutation(internal.abandonedCheckouts.completeCheckout, { reference: body.reference }); } catch { } }
     return new Response(JSON.stringify({ webhookStatus: "processed", ...verification }), { status: 200, headers: { "Content-Type": "application/json" } });
   }),
 });
@@ -229,7 +229,7 @@ http.route({
 http.route({
   path: "/api/social/callback",
   method: "GET",
-  handler: httpAction(async (ctx, req) => {
+  handler: httpAction(async (_ctx, req) => {
     const url = new URL(req.url);
     const platform = url.searchParams.get("platform") || "x";
     const code = url.searchParams.get("code") || "";
@@ -253,7 +253,7 @@ async function sendTelegramMessage(botToken: string, chatId: number | string, te
 http.route({
   path: "/api/telegram/webhook",
   method: "POST",
-  handler: httpAction(async (ctx, req) => {
+  handler: httpAction(async (_ctx, req) => {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     if (!botToken) return new Response(JSON.stringify({ ok: false, error: "bot_token_not_set" }), { status: 200, headers: { "Content-Type": "application/json" } });
 
@@ -295,7 +295,7 @@ http.route({
 http.route({
   path: "/api/composio/callback",
   method: "GET",
-  handler: httpAction(async (ctx, req) => {
+  handler: httpAction(async (_ctx, req) => {
     const url = new URL(req.url);
     const connectedAccountId = url.searchParams.get("connected_account_id") || url.searchParams.get("id") || "";
     const status = url.searchParams.get("status") || "INITIATED";

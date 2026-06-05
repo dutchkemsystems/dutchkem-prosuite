@@ -1,20 +1,20 @@
-import { useSuspenseQuery, useQuery } from "@tanstack/react-query";
+﻿import { useSuspenseQuery, useQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
 import { useMutation } from "convex/react";
 import { useState } from "react";
 
 export function KDPRoyaltyDashboard({ userId: _userId }: { userId: any }) {
-  const { data: projects } = useSuspenseQuery(convexQuery(api.kdp_agent.listBookProjects, {}));
+  const { data: projects } = useSuspenseQuery(convexQuery(api.kdp_agent.listBookProjects, {})) as { data: any[] };
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const { data: royalties } = useQuery(
     selectedProjectId ? convexQuery(api.kdp_agent.getBookRoyalties, { projectId: selectedProjectId as any }) : { queryKey: [], enabled: false, queryFn: () => Promise.resolve(null) } as any
   ) as { data: any };
   const setRoyaltyData = useMutation(api.kdp_agent.setBookRoyaltyData);
 
-  const totalRevenue = (royalties ?? []).reduce((acc, r) => acc + r.dashboardData.totalRevenue, 0);
-  const totalSold = (royalties ?? []).reduce((acc, r) => acc + r.dashboardData.totalSold, 0);
-  const netRoyalties = (royalties ?? []).reduce((acc, r) => acc + r.dashboardData.netRoyalties, 0);
+  const totalRevenue = (royalties ?? []).reduce((acc: any, r: any) => acc + r.dashboardData.totalRevenue, 0);
+  const totalSold = (royalties ?? []).reduce((acc: any, r: any) => acc + r.dashboardData.totalSold, 0);
+  const netRoyalties = (royalties ?? []).reduce((acc: any, r: any) => acc + r.dashboardData.netRoyalties, 0);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -38,7 +38,7 @@ export function KDPRoyaltyDashboard({ userId: _userId }: { userId: any }) {
 
     const now = new Date();
     await setRoyaltyData({
-      projectId: selectedProjectId,
+      projectId: selectedProjectId as any,
       csvDataUrl: URL.createObjectURL(file),
       dashboardData: mockDashboardData,
       month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
@@ -95,7 +95,7 @@ export function KDPRoyaltyDashboard({ userId: _userId }: { userId: any }) {
 
           {royalties[0]?.dashboardData.monthlyTrend.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {royalties[0].dashboardData.monthlyTrend.map((m, i) => (
+              {royalties[0].dashboardData.monthlyTrend.map((m: any, i: number) => (
                 <div key={i} className="p-4 bg-slate-950 rounded-2xl border border-white/5">
                   <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{m.month}</p>
                   <p className="text-lg font-black text-emerald-500 mt-1">${m.revenue.toLocaleString()}</p>
@@ -105,7 +105,7 @@ export function KDPRoyaltyDashboard({ userId: _userId }: { userId: any }) {
             </div>
           )}
 
-          {royalties.map((r, i) => (
+          {royalties.map((r: any, i: number) => (
             <div key={i} className="flex justify-between items-center p-4 bg-slate-950 rounded-2xl border border-white/5 transition-all hover:border-indigo-500/30">
               <div>
                 <p className="text-sm font-black text-white">{r.month} {r.year}</p>

@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -127,7 +127,7 @@ test("disconnectPlatform returns error when not authenticated", async () => {
 
 test("getPlatformsFromDb returns all 12 platforms as disconnected", async () => {
   const t = convexTest(schema, modules);
-  const platforms = await t.query(api.social.getPlatformsFromDb, { adminId: "test-user" });
+  const platforms = await t.query(internal.social.getPlatformsFromDb, { adminId: "test-user" });
   expect(Array.isArray(platforms)).toBe(true);
   expect(platforms).toHaveLength(12);
   for (const p of platforms) {
@@ -147,7 +147,7 @@ test("oauth_states table can be queried", async () => {
 
 test("platform_connections table can be queried", async () => {
   const t = convexTest(schema, modules);
-  const platforms = await t.query(api.social.getPlatformsFromDb, { adminId: "test-user" });
+  const platforms = await t.query(internal.social.getPlatformsFromDb, { adminId: "test-user" });
   expect(platforms).toBeDefined();
   expect(Array.isArray(platforms)).toBe(true);
 });

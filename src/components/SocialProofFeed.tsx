@@ -54,7 +54,7 @@ function timeAgo(ts: number): string {
 export function SocialProofFeed({ limit = 10 }: { limit?: number }) {
   const { data: activities } = useQuery({
     ...convexQuery(api.socialProof.getRecentActivity, {}),
-  });
+  }) as { data: any[] };
 
   if (!activities || activities.length === 0) {
     return (
@@ -100,7 +100,7 @@ export function SocialProofFeed({ limit = 10 }: { limit?: number }) {
 export function ActiveViewersCounter({ agentId }: { agentId: string }) {
   const { data } = useQuery({
     ...convexQuery(api.socialProof.getActiveViewers, { agentId }),
-  });
+  }) as { data: any };
 
   const count = data?.count || 0;
   if (count === 0) return null;
@@ -119,7 +119,7 @@ export function ActiveViewersCounter({ agentId }: { agentId: string }) {
 export function ActivityStats() {
   const { data } = useQuery({
     ...convexQuery(api.socialProof.getActivityStats, {}),
-  });
+  }) as { data: any };
 
   if (!data) return null;
 

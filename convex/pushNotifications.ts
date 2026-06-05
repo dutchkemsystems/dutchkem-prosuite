@@ -186,6 +186,7 @@ export const sendPushBroadcast = action({
     // Import web-push dynamically
     let webpush: any;
     try {
+      // @ts-ignore — web-push is an optional dependency
       webpush = await import("web-push");
     } catch {
       console.warn("web-push package not installed");

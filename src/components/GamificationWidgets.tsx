@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
 
 import { api } from "../../convex/_generated/api";
 
-// ═══════════════════════════════════════════════════════════════════
-// GAMIFICATION PROFILE — XP, levels, streaks, achievements
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// GAMIFICATION PROFILE â€” XP, levels, streaks, achievements
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function GamificationProfile() {
   const profile = useQuery(api.gamification.getUserProfile, {});
@@ -35,7 +35,7 @@ export function GamificationProfile() {
               {profile.nextLevel && (
                 <span>
                   {" "}
-                  · {(profile.nextLevel.minXp - profile.totalXp).toLocaleString()} XP to next
+                  Â· {(profile.nextLevel.minXp - profile.totalXp).toLocaleString()} XP to next
                 </span>
               )}
             </div>
@@ -46,12 +46,12 @@ export function GamificationProfile() {
       {/* Streak */}
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-xl border border-white/5 bg-white/5 p-3 text-center">
-          <div className="text-2xl">🔥</div>
+          <div className="text-2xl">ðŸ”¥</div>
           <div className="mt-1 text-lg font-black text-white">{profile.streakDays}</div>
           <div className="text-[10px] text-slate-400">Day Streak</div>
         </div>
         <div className="rounded-xl border border-white/5 bg-white/5 p-3 text-center">
-          <div className="text-2xl">🏆</div>
+          <div className="text-2xl">ðŸ†</div>
           <div className="mt-1 text-lg font-black text-white">{profile.longestStreak}</div>
           <div className="text-[10px] text-slate-400">Best Streak</div>
         </div>
@@ -76,9 +76,9 @@ export function GamificationProfile() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// ACHIEVEMENTS LIST — Earned achievements with rarity
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ACHIEVEMENTS LIST â€” Earned achievements with rarity
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 const RARITY_COLORS = {
   common: "bg-gray-500/20 text-gray-400 border-gray-500/30",
@@ -94,18 +94,18 @@ export function AchievementsList() {
 
   if (!achievements || !allAchievements) return null;
 
-  const earnedIds = new Set(achievements.map((a) => a.achievementId));
+  const earnedIds = new Set(achievements.map((a: any) => a.achievementId));
 
   return (
     <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
       <h4 className="mb-3 text-sm font-black text-white">
-        🏅 Achievements ({earnedIds.size}/{allAchievements.length})
+        ðŸ… Achievements ({earnedIds.size}/{allAchievements.length})
       </h4>
 
       <div className="grid grid-cols-2 gap-2">
-        {allAchievements.map((ach) => {
+        {allAchievements.map((ach: any) => {
           const isEarned = earnedIds.has(ach.id);
-          const rarityColor = RARITY_COLORS[ach.rarity];
+          const rarityColor = RARITY_COLORS[ach.rarity as keyof typeof RARITY_COLORS];
 
           return (
             <div
@@ -117,7 +117,7 @@ export function AchievementsList() {
               }`}
             >
               <div className="flex items-center gap-2">
-                <span className="text-xl">{isEarned ? ach.icon : "🔒"}</span>
+                <span className="text-xl">{isEarned ? ach.icon : "ðŸ”’"}</span>
                 <div>
                   <div className="text-xs font-bold text-white">{ach.name}</div>
                   <div className="text-[9px] text-slate-400">{ach.description}</div>
@@ -136,9 +136,9 @@ export function AchievementsList() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// POINTS HISTORY — Recent point-earning actions
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// POINTS HISTORY â€” Recent point-earning actions
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function PointsHistory() {
   const history = useQuery(api.gamification.getPointHistory, { limit: 10 });
@@ -146,34 +146,34 @@ export function PointsHistory() {
   if (!history || history.length === 0) return null;
 
   const ACTION_ICONS: Record<string, string> = {
-    subscribe_weekly: "💳",
-    subscribe_monthly: "💳",
-    subscribe_quarterly: "💳",
-    subscribe_yearly: "💳",
-    referral_signup: "🤝",
-    referral_conversion: "🤝",
-    connect_platform: "🌐",
-    social_post: "📣",
-    daily_login: "📅",
-    weekly_streak_bonus: "🔥",
-    leave_review: "⭐",
-    complete_job: "✅",
-    publish_book: "📚",
+    subscribe_weekly: "ðŸ’³",
+    subscribe_monthly: "ðŸ’³",
+    subscribe_quarterly: "ðŸ’³",
+    subscribe_yearly: "ðŸ’³",
+    referral_signup: "ðŸ¤",
+    referral_conversion: "ðŸ¤",
+    connect_platform: "ðŸŒ",
+    social_post: "ðŸ“£",
+    daily_login: "ðŸ“…",
+    weekly_streak_bonus: "ðŸ”¥",
+    leave_review: "â­",
+    complete_job: "âœ…",
+    publish_book: "ðŸ“š",
   };
 
   return (
     <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-      <h4 className="mb-3 text-sm font-black text-white">📜 Recent Activity</h4>
+      <h4 className="mb-3 text-sm font-black text-white">ðŸ“œ Recent Activity</h4>
 
       <div className="space-y-2">
-        {history.map((entry) => (
+        {history.map((entry: any) => (
           <div
             key={entry._id}
             className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-3"
           >
             <div className="flex items-center gap-3">
               <span className="text-lg">
-                {ACTION_ICONS[entry.action] || "🎯"}
+                {ACTION_ICONS[entry.action] || "ðŸŽ¯"}
               </span>
               <div>
                 <div className="text-xs font-bold text-white">
@@ -194,9 +194,9 @@ export function PointsHistory() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// LEADERBOARD — Top users ranking
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// LEADERBOARD â€” Top users ranking
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function Leaderboard() {
   const leaderboard = useQuery(api.gamification.getLeaderboard, { limit: 10 });
@@ -205,10 +205,10 @@ export function Leaderboard() {
 
   return (
     <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-      <h4 className="mb-3 text-sm font-black text-white">🏆 Leaderboard</h4>
+      <h4 className="mb-3 text-sm font-black text-white">ðŸ† Leaderboard</h4>
 
       <div className="space-y-2">
-        {leaderboard.map((entry) => (
+        {leaderboard.map((entry: any) => (
           <div
             key={entry.userId}
             className={`flex items-center gap-3 rounded-xl border p-3 ${
@@ -235,7 +235,7 @@ export function Leaderboard() {
                 {entry.levelInfo.icon} Level {entry.level}
               </div>
               <div className="text-[10px] text-slate-400">
-                🔥 {entry.currentStreak} day streak
+                ðŸ”¥ {entry.currentStreak} day streak
               </div>
             </div>
             <div className="text-right">

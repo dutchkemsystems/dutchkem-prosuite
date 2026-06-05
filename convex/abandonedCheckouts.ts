@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { query, mutation, action, internalMutation, internalQuery } from "./_generated/server";
+import { query, action, internalMutation, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
 // ABANDONED CHECKOUT RECOVERY — Track incomplete payments, send reminders
@@ -169,8 +170,7 @@ export const sendRecoveryReminder = internalMutation({
 
     // Trigger push notification
     try {
-      const pushMutation = (await import("./pushNotifications")).triggerPushForNotification;
-      await pushMutation(ctx, {
+      await ctx.runMutation(internal.pushNotifications.triggerPushForNotification, {
         userId: args.userId,
         title: msg.title,
         body: msg.body,

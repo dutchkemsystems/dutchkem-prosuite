@@ -209,7 +209,7 @@ export const getConnectionForPlatformScheduled = internalQuery({
 // ═══════════════════════════════════════════════════════════════════
 export const runScheduledPostsNow = action({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<any> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     return await ctx.runAction(internal.scheduledPosts.processScheduledPosts);

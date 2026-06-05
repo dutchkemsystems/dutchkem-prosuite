@@ -1,5 +1,5 @@
 // convex/referrals.ts — Viral Referral & Affiliate System
-import { mutation, query, internalMutation, internalAction } from "./_generated/server";
+import { mutation, query, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
@@ -99,7 +99,7 @@ export const processWeeklyPayouts = internalAction({
   },
 });
 
-export const getUnpaidConversions = query({
+export const getUnpaidConversions = internalQuery({
   args: {},
   handler: async (ctx) => {
     return await ctx.db.query("referral_conversions").withIndex("by_status", (q) => q.eq("status", "earned")).take(100);
@@ -109,6 +109,6 @@ export const getUnpaidConversions = query({
 export const createPayout = internalMutation({
   args: { userId: v.string(), amount: v.number() },
   handler: async (ctx, args) => {
-    await ctx.db.insert("referral_payouts", { userId: args.amount, amount: args.amount, status: "pending", period: new Date().toISOString().substring(0, 7), createdAt: Date.now() });
+    await ctx.db.insert("referral_payouts", { userId: args.userId, amount: args.amount, status: "pending", period: new Date().toISOString().substring(0, 7), createdAt: Date.now() });
   },
 });

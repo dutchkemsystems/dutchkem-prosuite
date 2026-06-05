@@ -1,6 +1,6 @@
-import { query, mutation, action, internalMutation } from "./_generated/server";
+﻿import { query, mutation, action } from "./_generated/server";
 import { v } from "convex/values";
-import { internal, api } from "./_generated/api";
+import { api } from "./_generated/api";
 
 /**
  * FINTECH INTEGRATION - Kora Pay + Nigerian Banks
@@ -9,22 +9,22 @@ import { internal, api } from "./_generated/api";
 
 // Supported Nigerian banks (NIP bank codes for Kora Pay API)
 export const FINTECH_BANKS = [
-  { id: "opay", name: "OPay", code: "100004", icon: "🏦", accountField: "account_number" },
-  { id: "palmpay", name: "PalmPay", code: "100033", icon: "🟢", accountField: "account_number" },
-  { id: "kuda", name: "Kuda Bank", code: "090267", icon: "💜", accountField: "account_number" },
-  { id: "gtbank", name: "GTBank", code: "058", icon: "💚", accountField: "account_number" },
-  { id: "firstbank", name: "First Bank", code: "011", icon: "🏛️", accountField: "account_number" },
-  { id: "uba", name: "UBA", code: "033", icon: "🔵", accountField: "account_number" },
-  { id: "zenith", name: "Zenith Bank", code: "057", icon: "🔵", accountField: "account_number" },
-  { id: "access", name: "Access Bank", code: "044", icon: "🔴", accountField: "account_number" },
-  { id: "fidelity", name: "Fidelity Bank", code: "070", icon: "🟢", accountField: "account_number" },
-  { id: "sterling", name: "Sterling Bank", code: "232", icon: "⚪", accountField: "account_number" },
-  { id: "wema", name: "Wema Bank", code: "035", icon: "🟣", accountField: "account_number" },
-  { id: "ecobank", name: "Ecobank", code: "050", icon: "🔴", accountField: "account_number" },
-  { id: "stanbic", name: "Stanbic IBTC", code: "221", icon: "🔵", accountField: "account_number" },
-  { id: "keystone", name: "Keystone Bank", code: "082", icon: "🔴", accountField: "account_number" },
-  { id: "unity", name: "Unity Bank", code: "215", icon: "🟠", accountField: "account_number" },
-  { id: "heritage", name: "Heritage Bank", code: "030", icon: "🔵", accountField: "account_number" },
+  { id: "opay", name: "OPay", code: "100004", icon: "ðŸ¦", accountField: "account_number" },
+  { id: "palmpay", name: "PalmPay", code: "100033", icon: "ðŸŸ¢", accountField: "account_number" },
+  { id: "kuda", name: "Kuda Bank", code: "090267", icon: "ðŸ’œ", accountField: "account_number" },
+  { id: "gtbank", name: "GTBank", code: "058", icon: "ðŸ’š", accountField: "account_number" },
+  { id: "firstbank", name: "First Bank", code: "011", icon: "ðŸ›ï¸", accountField: "account_number" },
+  { id: "uba", name: "UBA", code: "033", icon: "ðŸ”µ", accountField: "account_number" },
+  { id: "zenith", name: "Zenith Bank", code: "057", icon: "ðŸ”µ", accountField: "account_number" },
+  { id: "access", name: "Access Bank", code: "044", icon: "ðŸ”´", accountField: "account_number" },
+  { id: "fidelity", name: "Fidelity Bank", code: "070", icon: "ðŸŸ¢", accountField: "account_number" },
+  { id: "sterling", name: "Sterling Bank", code: "232", icon: "âšª", accountField: "account_number" },
+  { id: "wema", name: "Wema Bank", code: "035", icon: "ðŸŸ£", accountField: "account_number" },
+  { id: "ecobank", name: "Ecobank", code: "050", icon: "ðŸ”´", accountField: "account_number" },
+  { id: "stanbic", name: "Stanbic IBTC", code: "221", icon: "ðŸ”µ", accountField: "account_number" },
+  { id: "keystone", name: "Keystone Bank", code: "082", icon: "ðŸ”´", accountField: "account_number" },
+  { id: "unity", name: "Unity Bank", code: "215", icon: "ðŸŸ ", accountField: "account_number" },
+  { id: "heritage", name: "Heritage Bank", code: "030", icon: "ðŸ”µ", accountField: "account_number" },
 ] as const;
 
 /**
@@ -47,7 +47,7 @@ export const resolveBankAccount = action({
     accountNumber: v.string(),
   },
   returns: v.any(),
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     const koraSecret = process.env.KORA_SECRET_KEY;
     if (!koraSecret) {
       return { success: false, error: "KORA_SECRET_KEY not configured in Convex env" };
@@ -176,7 +176,7 @@ export const initiateDirectTransfer = mutation({
         .first();
 
       if (!mainWallet || mainWallet.balance < args.amount) {
-        return { success: false, error: `Insufficient balance. Wallet: ₦${(mainWallet?.balance || 0).toLocaleString()}, Transfer: ₦${args.amount.toLocaleString()}` };
+        return { success: false, error: `Insufficient balance. Wallet: â‚¦${(mainWallet?.balance || 0).toLocaleString()}, Transfer: â‚¦${args.amount.toLocaleString()}` };
       }
 
       // Generate OTP (6 digits)
@@ -200,18 +200,18 @@ export const initiateDirectTransfer = mutation({
           status: "pending",
           type: "direct",
         },
-        description: `Direct transfer OTP for ₦${args.amount} to ${args.accountName}`,
+        description: `Direct transfer OTP for â‚¦${args.amount} to ${args.accountName}`,
         updatedAt: Date.now(),
       });
 
-      console.log(`[OTP] Direct transfer OTP for ₦${args.amount}: ${otp}`);
+      console.log(`[OTP] Direct transfer OTP for â‚¦${args.amount}: ${otp}`);
 
       // Send OTP via email using Termii
       try {
         await ctx.scheduler.runAfter(0, api.otp_email.sendOtpEmail as any, {
           otp,
           email: "dutchkemdeveloper@gmail.com",
-          purpose: `₦${args.amount.toLocaleString()} transfer to ${args.accountName}`,
+          purpose: `â‚¦${args.amount.toLocaleString()} transfer to ${args.accountName}`,
           amount: args.amount,
         });
       } catch (emailErr: any) {
@@ -284,12 +284,12 @@ export const initiateTransfer = mutation({
           expiresAt: otpExpiry,
           status: "pending",
         },
-        description: `Transfer OTP for ₦${args.amount}`,
+        description: `Transfer OTP for â‚¦${args.amount}`,
         updatedAt: Date.now(),
       });
 
       // In production, send OTP via Termii email API
-      console.log(`[OTP] Transfer OTP for ₦${args.amount}: ${otp}`);
+      console.log(`[OTP] Transfer OTP for â‚¦${args.amount}: ${otp}`);
       console.log(`[OTP] Expires at: ${new Date(otpExpiry).toISOString()}`);
 
       return {
@@ -345,9 +345,9 @@ export const verifyTransferOTP = mutation({
       }
 
       // Verify passkey if provided
-      if (args.passkeyId && args.passkey) {
+      if (args.passkeyId && args.passkey) { const passkeyId = args.passkeyId;
         const passkeyRecord = await ctx.db.query("system_config")
-          .withIndex("by_key", q => q.eq("key", args.passkeyId))
+          .withIndex("by_key", q => q.eq("key", passkeyId))
           .first();
 
         if (!passkeyRecord) return { success: false, error: "Passkey not found" };
@@ -456,7 +456,7 @@ export const verifyTransferOTP = mutation({
         success: true,
         reference,
         receipt,
-        message: `₦${otpData.amount.toLocaleString()} transferred successfully`,
+        message: `â‚¦${otpData.amount.toLocaleString()} transferred successfully`,
       };
     } catch (error: any) {
       console.error("verifyTransferOTP error:", error);
@@ -505,9 +505,9 @@ export const verifyDirectTransferOTP = mutation({
       }
 
       // Verify passkey if provided
-      if (args.passkeyId && args.passkey) {
+      if (args.passkeyId && args.passkey) { const passkeyId = args.passkeyId;
         const passkeyRecord = await ctx.db.query("system_config")
-          .withIndex("by_key", q => q.eq("key", args.passkeyId))
+          .withIndex("by_key", q => q.eq("key", passkeyId))
           .first();
 
         if (!passkeyRecord) return { success: false, error: "Passkey not found" };
@@ -534,7 +534,7 @@ export const verifyDirectTransferOTP = mutation({
         .first();
 
       if (!mainWallet || mainWallet.balance < otpData.amount) {
-        return { success: false, error: `Insufficient balance. Wallet: ₦${(mainWallet?.balance || 0).toLocaleString()}, Transfer: ₦${otpData.amount.toLocaleString()}` };
+        return { success: false, error: `Insufficient balance. Wallet: â‚¦${(mainWallet?.balance || 0).toLocaleString()}, Transfer: â‚¦${otpData.amount.toLocaleString()}` };
       }
 
       // Call Kora Pay API for real transfer
@@ -625,7 +625,7 @@ export const verifyDirectTransferOTP = mutation({
         success: true,
         reference,
         receipt,
-        message: `₦${otpData.amount.toLocaleString()} transferred successfully to ${otpData.accountName}`,
+        message: `â‚¦${otpData.amount.toLocaleString()} transferred successfully to ${otpData.accountName}`,
       };
     } catch (error: any) {
       console.error("verifyDirectTransferOTP error:", error);

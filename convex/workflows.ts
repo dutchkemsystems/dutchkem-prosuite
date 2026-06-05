@@ -1,6 +1,6 @@
-import { mutation, query, internalAction } from "./_generated/server";
+import { mutation, query, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 
 // Feature 3: Smart Workflows & Automation Engine
 
@@ -184,7 +184,7 @@ export const executeWorkflow = internalAction({
   },
 });
 
-export const getWorkflowById = query({
+export const getWorkflowById = internalQuery({
   args: { workflowId: v.id("workflows") },
   returns: v.any(),
   handler: async (ctx, args) => {
@@ -192,7 +192,7 @@ export const getWorkflowById = query({
   },
 });
 
-export const logWorkflowExecution = mutation({
+export const logWorkflowExecution = internalMutation({
   args: {
     workflowId: v.id("workflows"),
     triggerEvent: v.any(),
@@ -217,7 +217,7 @@ export const logWorkflowExecution = mutation({
   },
 });
 
-export const updateTriggerCount = mutation({
+export const updateTriggerCount = internalMutation({
   args: { workflowId: v.id("workflows") },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -250,13 +250,13 @@ export const getWorkflowExecutions = query({
 });
 
 // Action executors
-export const executeSendSms = mutation({
+export const executeSendSms = internalMutation({
   args: { config: v.any(), triggerEvent: v.any() },
   returns: v.null(),
   handler: async (ctx, args) => {
     const { phone, message } = args.config;
     // Integration with Termii SMS
-    await ctx.runMutation(internal.communication.sendSms, {
+    await ctx.runMutation(api.communication.sendSms, {
       to: phone || args.triggerEvent.phone,
       message: message || `New activity on your Dutchkem account!`,
     });
@@ -264,7 +264,7 @@ export const executeSendSms = mutation({
   },
 });
 
-export const executeSendEmail = mutation({
+export const executeSendEmail = internalMutation({
   args: { config: v.any(), triggerEvent: v.any() },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -273,7 +273,7 @@ export const executeSendEmail = mutation({
   },
 });
 
-export const executeAssignAgent = mutation({
+export const executeAssignAgent = internalMutation({
   args: { config: v.any(), triggerEvent: v.any() },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -282,7 +282,7 @@ export const executeAssignAgent = mutation({
   },
 });
 
-export const executeApplyDiscount = mutation({
+export const executeApplyDiscount = internalMutation({
   args: { config: v.any(), triggerEvent: v.any() },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -291,7 +291,7 @@ export const executeApplyDiscount = mutation({
   },
 });
 
-export const executeNotification = mutation({
+export const executeNotification = internalMutation({
   args: { config: v.any(), triggerEvent: v.any() },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -308,7 +308,7 @@ export const executeNotification = mutation({
   },
 });
 
-export const executeWebhook = mutation({
+export const executeWebhook = internalMutation({
   args: { config: v.any(), triggerEvent: v.any() },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -336,7 +336,7 @@ export const evaluateWorkflows = internalAction({
   },
 });
 
-export const getScheduledWorkflows = query({
+export const getScheduledWorkflows = internalQuery({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx, args) => {

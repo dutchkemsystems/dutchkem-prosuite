@@ -1,6 +1,7 @@
-import { mutation, query, internalAction } from "./_generated/server";
+﻿import { mutation, query, internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 // Feature 6: Facebook Lead Ads
 
@@ -18,7 +19,7 @@ export const receiveFacebookLead = internalAction({
     leadId: v.id("leads"),
     error: v.optional(v.string()),
   }),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ success: boolean; leadId: Id<"leads">; error?: string }> => {
     // Extract standard fields
     let email: string | undefined;
     let phone: string | undefined;
@@ -47,7 +48,7 @@ export const receiveFacebookLead = internalAction({
     }
 
     // Create lead in database
-    const newLeadId = await ctx.runMutation(internal.facebook_leads.createLead, {
+    const newLeadId: Id<"leads"> = await ctx.runMutation(internal.facebook_leads.createLead, {
       email,
       phone,
       name,
@@ -78,7 +79,7 @@ export const receiveFacebookLead = internalAction({
   },
 });
 
-export const createLead = mutation({
+export const createLead = internalMutation({
   args: {
     email: v.optional(v.string()),
     phone: v.optional(v.string()),
@@ -206,7 +207,7 @@ export const getLeadStats = query({
   },
 });
 
-export const notifyNewLead = mutation({
+export const notifyNewLead = internalMutation({
   args: { leadId: v.id("leads"), source: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {

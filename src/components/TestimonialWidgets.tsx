@@ -1,11 +1,11 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 
 import { api } from "../../convex/_generated/api";
 
-// ═══════════════════════════════════════════════════════════════════
-// TESTIMONIAL WIDGETS — Display and collect testimonials
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// TESTIMONIAL WIDGETS â€” Display and collect testimonials
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 // Featured Testimonials Carousel
 export function FeaturedTestimonials() {
@@ -15,9 +15,9 @@ export function FeaturedTestimonials() {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-black text-white">⭐ What Our Users Say</h3>
+      <h3 className="text-lg font-black text-white">â­ What Our Users Say</h3>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {testimonials.map((t) => (
+        {testimonials.map((t: any) => (
           <div
             key={t._id}
             className="rounded-2xl border border-white/5 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-6"
@@ -29,7 +29,7 @@ export function FeaturedTestimonials() {
                   key={i}
                   className={`text-sm ${i < t.rating ? "text-amber-400" : "text-slate-600"}`}
                 >
-                  ★
+                  â˜…
                 </span>
               ))}
             </div>
@@ -43,7 +43,7 @@ export function FeaturedTestimonials() {
             {/* Result */}
             {t.result && (
               <div className="mb-4 rounded-lg bg-green-500/10 px-3 py-2 text-[10px] text-green-400">
-                📈 {t.result}
+                ðŸ“ˆ {t.result}
               </div>
             )}
 
@@ -62,7 +62,7 @@ export function FeaturedTestimonials() {
               </div>
               {t.verified && (
                 <div className="ml-auto rounded-full bg-green-500/20 px-2 py-0.5 text-[8px] font-bold text-green-400">
-                  ✓ Verified
+                  âœ“ Verified
                 </div>
               )}
             </div>
@@ -114,7 +114,7 @@ export function TestimonialGrid() {
 
       {/* Grid */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {testimonials.map((t) => (
+        {testimonials.map((t: any) => (
           <div
             key={t._id}
             className="rounded-2xl border border-white/5 bg-white/5 p-4"
@@ -125,7 +125,7 @@ export function TestimonialGrid() {
                   key={i}
                   className={`text-xs ${i < t.rating ? "text-amber-400" : "text-slate-600"}`}
                 >
-                  ★
+                  â˜…
                 </span>
               ))}
             </div>
@@ -134,7 +134,7 @@ export function TestimonialGrid() {
             <div className="flex items-center justify-between">
               <div className="text-[10px] text-slate-500">{t.userName}</div>
               {t.verified && (
-                <div className="text-[8px] text-green-400">✓ Verified</div>
+                <div className="text-[8px] text-green-400">âœ“ Verified</div>
               )}
             </div>
           </div>
@@ -163,7 +163,7 @@ export function TestimonialForm({ service }: { service: string }) {
   if (submitted) {
     return (
       <div className="rounded-2xl border border-green-500/30 bg-green-500/10 p-6 text-center">
-        <div className="text-3xl">🎉</div>
+        <div className="text-3xl">ðŸŽ‰</div>
         <div className="mt-2 text-sm font-bold text-white">Thank you!</div>
         <div className="mt-1 text-[10px] text-slate-400">
           Your testimonial has been submitted and will appear after review.
@@ -187,7 +187,7 @@ export function TestimonialForm({ service }: { service: string }) {
               onClick={() => setRating(r)}
               className={`text-xl ${r <= rating ? "text-amber-400" : "text-slate-600"}`}
             >
-              ★
+              â˜…
             </button>
           ))}
         </div>
@@ -274,14 +274,14 @@ export function TestimonialStats() {
 
       {/* Rating Distribution */}
       <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-        <h4 className="mb-3 text-sm font-black text-white">⭐ Rating Distribution</h4>
+        <h4 className="mb-3 text-sm font-black text-white">â­ Rating Distribution</h4>
         <div className="space-y-2">
           {[5, 4, 3, 2, 1].map((rating) => {
             const count = stats.ratingDistribution[rating as keyof typeof stats.ratingDistribution];
             const percentage = stats.approved > 0 ? (count / stats.approved) * 100 : 0;
             return (
               <div key={rating} className="flex items-center gap-2">
-                <div className="w-8 text-xs text-slate-400">{rating}★</div>
+                <div className="w-8 text-xs text-slate-400">{rating}â˜…</div>
                 <div className="flex-1 h-2 overflow-hidden rounded-full bg-white/10">
                   <div
                     className="h-full rounded-full bg-amber-500"

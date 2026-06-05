@@ -192,8 +192,8 @@ function Header({ user, notifications }: { user: any, notifications: any[] }) {
   const [showNotifs, setShowNotifs] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushSupported, setPushSupported] = useState(false);
-  const subscribeToPushAction = useAction(api.pushNotifications.subscribe);
-  const unsubscribeFromPushAction = useAction(api.pushNotifications.unsubscribe);
+  const subscribeToPushAction = useMutation(api.pushNotifications.subscribe);
+  const unsubscribeFromPushAction = useMutation(api.pushNotifications.unsubscribe);
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date().toLocaleTimeString()), 1000);

@@ -1,10 +1,10 @@
-import { useQuery } from "convex/react";
+﻿import { useQuery } from "convex/react";
 
 import { api } from "../../convex/_generated/api";
 
-// ═══════════════════════════════════════════════════════════════════
-// CROSS-SELL CARD — Smart service recommendations
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// CROSS-SELL CARD â€” Smart service recommendations
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 interface CrossSellCardProps {
   planId: string;
@@ -31,7 +31,7 @@ export function CrossSellCard({ planId, onDismiss }: CrossSellCardProps) {
       </div>
 
       <div className="space-y-2">
-        {crossSells.map((item) => (
+        {crossSells.map((item: any) => (
           <div
             key={item.id}
             className="flex items-center justify-between rounded-xl border border-white/5 bg-white/5 p-3 transition-all hover:border-indigo-500/30 hover:bg-indigo-500/5"
@@ -39,7 +39,7 @@ export function CrossSellCard({ planId, onDismiss }: CrossSellCardProps) {
             <div>
               <div className="text-sm font-bold text-white">{item.name}</div>
               <div className="text-[10px] text-slate-400">
-                {item.price === 0 ? "Free" : `₦${item.price?.toLocaleString()}`}
+                {item.price === 0 ? "Free" : `â‚¦${item.price?.toLocaleString()}`}
               </div>
             </div>
             <button className="rounded-lg bg-indigo-600 px-3 py-1.5 text-[10px] font-bold text-white transition-colors hover:bg-indigo-500">
@@ -52,9 +52,9 @@ export function CrossSellCard({ planId, onDismiss }: CrossSellCardProps) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// TRENDING SERVICES — Social proof widget
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// TRENDING SERVICES â€” Social proof widget
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function TrendingServices() {
   const trending = useQuery(api.crossSell.getTrendingServices, {});
@@ -63,10 +63,10 @@ export function TrendingServices() {
 
   return (
     <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-      <h4 className="mb-3 text-sm font-black text-white">🔥 Trending This Week</h4>
+      <h4 className="mb-3 text-sm font-black text-white">ðŸ”¥ Trending This Week</h4>
 
       <div className="space-y-2">
-        {trending.map((service, i) => (
+        {trending.map((service: any, i: number) => (
           <div
             key={service.planId}
             className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/5 p-3"
@@ -93,9 +93,9 @@ export function TrendingServices() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// PERSONALIZED RECOMMENDATIONS — AI-powered suggestions
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// PERSONALIZED RECOMMENDATIONS â€” AI-powered suggestions
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function PersonalizedRecommendations() {
   const recommendations = useQuery(api.crossSell.getRecommendations, {});
@@ -104,17 +104,17 @@ export function PersonalizedRecommendations() {
 
   return (
     <div className="rounded-2xl border border-white/5 bg-white/5 p-4">
-      <h4 className="mb-3 text-sm font-black text-white">✨ Picked for You</h4>
+      <h4 className="mb-3 text-sm font-black text-white">âœ¨ Picked for You</h4>
 
       <div className="space-y-3">
-        {recommendations.map((rec) => (
+        {recommendations.map((rec: any) => (
           <div
             key={rec.id}
             className="rounded-xl border border-white/5 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 p-4"
           >
             <div className="mb-1 flex items-center gap-2">
               <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-400">
-                {rec.type === "upgrade" ? "⬆️ Upgrade" : "🔗 Cross-sell"}
+                {rec.type === "upgrade" ? "â¬†ï¸ Upgrade" : "ðŸ”— Cross-sell"}
               </span>
               <span className="text-[10px] text-slate-500">Score: {rec.score}%</span>
             </div>
@@ -122,7 +122,7 @@ export function PersonalizedRecommendations() {
             <div className="text-[10px] text-slate-400">{rec.reason}</div>
             <div className="mt-2 flex items-center justify-between">
               <span className="text-xs font-bold text-indigo-400">
-                {rec.price === 0 ? "Free" : `₦${(rec.price || 0).toLocaleString()}`}
+                {rec.price === 0 ? "Free" : `â‚¦${(rec.price || 0).toLocaleString()}`}
               </span>
               <button className="rounded-lg bg-indigo-600 px-3 py-1.5 text-[10px] font-bold text-white transition-colors hover:bg-indigo-500">
                 Learn More

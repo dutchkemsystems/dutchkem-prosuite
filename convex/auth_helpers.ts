@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
@@ -61,7 +61,7 @@ async function validateAdminSessionCore(
  * Query wrapper for use in ACTIONS (which have no direct ctx.db).
  * Call from an action via: ctx.runQuery(internal.auth_helpers.validateAdminSession, { adminToken })
  */
-export const validateAdminSession = query({
+export const validateAdminSession = internalQuery({
   args: { adminToken: v.optional(v.string()) },
   returns: v.union(
     v.null(),
