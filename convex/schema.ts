@@ -1374,4 +1374,59 @@ export default defineSchema({
     lastError: v.optional(v.string()),
   })
     .index("by_toolkit", ["toolkit"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // COMPOSIO INTEGRATION HUB — Admin control + Client view-only
+  // ═══════════════════════════════════════════════════════════════════
+
+  // Per-platform admin settings (enable/disable, mode, schedule)
+  composio_settings: defineTable({
+    platform: v.string(),                 // "twitter", "linkedin", "global"
+    enabled: v.boolean(),
+    postingMode: v.union(v.literal("auto"), v.literal("manual"), v.literal("paused")),
+    schedule: v.optional(v.string()),     // "09:00,15:00,21:00"
+    dailyPostLimit: v.number(),
+    postsToday: v.number(),
+    lastResetDate: v.string(),            // YYYY-MM-DD
+    updatedAt: v.number(),
+  })
+    .index("by_platform", ["platform"]),
+
+  // Per-agent Composio configuration
+  composio_agent_settings: defineTable({
+    agentId: v.string(),                  // "A1" - "A15"
+    composioEnabled: v.boolean(),
+    enabledPlatforms: v.array(v.string()),// ["twitter", "linkedin"]
+    updatedAt: v.number(),
+  })
+    .index("by_agent", ["agentId"]),
+
+  // Action execution logs (feeds admin logs + client activity feed)
+  composio_action_logs: defineTable({
+    platform: v.string(),
+    action: v.string(),                   // "post", "schedule", "sync", "engage"
+    status: v.union(v.literal("success"), v.literal("failed"), v.literal("pending")),
+    agentId: v.optional(v.string()),
+    clientId: v.optional(v.id("users")),
+    content: v.optional(v.string()),
+    timestamp: v.number(),
+    durationMs: v.optional(v.number()),
+    error: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+  })
+    .index("by_platform", ["platform"])
+    .index("by_agent", ["agentId"])
+    .index("by_client", ["clientId"])
+    .index("by_timestamp", ["timestamp"]),
+
+  // Client notification preferences
+  composio_notification_prefs: defineTable({
+    userId: v.id("users"),
+    emailOnAction: v.boolean(),
+    pushOnAction: v.boolean(),
+    weeklyReport: v.boolean(),
+    agentActivityDigest: v.boolean(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"]),
 });

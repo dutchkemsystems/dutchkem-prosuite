@@ -16,6 +16,10 @@ import { InactivityLogout } from '~/components/InactivityLogout';
 import { FlashSaleBanner } from '~/components/FlashSaleBanner';
 import { UrgencyTriggers } from '~/components/UrgencyTriggers';
 import { SocialProofFeed, ActivityStats } from '~/components/SocialProofFeed';
+import { ClientActivityFeed } from '~/components/ClientActivityFeed';
+import { ClientQuickActions } from '~/components/ClientQuickActions';
+import { ClientNotificationPrefs } from '~/components/ClientNotificationPrefs';
+import { ClientPerformanceSummary } from '~/components/ClientPerformanceSummary';
 import { isPushSupported, subscribeToPush, unsubscribeFromPush, getExistingSubscription, subscriptionToJSON } from '~/lib/push';
 
 export const Route = createFileRoute('/dashboard')({
@@ -71,6 +75,7 @@ function DashboardPage() {
           </Link>
           <nav className="space-y-1">
             <TabButton active={activeTab === "overview"} onClick={() => { setActiveTab("overview"); setSidebarOpen(false); }} icon="📊" label="Overview" />
+            <TabButton active={activeTab === "activity"} onClick={() => { setActiveTab("activity"); setSidebarOpen(false); }} icon="📡" label="Agent Activity" />
             <TabButton active={activeTab === "subscriptions"} onClick={() => { setActiveTab("subscriptions"); setSidebarOpen(false); }} icon="💳" label="Subscriptions" />
             <TabButton active={activeTab === "kdp"} onClick={() => { setActiveTab("kdp"); setSidebarOpen(false); }} icon="📖" label="KDP Publishing" />
             <TabButton active={activeTab === "projects"} onClick={() => { setActiveTab("projects"); setSidebarOpen(false); }} icon="📁" label="Projects" />
@@ -92,6 +97,18 @@ function DashboardPage() {
           <Header user={data.user} notifications={data.notifications} />
           
           {activeTab === "overview" && <Overview data={data} setActiveTab={setActiveTab} setModal={setModal} />}
+          {activeTab === "activity" && (
+            <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <ClientActivityFeed />
+                <ClientPerformanceSummary />
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <ClientQuickActions />
+                <ClientNotificationPrefs />
+              </div>
+            </div>
+          )}
           {activeTab === "subscriptions" && <Subscriptions data={data} />}
           {activeTab === "kdp" && (
             <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">

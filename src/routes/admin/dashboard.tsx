@@ -123,6 +123,7 @@ function AdminDashboardPage() {
            <AdminTab active={activeTab === "platform-analytics"} onClick={() => setActiveTab("platform-analytics")} icon="📊" label="Platform Analytics" />
            <AdminTab active={activeTab === "synthetic"} onClick={() => setActiveTab("synthetic")} icon="🤖" label="Synthetic AI" />
            <AdminTab active={activeTab === "ad-engine"} onClick={() => setActiveTab("ad-engine")} icon="📢" label="Ad Engine" />
+           <AdminTab active={activeTab === "composio-hub"} onClick={() => setActiveTab("composio-hub")} icon="🔗" label="Composio Hub" />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -163,6 +164,7 @@ function AdminDashboardPage() {
              {activeTab === "platform-analytics" && <PlatformAnalyticsPanel />}
              {activeTab === "synthetic" && <SyntheticIntelPanel />}
              {activeTab === "ad-engine" && <AdEnginePanel />}
+             {activeTab === "composio-hub" && <ComposioAdminHub adminToken={adminToken} />}
           </AdminSuspense>
         </div>
         <Footer />
