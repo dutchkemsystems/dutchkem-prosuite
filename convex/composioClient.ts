@@ -30,11 +30,9 @@ export const getActivityFeed = query({
   handler: async (ctx, { limit }) => {
     // Get the authenticated user's ID from Convex Auth
     const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    if (!userId) return [];
     const user = await ctx.db.get(userId);
-    if (!user) throw new Error("User not found");
-
-    // Get action logs where clientId matches this user
+    if (!user) return [];
     const logs = await ctx.db.query("composio_action_logs")
       .withIndex("by_client", q => q.eq("clientId", user._id))
       .order("desc")
@@ -64,7 +62,7 @@ export const getQuickActions = query({
   returns: v.any(),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    if (!userId) return [];
 
     // Quick actions are predefined agent tasks clients can trigger
     return [
@@ -169,9 +167,9 @@ export const getNotificationPrefs = query({
   returns: v.any(),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    if (!userId) return { emailOnAction: true, pushOnAction: true, weeklyReport: true, agentActivityDigest: false };
     const user = await ctx.db.get(userId);
-    if (!user) throw new Error("User not found");
+    if (!user) return { emailOnAction: true, pushOnAction: true, weeklyReport: true, agentActivityDigest: false };
 
     const prefs = await ctx.db.query("composio_notification_prefs")
       .withIndex("by_user", q => q.eq("userId", user._id))
@@ -197,9 +195,9 @@ export const updateNotificationPrefs = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    if (!userId) return null;
     const user = await ctx.db.get(userId);
-    if (!user) throw new Error("User not found");
+    if (!user) return null;
 
     const existing = await ctx.db.query("composio_notification_prefs")
       .withIndex("by_user", q => q.eq("userId", user._id))
@@ -234,9 +232,9 @@ export const getPerformanceSummary = query({
   returns: v.any(),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    if (!userId) return { thisWeek: { totalActions: 0, successRate: 0, platformsUsed: 0, agentsUsed: 0 }, thisMonth: { totalActions: 0, successRate: 0, platformsUsed: 0, agentsUsed: 0 }, platformStats: {}, agentStats: {} };
     const user = await ctx.db.get(userId);
-    if (!user) throw new Error("User not found");
+    if (!user) return { thisWeek: { totalActions: 0, successRate: 0, platformsUsed: 0, agentsUsed: 0 }, thisMonth: { totalActions: 0, successRate: 0, platformsUsed: 0, agentsUsed: 0 }, platformStats: {}, agentStats: {} };
 
     const now = Date.now();
     const oneWeekAgo = now - 604800000;
@@ -309,7 +307,7 @@ export const triggerQuickAction = mutation({
       "exam_prep", "finance", "video", "wellness", "home_services", "translation",
     ];
     if (!predefinedActions.includes(actionId)) {
-      throw new Error("Invalid action");
+      return { message: "Invalid action", actionId };
     }
 
     const agentIdMap: Record<string, string> = {

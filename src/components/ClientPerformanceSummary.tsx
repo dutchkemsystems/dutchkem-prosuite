@@ -1,16 +1,9 @@
-import { useQuery } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
 
 export function ClientPerformanceSummary() {
-  const summary = useQuery(api.composioClient.getPerformanceSummary, {});
-
-  if (!summary) {
-    return (
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8">
-        <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const { data: summary } = useSuspenseQuery(convexQuery(api.composioClient.getPerformanceSummary, {})) as { data: any };
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8">

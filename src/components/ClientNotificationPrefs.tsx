@@ -1,19 +1,13 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
+import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 export function ClientNotificationPrefs() {
-  const prefs = useQuery(api.composioClient.getNotificationPrefs, {});
+  const { data: prefs } = useSuspenseQuery(convexQuery(api.composioClient.getNotificationPrefs, {})) as { data: any };
   const updatePrefs = useMutation(api.composioClient.updateNotificationPrefs);
   const [saving, setSaving] = useState(false);
-
-  if (!prefs) {
-    return (
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8">
-        <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
 
   const handleToggle = async (key: string, value: boolean) => {
     setSaving(true);

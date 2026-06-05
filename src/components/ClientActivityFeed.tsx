@@ -1,16 +1,9 @@
-import { useQuery } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
 
 export function ClientActivityFeed() {
-  const activity = useQuery(api.composioClient.getActivityFeed, { limit: 15 });
-
-  if (!activity) {
-    return (
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8">
-        <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const { data: activity } = useSuspenseQuery(convexQuery(api.composioClient.getActivityFeed, { limit: 15 })) as { data: any[] };
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8">
@@ -19,7 +12,7 @@ export function ClientActivityFeed() {
         <span className="text-[9px] text-purple-500 font-bold uppercase">Live Feed</span>
       </div>
 
-      {activity.length === 0 ? (
+      {(!activity || activity.length === 0) ? (
         <div className="text-center py-10">
           <p className="text-4xl mb-3">📡</p>
           <p className="text-sm text-slate-500 font-bold">No activity yet</p>

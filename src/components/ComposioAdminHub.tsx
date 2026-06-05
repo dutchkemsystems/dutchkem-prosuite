@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
+import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 interface ComposioAdminHubProps {
@@ -9,18 +11,21 @@ interface ComposioAdminHubProps {
 export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
   const [activeSubTab, setActiveSubTab] = useState<"overview" | "platforms" | "agents" | "logs" | "stats">("overview");
 
-  const status = useQuery(api.composioHub.getComposioStatus, { adminToken });
-  const logs = useQuery(api.composioHub.getComposioActionLogs, { adminToken, limit: 50 });
-  const stats = useQuery(api.composioHub.getComposioStats, { adminToken });
+  const { data: status } = useSuspenseQuery(convexQuery(api.composioHub.getComposioStatus, { adminToken })) as { data: any };
+  const { data: logs } = useSuspenseQuery(convexQuery(api.composioHub.getComposioActionLogs, { adminToken, limit: 50 })) as { data: any };
+  const { data: stats } = useSuspenseQuery(convexQuery(api.composioHub.getComposioStats, { adminToken })) as { data: any };
 
   const togglePlatform = useMutation(api.composioHub.togglePlatform);
   const setPlatformMode = useMutation(api.composioHub.setPlatformMode);
   const toggleAgentComposio = useMutation(api.composioHub.toggleAgentComposio);
 
-  if (!status) {
+  if (status?.authError) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-10 text-center max-w-md">
+          <p className="text-amber-500 font-black text-sm uppercase tracking-widest mb-3">Session Expired</p>
+          <p className="text-slate-400 text-sm">Your admin session has expired. Please log in again.</p>
+        </div>
       </div>
     );
   }
@@ -113,7 +118,9 @@ export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
                       {(["auto", "manual", "paused"] as const).map((mode) => (
                         <button
                           key={mode}
-                          onClick={() => setPlatformMode({ adminToken, platform: p.id, postingMode: mode })}
+                          onClick={async () => {
+                            try { await setPlatformMode({ adminToken, platform: p.id, postingMode: mode }); } catch {}
+                          }}
                           className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${
                             p.postingMode === mode
                               ? mode === "auto" ? "bg-emerald-600 text-white"
@@ -128,7 +135,9 @@ export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
                     </div>
                     {/* Enable/Disable toggle */}
                     <button
-                      onClick={() => togglePlatform({ adminToken, platform: p.id, enabled: !p.enabled })}
+                      onClick={async () => {
+                        try { await togglePlatform({ adminToken, platform: p.id, enabled: !p.enabled }); } catch {}
+                      }}
                       className={`w-12 h-6 rounded-full relative transition-all ${
                         p.enabled ? "bg-emerald-600" : "bg-slate-700"
                       }`}
@@ -163,7 +172,9 @@ export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
                     </p>
                   </div>
                   <button
-                    onClick={() => toggleAgentComposio({ adminToken, agentId: a.agentId, composioEnabled: !a.composioEnabled })}
+                    onClick={async () => {
+                      try { await toggleAgentComposio({ adminToken, agentId: a.agentId, composioEnabled: !a.composioEnabled }); } catch {}
+                    }}
                     className={`w-12 h-6 rounded-full relative transition-all ${
                       a.composioEnabled ? "bg-emerald-600" : "bg-slate-700"
                     }`}

@@ -1,20 +1,14 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
+import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 export function ClientQuickActions() {
-  const actions = useQuery(api.composioClient.getQuickActions, {});
+  const { data: actions } = useSuspenseQuery(convexQuery(api.composioClient.getQuickActions, {})) as { data: any[] };
   const triggerAction = useMutation(api.composioClient.triggerQuickAction);
   const [triggering, setTriggering] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<{ actionId: string; message: string } | null>(null);
-
-  if (!actions) {
-    return (
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8">
-        <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
 
   const handleTrigger = async (actionId: string) => {
     setTriggering(actionId);
@@ -29,7 +23,7 @@ export function ClientQuickActions() {
     setTriggering(null);
   };
 
-  const categories = [...new Set(actions.map((a: any) => a.category))];
+  const categories = [...new Set((actions || []).map((a: any) => a.category))];
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8">

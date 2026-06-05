@@ -37,7 +37,19 @@ export const getComposioStatus = query({
   returns: v.any(),
   handler: async (ctx, { adminToken }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
-    if (!identity) throw new Error("Not authenticated as admin");
+    if (!identity) {
+      return {
+        composioEnabled: false,
+        totalPlatforms: 0,
+        connectedPlatforms: 0,
+        enabledPlatforms: 0,
+        platforms: [],
+        agents: [],
+        authConfigsCount: 0,
+        last24h: { total: 0, success: 0, failed: 0 },
+        authError: true,
+      };
+    }
 
     // Check if Composio API key is set
     const composioEnabled = !!process.env.COMPOSIO_API_KEY;
@@ -124,7 +136,7 @@ export const getComposioActionLogs = query({
   returns: v.any(),
   handler: async (ctx, { adminToken, platform, limit }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
-    if (!identity) throw new Error("Not authenticated as admin");
+    if (!identity) return [];
 
     let logs;
     if (platform) {
@@ -148,7 +160,14 @@ export const getComposioStats = query({
   returns: v.any(),
   handler: async (ctx, { adminToken }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
-    if (!identity) throw new Error("Not authenticated as admin");
+    if (!identity) {
+      return {
+        overview: { totalActions: 0, successRate: 0, avgDuration: 0 },
+        periods: { last24h: { total: 0, success: 0, failed: 0 }, last7d: { total: 0, success: 0, failed: 0 }, last30d: { total: 0, success: 0, failed: 0 } },
+        byPlatform: {},
+        byAgent: {},
+      };
+    }
 
     const now = Date.now();
     const oneDayAgo = now - 86400000;
@@ -228,7 +247,7 @@ export const togglePlatform = mutation({
   returns: v.null(),
   handler: async (ctx, { adminToken, platform, enabled }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
-    if (!identity) throw new Error("Not authenticated as admin");
+    if (!identity) return null;
 
     const existing = await ctx.db.query("composio_settings")
       .withIndex("by_platform", q => q.eq("platform", platform))
@@ -259,7 +278,7 @@ export const setPlatformMode = mutation({
   returns: v.null(),
   handler: async (ctx, { adminToken, platform, postingMode }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
-    if (!identity) throw new Error("Not authenticated as admin");
+    if (!identity) return null;
 
     const existing = await ctx.db.query("composio_settings")
       .withIndex("by_platform", q => q.eq("platform", platform))
@@ -291,7 +310,7 @@ export const setPlatformSchedule = mutation({
   returns: v.null(),
   handler: async (ctx, { adminToken, platform, schedule, dailyPostLimit }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
-    if (!identity) throw new Error("Not authenticated as admin");
+    if (!identity) return null;
 
     const existing = await ctx.db.query("composio_settings")
       .withIndex("by_platform", q => q.eq("platform", platform))
@@ -328,7 +347,7 @@ export const toggleAgentComposio = mutation({
   returns: v.null(),
   handler: async (ctx, { adminToken, agentId, composioEnabled }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
-    if (!identity) throw new Error("Not authenticated as admin");
+    if (!identity) return null;
 
     const existing = await ctx.db.query("composio_agent_settings")
       .withIndex("by_agent", q => q.eq("agentId", agentId))
@@ -356,7 +375,7 @@ export const setAgentPlatforms = mutation({
   returns: v.null(),
   handler: async (ctx, { adminToken, agentId, enabledPlatforms }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
-    if (!identity) throw new Error("Not authenticated as admin");
+    if (!identity) return null;
 
     const existing = await ctx.db.query("composio_agent_settings")
       .withIndex("by_agent", q => q.eq("agentId", agentId))
@@ -408,7 +427,7 @@ export const getClientNotificationPrefs = query({
   returns: v.any(),
   handler: async (ctx, { adminToken, userId }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
-    if (!identity) throw new Error("Not authenticated as admin");
+    if (!identity) return null;
 
     return await ctx.db.query("composio_notification_prefs")
       .withIndex("by_user", q => q.eq("userId", userId))
@@ -421,7 +440,7 @@ export const getAllClientPrefs = query({
   returns: v.any(),
   handler: async (ctx, { adminToken }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
-    if (!identity) throw new Error("Not authenticated as admin");
+    if (!identity) return [];
 
     return await ctx.db.query("composio_notification_prefs").collect();
   },
