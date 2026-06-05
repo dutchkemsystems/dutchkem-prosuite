@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // COMPOSIO CLIENT — View-only queries for client dashboard
@@ -28,15 +29,9 @@ export const getActivityFeed = query({
   returns: v.any(),
   handler: async (ctx, { limit }) => {
     // Get the authenticated user's ID from Convex Auth
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-
-    // Look up the user by their auth subject
-    const user = await ctx.db
-      .query("users")
-      .filter(q => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
-      .first();
-
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const user = await ctx.db.get(userId);
     if (!user) throw new Error("User not found");
 
     // Get action logs where clientId matches this user
@@ -68,8 +63,8 @@ export const getQuickActions = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
 
     // Quick actions are predefined agent tasks clients can trigger
     return [
@@ -173,14 +168,9 @@ export const getNotificationPrefs = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-
-    const user = await ctx.db
-      .query("users")
-      .filter(q => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
-      .first();
-
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const user = await ctx.db.get(userId);
     if (!user) throw new Error("User not found");
 
     const prefs = await ctx.db.query("composio_notification_prefs")
@@ -206,14 +196,9 @@ export const updateNotificationPrefs = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-
-    const user = await ctx.db
-      .query("users")
-      .filter(q => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
-      .first();
-
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const user = await ctx.db.get(userId);
     if (!user) throw new Error("User not found");
 
     const existing = await ctx.db.query("composio_notification_prefs")
@@ -248,14 +233,9 @@ export const getPerformanceSummary = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-
-    const user = await ctx.db
-      .query("users")
-      .filter(q => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
-      .first();
-
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const user = await ctx.db.get(userId);
     if (!user) throw new Error("User not found");
 
     const now = Date.now();
