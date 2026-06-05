@@ -50,35 +50,32 @@ async function setupAdminSession(t: any) {
 // exist for cron use.
 
 describe("Cloud Memory auth gate (regression for [CONVEX A] Server Error)", () => {
-  test("runSelfHealingAction throws 'Not authenticated' without adminToken", async () => {
+  test("runSelfHealingAction returns auth error without adminToken", async () => {
     const t = convexTest(schema, modules);
-    await expect(
-      t.action(api.cloud_memory.runSelfHealingAction, {})
-    ).rejects.toThrow("Not authenticated");
+    const result: any = await t.action(api.cloud_memory.runSelfHealingAction, {});
+    expect(result.issues).toContain("Not authenticated as admin");
+    expect(result.healed).toBe(false);
   });
 
-  test("autoBackupAction throws 'Not authenticated' without adminToken", async () => {
+  test("autoBackupAction returns auth error without adminToken", async () => {
     const t = convexTest(schema, modules);
-    await expect(
-      t.action(api.cloud_memory.autoBackupAction, {})
-    ).rejects.toThrow("Not authenticated");
+    const result: any = await t.action(api.cloud_memory.autoBackupAction, {});
+    expect(result.results).toContain("Not authenticated as admin");
   });
 
-  test("sendHealingReportAction throws 'Not authenticated' without adminToken", async () => {
+  test("sendHealingReportAction returns null without adminToken", async () => {
     const t = convexTest(schema, modules);
-    await expect(
-      t.action(api.cloud_memory.sendHealingReportAction, { report: { healed: true } })
-    ).rejects.toThrow("Not authenticated");
+    const result: any = await t.action(api.cloud_memory.sendHealingReportAction, { report: { healed: true } });
+    expect(result).toBeNull();
   });
 
-  test("runSelfHealingAction throws with bogus adminToken", async () => {
+  test("runSelfHealingAction returns auth error with bogus adminToken", async () => {
     const t = convexTest(schema, modules);
-    await expect(
-      t.action(api.cloud_memory.runSelfHealingAction, { adminToken: "fake-session-id" })
-    ).rejects.toThrow("Not authenticated");
+    const result: any = await t.action(api.cloud_memory.runSelfHealingAction, { adminToken: "fake-session-id" });
+    expect(result.issues).toContain("Not authenticated as admin");
   });
 
-  test("runSelfHealingAction throws with revoked admin session", async () => {
+  test("runSelfHealingAction returns auth error with revoked admin session", async () => {
     const t = convexTest(schema, modules);
     const { userId } = await setupAdminSession(t);
     const sessionId = await t.run(async (ctx: any) => {
@@ -97,12 +94,11 @@ describe("Cloud Memory auth gate (regression for [CONVEX A] Server Error)", () =
         expiresAt: Date.now() + 60 * 60 * 1000,
       });
     });
-    await expect(
-      t.action(api.cloud_memory.runSelfHealingAction, { adminToken: sessionId })
-    ).rejects.toThrow("Not authenticated");
+    const result: any = await t.action(api.cloud_memory.runSelfHealingAction, { adminToken: sessionId });
+    expect(result.issues).toContain("Not authenticated as admin");
   });
 
-  test("runSelfHealingAction throws with expired admin session", async () => {
+  test("runSelfHealingAction returns auth error with expired admin session", async () => {
     const t = convexTest(schema, modules);
     const { userId } = await setupAdminSession(t);
     const sessionId = await t.run(async (ctx: any) => {
@@ -121,12 +117,11 @@ describe("Cloud Memory auth gate (regression for [CONVEX A] Server Error)", () =
         expiresAt: Date.now() - 3600000, // expired 1h ago
       });
     });
-    await expect(
-      t.action(api.cloud_memory.runSelfHealingAction, { adminToken: sessionId })
-    ).rejects.toThrow("Not authenticated");
+    const result: any = await t.action(api.cloud_memory.runSelfHealingAction, { adminToken: sessionId });
+    expect(result.issues).toContain("Not authenticated as admin");
   });
 
-  test("runSelfHealingAction throws with non-admin user session", async () => {
+  test("runSelfHealingAction returns auth error with non-admin user session", async () => {
     const t = convexTest(schema, modules);
     const userId = await t.run(async (ctx: any) => {
       return await ctx.db.insert("users", {
@@ -151,9 +146,8 @@ describe("Cloud Memory auth gate (regression for [CONVEX A] Server Error)", () =
         expiresAt: Date.now() + 60 * 60 * 1000,
       });
     });
-    await expect(
-      t.action(api.cloud_memory.runSelfHealingAction, { adminToken: sessionId })
-    ).rejects.toThrow("Not authenticated");
+    const result: any = await t.action(api.cloud_memory.runSelfHealingAction, { adminToken: sessionId });
+    expect(result.issues).toContain("Not authenticated as admin");
   });
 });
 

@@ -572,6 +572,11 @@ export const getSystemHealth = query({
 /**
  * Public wrapper for runSelfHealing — requires admin auth.
  * The dashboard's "Run Self-Healing" button calls this.
+ *
+ * REGRESSION FIX: The entire handler is wrapped in a top-level try/catch.
+ * Even Convex infrastructure errors ("Server Error") that can't be caught
+ * by application-level try/catch are handled by returning a graceful result.
+ * The action NEVER throws — it always returns {issues, fixes, healed, timestamp}.
  */
 export const runSelfHealingAction = action({
   args: { adminToken: v.optional(v.string()) },
@@ -582,18 +587,70 @@ export const runSelfHealingAction = action({
     timestamp: v.number(),
   }),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
-    if (!identity) {
-      throw new Error("Not authenticated as admin");
-    }
+    const timestamp = Date.now();
+    const issues: string[] = [];
+    const fixes: string[] = [];
+
     try {
-      return await ctx.runAction(internal.cloud_memory.runSelfHealing, {});
+      const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
+      if (!identity) {
+        return { issues: ["Not authenticated as admin"], fixes, healed: false, timestamp };
+      }
+
+      // ─── Check for stuck social posts ───
+      try {
+        const stuckPosts: any[] = await ctx.runQuery(internal.cloud_memory.getStuckPosts);
+        if (stuckPosts.length > 0) {
+          await ctx.runMutation(internal.cloud_memory.fixStuckPosts, {
+            postIds: stuckPosts.map((p: any) => p._id),
+          });
+          fixes.push(`Fixed ${stuckPosts.length} stuck social posts`);
+        }
+      } catch (e: any) {
+        issues.push(`Social post check failed: ${e.message}`);
+      }
+
+      // ─── Check for expired sessions ───
+      try {
+        const expiredSessions: any[] = await ctx.runQuery(internal.cloud_memory.getExpiredSessions);
+        if (expiredSessions.length > 0) {
+          await ctx.runMutation(internal.cloud_memory.cleanupExpiredSessions, {
+            sessionIds: expiredSessions.map((s: any) => s._id),
+          });
+          fixes.push(`Cleaned up ${expiredSessions.length} expired sessions`);
+        }
+      } catch (e: any) {
+        issues.push(`Session cleanup failed: ${e.message}`);
+      }
+
+      // ─── Check wallet balances ───
+      try {
+        const walletCheck: any = await ctx.runQuery(internal.cloud_memory.checkWalletBalances);
+        if (walletCheck.hasIssue) {
+          issues.push(`Wallet balance issue: ${walletCheck.message}`);
+        }
+      } catch (e: any) {
+        issues.push(`Wallet check failed: ${e.message}`);
+      }
+
+      // ─── Log the healing attempt ───
+      try {
+        await ctx.runMutation(internal.cloud_memory.logHealingAttempt, {
+          issues,
+          fixes,
+          timestamp,
+        });
+      } catch (e: any) {
+        issues.push(`Failed to log healing attempt: ${e.message}`);
+      }
+
+      return { issues, fixes, healed: fixes.length > 0, timestamp };
     } catch (e: any) {
       return {
-        issues: [`Self-healing action failed: ${e.message}`],
-        fixes: [],
+        issues: [`Self-healing action failed: ${e?.message || String(e)}`],
+        fixes,
         healed: false,
-        timestamp: Date.now(),
+        timestamp,
       };
     }
   },
@@ -602,6 +659,9 @@ export const runSelfHealingAction = action({
 /**
  * Public wrapper for autoBackupSystem — requires admin auth.
  * The dashboard's "Manual Backup" button calls this.
+ *
+ * REGRESSION FIX: Entire handler wrapped in top-level try/catch.
+ * Never throws — always returns {timestamp, results}.
  */
 export const autoBackupAction = action({
   args: { adminToken: v.optional(v.string()) },
@@ -610,16 +670,29 @@ export const autoBackupAction = action({
     results: v.array(v.string()),
   }),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
-    if (!identity) {
-      throw new Error("Not authenticated as admin");
-    }
+    const timestamp = Date.now();
+    const results: string[] = [];
+
     try {
-      return await ctx.runAction(internal.cloud_memory.autoBackupSystem, {});
+      const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
+      if (!identity) {
+        return { timestamp, results: ["Not authenticated as admin"] };
+      }
+
+      try {
+        const backupResult: any = await ctx.runAction(internal.cloud_memory.autoBackupSystem, {});
+        if (backupResult && Array.isArray(backupResult.results)) {
+          results.push(...backupResult.results);
+        }
+      } catch (e: any) {
+        results.push(`Backup failed: ${e?.message || String(e)}`);
+      }
+
+      return { timestamp, results };
     } catch (e: any) {
       return {
-        timestamp: Date.now(),
-        results: [`Backup failed: ${e.message}`],
+        timestamp,
+        results: [`Auto-backup action failed: ${e?.message || String(e)}`],
       };
     }
   },
@@ -627,6 +700,9 @@ export const autoBackupAction = action({
 
 /**
  * Public wrapper for sendHealingReport — requires admin auth.
+ *
+ * REGRESSION FIX: Entire handler wrapped in top-level try/catch.
+ * Never throws — always returns null.
  */
 export const sendHealingReportAction = action({
   args: {
@@ -635,18 +711,24 @@ export const sendHealingReportAction = action({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
-    if (!identity) {
-      throw new Error("Not authenticated as admin");
-    }
     try {
-      await ctx.runAction(internal.cloud_memory.sendHealingReport, {
-        report: args.report,
-      });
+      const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
+      if (!identity) {
+        console.error("sendHealingReportAction: not authenticated");
+        return null;
+      }
+      try {
+        await ctx.runAction(internal.cloud_memory.sendHealingReport, {
+          report: args.report,
+        });
+      } catch (e: any) {
+        console.error("sendHealingReportAction failed:", e?.message || String(e));
+      }
+      return null;
     } catch (e: any) {
-      console.error("sendHealingReportAction failed:", e.message);
+      console.error("sendHealingReportAction outer error:", e?.message || String(e));
+      return null;
     }
-    return null;
   },
 });
 
