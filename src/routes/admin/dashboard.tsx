@@ -487,7 +487,8 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
       const platformsData = result.platforms || [];
       const availablePlatforms = result.availablePlatforms || [];
       const merged = availablePlatforms.map((ap: any) => {
-        const conn = platformsData.find((p: any) => p.id === ap.id);
+        // Match by `id` OR `platformId` (getPlatformsFromDb now returns both)
+        const conn = platformsData.find((p: any) => p.id === ap.id || p.platformId === ap.id);
         return {
           ...ap,
           isConnected: conn?.isConnected === true,
@@ -793,9 +794,13 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
       setManualPostContent("");
       showToast(`Post published to ${platformId}!`, "success");
       setTimeout(() => setPostingStatus(null), 3000);
+      // FIX: refresh platforms so stats reflect the new post
+      fetchPlatforms();
     } else {
-      setPostingStatus({ platformId, status: "error", error: result?.message || "Post failed" });
-      showToast(result?.message || "Post failed", "error");
+      // FIX: postToPlatformHandler returns `{ success, postId, error }` — use `error` not `message`
+      const errMsg = result?.error || result?.message || "Post failed";
+      setPostingStatus({ platformId, status: "error", error: errMsg });
+      showToast(errMsg, "error");
     }
   };
 

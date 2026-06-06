@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { useMutation } from "convex/react";
 import { useNavigate } from "@tanstack/react-router";
-import { api } from "../../convex/_generated/api";
+import { api, internal } from "../../convex/_generated/api";
 
 interface ComposioAdminHubProps {
   adminToken: string;
@@ -31,6 +31,9 @@ const EMPTY_STATS = {
 
 export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
   const [activeSubTab, setActiveSubTab] = useState<"overview" | "platforms" | "agents" | "logs" | "stats">("overview");
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const [busyPlatform, setBusyPlatform] = useState<string | null>(null);
+  const [busyAgent, setBusyAgent] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleReLogin = () => {
@@ -40,6 +43,11 @@ export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
     localStorage.removeItem("auth_token_type");
     localStorage.removeItem("auth_expires_at");
     window.location.href = "/admin/login";
+  };
+
+  const showToast = (message: string, type: "success" | "error" | "info") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
   };
 
   const statusQuery = useQuery({
@@ -62,6 +70,52 @@ export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
   const togglePlatform = useMutation(api.composioHub.togglePlatform);
   const setPlatformMode = useMutation(api.composioHub.setPlatformMode);
   const toggleAgentComposio = useMutation(api.composioHub.toggleAgentComposio);
+  const setAgentPlatforms = useMutation(api.composioHub.setAgentPlatforms);
+
+  const refetchAll = () => {
+    statusQuery.refetch();
+    logsQuery.refetch();
+    statsQuery.refetch();
+  };
+
+  const handleTogglePlatform = async (platformId: string, enabled: boolean) => {
+    setBusyPlatform(platformId);
+    try {
+      await togglePlatform({ adminToken, platform: platformId, enabled });
+      showToast(`${platformId} ${enabled ? "enabled" : "disabled"} — synced to Social Engine`, "success");
+      statusQuery.refetch();
+    } catch (e: any) {
+      showToast(`Failed to toggle ${platformId}: ${e?.message || "unknown error"}`, "error");
+    } finally {
+      setBusyPlatform(null);
+    }
+  };
+
+  const handleSetMode = async (platformId: string, mode: "auto" | "manual" | "paused") => {
+    setBusyPlatform(platformId);
+    try {
+      await setPlatformMode({ adminToken, platform: platformId, postingMode: mode });
+      showToast(`${platformId} mode → ${mode.toUpperCase()} — synced to Social Engine`, "success");
+      statusQuery.refetch();
+    } catch (e: any) {
+      showToast(`Failed to set mode for ${platformId}: ${e?.message || "unknown error"}`, "error");
+    } finally {
+      setBusyPlatform(null);
+    }
+  };
+
+  const handleToggleAgent = async (agentId: string, composioEnabled: boolean) => {
+    setBusyAgent(agentId);
+    try {
+      await toggleAgentComposio({ adminToken, agentId, composioEnabled });
+      showToast(`${agentId} Composio ${composioEnabled ? "enabled" : "disabled"}`, "success");
+      statusQuery.refetch();
+    } catch (e: any) {
+      showToast(`Failed to toggle ${agentId}: ${e?.message || "unknown error"}`, "error");
+    } finally {
+      setBusyAgent(null);
+    }
+  };
 
   if (statusQuery.isError) {
     return (
@@ -110,16 +164,52 @@ export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Toast notifications */}
+      {toast && (
+        <div
+          className={`fixed top-6 right-6 z-50 px-6 py-4 rounded-2xl shadow-2xl font-semibold text-sm animate-in slide-in-from-top-2 ${
+            toast.type === "success"
+              ? "bg-emerald-600 text-white"
+              : toast.type === "error"
+                ? "bg-red-600 text-white"
+                : "bg-slate-800 text-white border border-white/10"
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
       {/* Header */}
       <div className="bg-gradient-to-br from-purple-600/20 to-slate-900 border border-purple-500/20 rounded-[3rem] p-10 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-purple-600/5 blur-[80px]" />
-        <div className="relative z-10 flex justify-between items-center">
+        <div className="relative z-10 flex justify-between items-center flex-wrap gap-4">
           <div>
             <h2 className="text-3xl font-black uppercase tracking-tighter text-white">Composio Integration Hub</h2>
             <p className="text-sm font-black text-purple-500 uppercase tracking-widest mt-1">
               {status.composioEnabled ? "✅ Composio Active" : "⚠️ Composio Inactive"}
               {" • "}{status.connectedPlatforms}/{status.totalPlatforms} Connected
             </p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                refetchAll();
+                showToast("Refreshed from Convex + Social Engine", "info");
+              }}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+              title="Reload all data from the backend (and the Social Engine)"
+            >
+              🔄 Sync from Social Engine
+            </button>
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("admin:tab:change", { detail: "social" }));
+                showToast("Switch to the Social Engine tab in the left sidebar.", "info");
+              }}
+              className="px-4 py-2 bg-orange-600/20 hover:bg-orange-600/40 text-orange-400 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
+              title="Go to the Social Engine tab in the sidebar"
+            >
+              📣 Open Social Engine
+            </button>
           </div>
           <div className="flex gap-3 text-center">
             <div className="bg-slate-950 p-4 rounded-2xl border border-white/5">
@@ -161,10 +251,10 @@ export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
               key={p.id}
               platform={p}
               onToggle={async (enabled: boolean) => {
-                await togglePlatform({ adminToken, platform: p.id, enabled });
+                await handleTogglePlatform(p.id, enabled);
               }}
               onModeChange={async (mode: "auto" | "manual" | "paused") => {
-                await setPlatformMode({ adminToken, platform: p.id, postingMode: mode });
+                await handleSetMode(p.id, mode);
               }}
             />
           ))}
@@ -196,10 +286,9 @@ export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
                       {(["auto", "manual", "paused"] as const).map((mode) => (
                         <button
                           key={mode}
-                          onClick={async () => {
-                            try { await setPlatformMode({ adminToken, platform: p.id, postingMode: mode }); } catch {}
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all ${
+                          onClick={() => handleSetMode(p.id, mode)}
+                          disabled={busyPlatform === p.id}
+                          className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all disabled:opacity-50 ${
                             p.postingMode === mode
                               ? mode === "auto" ? "bg-emerald-600 text-white"
                                 : mode === "manual" ? "bg-blue-600 text-white"
@@ -213,10 +302,9 @@ export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
                     </div>
                     {/* Enable/Disable toggle */}
                     <button
-                      onClick={async () => {
-                        try { await togglePlatform({ adminToken, platform: p.id, enabled: !p.enabled }); } catch {}
-                      }}
-                      className={`w-12 h-6 rounded-full relative transition-all ${
+                      onClick={() => handleTogglePlatform(p.id, !p.enabled)}
+                      disabled={busyPlatform === p.id}
+                      className={`w-12 h-6 rounded-full relative transition-all disabled:opacity-50 ${
                         p.enabled ? "bg-emerald-600" : "bg-slate-700"
                       }`}
                     >
@@ -250,10 +338,9 @@ export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
                     </p>
                   </div>
                   <button
-                    onClick={async () => {
-                      try { await toggleAgentComposio({ adminToken, agentId: a.agentId, composioEnabled: !a.composioEnabled }); } catch {}
-                    }}
-                    className={`w-12 h-6 rounded-full relative transition-all ${
+                    onClick={() => handleToggleAgent(a.agentId, !a.composioEnabled)}
+                    disabled={busyAgent === a.agentId}
+                    className={`w-12 h-6 rounded-full relative transition-all disabled:opacity-50 ${
                       a.composioEnabled ? "bg-emerald-600" : "bg-slate-700"
                     }`}
                   >

@@ -1,4 +1,4 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { tryGetAdminSession } from "./auth_helpers";
 
@@ -57,8 +57,12 @@ export const getComposioStatus = query({
     const settings = await ctx.db.query("composio_settings").collect();
     const settingsMap = new Map(settings.map(s => [s.platform, s]));
 
-    // Get connected platforms from platform_connections
-    const connections = await ctx.db.query("platform_connections").collect();
+    // Get connected platforms from platform_connections (admin-scoped)
+    // FIX: filter by current admin's adminId, not all connections
+    const connections = await ctx.db
+      .query("platform_connections")
+      .withIndex("by_admin", (q) => q.eq("adminId", identity._id))
+      .collect();
 
     // Get action logs for stats
     const oneDayAgo = Date.now() - 86400000;
@@ -74,8 +78,10 @@ export const getComposioStatus = query({
 
     const platforms = COMPOSIO_PLATFORMS.map(p => {
       const platformSettings = settingsMap.get(p.id);
+      // FIX: show all active connections (Composio OR direct OAuth), not just Composio ones
+      // Also handle the fact that social.ts uses `platformId` (not `platform`)
       const platformConnections = connections.filter(
-        (c: any) => c.platform === p.id && c.integrationId === "composio"
+        (c: any) => (c.platformId === p.id || c.platform === p.id) && c.isConnected
       );
       const platformLogs = recentLogs.filter(l => l.platform === p.id);
       const successCount = platformLogs.filter(l => l.status === "success").length;
@@ -90,6 +96,8 @@ export const getComposioStatus = query({
         postsToday: platformSettings?.postsToday ?? 0,
         isConnected: platformConnections.length > 0,
         connectedCount: platformConnections.length,
+        // FIX: track which integration connected the platform
+        integrationProvider: platformConnections[0]?.integrationId || null,
         last24hSuccess: successCount,
         last24hFailed: failedCount,
         successRate: platformLogs.length > 0
@@ -137,20 +145,49 @@ export const getComposioActionLogs = query({
     const identity = await tryGetAdminSession(ctx, adminToken);
     if (!identity) return [];
 
-    let logs;
+    const take = limit || 50;
+
+    // FIX: also include `social_posts` so the logs view shows BOTH the
+    // composio_action_logs stream AND the social_posts stream from
+    // direct OAuth / social engine posts. The two are merged by timestamp.
+    let composioLogs: any[] = [];
     if (platform) {
-      logs = await ctx.db.query("composio_action_logs")
+      composioLogs = await ctx.db.query("composio_action_logs")
         .withIndex("by_platform", q => q.eq("platform", platform))
         .order("desc")
-        .take(limit || 50);
+        .take(take);
     } else {
-      logs = await ctx.db.query("composio_action_logs")
+      composioLogs = await ctx.db.query("composio_action_logs")
         .withIndex("by_timestamp")
         .order("desc")
-        .take(limit || 50);
+        .take(take);
     }
 
-    return logs;
+    // Merge with social_posts (admin-scoped via agentId="admin" or "anonymous")
+    const socialPosts = await ctx.db.query("social_posts")
+      .withIndex("by_status")
+      .order("desc")
+      .take(take);
+    const socialLogs = socialPosts
+      .filter((p: any) => !platform || p.platform === platform)
+      .map((p: any) => ({
+        _id: p._id,
+        platform: p.platform,
+        action: "post",
+        status: p.status === "posted" ? "success" : p.status === "failed" ? "failed" : "pending",
+        agentId: p.agentId,
+        content: p.content,
+        timestamp: p.postedAt || p.scheduledFor,
+        durationMs: undefined,
+        error: p.error,
+        metadata: { source: "social_engine", externalId: p.externalId, anonymous: p.anonymous },
+      }));
+
+    const merged = [...composioLogs, ...socialLogs]
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+      .slice(0, take);
+
+    return merged;
   },
 });
 
@@ -173,10 +210,22 @@ export const getComposioStats = query({
     const oneWeekAgo = now - 604800000;
     const oneMonthAgo = now - 2592000000;
 
-    const allLogs = await ctx.db.query("composio_action_logs")
+    // FIX: include social_posts in the stats — they share the same time periods
+    const composioLogs = await ctx.db.query("composio_action_logs")
       .withIndex("by_timestamp", q => q.gt("timestamp", oneMonthAgo))
       .collect();
+    const socialPosts = await ctx.db.query("social_posts").collect();
 
+    // Normalize social_posts to the same shape as composio_action_logs
+    const socialLogs = socialPosts.map((p: any) => ({
+      platform: p.platform,
+      status: p.status === "posted" ? "success" : p.status === "failed" ? "failed" : "pending",
+      agentId: p.agentId,
+      timestamp: p.postedAt || p.scheduledFor || 0,
+      durationMs: undefined,
+    }));
+
+    const allLogs = [...composioLogs, ...socialLogs];
     const last24h = allLogs.filter(l => l.timestamp > oneDayAgo);
     const last7d = allLogs.filter(l => l.timestamp > oneWeekAgo);
     const last30d = allLogs;
@@ -236,6 +285,29 @@ export const getComposioStats = query({
 });
 
 // ─── PLATFORM CONTROL MUTATIONS ───
+//
+// INTEGRATION: These mutations now also sync to `platform_connections` so the
+// Social Engine panel reflects the same enable/mode state. The Social Engine
+// mutations (`social.updatePostingSettings`, `social.disconnectPlatform`) also
+// write back to `composio_settings` for the same reason. This keeps both UIs
+// in sync and ensures cron / agent posting behavior is consistent.
+
+async function syncPlatformConnection(
+  ctx: any,
+  args: { adminId: string; platform: string; postingMode: "auto" | "manual" | "paused"; enabled: boolean }
+) {
+  const conn = await ctx.db
+    .query("platform_connections")
+    .withIndex("by_admin_platform", (q: any) =>
+      q.eq("adminId", args.adminId).eq("platformId", args.platform)
+    )
+    .first();
+  if (!conn) return;
+  await ctx.db.patch(conn._id, {
+    autoPostEnabled: args.enabled && args.postingMode === "auto",
+    updatedAt: Date.now(),
+  });
+}
 
 export const togglePlatform = mutation({
   args: {
@@ -252,19 +324,29 @@ export const togglePlatform = mutation({
       .withIndex("by_platform", q => q.eq("platform", platform))
       .first();
 
+    let postingMode: "auto" | "manual" | "paused" = existing?.postingMode ?? "paused";
+
     if (existing) {
       await ctx.db.patch(existing._id, { enabled, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("composio_settings", {
         platform,
         enabled,
-        postingMode: "paused",
+        postingMode,
         dailyPostLimit: 10,
         postsToday: 0,
         lastResetDate: new Date().toISOString().split("T")[0],
         updatedAt: Date.now(),
       });
     }
+
+    // Sync to platform_connections so Social Engine reflects the change
+    await syncPlatformConnection(ctx, {
+      adminId: identity._id,
+      platform,
+      postingMode,
+      enabled,
+    });
   },
 });
 
@@ -283,12 +365,14 @@ export const setPlatformMode = mutation({
       .withIndex("by_platform", q => q.eq("platform", platform))
       .first();
 
+    let enabled = existing?.enabled ?? true;
+
     if (existing) {
       await ctx.db.patch(existing._id, { postingMode, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("composio_settings", {
         platform,
-        enabled: true,
+        enabled,
         postingMode,
         dailyPostLimit: 10,
         postsToday: 0,
@@ -296,6 +380,14 @@ export const setPlatformMode = mutation({
         updatedAt: Date.now(),
       });
     }
+
+    // Sync to platform_connections so Social Engine reflects the change
+    await syncPlatformConnection(ctx, {
+      adminId: identity._id,
+      platform,
+      postingMode,
+      enabled,
+    });
   },
 });
 
@@ -330,6 +422,41 @@ export const setPlatformSchedule = mutation({
         postsToday: 0,
         lastResetDate: new Date().toISOString().split("T")[0],
         updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
+// Internal mutation: sync composio_settings from Social Engine changes
+// Called by social.updatePostingSettings and social.disconnectPlatform
+export const syncPlatformFromSocial = internalMutation({
+  args: {
+    adminId: v.string(),
+    platform: v.string(),
+    postingMode: v.optional(v.union(v.literal("auto"), v.literal("manual"), v.literal("paused"))),
+    enabled: v.optional(v.boolean()),
+    isConnected: v.optional(v.boolean()),
+  },
+  returns: v.null(),
+  handler: async (ctx, { adminId, platform, postingMode, enabled, isConnected }) => {
+    const existing = await ctx.db.query("composio_settings")
+      .withIndex("by_platform", q => q.eq("platform", platform))
+      .first();
+    const patch: any = { updatedAt: Date.now() };
+    if (postingMode !== undefined) patch.postingMode = postingMode;
+    if (enabled !== undefined) patch.enabled = enabled;
+    if (isConnected === false) patch.enabled = false;
+    if (existing) {
+      await ctx.db.patch(existing._id, patch);
+    } else {
+      await ctx.db.insert("composio_settings", {
+        platform,
+        enabled: enabled ?? (isConnected !== false),
+        postingMode: postingMode ?? "paused",
+        dailyPostLimit: 10,
+        postsToday: 0,
+        lastResetDate: new Date().toISOString().split("T")[0],
+        ...patch,
       });
     }
   },
@@ -393,9 +520,12 @@ export const setAgentPlatforms = mutation({
   },
 });
 
-// ─── ACTION LOG RECORDING (used by agents in background) ───
+// ─── ACTION LOG RECORDING (used by agents in background + social engine) ───
+//
+// INTEGRATION: This is called by social.postToPlatformHandler so that posts
+// from the Social Engine also appear in the Composio Hub logs.
 
-export const recordActionLog = mutation({
+export const recordActionLog = internalMutation({
   args: {
     platform: v.string(),
     action: v.string(),

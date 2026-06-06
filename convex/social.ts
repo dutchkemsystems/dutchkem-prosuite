@@ -368,6 +368,8 @@ export async function postToPlatformHandler(ctx: any, args: any): Promise<any> {
     args.platform, connection.accessToken, args.content, args.mediaUrls, args.anonymous
   );
 
+  const startedAt = Date.now();
+
   await ctx.runMutation(internal.social.logPost, {
     platformId: args.platform,
     content: args.content,
@@ -375,6 +377,19 @@ export async function postToPlatformHandler(ctx: any, args: any): Promise<any> {
     externalId: result.postId || "",
     errorMsg: result.error || "",
     anonymous: args.anonymous || false,
+  });
+
+  // INTEGRATION: also record in composio_action_logs so Composio Hub
+  // shows the same log stream as the Social Engine
+  await ctx.runMutation(internal.composioHub.recordActionLog, {
+    platform: args.platform,
+    action: "post",
+    status: result.success ? "success" : "failed",
+    agentId: args.anonymous ? "anonymous" : "admin",
+    content: args.content,
+    durationMs: Date.now() - startedAt,
+    error: result.error,
+    metadata: { source: "social_engine", externalId: result.postId || "" },
   });
 
   return result;
@@ -429,22 +444,32 @@ export const manualPost = action({
 
 export const getPlatformsFromDb = internalQuery({
   // FIX: accepts adminId so it filters correctly per user
+  // FIX: returns BOTH `id` AND `platformId` so UI merge code matches by `id`
   args: { adminId: v.string() },
   handler: async (ctx, { adminId }) => {
     const connected = await ctx.db
       .query("platform_connections")
       .collect();
+    // Count posts per platform from social_posts table
+    const allPosts = await ctx.db.query("social_posts").collect();
     return SUPPORTED_PLATFORMS.map((p) => {
       const conn = connected.find(
         (c) => c.platformId === p.id && c.isConnected && c.adminId === adminId
       );
+      const platformPosts = allPosts.filter(
+        (post) => post.platform === p.id || post.platform === p.name
+      );
       return {
-        platformId: p.id, platformName: p.name, icon: p.icon, color: p.color,
+        id: p.id, platformId: p.id, platformName: p.name, icon: p.icon, color: p.color,
         isConnected: conn?.isConnected || false, connectedAt: conn?.connectedAt,
         lastSyncAt: conn?.updatedAt, platformUsername: conn?.platformUsername,
         autoPostEnabled: conn?.autoPostEnabled || false,
         anonymousByDefault: conn?.anonymousByDefault || false,
         expiresAt: conn?.expiresAt, scopes: conn?.scopes,
+        integrationId: conn?.integrationId,
+        // Derived stats for UI
+        postsCount: platformPosts.filter((post) => post.status === "posted").length,
+        followersCount: 0,
       };
     });
   },
@@ -465,6 +490,8 @@ export const getConnectionForPlatform = internalQuery({
 
 // ═══════════════════════════════════════════════════════════════════
 // MUTATION: Disconnect platform
+// INTEGRATION: also disables composio_settings for the platform so the
+// Composio Hub reflects the same state.
 // ═══════════════════════════════════════════════════════════════════
 export const disconnectPlatform = mutation({
   args: {
@@ -485,11 +512,20 @@ export const disconnectPlatform = mutation({
         isConnected: false, accessToken: "", refreshToken: "", updatedAt: Date.now(),
       });
     }
+    // Sync to composio_settings — disable and mark as paused
+    await ctx.runMutation(internal.composioHub.syncPlatformFromSocial, {
+      adminId: identity._id,
+      platform: args.platformId,
+      isConnected: false,
+      enabled: false,
+      postingMode: "paused",
+    });
   },
 });
 
 // ═══════════════════════════════════════════════════════════════════
 // MUTATION: Update posting settings
+// INTEGRATION: also updates composio_settings.postingMode
 // ═══════════════════════════════════════════════════════════════════
 export const updatePostingSettings = mutation({
   args: {
@@ -513,6 +549,13 @@ export const updatePostingSettings = mutation({
       autoPostEnabled: args.mode === "auto",
       anonymousByDefault: args.anonymous || false,
       updatedAt: Date.now(),
+    });
+    // Sync to composio_settings so Composio Hub shows the same mode
+    await ctx.runMutation(internal.composioHub.syncPlatformFromSocial, {
+      adminId: identity._id,
+      platform: args.platformId,
+      postingMode: args.mode,
+      enabled: true,
     });
     return { success: true, mode: args.mode };
   },
