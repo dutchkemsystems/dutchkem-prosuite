@@ -87,11 +87,16 @@ function PhoneAuthForm() {
       setStep("otp");
     } catch (err: any) {
       const msg = err?.message || String(err || '');
-      if (msg.includes('TERMII') || msg.includes('termii') || msg.includes('API Key')) {
+      if (msg.includes('insufficient balance') || msg.includes('SMS delivery failed')) {
+        setError("SMS service is temporarily out of credits. Please contact support or try again later.");
+      } else if (msg.includes('Country Inactive')) {
+        setError("SMS service not available for this region. Please contact support.");
+      } else if (msg.includes('TERMII') || msg.includes('termii') || msg.includes('API Key')) {
         setError("SMS service temporarily unavailable. Please contact support or try again later.");
       } else if (msg.includes('network') || msg.includes('fetch')) {
         setError("Network error. Check your connection and try again.");
       } else {
+        console.error("[Auth] signIn error:", err);
         setError("Failed to send verification code. Please try again.");
       }
     } finally {

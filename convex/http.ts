@@ -77,7 +77,7 @@ http.route({
       const IS_DEVELOPMENT = process.env.NODE_ENV !== 'production';
       if (IS_DEVELOPMENT && !process.env.TERMII_API_KEY) return new Response(JSON.stringify({ success: true, pinId: 'demo_' + Date.now(), channel: 'demo', message: 'Demo OTP sent. Use any 6-digit code to verify.' }), { status: 200, headers: { "Content-Type": "application/json" } });
       if (!process.env.TERMII_API_KEY) return new Response(JSON.stringify({ success: false, message: 'SMS service not configured' }), { status: 503, headers: { "Content-Type": "application/json" } });
-      const requestBody = { api_key: process.env.TERMII_API_KEY, message_type: 'NUMERIC', to: phone, from: 'N-Alert', channel: 'dnd', pin_attempts: 3, pin_time_to_live: 10, pin_length: 6, pin_placeholder: '< 1234 >', message_text: 'Your Dutchkem Ventures verification code is < 1234 >. Valid for 10 minutes.', pin_type: 'NUMERIC' };
+      const requestBody = { api_key: process.env.TERMII_API_KEY, message_type: 'NUMERIC', to: phone, from: 'N-Alert', channel: 'generic', pin_attempts: 3, pin_time_to_live: 10, pin_length: 6, pin_placeholder: '< 1234 >', message_text: 'Your Dutchkem Ventures verification code is < 1234 >. Valid for 10 minutes.', pin_type: 'NUMERIC' };
       const response = await fetch('https://v3.api.termii.com/api/sms/otp/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody) });
       const data = await response.json();
       if (data.pinId || data.pin_id) return new Response(JSON.stringify({ success: true, pinId: data.pinId || data.pin_id, channel: 'sms' }), { status: 200, headers: { "Content-Type": "application/json" } });

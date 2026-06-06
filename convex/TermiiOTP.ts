@@ -1,65 +1,71 @@
 import { Phone } from "@convex-dev/auth/providers/Phone";
 
 // ═══════════════════════════════════════════════════════════════════
-// TERMII DND CHANNEL OTP PROVIDER
-// Channel: DND | Sender ID: N-Alert
-// Ensures OTP delivery even to DND-registered numbers
+// TERMII OTP PROVIDER (v3 API)
+// Channel: generic | Sender ID: N-Alert
+// Uses Convex Auth's built-in token: generate code → send SMS → verify
 // ═══════════════════════════════════════════════════════════════════
 
-const DND_SENDER_ID = "N-Alert";
-const DND_CHANNEL = "dnd";
+const SENDER_ID = "N-Alert";
+const SMS_CHANNEL = "generic";
 const OTP_EXPIRY_MINUTES = 10;
+const TERMII_API_URL = "https://v3.api.termii.com/api/sms/send";
 
 export const TermiiOTP = Phone({
   id: "termii-otp",
   async generateVerificationToken() {
-    const bytes = crypto.getRandomValues(new Uint8Array(6));
+    const bytes = new Uint8Array(6);
+    for (let i = 0; i < 6; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
     return Array.from(bytes, (b) => (b % 10).toString()).join("");
   },
   async sendVerificationRequest({ identifier: originalPhone, token }) {
     const apiKey = process.env.TERMII_API_KEY;
 
-    let phone = originalPhone.replace(/\D/g, '');
-    if (phone.startsWith('0')) {
-      phone = '234' + phone.substring(1);
+    let phone = originalPhone.replace(/\D/g, "");
+    if (phone.startsWith("0")) {
+      phone = "234" + phone.substring(1);
     }
-    if (!phone.startsWith('234')) {
-      phone = '234' + phone;
+    if (!phone.startsWith("234")) {
+      phone = "234" + phone;
     }
 
-    const IS_DEVELOPMENT = process.env.NODE_ENV !== 'production';
+    const IS_DEVELOPMENT = process.env.NODE_ENV !== "production";
 
-    if (!apiKey || (IS_DEVELOPMENT && phone.startsWith('234000'))) {
-      console.warn("[OTP] TERMII_API_KEY not set or Demo number detected. Simulating OTP send.");
+    if (!apiKey || (IS_DEVELOPMENT && phone.startsWith("234000"))) {
+      console.warn("[OTP] TERMII_API_KEY not set or demo number detected. Simulating OTP send.");
       console.log(`[OTP] Simulation for ${phone}: Your verification code is ${token}`);
       return;
     }
 
-    console.log(`[OTP] Sending code to ${phone} via Termii DND channel (N-Alert)...`);
-    
+    console.log(`[OTP] Sending code to ${phone} via Termii v3 (generic channel, N-Alert)...`);
+
     try {
-      const response = await fetch("https://api.ng.termii.com/api/sms/send", {
+      const response = await fetch(TERMII_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: phone,
-          from: DND_SENDER_ID,
+          from: SENDER_ID,
           sms: `Your Dutchkem Ventures verification code is ${token}. Valid for ${OTP_EXPIRY_MINUTES} minutes.`,
           type: "plain",
-          channel: DND_CHANNEL,
+          channel: SMS_CHANNEL,
           api_key: apiKey,
         }),
       });
 
       const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(`Termii API error: ${JSON.stringify(data)}`);
+
+      if (!response.ok || data.code !== "ok") {
+        const errMsg = data.message || `HTTP ${response.status}`;
+        console.error(`[OTP] Termii API error: ${errMsg}`, data);
+        throw new Error(`SMS delivery failed: ${errMsg}`);
       }
-      
-      console.log(`[OTP] Termii DND response: ${JSON.stringify(data)}`);
+
+      console.log(`[OTP] SMS sent successfully. message_id: ${data.message_id}`);
     } catch (error) {
-      console.error("[OTP] Failed to send OTP via Termii DND:", error);
+      console.error("[OTP] Failed to send OTP:", error);
       if (IS_DEVELOPMENT) {
         console.log(`[OTP Fallback] Code for ${phone}: ${token}`);
       }

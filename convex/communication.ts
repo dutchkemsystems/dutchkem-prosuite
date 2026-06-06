@@ -34,7 +34,7 @@ export const sendSms = mutation({
     }
 
     try {
-      const response = await fetch("https://api.termii.com/api/sms/send", {
+      const response = await fetch("https://v3.api.termii.com/api/sms/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -43,7 +43,7 @@ export const sendSms = mutation({
           from: "N-Alert",
           sms: args.message,
           type: "plain",
-          channel: "dnd",
+          channel: "generic",
         }),
       });
 

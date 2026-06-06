@@ -20,7 +20,7 @@ export const sendOtpEmail = action({
     // Try Termii email if config ID is available
     if (apiKey && configId) {
       try {
-        const response = await fetch("https://api.termii.com/api/email/otp/send", {
+        const response = await fetch("https://v3.api.termii.com/api/email/otp/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
