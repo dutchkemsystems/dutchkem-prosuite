@@ -273,15 +273,26 @@ export const verifyAdminPassword = mutation({
 });
 
 export const changePassword = mutation({
-  args: { userId: v.id("users"), currentPassword: v.string(), newPassword: v.string() },
+  args: { userId: v.id("users"), currentPassword: v.string(), newPassword: v.string(), adminToken: v.optional(v.string()) },
   returns: v.any(),
-  handler: async (ctx, { userId, currentPassword, newPassword }) => {
+  handler: async (ctx, { userId, currentPassword, newPassword, adminToken }) => {
+    // Validate admin session - only the admin themselves can change their password
+    const identity = await tryGetAdminSession(ctx, adminToken);
+    if (!identity) return { success: false, error: "Unauthorized" };
+    if (identity._id !== userId) return { success: false, error: "Can only change your own password" };
+
     const user = await ctx.db.get(userId);
     if (!user) return { success: false, error: "User not found" };
 
+    // Verify current password if one exists
     if (user.adminPasswordHash) {
       const valid = await verifyPassword(currentPassword, user.adminPasswordHash);
       if (!valid) return { success: false, error: "Current password is incorrect" };
+    }
+
+    // Validate password strength
+    if (newPassword.length < 8) {
+      return { success: false, error: "Password must be at least 8 characters" };
     }
 
     const newHash = await hashPassword(newPassword);
@@ -291,7 +302,7 @@ export const changePassword = mutation({
     await ctx.db.insert("audit_logs", {
       userId,
       action: "PASSWORD_CHANGED",
-      details: "Password changed by user",
+      details: "Password changed by admin via dashboard",
       ip: "internal",
       userAgent: "system",
       createdAt: Date.now(),

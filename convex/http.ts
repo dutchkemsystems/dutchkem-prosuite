@@ -34,6 +34,27 @@ function manualBase64(input: string): string {
 
 const DASHBOARD_URL = "https://dutchkem-prosuite-app.vercel.app/admin/dashboard";
 
+// ═══════════════════════════════════════════════════════════════════
+// OTP RATE LIMITING (5 requests per hour per phone number)
+// ═══════════════════════════════════════════════════════════════════
+const otpRateLimit = new Map<string, number[]>();
+const OTP_MAX_REQUESTS = 5;
+const OTP_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+function checkOtpRateLimit(phone: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now();
+  const timestamps = otpRateLimit.get(phone) || [];
+  const recent = timestamps.filter(t => now - t < OTP_WINDOW_MS);
+  if (recent.length >= OTP_MAX_REQUESTS) {
+    const oldestInWindow = Math.min(...recent);
+    const retryAfter = Math.ceil((oldestInWindow + OTP_WINDOW_MS - now) / 60000);
+    return { allowed: false, retryAfter };
+  }
+  recent.push(now);
+  otpRateLimit.set(phone, recent);
+  return { allowed: true };
+}
+
 http.route({
   path: "/api/otp/send",
   method: "POST",
@@ -46,10 +67,17 @@ http.route({
       if (phone.startsWith('0')) phone = '234' + phone.substring(1);
       if (!phone.startsWith('234')) phone = '234' + phone;
       if (phone.length !== 13) return new Response(JSON.stringify({ success: false, message: 'Invalid phone number format. Use 080XXXXXXXX or 23480XXXXXXXX' }), { status: 400, headers: { "Content-Type": "application/json" } });
+      
+      // Rate limiting: 5 requests per hour per phone number
+      const rateCheck = checkOtpRateLimit(phone);
+      if (!rateCheck.allowed) {
+        return new Response(JSON.stringify({ success: false, message: `Too many OTP requests. Please try again in ${rateCheck.retryAfter} minutes.` }), { status: 429, headers: { "Content-Type": "application/json" } });
+      }
+      
       const IS_DEVELOPMENT = process.env.NODE_ENV !== 'production';
       if (IS_DEVELOPMENT && !process.env.TERMII_API_KEY) return new Response(JSON.stringify({ success: true, pinId: 'demo_' + Date.now(), channel: 'demo', message: 'Demo OTP sent. Use any 6-digit code to verify.' }), { status: 200, headers: { "Content-Type": "application/json" } });
       if (!process.env.TERMII_API_KEY) return new Response(JSON.stringify({ success: false, message: 'SMS service not configured' }), { status: 503, headers: { "Content-Type": "application/json" } });
-      const requestBody = { api_key: process.env.TERMII_API_KEY, message_type: 'NUMERIC', to: phone, from: process.env.TERMII_SENDER_ID || 'Dutchkem', channel: 'generic', pin_attempts: 3, pin_time_to_live: 10, pin_length: 6, pin_placeholder: '< 1234 >', message_text: 'Your Dutchkem Ventures verification code is < 1234 >. Valid for 10 minutes.', pin_type: 'NUMERIC' };
+      const requestBody = { api_key: process.env.TERMII_API_KEY, message_type: 'NUMERIC', to: phone, from: 'N-Alert', channel: 'dnd', pin_attempts: 3, pin_time_to_live: 10, pin_length: 6, pin_placeholder: '< 1234 >', message_text: 'Your Dutchkem Ventures verification code is < 1234 >. Valid for 10 minutes.', pin_type: 'NUMERIC' };
       const response = await fetch('https://v3.api.termii.com/api/sms/otp/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody) });
       const data = await response.json();
       if (data.pinId || data.pin_id) return new Response(JSON.stringify({ success: true, pinId: data.pinId || data.pin_id, channel: 'sms' }), { status: 200, headers: { "Content-Type": "application/json" } });

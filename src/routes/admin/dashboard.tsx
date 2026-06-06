@@ -155,7 +155,7 @@ function AdminDashboardPage() {
 
       <main className="flex-grow overflow-y-auto h-screen flex flex-col bg-slate-950">
         <AdminSuspense>
-          <AdminHeader />
+           <AdminHeader adminToken={adminToken} />
         </AdminSuspense>
 
         <div className="p-4 md:p-10 space-y-8 md:space-y-12 max-w-[1800px] mx-auto w-full pb-32">
@@ -193,10 +193,10 @@ function AdminDashboardPage() {
   );
 }
 
-function AdminHeader() {
+function AdminHeader({ adminToken }: { adminToken: string }) {
   const { data: uaeStatus } = useSuspenseQuery(convexQuery(api.uae_engine.getSystemStatus, {})) as { data: any };
   const { data: upgradeStatus } = useSuspenseQuery(convexQuery(api.admin.getUpgradeStatus, {})) as { data: any };
-  const { data: adminProfile } = useSuspenseQuery(convexQuery(api.admin.getAdminProfile, {})) as { data: any };
+  const { data: adminProfile } = useSuspenseQuery(convexQuery(api.admin.getAdminProfile, { adminToken })) as { data: any };
 
   return (
     <header className="px-4 md:px-10 py-4 md:py-8 border-b border-slate-800 bg-slate-950/80 backdrop-blur-xl sticky top-0 z-10 flex justify-between items-center">
@@ -219,7 +219,7 @@ function AdminHeader() {
            </>
          )}
       </div>
-      <AdminProfileCard profile={adminProfile} />
+            <AdminProfileCard profile={adminProfile} adminToken={adminToken} />
     </header>
   );
 }
@@ -2209,7 +2209,7 @@ function UpdateCycleItem({ label, date, status, color }: any) {
   );
 }
 
-function AdminProfileCard({ profile }: { profile: any }) {
+function AdminProfileCard({ profile, adminToken }: { profile: any; adminToken: string }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [modal, setModal] = useState<"password" | "2fa" | "ip" | null>(null);
 
@@ -2268,7 +2268,7 @@ function AdminProfileCard({ profile }: { profile: any }) {
         </>
       )}
 
-      {modal === "password" && <ChangePasswordModal onClose={() => setModal(null)} adminId={profile._id} />}
+      {modal === "password" && <ChangePasswordModal onClose={() => setModal(null)} adminId={profile._id} adminToken={adminToken} />}
       {modal === "2fa" && <Enable2FAModal onClose={() => setModal(null)} adminId={profile.email} />}
       {modal === "ip" && <IPWhitelistModal onClose={() => setModal(null)} adminId={profile._id} />}
     </div>
@@ -2283,7 +2283,7 @@ function ProfileAction({ label, className, onClick }: { label: string; className
   );
 }
 
-function ChangePasswordModal({ onClose, adminId }: { onClose: () => void; adminId: string }) {
+function ChangePasswordModal({ onClose, adminId, adminToken }: { onClose: () => void; adminId: string; adminToken: string }) {
   const [current, setCurrent] = useState("");
   const [newPass, setNewPass] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -2295,12 +2295,11 @@ function ChangePasswordModal({ onClose, adminId }: { onClose: () => void; adminI
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (newPass.length < 16) { setError("Password must be at least 16 characters"); return; }
-    if (!/(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*])/.test(newPass)) { setError("Password must include uppercase, lowercase, number, and special character"); return; }
+    if (newPass.length < 8) { setError("Password must be at least 8 characters"); return; }
     if (newPass !== confirm) { setError("Passwords do not match"); return; }
     setLoading(true);
     try {
-      const result = await changePass({ userId: adminId as any, currentPassword: current, newPassword: newPass });
+      const result = await changePass({ userId: adminId as any, currentPassword: current, newPassword: newPass, adminToken });
       if (result?.success) { setSuccess(true); setTimeout(() => window.location.href = '/admin/login', 3000); }
       else { setError(result?.error || "Failed to change password"); }
     } catch (err: any) { setError(err?.message || "Failed to change password"); }

@@ -592,26 +592,43 @@ export const rotateEncryptionKeys = mutation({
 });
 
 export const getAdminProfile = query({
-  args: {},
+  args: { adminToken: v.optional(v.string()) },
   returns: v.any(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    // Use admin session to identify the correct admin user
+    let adminUser: any = null;
+    
+    if (args.adminToken) {
+      // Validate session and get the admin user
+      const session: any = await ctx.db.get(args.adminToken as any);
+      if (session && session.userId && session.userType === "admin" && !session.isRevoked) {
+        adminUser = await ctx.db.get(session.userId);
+      }
+    }
+    
+    // Fallback: find admin by role if no session
+    if (!adminUser) {
+      adminUser = await ctx.db.query("users")
+        .withIndex("by_role", q => q.eq("role", "admin"))
+        .first();
+    }
+
+    if (!adminUser) return { _id: "unknown", name: "Admin", email: "admin@dutchkem.com", role: "admin", lastLogin: null, loginCount: 0 };
+
     const configs = await ctx.db.query("system_config").collect();
     const configMap: Record<string, any> = {};
     configs.forEach(c => { configMap[c.key] = c.value; });
 
-    // Find the admin user
-    const adminUser = await ctx.db.query("users")
-      .withIndex("by_role", q => q.eq("role", "admin"))
-      .first();
-
     return {
-      _id: adminUser?._id || "unknown",
-      name: process.env.ADMIN_NAME || "Super Admin",
-      email: "admin@dutchkem.com",
-      role: "Super Admin",
-      lastLogin: configMap.ADMIN_LAST_LOGIN
-        ? new Date(configMap.ADMIN_LAST_LOGIN as number).toISOString()
-        : null,
+      _id: adminUser._id,
+      name: adminUser.name || "Super Admin",
+      email: adminUser.email,
+      role: adminUser.role || "admin",
+      lastLogin: adminUser.adminLastLoginAt
+        ? new Date(adminUser.adminLastLoginAt).toISOString()
+        : configMap.ADMIN_LAST_LOGIN
+          ? new Date(configMap.ADMIN_LAST_LOGIN as number).toISOString()
+          : null,
       loginCount: (configMap.ADMIN_LOGIN_COUNT as number) || 0,
     };
   },

@@ -40,7 +40,7 @@ export const sendSms = mutation({
         body: JSON.stringify({
           api_key: termiiKey,
           to: args.to,
-          from: "Dutchkem",
+          from: "N-Alert",
           sms: args.message,
           type: "plain",
           channel: "dnd",
