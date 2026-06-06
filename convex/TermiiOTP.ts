@@ -21,8 +21,6 @@ export const TermiiOTP = Phone({
     return Array.from(bytes, (b) => (b % 10).toString()).join("");
   },
   async sendVerificationRequest({ identifier: originalPhone, token }) {
-    const apiKey = process.env.TERMII_API_KEY;
-
     let phone = originalPhone.replace(/\D/g, "");
     if (phone.startsWith("0")) {
       phone = "234" + phone.substring(1);
@@ -31,11 +29,11 @@ export const TermiiOTP = Phone({
       phone = "234" + phone;
     }
 
-    const IS_DEVELOPMENT = process.env.NODE_ENV !== "production";
+    const apiKey = process.env.TERMII_API_KEY;
 
-    if (!apiKey || (IS_DEVELOPMENT && phone.startsWith("234000"))) {
-      console.warn("[OTP] TERMII_API_KEY not set or demo number detected. Simulating OTP send.");
-      console.log(`[OTP] Simulation for ${phone}: Your verification code is ${token}`);
+    if (!apiKey) {
+      console.warn("[OTP] TERMII_API_KEY not set. Simulating OTP send.");
+      console.log(`[OTP Simulation] Code for ${phone}: ${token}`);
       return;
     }
 
@@ -66,9 +64,6 @@ export const TermiiOTP = Phone({
       console.log(`[OTP] SMS sent successfully. message_id: ${data.message_id}`);
     } catch (error) {
       console.error("[OTP] Failed to send OTP:", error);
-      if (IS_DEVELOPMENT) {
-        console.log(`[OTP Fallback] Code for ${phone}: ${token}`);
-      }
       throw error;
     }
   },
