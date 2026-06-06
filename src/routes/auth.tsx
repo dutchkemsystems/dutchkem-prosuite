@@ -82,12 +82,14 @@ function PhoneAuthForm() {
     setPhone(phoneValue);
 
     try {
-      // Use the termii-otp provider we created
-      await signIn("termii-otp", formData);
+      await signIn("phone", formData);
       setStep("otp");
     } catch (err: any) {
       const msg = err?.message || String(err || '');
-      if (msg.includes('insufficient balance') || msg.includes('SMS delivery failed')) {
+      if (msg.includes('is not configured')) {
+        console.error("[Auth] Provider not found:", err);
+        setError("Authentication provider error. Please refresh and try again.");
+      } else if (msg.includes('insufficient balance') || msg.includes('SMS delivery failed')) {
         setError("SMS service is temporarily out of credits. Please contact support or try again later.");
       } else if (msg.includes('Country Inactive')) {
         setError("SMS service not available for this region. Please contact support.");
@@ -111,7 +113,7 @@ function PhoneAuthForm() {
     const formData = new FormData(e.currentTarget);
     
     try {
-      await signIn("termii-otp", formData);
+      await signIn("phone", formData);
       // Redirect happens automatically via Authenticated wrapper
     } catch (err: any) {
       setError("Invalid or expired code. Please check and try again.");
