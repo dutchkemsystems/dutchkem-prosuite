@@ -5,7 +5,7 @@ import { verifyPassword } from "./encryption";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MS = 30 * 60 * 1000; // 30 minutes
-const SESSION_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
+const SESSION_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export const adminLogin = mutation({
   args: { 

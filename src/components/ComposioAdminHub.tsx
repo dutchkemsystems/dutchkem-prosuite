@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { useMutation } from "convex/react";
+import { useNavigate } from "@tanstack/react-router";
 import { api } from "../../convex/_generated/api";
 
 interface ComposioAdminHubProps {
@@ -30,6 +31,16 @@ const EMPTY_STATS = {
 
 export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
   const [activeSubTab, setActiveSubTab] = useState<"overview" | "platforms" | "agents" | "logs" | "stats">("overview");
+  const navigate = useNavigate();
+
+  const handleReLogin = () => {
+    localStorage.removeItem("admin_session_token");
+    localStorage.removeItem("auth_access_token");
+    localStorage.removeItem("auth_refresh_token");
+    localStorage.removeItem("auth_token_type");
+    localStorage.removeItem("auth_expires_at");
+    window.location.href = "/admin/login";
+  };
 
   const statusQuery = useQuery({
     ...convexQuery(api.composioHub.getComposioStatus, { adminToken }),
@@ -83,9 +94,15 @@ export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
   if (status?.authError && !statusQuery.isLoading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-10 text-center max-w-md">
-          <p className="text-amber-500 font-black text-sm uppercase tracking-widest mb-3">Session Expired</p>
-          <p className="text-slate-400 text-sm">Your admin session has expired. Please log in again.</p>
+        <div className="bg-slate-900 border border-amber-500/20 rounded-3xl p-10 text-center max-w-md space-y-5">
+          <p className="text-amber-500 font-black text-sm uppercase tracking-widest">Session Expired</p>
+          <p className="text-slate-400 text-sm">Your admin session has expired. Please log in again to continue managing the Composio Hub.</p>
+          <button
+            onClick={handleReLogin}
+            className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all"
+          >
+            🔐 Login Again
+          </button>
         </div>
       </div>
     );

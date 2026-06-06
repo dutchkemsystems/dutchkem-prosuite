@@ -78,6 +78,50 @@ export const validateAdminSession = internalQuery({
 });
 
 /**
+ * Public session check for the dashboard itself.
+ * Returns { valid: true, email, name } if session is valid, { valid: false } if not.
+ * Frontend can poll this on tab focus / visibility change to detect expired sessions.
+ */
+export const checkAdminSession = query({
+  args: { adminToken: v.optional(v.string()) },
+  returns: v.object({
+    valid: v.boolean(),
+    email: v.optional(v.string()),
+    name: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+  }),
+  handler: async (ctx, { adminToken }) => {
+    if (!adminToken) return { valid: false };
+    let session: any = null;
+    try {
+      session = await ctx.db.get(adminToken as Id<"user_sessions">);
+    } catch {
+      return { valid: false };
+    }
+    if (!session) return { valid: false };
+    if (session.isRevoked) return { valid: false };
+    if (typeof session.expiresAt === "number" && session.expiresAt < Date.now()) {
+      return { valid: false };
+    }
+    if (session.userType !== "admin") return { valid: false };
+    let user: any = null;
+    try {
+      user = await ctx.db.get(session.userId);
+    } catch {
+      return { valid: false };
+    }
+    if (!user) return { valid: false };
+    if (user.role !== "admin") return { valid: false };
+    return {
+      valid: true,
+      email: user.email,
+      name: user.name,
+      expiresAt: session.expiresAt,
+    };
+  },
+});
+
+/**
  * For queries and mutations that have direct ctx.db access.
  * Returns the identity or null.
  */

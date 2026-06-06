@@ -66,6 +66,25 @@ function AdminDashboardPage() {
     }
   }, [isLoading, navigate]);
 
+  // Continuously validate the session against the backend.
+  // If the backend session was deleted/expired/revoked, log the user out.
+  // This protects against stale localStorage tokens pointing to dead sessions.
+  const sessionCheck = useQuery(
+    api.auth_helpers.checkAdminSession,
+    adminToken ? { adminToken } : "skip"
+  );
+  useEffect(() => {
+    if (!adminToken) return;
+    if (sessionCheck && sessionCheck.valid === false) {
+      localStorage.removeItem('admin_session_token');
+      localStorage.removeItem('auth_access_token');
+      localStorage.removeItem('auth_refresh_token');
+      localStorage.removeItem('auth_token_type');
+      localStorage.removeItem('auth_expires_at');
+      navigate({ to: '/admin/login' });
+    }
+  }, [sessionCheck, adminToken, navigate]);
+
   // Real-time socket connection (safe: only connect when token exists)
   const { connected: _wsConnected } = useSocket(adminToken || "");
 
