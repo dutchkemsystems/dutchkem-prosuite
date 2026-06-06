@@ -82,7 +82,7 @@ function PhoneAuthForm() {
     setPhone(phoneValue);
 
     try {
-      await signIn("phone", formData);
+      await signIn("termii-otp", formData);
       setStep("otp");
     } catch (err: any) {
       const msg = err?.message || String(err || '');
@@ -113,7 +113,7 @@ function PhoneAuthForm() {
     const formData = new FormData(e.currentTarget);
     
     try {
-      await signIn("phone", formData);
+      await signIn("termii-otp", formData);
       // Redirect happens automatically via Authenticated wrapper
     } catch (err: any) {
       setError("Invalid or expired code. Please check and try again.");
