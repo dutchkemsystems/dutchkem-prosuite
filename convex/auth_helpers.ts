@@ -36,7 +36,7 @@ async function validateAdminSessionCore(
   if (!adminToken) return null;
   let session: any = null;
   try {
-    session = await ctx.db.get("user_sessions", adminToken);
+    session = await ctx.db.get(adminToken as any);
   } catch {
     return null;
   }
