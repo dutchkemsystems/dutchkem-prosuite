@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -8,18 +8,79 @@ interface ComposioAdminHubProps {
   adminToken: string;
 }
 
+const EMPTY_STATUS = {
+  composioEnabled: false,
+  totalPlatforms: 0,
+  connectedPlatforms: 0,
+  enabledPlatforms: 0,
+  platforms: [],
+  agents: [],
+  authConfigsCount: 0,
+  last24h: { total: 0, success: 0, failed: 0 },
+  authError: true,
+};
+
+const EMPTY_LOGS: any[] = [];
+const EMPTY_STATS = {
+  overview: { totalActions: 0, successRate: 0, avgDuration: 0 },
+  periods: { last24h: { total: 0, success: 0, failed: 0 }, last7d: { total: 0, success: 0, failed: 0 }, last30d: { total: 0, success: 0, failed: 0 } },
+  byPlatform: {},
+  byAgent: {},
+};
+
 export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
   const [activeSubTab, setActiveSubTab] = useState<"overview" | "platforms" | "agents" | "logs" | "stats">("overview");
 
-  const { data: status } = useSuspenseQuery(convexQuery(api.composioHub.getComposioStatus, { adminToken })) as { data: any };
-  const { data: logs } = useSuspenseQuery(convexQuery(api.composioHub.getComposioActionLogs, { adminToken, limit: 50 })) as { data: any };
-  const { data: stats } = useSuspenseQuery(convexQuery(api.composioHub.getComposioStats, { adminToken })) as { data: any };
+  const statusQuery = useQuery({
+    ...convexQuery(api.composioHub.getComposioStatus, { adminToken }),
+    retry: 1,
+  });
+  const logsQuery = useQuery({
+    ...convexQuery(api.composioHub.getComposioActionLogs, { adminToken, limit: 50 }),
+    retry: 1,
+  });
+  const statsQuery = useQuery({
+    ...convexQuery(api.composioHub.getComposioStats, { adminToken }),
+    retry: 1,
+  });
+
+  const status = (statusQuery.data as any) ?? EMPTY_STATUS;
+  const logs = (logsQuery.data as any[]) ?? EMPTY_LOGS;
+  const stats = (statsQuery.data as any) ?? EMPTY_STATS;
 
   const togglePlatform = useMutation(api.composioHub.togglePlatform);
   const setPlatformMode = useMutation(api.composioHub.setPlatformMode);
   const toggleAgentComposio = useMutation(api.composioHub.toggleAgentComposio);
 
-  if (status?.authError) {
+  if (statusQuery.isError) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="bg-slate-900 border border-red-500/20 rounded-3xl p-10 text-center max-w-md">
+          <p className="text-red-500 font-black text-sm uppercase tracking-widest mb-3">Connection Error</p>
+          <p className="text-slate-400 text-sm mb-4">Failed to load Composio Hub. The server may be unreachable.</p>
+          <button
+            onClick={() => statusQuery.refetch()}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-black uppercase rounded-xl"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (statusQuery.isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-10 text-center max-w-md">
+          <p className="text-purple-500 font-black text-sm uppercase tracking-widest mb-3">Loading...</p>
+          <p className="text-slate-400 text-sm">Connecting to Composio Hub...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status?.authError && !statusQuery.isLoading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-10 text-center max-w-md">
