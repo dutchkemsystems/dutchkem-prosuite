@@ -1,5 +1,5 @@
-﻿import { query, mutation, action } from "./_generated/server";
-import { v } from "convex/values";
+﻿import { v } from "convex/values";
+import { action, mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
 
 /**
@@ -327,7 +327,7 @@ export const verifyTransferOTP = mutation({
         return { success: false, error: "OTP not found" };
       }
 
-      const otpData = otpRecord.value as any;
+      const otpData = otpRecord.value;
 
       // Check if OTP expired
       if (Date.now() > otpData.expiresAt) {
@@ -351,19 +351,19 @@ export const verifyTransferOTP = mutation({
           .first();
 
         if (!passkeyRecord) return { success: false, error: "Passkey not found" };
-        const pkData = passkeyRecord.value as any;
+        const pkData = passkeyRecord.value;
         if (pkData.used) return { success: false, error: "Passkey already used" };
         if (Date.now() > pkData.expiresAt) return { success: false, error: "Passkey expired" };
         if (pkData.passkey !== args.passkey) return { success: false, error: "Invalid passkey" };
 
-        await ctx.db.patch(passkeyRecord._id, {
+        await ctx.db.patch("system_config", passkeyRecord._id, {
           value: { ...pkData, used: true },
           updatedAt: Date.now(),
         });
       }
 
       // Mark OTP as used
-      await ctx.db.patch(otpRecord._id, {
+      await ctx.db.patch("system_config", otpRecord._id, {
         value: { ...otpData, status: "verified" },
         updatedAt: Date.now(),
       });
@@ -414,7 +414,7 @@ export const verifyTransferOTP = mutation({
 
       // Deduct from main wallet
       const newBalance = mainWallet.balance - otpData.amount;
-      await ctx.db.patch(mainWallet._id, {
+      await ctx.db.patch("system_wallets", mainWallet._id, {
         balance: newBalance,
         lastUpdated: Date.now(),
       });
@@ -487,7 +487,7 @@ export const verifyDirectTransferOTP = mutation({
         return { success: false, error: "OTP not found" };
       }
 
-      const otpData = otpRecord.value as any;
+      const otpData = otpRecord.value;
 
       // Check if OTP expired
       if (Date.now() > otpData.expiresAt) {
@@ -511,19 +511,19 @@ export const verifyDirectTransferOTP = mutation({
           .first();
 
         if (!passkeyRecord) return { success: false, error: "Passkey not found" };
-        const pkData = passkeyRecord.value as any;
+        const pkData = passkeyRecord.value;
         if (pkData.used) return { success: false, error: "Passkey already used" };
         if (Date.now() > pkData.expiresAt) return { success: false, error: "Passkey expired" };
         if (pkData.passkey !== args.passkey) return { success: false, error: "Invalid passkey" };
 
-        await ctx.db.patch(passkeyRecord._id, {
+        await ctx.db.patch("system_config", passkeyRecord._id, {
           value: { ...pkData, used: true },
           updatedAt: Date.now(),
         });
       }
 
       // Mark OTP as used
-      await ctx.db.patch(otpRecord._id, {
+      await ctx.db.patch("system_config", otpRecord._id, {
         value: { ...otpData, status: "verified" },
         updatedAt: Date.now(),
       });
@@ -583,7 +583,7 @@ export const verifyDirectTransferOTP = mutation({
 
       // Deduct from main wallet
       const newBalance = mainWallet.balance - otpData.amount;
-      await ctx.db.patch(mainWallet._id, {
+      await ctx.db.patch("system_wallets", mainWallet._id, {
         balance: newBalance,
         lastUpdated: Date.now(),
       });

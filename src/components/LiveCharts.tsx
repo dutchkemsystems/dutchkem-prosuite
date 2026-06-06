@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
-import { api } from "../../convex/_generated/api"
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend,
+  Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis
 } from 'recharts'
+import { api } from "../../convex/_generated/api"
 
 const COLORS = ['#FF6B35', '#1E3A8A', '#00A86B', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']
 const AGENT_NAMES = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12', 'A13', 'A14', 'A15']
@@ -68,21 +68,21 @@ function downloadAsJPEG(elementId: string) {
 function downloadAsExcel(elementId: string) {
   const element = document.getElementById(elementId);
   if (!element) return;
-  const rows: string[][] = [];
+  const rows: Array<Array<string>> = [];
   rows.push(['Dutchkem Ventures ProSuite NG+ - Analytics Report']);
   rows.push([`Generated: ${new Date().toLocaleString()}`]);
   rows.push([]);
   
   const tables = element.querySelectorAll('table');
   tables.forEach(table => {
-    const headers: string[] = [];
+    const headers: Array<string> = [];
     const headerCells = table.querySelectorAll('th');
     headerCells.forEach(th => headers.push(th.textContent || ''));
     if (headers.length > 0) rows.push(headers);
     
     const bodyRows = table.querySelectorAll('tbody tr');
     bodyRows.forEach(tr => {
-      const cells: string[] = [];
+      const cells: Array<string> = [];
       tr.querySelectorAll('td').forEach(td => cells.push(td.textContent || ''));
       rows.push(cells);
     });

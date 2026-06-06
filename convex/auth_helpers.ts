@@ -1,8 +1,8 @@
-import { mutation, query, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import type { Id } from "./_generated/dataModel";
+import { internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { hashPassword, verifyPassword } from "./encryption";
+import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // ADMIN SESSION AUTH (custom auth, NOT Convex Auth)
@@ -36,7 +36,7 @@ async function validateAdminSessionCore(
   if (!adminToken) return null;
   let session: any = null;
   try {
-    session = await ctx.db.get(adminToken as Id<"user_sessions">);
+    session = await ctx.db.get("user_sessions", adminToken);
   } catch {
     return null;
   }
@@ -94,7 +94,7 @@ export const checkAdminSession = query({
     if (!adminToken) return { valid: false };
     let session: any = null;
     try {
-      session = await ctx.db.get(adminToken as Id<"user_sessions">);
+      session = await ctx.db.get("user_sessions", adminToken as Id<"user_sessions">);
     } catch {
       return { valid: false };
     }
@@ -217,7 +217,7 @@ export const clearFailedLogins = mutation({
       .filter(q => q.and(q.eq(q.field("email"), email), q.eq(q.field("ipAddress"), ip)))
       .collect();
     for (const log of logs) {
-      await ctx.db.delete(log._id);
+      await ctx.db.delete("failed_logins", log._id);
     }
   },
 });
@@ -244,7 +244,7 @@ export const getAdminById = query({
   args: { adminId: v.id("users") },
   returns: v.any(),
   handler: async (ctx, { adminId }) => {
-    return await ctx.db.get(adminId);
+    return await ctx.db.get("users", adminId);
   },
 });
 
@@ -281,7 +281,7 @@ export const changePassword = mutation({
     if (!identity) return { success: false, error: "Unauthorized" };
     if (identity._id !== userId) return { success: false, error: "Can only change your own password" };
 
-    const user = await ctx.db.get(userId);
+    const user = await ctx.db.get("users", userId);
     if (!user) return { success: false, error: "User not found" };
 
     // Verify current password if one exists
@@ -296,7 +296,7 @@ export const changePassword = mutation({
     }
 
     const newHash = await hashPassword(newPassword);
-    await ctx.db.patch(userId, { adminPasswordHash: newHash });
+    await ctx.db.patch("users", userId, { adminPasswordHash: newHash });
 
     // Log password change
     await ctx.db.insert("audit_logs", {
@@ -316,7 +316,7 @@ export const lockUserAccount = mutation({
   args: { userId: v.id("users"), minutes: v.number() },
   returns: v.null(),
   handler: async (ctx, { userId, minutes }) => {
-    await ctx.db.patch(userId, {
+    await ctx.db.patch("users", userId, {
       adminLockedUntil: Date.now() + (minutes * 60 * 1000),
     });
   },
@@ -326,7 +326,7 @@ export const lockAdminAccount = mutation({
   args: { adminId: v.id("users"), minutes: v.number() },
   returns: v.null(),
   handler: async (ctx, { adminId, minutes }) => {
-    await ctx.db.patch(adminId, {
+    await ctx.db.patch("users", adminId, {
       adminLockedUntil: Date.now() + (minutes * 60 * 1000),
     });
   },
@@ -336,7 +336,7 @@ export const updateLastLogin = mutation({
   args: { userId: v.id("users"), ip: v.string() },
   returns: v.null(),
   handler: async (ctx, { userId, ip: _ip }) => {
-    await ctx.db.patch(userId, {
+    await ctx.db.patch("users", userId, {
       adminLastLoginAt: Date.now(),
       adminFailedLoginAttempts: 0,
       adminLockedUntil: undefined,
@@ -415,7 +415,7 @@ export const rotateRefreshToken = mutation({
   args: { sessionId: v.id("user_sessions"), refreshToken: v.string() },
   returns: v.null(),
   handler: async (ctx, { sessionId, refreshToken }) => {
-    await ctx.db.patch(sessionId, {
+    await ctx.db.patch("user_sessions", sessionId, {
       refreshToken,
       lastActive: Date.now(),
     });
@@ -426,7 +426,7 @@ export const revokeSession = mutation({
   args: { sessionId: v.id("user_sessions") },
   returns: v.null(),
   handler: async (ctx, { sessionId }) => {
-    await ctx.db.patch(sessionId, { isRevoked: true, isCurrent: false });
+    await ctx.db.patch("user_sessions", sessionId, { isRevoked: true, isCurrent: false });
   },
 });
 
@@ -434,9 +434,9 @@ export const revokeSessionById = mutation({
   args: { sessionId: v.id("user_sessions"), userId: v.id("users") },
   returns: v.null(),
   handler: async (ctx, { sessionId, userId }) => {
-    const session = await ctx.db.get(sessionId);
+    const session = await ctx.db.get("user_sessions", sessionId);
     if (session && session.userId === userId) {
-      await ctx.db.patch(sessionId, { isRevoked: true, isCurrent: false });
+      await ctx.db.patch("user_sessions", sessionId, { isRevoked: true, isCurrent: false });
     }
   },
 });
@@ -450,7 +450,7 @@ export const revokeUserSessions = mutation({
       .filter(q => q.eq(q.field("userType"), userType))
       .collect();
     for (const s of sessions) {
-      await ctx.db.patch(s._id, { isRevoked: true, isCurrent: false });
+      await ctx.db.patch("user_sessions", s._id, { isRevoked: true, isCurrent: false });
     }
   },
 });
@@ -464,7 +464,7 @@ export const revokeAllUserSessions = mutation({
       .filter(q => q.eq(q.field("userType"), userType))
       .collect();
     for (const s of sessions) {
-      await ctx.db.patch(s._id, { isRevoked: true, isCurrent: false });
+      await ctx.db.patch("user_sessions", s._id, { isRevoked: true, isCurrent: false });
     }
   },
 });
@@ -519,7 +519,7 @@ export const verifyAdminTOTP = mutation({
       if (idx !== -1) {
         const codes = [...twoFactor.backupCodes];
         codes.splice(idx, 1);
-        await ctx.db.patch(twoFactor._id, { backupCodes: codes });
+        await ctx.db.patch("admin_2fa", twoFactor._id, { backupCodes: codes });
         return true;
       }
     }
@@ -604,11 +604,11 @@ export const setupAdmin2FA = mutation({
     );
     const existing = await ctx.db.query("admin_2fa").withIndex("by_admin", q => q.eq("adminId", adminId)).first();
     if (existing) {
-      await ctx.db.patch(existing._id, { secret, backupCodes, isEnabled: true });
+      await ctx.db.patch("admin_2fa", existing._id, { secret, backupCodes, isEnabled: true });
     } else {
       await ctx.db.insert("admin_2fa", { adminId, secret, backupCodes, isEnabled: true });
     }
-    await ctx.db.patch(adminId, { adminTwoFactorEnabled: true, adminTwoFactorSecret: secret, adminBackupCodes: backupCodes });
+    await ctx.db.patch("users", adminId, { adminTwoFactorEnabled: true, adminTwoFactorSecret: secret, adminBackupCodes: backupCodes });
     return { backupCodes };
   },
 });
@@ -669,7 +669,7 @@ export const updateIpWhitelist = mutation({
   handler: async (ctx, { adminId, ipAddresses, description }) => {
     const existing = await ctx.db.query("ip_whitelist").withIndex("by_admin", q => q.eq("adminId", adminId)).first();
     if (existing) {
-      await ctx.db.patch(existing._id, { ipAddresses, description });
+      await ctx.db.patch("ip_whitelist", existing._id, { ipAddresses, description });
     } else {
       await ctx.db.insert("ip_whitelist", { adminId, ipAddresses, description });
     }

@@ -1,5 +1,5 @@
-import { mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation } from "./_generated/server";
 import { hashPassword } from "./encryption";
 
 export const seedAdmin = mutation({
@@ -16,7 +16,7 @@ export const seedAdmin = mutation({
     const passwordHash = await hashPassword(args.password);
     if (existing) {
       console.log("Admin exists, updating hash");
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("users", existing._id, {
         adminPasswordHash: passwordHash,
         role: "admin",
       });

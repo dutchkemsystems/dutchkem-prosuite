@@ -1,5 +1,5 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 // Feature 9: Geo-Tracking & Territory Management
 
@@ -23,7 +23,7 @@ export const updateClientLocation = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("client_locations", existing._id, {
         ip: args.ip ?? existing.ip,
         country: args.country ?? existing.country,
         countryCode: args.countryCode ?? existing.countryCode,
@@ -80,7 +80,7 @@ export const getAllClientLocations = query({
     const result = [];
 
     for (const loc of locations) {
-      const user = await ctx.db.get(loc.userId);
+      const user = await ctx.db.get("users", loc.userId);
       result.push({
         userId: loc.userId,
         userName: user?.name ?? undefined,
@@ -172,7 +172,7 @@ export const updateTerritory = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const { territoryId, ...updates } = args;
-    await ctx.db.patch(territoryId, { ...updates, updatedAt: Date.now() });
+    await ctx.db.patch("territories", territoryId, { ...updates, updatedAt: Date.now() });
     return null;
   },
 });
@@ -198,7 +198,7 @@ export const deleteTerritory = mutation({
   args: { territoryId: v.id("territories") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.delete(args.territoryId);
+    await ctx.db.delete("territories", args.territoryId);
     return null;
   },
 });

@@ -1,9 +1,9 @@
-import { internalAction, internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { internal } from "./_generated/api";
+import { internalAction, internalMutation, mutation, query } from "./_generated/server";
 
 export const startKDPProject = mutation({
   args: { title: v.string() },
@@ -95,7 +95,7 @@ export const updateProjectStatus = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.projectId, {
+    await ctx.db.patch("kdp_projects", args.projectId, {
       status: args.status,
       assets: args.assets,
       metadata: args.metadata,
@@ -223,7 +223,7 @@ export const updateBookProject = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const project = await ctx.db.get(args.projectId);
+    const project = await ctx.db.get("book_projects", args.projectId);
     if (!project || project.userId !== userId) throw new Error("Project not found");
 
     const patch: Record<string, unknown> = { updatedAt: Date.now() };
@@ -231,7 +231,7 @@ export const updateBookProject = mutation({
     if (args.manuscript) patch.manuscript = args.manuscript;
     if (args.kdpMetadata) patch.kdpMetadata = args.kdpMetadata;
 
-    await ctx.db.patch(args.projectId, patch);
+    await ctx.db.patch("book_projects", args.projectId, patch);
   },
 });
 
@@ -251,16 +251,16 @@ export const uploadBookFile = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const project = await ctx.db.get(args.projectId);
+    const project = await ctx.db.get("book_projects", args.projectId);
     if (!project || project.userId !== userId) throw new Error("Project not found");
 
     if (args.section === "cover") {
-      await ctx.db.patch(args.projectId, {
+      await ctx.db.patch("book_projects", args.projectId, {
         coverFiles: [...project.coverFiles, args.file],
         updatedAt: Date.now(),
       });
     } else {
-      await ctx.db.patch(args.projectId, {
+      await ctx.db.patch("book_projects", args.projectId, {
         interiorFiles: [...project.interiorFiles, args.file],
         updatedAt: Date.now(),
       });
@@ -285,7 +285,7 @@ export const getBookProject = query({
   args: { projectId: v.id("book_projects") },
   returns: v.any(),
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.projectId);
+    return await ctx.db.get("book_projects", args.projectId);
   },
 });
 
@@ -314,7 +314,7 @@ export const setBookRoyaltyData = mutation({
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
-    const project = await ctx.db.get(args.projectId);
+    const project = await ctx.db.get("book_projects", args.projectId);
     if (!project || project.userId !== userId) throw new Error("Project not found");
 
     await ctx.db.insert("book_royalties", {

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import { getDeviceFingerprint } from '~/lib/fingerprint'
@@ -48,7 +48,7 @@ function AdminLoginPage() {
       })
       
       if (result.status === 'success') {
-        localStorage.setItem('admin_session_token', result.token!)
+        localStorage.setItem('admin_session_token', result.token)
         navigate({ to: '/admin/dashboard' })
       } else if (result.status === '2fa_required') {
         setStage('2fa')

@@ -1,5 +1,5 @@
-import { mutation, query, internalAction, action, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 // Feature 7: Custom Report Builder & Power BI Integration
@@ -60,7 +60,7 @@ export const updateReport = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const { reportId, ...updates } = args;
-    await ctx.db.patch(reportId, { ...updates, updatedAt: Date.now() });
+    await ctx.db.patch("saved_reports", reportId, { ...updates, updatedAt: Date.now() });
     return null;
   },
 });
@@ -69,7 +69,7 @@ export const deleteReport = mutation({
   args: { reportId: v.id("saved_reports") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.delete(args.reportId);
+    await ctx.db.delete("saved_reports", args.reportId);
     return null;
   },
 });
@@ -157,7 +157,7 @@ export const getReportById = internalQuery({
   args: { reportId: v.id("saved_reports") },
   returns: v.any(),
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.reportId);
+    return await ctx.db.get("saved_reports", args.reportId);
   },
 });
 
@@ -165,7 +165,7 @@ export const updateLastGenerated = internalMutation({
   args: { reportId: v.id("saved_reports") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.reportId, { lastGenerated: Date.now() });
+    await ctx.db.patch("saved_reports", args.reportId, { lastGenerated: Date.now() });
     return null;
   },
 });
@@ -293,8 +293,8 @@ export const exportReportToCsv = internalAction({
     const result: any = await ctx.runAction(internal.reports.generateReport, { reportId: args.reportId });
 
     // Convert to CSV
-    const headers: string[] = report.metrics.map((m: any) => `${m.type}.${m.field}`);
-    const rows: string[] = [headers.join(",")];
+    const headers: Array<string> = report.metrics.map((m: any) => `${m.type}.${m.field}`);
+    const rows: Array<string> = [headers.join(",")];
     rows.push(Object.values(result.data).join(","));
 
     return rows.join("\n");

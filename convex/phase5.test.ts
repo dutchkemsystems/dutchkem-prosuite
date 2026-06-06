@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
 // ═══════════════════════════════════════════════════════════════════
 // PHASE 5 UNIT TESTS — Client Analytics, Chatbot Leads, Testimonials

@@ -1,8 +1,8 @@
-import { query, mutation, action, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
+import { internal } from "./_generated/api";
+import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 
 /**
  * SYNTHETIC INTELLIGENCE - Agentic AI System for 15 Agents
@@ -102,7 +102,7 @@ export const toggleSyntheticAgent = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { value: args.enabled, updatedAt: Date.now() });
+      await ctx.db.patch("system_config", existing._id, { value: args.enabled, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("system_config", {
         key,
@@ -150,7 +150,7 @@ export const updateAgentSettings = mutation({
         .first();
 
       if (existing) {
-        await ctx.db.patch(existing._id, { value: update.value, updatedAt: Date.now() });
+        await ctx.db.patch("system_config", existing._id, { value: update.value, updatedAt: Date.now() });
       } else {
         await ctx.db.insert("system_config", {
           key: update.key,
@@ -185,7 +185,7 @@ export const enableAllAgents = mutation({
         .first();
 
       if (existing) {
-        await ctx.db.patch(existing._id, { value: true, updatedAt: Date.now() });
+        await ctx.db.patch("system_config", existing._id, { value: true, updatedAt: Date.now() });
       } else {
         await ctx.db.insert("system_config", {
           key,
@@ -219,7 +219,7 @@ export const disableAllAgents = mutation({
         .first();
 
       if (existing) {
-        await ctx.db.patch(existing._id, { value: false, updatedAt: Date.now() });
+        await ctx.db.patch("system_config", existing._id, { value: false, updatedAt: Date.now() });
       } else {
         await ctx.db.insert("system_config", {
           key,
@@ -374,7 +374,7 @@ export const trackUsage = internalMutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("system_config", existing._id, {
         value: ((existing.value as number) || 0) + 1,
         updatedAt: Date.now(),
       });
@@ -394,7 +394,7 @@ export const trackUsage = internalMutation({
       .first();
 
     if (lastUsedExisting) {
-      await ctx.db.patch(lastUsedExisting._id, { value: Date.now(), updatedAt: Date.now() });
+      await ctx.db.patch("system_config", lastUsedExisting._id, { value: Date.now(), updatedAt: Date.now() });
     } else {
       await ctx.db.insert("system_config", {
         key: lastUsedKey,
@@ -479,7 +479,7 @@ export const getPerformanceSummary = query({
       failed: number;
       avgLatency: number;
       totalTokens: number;
-      recentLogs: any[];
+      recentLogs: Array<any>;
     }> = {};
 
     for (const log of logs) {

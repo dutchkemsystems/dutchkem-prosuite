@@ -1,5 +1,5 @@
-﻿import { query, mutation } from "./_generated/server";
-import { v } from "convex/values";
+﻿import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 /**
  * SECURE SWEEPS - Daily Auto Sweep with Auto/Manual/Pause Controls
@@ -115,7 +115,7 @@ export const updateSettings = mutation({
         .first();
       
       if (existing) {
-        await ctx.db.patch(existing._id, { value, updatedAt: Date.now() });
+        await ctx.db.patch("system_config", existing._id, { value, updatedAt: Date.now() });
       } else {
         await ctx.db.insert("system_config", { key, value, updatedAt: Date.now() });
       }
@@ -126,7 +126,7 @@ export const updateSettings = mutation({
 });
 
 /**
- * Generate 6-digit passkey for transaction security
+ * Generate 6-digit passkey for transaction security (10-minute expiry)
  */
 export const generatePasskey = mutation({
   args: {},
@@ -134,20 +134,20 @@ export const generatePasskey = mutation({
   handler: async (ctx) => {
     const passkey = Math.floor(100000 + Math.random() * 900000).toString();
     const passkeyKey = `PASSKEY_${Date.now()}`;
-    
+
     await ctx.db.insert("system_config", {
       key: passkeyKey,
       value: {
         passkey,
         createdAt: Date.now(),
-        expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
+        expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes (per spec)
         used: false,
       },
       description: "Transaction passkey",
       updatedAt: Date.now(),
     });
 
-    return { success: true, passkeyId: passkeyKey, passkey };
+    return { success: true, passkeyId: passkeyKey, passkey, expiresInMinutes: 10 };
   },
 });
 
@@ -168,13 +168,13 @@ export const verifyPasskey = mutation({
 
     if (!record) return { success: false, error: "Passkey not found" };
 
-    const data = record.value as any;
+    const data = record.value;
     if (data.used) return { success: false, error: "Passkey already used" };
     if (Date.now() > data.expiresAt) return { success: false, error: "Passkey expired" };
     if (data.passkey !== args.passkey) return { success: false, error: "Invalid passkey" };
 
     // Mark as used
-    await ctx.db.patch(record._id, {
+    await ctx.db.patch("system_config", record._id, {
       value: { ...data, used: true },
       updatedAt: Date.now(),
     });
@@ -205,12 +205,12 @@ export const performSweep = mutation({
           .first();
 
         if (!passkeyRecord) return { success: false, error: "Passkey not found" };
-        const pkData = passkeyRecord.value as any;
+        const pkData = passkeyRecord.value;
         if (pkData.used) return { success: false, error: "Passkey already used" };
         if (Date.now() > pkData.expiresAt) return { success: false, error: "Passkey expired" };
         if (pkData.passkey !== args.passkey) return { success: false, error: "Invalid passkey" };
 
-        await ctx.db.patch(passkeyRecord._id, {
+        await ctx.db.patch("system_config", passkeyRecord._id, {
           value: { ...pkData, used: true },
           updatedAt: Date.now(),
         });
@@ -310,7 +310,7 @@ export const performSweep = mutation({
 
         // Deduct from main wallet
         const newBalance = mainWallet.balance - sweepAmount;
-        await ctx.db.patch(mainWallet._id, {
+        await ctx.db.patch("system_wallets", mainWallet._id, {
           balance: newBalance,
           lastUpdated: Date.now(),
         });

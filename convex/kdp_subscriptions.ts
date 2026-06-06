@@ -1,6 +1,6 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { mutation, query } from "./_generated/server";
 
 export const KDP_PLANS = {
   BASIC: {
@@ -59,7 +59,7 @@ export const createKDPSubscription = mutation({
 
     const subscriptionId = await ctx.db.insert("subscriptions", {
       userId,
-      plan: planConfig.frequency as "monthly" | "quarterly" | "yearly",
+      plan: planConfig.frequency,
       service: "kdp",
       status: "active",
       endsAt,
@@ -126,7 +126,7 @@ export const cancelKDPSubscription = mutation({
 
     if (!sub) throw new Error("No active KDP subscription found");
 
-    await ctx.db.patch(sub._id, {
+    await ctx.db.patch("subscriptions", sub._id, {
       autoRenew: false,
       status: "canceled",
     });

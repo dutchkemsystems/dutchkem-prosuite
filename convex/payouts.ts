@@ -1,7 +1,7 @@
-import { internalAction, internalMutation, internalQuery, query, action } from "./_generated/server";
 import { v } from "convex/values";
-import { internal, api } from "./_generated/api";
-import { decryptWeb, maskAccountNumber, maskAccountName } from "./encryption";
+import { action, internalAction, internalMutation, internalQuery, query } from "./_generated/server";
+import { api, internal } from "./_generated/api";
+import { decryptWeb, maskAccountName, maskAccountNumber } from "./encryption";
 
 /**
  * SECURE PAYOUT EXECUTION
@@ -188,7 +188,7 @@ export const getBeneficiaryInternal = internalQuery({
     args: { id: v.id("beneficiaries") },
     returns: v.any(),
     handler: async (ctx, args) => {
-        return await ctx.db.get(args.id);
+        return await ctx.db.get("beneficiaries", args.id);
     }
 });
 
@@ -252,7 +252,7 @@ export const logSweepSuccess = internalMutation({
 
         const wallet = await ctx.db.query("system_wallets").withIndex("by_type", q => q.eq("type", "main")).unique();
         if (wallet) {
-            await ctx.db.patch(wallet._id, { balance: Math.max(0, wallet.balance - args.amount), lastUpdated: Date.now() });
+            await ctx.db.patch("system_wallets", wallet._id, { balance: Math.max(0, wallet.balance - args.amount), lastUpdated: Date.now() });
         }
     }
 });

@@ -1,5 +1,5 @@
-import { mutation, query, internalAction, internalQuery, internalMutation, action } from "./_generated/server";
 import { v } from "convex/values";
+import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 // Feature 2: Smart Lead Scoring with Guardian AI
@@ -169,7 +169,7 @@ export const getTopLeads = query({
 
     const results = [];
     for (const lead of leadScores) {
-      const user = await ctx.db.get(lead.userId);
+      const user = await ctx.db.get("users", lead.userId);
       results.push({
         userId: lead.userId,
         score: lead.score,
@@ -187,7 +187,7 @@ export const getUserForScoring = internalQuery({
   args: { userId: v.id("users") },
   returns: v.any(),
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.userId);
+    return await ctx.db.get("users", args.userId);
   },
 });
 
@@ -229,7 +229,7 @@ export const getReferralCount = internalQuery({
   args: { userId: v.id("users") },
   returns: v.number(),
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
+    const user = await ctx.db.get("users", args.userId);
     if (!user?.referralCode) return 0;
     const referrals = await ctx.db
       .query("users")
@@ -313,7 +313,7 @@ export const _updateStoredScore = internalMutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("lead_scores", existing._id, {
         score: args.score,
         reasoning: args.reasoning,
         nextBestAction: args.nextBestAction,

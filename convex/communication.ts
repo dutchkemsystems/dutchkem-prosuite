@@ -1,6 +1,6 @@
-import { mutation, query, internalMutation } from "./_generated/server";
-import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { internalMutation, mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 // Feature 5: 1-Click Communication Hub
 
@@ -177,7 +177,7 @@ export const updateLogStatus = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.logId, { status: args.status });
+    await ctx.db.patch("communication_logs", args.logId, { status: args.status });
     return null;
   },
 });

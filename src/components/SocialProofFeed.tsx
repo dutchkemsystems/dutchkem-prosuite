@@ -54,7 +54,7 @@ function timeAgo(ts: number): string {
 export function SocialProofFeed({ limit = 10 }: { limit?: number }) {
   const { data: activities } = useQuery({
     ...convexQuery(api.socialProof.getRecentActivity, {}),
-  }) as { data: any[] };
+  }) as { data: Array<any> };
 
   if (!activities || activities.length === 0) {
     return (

@@ -1,6 +1,6 @@
-import { mutation, query, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import { internal, api } from "./_generated/api";
+import { internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { api, internal } from "./_generated/api";
 
 // Feature 3: Smart Workflows & Automation Engine
 
@@ -50,7 +50,7 @@ export const updateWorkflow = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const { workflowId, ...updates } = args;
-    await ctx.db.patch(workflowId, { ...updates, updatedAt: Date.now() });
+    await ctx.db.patch("workflows", workflowId, { ...updates, updatedAt: Date.now() });
     return null;
   },
 });
@@ -59,7 +59,7 @@ export const deleteWorkflow = mutation({
   args: { workflowId: v.id("workflows") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.delete(args.workflowId);
+    await ctx.db.delete("workflows", args.workflowId);
     return null;
   },
 });
@@ -188,7 +188,7 @@ export const getWorkflowById = internalQuery({
   args: { workflowId: v.id("workflows") },
   returns: v.any(),
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.workflowId);
+    return await ctx.db.get("workflows", args.workflowId);
   },
 });
 
@@ -221,9 +221,9 @@ export const updateTriggerCount = internalMutation({
   args: { workflowId: v.id("workflows") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const workflow = await ctx.db.get(args.workflowId);
+    const workflow = await ctx.db.get("workflows", args.workflowId);
     if (workflow) {
-      await ctx.db.patch(args.workflowId, {
+      await ctx.db.patch("workflows", args.workflowId, {
         triggerCount: workflow.triggerCount + 1,
         lastTriggered: Date.now(),
       });

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+﻿import { useEffect, useState } from "react";
 import { useQuery } from "convex/react";
 
 import { api } from "../../convex/_generated/api";
@@ -89,7 +89,7 @@ export function SEODashboard() {
 interface SEOAnalyzerProps {
   content: string;
   contentType: string;
-  targetKeywords?: string[];
+  targetKeywords?: Array<string>;
   onAnalysis?: (result: any) => void;
 }
 

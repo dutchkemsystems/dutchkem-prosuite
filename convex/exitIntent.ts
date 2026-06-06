@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // EXIT-INTENT POPUP — Capture leaving users with targeted offers
@@ -186,7 +186,7 @@ export const getPopupAnalytics = query({
       if (!stats.byType[popup.popupType]) {
         stats.byType[popup.popupType] = { shown: 0, dismissed: 0, converted: 0 };
       }
-      stats.byType[popup.popupType][popup.action as keyof typeof stats.byType[string]]++;
+      stats.byType[popup.popupType][popup.action]++;
     }
 
     stats.conversionRate =

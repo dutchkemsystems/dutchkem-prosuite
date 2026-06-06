@@ -1,5 +1,5 @@
-﻿import { mutation, query, internalAction, internalMutation } from "./_generated/server";
-import { v } from "convex/values";
+﻿import { v } from "convex/values";
+import { internalAction, internalMutation, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
@@ -118,7 +118,7 @@ export const updateLeadStatus = mutation({
     if (args.notes) {
       updates.notes = args.notes;
     }
-    await ctx.db.patch(args.leadId, updates);
+    await ctx.db.patch("leads", args.leadId, updates);
     return null;
   },
 });
@@ -130,10 +130,10 @@ export const assignLead = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.leadId, { assignedTo: args.assignedTo });
+    await ctx.db.patch("leads", args.leadId, { assignedTo: args.assignedTo });
     
     // Notify assigned agent
-    const lead = await ctx.db.get(args.leadId);
+    const lead = await ctx.db.get("leads", args.leadId);
     void lead; // used in notification message below
     
     await ctx.db.insert("notifications", {
@@ -156,7 +156,7 @@ export const getLeads = query({
   },
   returns: v.array(v.any()),
   handler: async (ctx, args) => {
-    let query_ = ctx.db.query("leads");
+    const query_ = ctx.db.query("leads");
     
     const leads = await query_.collect();
     let filtered = leads;
@@ -217,7 +217,7 @@ export const notifyNewLead = internalMutation({
       .withIndex("by_role", (q) => q.eq("role", "admin"))
       .collect();
 
-    const lead = await ctx.db.get(args.leadId);
+    const lead = await ctx.db.get("leads", args.leadId);
 
     for (const admin of admins) {
       await ctx.db.insert("notifications", {
@@ -237,6 +237,6 @@ export const getLeadById = query({
   args: { leadId: v.id("leads") },
   returns: v.any(),
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.leadId);
+    return await ctx.db.get("leads", args.leadId);
   },
 });

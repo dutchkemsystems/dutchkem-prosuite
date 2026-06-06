@@ -1,5 +1,5 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 /**
  * Quick setup: Add test funds and fix beneficiary bank code
@@ -13,7 +13,7 @@ export const addTestFunds = mutation({
       .first();
 
     if (wallet) {
-      await ctx.db.patch(wallet._id, {
+      await ctx.db.patch("system_wallets", wallet._id, {
         balance: wallet.balance + args.amount,
         lastUpdated: Date.now(),
       });
@@ -37,7 +37,7 @@ export const fixBeneficiaryBankCode = mutation({
     let fixed = 0;
     for (const b of beneficiaries) {
       if (b.bankCode === "999999") {
-        await ctx.db.patch(b._id, { bankCode: "100004" });
+        await ctx.db.patch("beneficiaries", b._id, { bankCode: "100004" });
         fixed++;
       }
     }

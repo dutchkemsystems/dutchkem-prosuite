@@ -1,5 +1,5 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { verifyPassword } from "./encryption";
 
@@ -52,7 +52,7 @@ export const adminLogin = mutation({
         patch.adminFailedLoginAttempts = 0; // Reset after lockout trigger
       }
 
-      await ctx.db.patch(user._id, patch);
+      await ctx.db.patch("users", user._id, patch);
       
       await ctx.runMutation(internal.admin.logAdminAction, {
         adminEmail: args.email,
@@ -65,7 +65,7 @@ export const adminLogin = mutation({
     }
 
     // 3. Reset failed attempts on success
-    await ctx.db.patch(user._id, { 
+    await ctx.db.patch("users", user._id, { 
       adminFailedLoginAttempts: 0,
       adminLockedUntil: undefined,
       adminLastLoginAt: now
@@ -83,7 +83,7 @@ export const adminLogin = mutation({
       .collect();
 
     for (const session of existingSessions) {
-      await ctx.db.delete(session._id);
+      await ctx.db.delete("user_sessions", session._id);
     }
 
     const sessionId =     await ctx.db.insert("user_sessions", {
@@ -146,7 +146,7 @@ export const verifyAdmin2FA = mutation({
 
     // Remove backup code if used
     if (user.adminBackupCodes?.includes(args.code)) {
-      await ctx.db.patch(user._id, {
+      await ctx.db.patch("users", user._id, {
         adminBackupCodes: user.adminBackupCodes.filter(c => c !== args.code)
       });
     }
@@ -180,7 +180,7 @@ export const getAdminSessions = query({
   args: { sessionId: v.id("user_sessions") },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const session = await ctx.db.get(args.sessionId);
+    const session = await ctx.db.get("user_sessions", args.sessionId);
     if (!session) throw new Error("Unauthorized");
     return await ctx.db.query("user_sessions").collect();
   },
@@ -191,7 +191,7 @@ export const terminateAllSessions = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const sessions = await ctx.db.query("user_sessions").collect();
-    for (const s of sessions) await ctx.db.delete(s._id);
+    for (const s of sessions) await ctx.db.delete("user_sessions", s._id);
     
     await ctx.runMutation(internal.admin.logAdminAction, {
       adminEmail: args.adminEmail,

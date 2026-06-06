@@ -1,6 +1,6 @@
-import { internalAction, internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { internal, api } from "./_generated/api";
+import { internalAction, internalMutation, mutation, query } from "./_generated/server";
+import { api, internal } from "./_generated/api";
 
 /**
  * UNIFIED AUTONOMOUS EVOLUTION (UAE) ENGINE
@@ -99,7 +99,7 @@ export const completeManualTask = internalMutation({
   args: { taskId: v.id("admin_task_log"), output: v.string() },
   returns: v.null(),
   handler: async (ctx, { taskId, output }) => {
-    await ctx.db.patch(taskId, {
+    await ctx.db.patch("admin_task_log", taskId, {
       status: "completed",
       output,
     });

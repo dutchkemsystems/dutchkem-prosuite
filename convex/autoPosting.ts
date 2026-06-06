@@ -2,14 +2,14 @@
 // Auto-posting triggers — fires social posts on key business events
 // Additive: integrates with existing flows without modifying them
 
-import { action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
 // TEMPLATE CONFIG — what to post for each trigger
 // ═══════════════════════════════════════════════════════════════════
-const TRIGGER_TEMPLATES: Record<string, { template: string; platforms: string[] }> = {
+const TRIGGER_TEMPLATES: Record<string, { template: string; platforms: Array<string> }> = {
   registration: {
     template: "🎉 Welcome {userName} to Dutchkem Pro Suite! They've just unlocked AI-powered agents for business, finance, content, and more. #NewUser #AI",
     platforms: ["x", "linkedin", "facebook"],
@@ -39,7 +39,7 @@ const TRIGGER_TEMPLATES: Record<string, { template: string; platforms: string[] 
 // ═══════════════════════════════════════════════════════════════════
 // INTERNAL: Build a post from a trigger
 // ═══════════════════════════════════════════════════════════════════
-function buildPost(trigger: string, vars: Record<string, string>): { content: string; platforms: string[] } | null {
+function buildPost(trigger: string, vars: Record<string, string>): { content: string; platforms: Array<string> } | null {
   const tpl = TRIGGER_TEMPLATES[trigger];
   if (!tpl) return null;
   let content = tpl.template;
@@ -93,12 +93,12 @@ export const fireAutoPost = internalAction({
     trigger: v.string(),
     vars: v.record(v.string(), v.string()),
   },
-  handler: async (ctx, args): Promise<{ fired: number; results: any[] }> => {
+  handler: async (ctx, args): Promise<{ fired: number; results: Array<any> }> => {
     const post = buildPost(args.trigger, args.vars);
     if (!post) return { fired: 0, results: [{ error: `Unknown trigger: ${args.trigger}` }] };
 
     const connections = await ctx.runQuery(internal.autoPosting.getConnectedPlatforms);
-    const results: any[] = [];
+    const results: Array<any> = [];
     let fired = 0;
 
     for (const conn of connections) {
@@ -226,7 +226,7 @@ export const triggerAutoPost = action({
     trigger: v.string(),
     vars: v.record(v.string(), v.string()),
   },
-  handler: async (ctx, args): Promise<{ fired: number; results: any[] }> => {
+  handler: async (ctx, args): Promise<{ fired: number; results: Array<any> }> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     return await ctx.runAction(internal.autoPosting.fireAutoPost, {
@@ -241,7 +241,7 @@ export const triggerAutoPost = action({
 // ═══════════════════════════════════════════════════════════════════
 export const getAvailableTriggers = internalQuery({
   args: {},
-  handler: async (): Promise<{ id: string; platforms: string[]; templatePreview: string }[]> => {
+  handler: async (): Promise<Array<{ id: string; platforms: Array<string>; templatePreview: string }>> => {
     return Object.entries(TRIGGER_TEMPLATES).map(([id, t]) => ({
       id,
       platforms: t.platforms,

@@ -1,5 +1,5 @@
-import { mutation, query, internalAction, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 // Feature 4: Leaderboard & Gamification
@@ -225,7 +225,7 @@ export const updateLeaderboardEntry = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.entryId, {
+    await ctx.db.patch("leaderboard_entries", args.entryId, {
       rank: args.rank,
       score: args.score,
       metrics: args.metrics,
@@ -239,7 +239,7 @@ export const updateEntryRank = internalMutation({
   args: { entryId: v.id("leaderboard_entries"), rank: v.number() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.entryId, { rank: args.rank });
+    await ctx.db.patch("leaderboard_entries", args.entryId, { rank: args.rank });
     return null;
   },
 });
@@ -293,7 +293,7 @@ export const getLeaderboard = query({
 
     const result = [];
     for (const entry of entries) {
-      const user = await ctx.db.get(entry.userId);
+      const user = await ctx.db.get("users", entry.userId);
       result.push({
         ...entry,
         userName: user?.name ?? undefined,
@@ -348,7 +348,7 @@ export const getUserBadges = query({
 
     const result = [];
     for (const ub of userBadges) {
-      const badge = await ctx.db.get(ub.badgeId);
+      const badge = await ctx.db.get("badges", ub.badgeId);
       if (badge) {
         result.push({
           ...ub,
@@ -443,7 +443,7 @@ export const awardBadge = internalMutation({
     });
     
     // Send notification
-    const badge = await ctx.db.get(args.badgeId);
+    const badge = await ctx.db.get("badges", args.badgeId);
     if (badge) {
       await ctx.db.insert("notifications", {
         userId: args.userId,

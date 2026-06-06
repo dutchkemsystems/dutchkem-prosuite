@@ -1,5 +1,5 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 const UPGRADE_CYCLES = [
   { cycle: "SPRING", month: 5, day: 1, label: "Spring Service Update" },
@@ -119,7 +119,7 @@ export const toggleAutoUpgrade = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { enabled, updatedAt: Date.now() });
+      await ctx.db.patch("feature_flags", existing._id, { enabled, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("feature_flags", {
         key: "auto_upgrade_enabled",

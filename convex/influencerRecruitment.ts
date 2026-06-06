@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // INFLUENCER RECRUITMENT — Find, track, and manage influencer campaigns
@@ -123,7 +123,7 @@ export const getInfluencers = query({
 export const getInfluencerDetails = query({
   args: { influencerId: v.id("influencers") },
   handler: async (ctx, args) => {
-    const influencer = await ctx.db.get(args.influencerId);
+    const influencer = await ctx.db.get("influencers", args.influencerId);
     if (!influencer) return null;
 
     // Get campaigns
@@ -243,7 +243,7 @@ export const updateCampaignStatus = mutation({
       update.completedAt = Date.now();
     }
 
-    await ctx.db.patch(args.campaignId, update);
+    await ctx.db.patch("influencer_campaigns", args.campaignId, update);
     return { success: true };
   },
 });

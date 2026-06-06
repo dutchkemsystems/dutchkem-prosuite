@@ -5,7 +5,7 @@
 // when crypto.subtle / btoa were called in the Convex action runtime.
 
 import { convexTest } from "convex-test";
-import { expect, test, describe } from "vitest";
+import { describe, expect, test } from "vitest";
 import { api } from "./_generated/api";
 import schema from "./schema";
 
@@ -152,7 +152,7 @@ describe("getOAuthProviderStatus", () => {
 
 describe("Provider selection — Composio is primary when enabled", () => {
   function pickProvider(
-    providerStatus: { composioEnabled: boolean; composioPlatforms: string[] } | null,
+    providerStatus: { composioEnabled: boolean; composioPlatforms: Array<string> } | null,
     platformId: string
   ): "composio" | "direct" {
     const composioAvailable =
@@ -187,7 +187,7 @@ describe("Provider selection — Composio is primary when enabled", () => {
 
 describe("Crypto regression guards", () => {
   test("social.ts has no crypto.subtle.digest calls", async () => {
-    const fs = await import("fs");
+    const fs = await import("node:fs");
     const src = fs.readFileSync("convex/social.ts", "utf8");
     // Allow comments and string mentions, but not actual calls
     const lines = src.split("\n");
@@ -200,7 +200,7 @@ describe("Crypto regression guards", () => {
   });
 
   test("social.ts has no btoa() calls", async () => {
-    const fs = await import("fs");
+    const fs = await import("node:fs");
     const src = fs.readFileSync("convex/social.ts", "utf8");
     const lines = src.split("\n");
     const actualCalls = lines.filter((line) => {
@@ -212,7 +212,7 @@ describe("Crypto regression guards", () => {
   });
 
   test("http.ts has no btoa() calls (except in the manual base64 helper section)", async () => {
-    const fs = await import("fs");
+    const fs = await import("node:fs");
     const src = fs.readFileSync("convex/http.ts", "utf8");
     const lines = src.split("\n");
     const actualCalls = lines.filter((line) => {
@@ -224,7 +224,7 @@ describe("Crypto regression guards", () => {
   });
 
   test("social.ts has no crypto.randomUUID() calls", async () => {
-    const fs = await import("fs");
+    const fs = await import("node:fs");
     const src = fs.readFileSync("convex/social.ts", "utf8");
     const lines = src.split("\n");
     const actualCalls = lines.filter((line) => {

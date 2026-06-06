@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
-import { api } from "../../convex/_generated/api";
 import { useConvexAuth } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 export function FloatingChatWidget() {
   const { isAuthenticated: _isAuthenticated, user } = useConvexAuth() as any;
@@ -82,7 +82,7 @@ export function FloatingChatWidget() {
     );
   }
 
-  const messages = (chatHistory as any)?.data?.chat?.messages || [];
+  const messages = (chatHistory)?.data?.chat?.messages || [];
 
   return (
     <div className="fixed bottom-6 right-6 z-50 w-80 sm:w-96">

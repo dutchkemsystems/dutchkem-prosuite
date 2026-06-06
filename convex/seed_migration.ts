@@ -1,5 +1,5 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 /**
@@ -13,7 +13,7 @@ export const run = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const results: string[] = [];
+    const results: Array<string> = [];
 
     // ── 1. 3 Admin IP Whitelist Entries ──
     const ips = args.adminIPs ?? [
@@ -35,7 +35,7 @@ export const run = mutation({
           .first();
 
         if (existing) {
-          await ctx.db.patch(existing._id, {
+          await ctx.db.patch("ip_whitelist", existing._id, {
             ipAddresses: ips,
             description: `Auto-migrated ${new Date().toISOString().split('T')[0]}`,
           });
@@ -50,7 +50,7 @@ export const run = mutation({
         }
 
         // Also update adminAllowedIps on user record
-        await ctx.db.patch(admin._id, {
+        await ctx.db.patch("users", admin._id, {
           adminAllowedIps: ips,
           adminTwoFactorEnabled: true,
         });
@@ -74,7 +74,7 @@ export const run = mutation({
             isEnabled: true,
           });
 
-          await ctx.db.patch(admin._id, {
+          await ctx.db.patch("users", admin._id, {
             adminTwoFactorSecret: tempSecret,
             adminTwoFactorEnabled: true,
             adminBackupCodes: backupCodes,
@@ -88,7 +88,7 @@ export const run = mutation({
     }
 
     // ── 3. Seed feature_flags defaults ──
-    const defaultFlags: { key: string; label: string; enabled: boolean; description?: string }[] = [
+    const defaultFlags: Array<{ key: string; label: string; enabled: boolean; description?: string }> = [
       { key: "kdp_publishing", label: "Amazon KDP Publishing", enabled: true, description: "A1 KDP ebook service" },
       { key: "admin_auto_upgrade", label: "Bi-Annual Auto-Upgrade", enabled: true, description: "Spring/Fall system upgrades" },
       { key: "holiday_discounts", label: "Holiday Discount Engine", enabled: true, description: "25% off on Nigerian holidays" },
@@ -113,7 +113,7 @@ export const run = mutation({
     }
 
     // ── 4. Seed system_config defaults ──
-    const defaultConfig: { key: string; value: any; description?: string }[] = [
+    const defaultConfig: Array<{ key: string; value: any; description?: string }> = [
       { key: "ADMIN_AVATAR_URL", value: "", description: "Admin profile avatar URL" },
       { key: "SESSION_TIMEOUT_MINUTES", value: 120, description: "Client session inactivity timeout" },
       { key: "ADMIN_SESSION_TIMEOUT_MINUTES", value: 30, description: "Admin session inactivity timeout" },

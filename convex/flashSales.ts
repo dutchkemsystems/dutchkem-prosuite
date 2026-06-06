@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation, internalMutation } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // FLASH SALES & URGENCY TRIGGERS — Time-limited offers, promo codes
@@ -70,14 +70,14 @@ export const getAllFlashSales = query({
 export const useFlashSale = internalMutation({
   args: { saleId: v.id("flash_sales") },
   handler: async (ctx, args) => {
-    const sale = await ctx.db.get(args.saleId);
+    const sale = await ctx.db.get("flash_sales", args.saleId);
     if (!sale) throw new Error("Flash sale not found");
 
     if (sale.maxUses && sale.currentUses >= sale.maxUses) {
       throw new Error("Flash sale usage limit reached");
     }
 
-    await ctx.db.patch(args.saleId, {
+    await ctx.db.patch("flash_sales", args.saleId, {
       currentUses: sale.currentUses + 1,
     });
   },
@@ -87,7 +87,7 @@ export const useFlashSale = internalMutation({
 export const deactivateFlashSale = mutation({
   args: { saleId: v.id("flash_sales") },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.saleId, { isActive: false });
+    await ctx.db.patch("flash_sales", args.saleId, { isActive: false });
   },
 });
 
@@ -104,7 +104,7 @@ export const expireFlashSales = internalMutation({
     let expired = 0;
     for (const sale of active) {
       if (sale.endsAt <= now) {
-        await ctx.db.patch(sale._id, { isActive: false });
+        await ctx.db.patch("flash_sales", sale._id, { isActive: false });
         expired++;
       }
     }
@@ -176,14 +176,14 @@ export const validatePromoCode = query({
 export const applyPromoCode = internalMutation({
   args: { promoId: v.id("promo_codes") },
   handler: async (ctx, args) => {
-    const promo = await ctx.db.get(args.promoId);
+    const promo = await ctx.db.get("promo_codes", args.promoId);
     if (!promo) throw new Error("Promo code not found");
 
     if (promo.currentUses >= promo.maxUses) {
       throw new Error("Promo code usage limit reached");
     }
 
-    await ctx.db.patch(args.promoId, {
+    await ctx.db.patch("promo_codes", args.promoId, {
       currentUses: promo.currentUses + 1,
     });
   },
@@ -201,7 +201,7 @@ export const getAllPromoCodes = query({
 export const deactivatePromoCode = mutation({
   args: { promoId: v.id("promo_codes") },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.promoId, { isActive: false });
+    await ctx.db.patch("promo_codes", args.promoId, { isActive: false });
   },
 });
 
@@ -249,7 +249,7 @@ export const getUrgencyStats = query({
 export const getFlashSaleCountdown = query({
   args: { saleId: v.id("flash_sales") },
   handler: async (ctx, args) => {
-    const sale = await ctx.db.get(args.saleId);
+    const sale = await ctx.db.get("flash_sales", args.saleId);
     if (!sale) return null;
 
     const now = Date.now();

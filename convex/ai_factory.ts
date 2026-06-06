@@ -1,7 +1,7 @@
 import { Agent } from "@convex-dev/agent";
-import { components, internal } from "./_generated/api";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createOpenAI } from "@ai-sdk/openai";
+import { components, internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
 
 const openrouter = createOpenRouter({
@@ -41,7 +41,7 @@ export function createReliableAgent(name: string, instructions: string, primaryM
     return new Agent(components.agent, {
       name: `${name} [${modelId.split('/').pop()}]`,
       instructions,
-      languageModel: languageModel as any,
+      languageModel: languageModel,
       maxSteps: 5,
     });
   });

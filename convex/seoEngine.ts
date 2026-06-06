@@ -1,5 +1,5 @@
 ﻿import { v } from "convex/values";
-import { query, mutation, action, internalMutation } from "./_generated/server";
+import { action, internalMutation, mutation, query } from "./_generated/server";
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // SEO & CONTENT MARKETING ENGINE â€” AI-powered optimization
@@ -8,10 +8,10 @@ import { query, mutation, action, internalMutation } from "./_generated/server";
 // SEO Analysis Result
 interface _SEOAnalysis {
   score: number;
-  issues: SEOIssue[];
-  suggestions: SEOSuggestion[];
-  keywords: KeywordData[];
-  competitorAnalysis?: CompetitorData[];
+  issues: Array<SEOIssue>;
+  suggestions: Array<SEOSuggestion>;
+  keywords: Array<KeywordData>;
+  competitorAnalysis?: Array<CompetitorData>;
 }
 
 interface SEOIssue {
@@ -41,7 +41,7 @@ interface CompetitorData {
   domain: string;
   domainAuthority: number;
   backlinks: number;
-  topKeywords: string[];
+  topKeywords: Array<string>;
 }
 
 // Content types
@@ -66,8 +66,8 @@ export const analyzeContent = action({
     const wordCount = args.content.split(/\s+/).length;
     const contentTypeConfig = CONTENT_TYPES[args.contentType as keyof typeof CONTENT_TYPES];
 
-    const issues: SEOIssue[] = [];
-    const suggestions: SEOSuggestion[] = [];
+    const issues: Array<SEOIssue> = [];
+    const suggestions: Array<SEOSuggestion> = [];
 
     // Word count check
     if (wordCount < contentTypeConfig.minWords) {
@@ -208,7 +208,7 @@ export const analyzeContent = action({
 });
 
 // Generate keyword suggestions
-function generateKeywordSuggestions(content: string, existingKeywords?: string[]): KeywordData[] {
+function generateKeywordSuggestions(content: string, existingKeywords?: Array<string>): Array<KeywordData> {
   const words = content.toLowerCase().split(/\s+/);
   const wordFreq: Record<string, number> = {};
 
@@ -232,7 +232,7 @@ function generateKeywordSuggestions(content: string, existingKeywords?: string[]
     volume: volume * 100, // Simulated search volume
     difficulty: Math.floor(Math.random() * 50) + 20,
     currentRank: existingKeywords?.includes(keyword) ? Math.floor(Math.random() * 20) + 1 : null,
-    opportunity: (volume > 5 ? "high" : volume > 2 ? "medium" : "low") as "high" | "medium" | "low",
+    opportunity: (volume > 5 ? "high" : volume > 2 ? "medium" : "low"),
   }));
 }
 

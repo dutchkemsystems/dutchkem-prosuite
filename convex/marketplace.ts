@@ -1,5 +1,5 @@
-import { mutation, query, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -87,7 +87,7 @@ export const addToMainWallet = internalMutation({
       .first();
 
     if (existingMain) {
-      await ctx.db.patch(existingMain._id, {
+      await ctx.db.patch("system_wallets", existingMain._id, {
         balance: existingMain.balance + args.amount,
         lastUpdated: Date.now(),
       });
@@ -112,7 +112,7 @@ export const addToEscrowWallet = internalMutation({
     const existing = await ctx.db.query("escrow_wallet").first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("escrow_wallet", existing._id, {
         balance: existing.balance + args.amount,
         totalHeld: existing.totalHeld + args.amount,
         lastUpdated: Date.now(),
@@ -140,7 +140,7 @@ export const approveJob = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const tx = await ctx.db.get(args.transactionId);
+    const tx = await ctx.db.get("marketplace_transactions", args.transactionId);
     if (!tx) throw new Error("Transaction not found.");
 
     if (tx.status !== "escrow") {
@@ -148,13 +148,13 @@ export const approveJob = mutation({
     }
 
     // Update transaction status to ready_for_payout
-    await ctx.db.patch(args.transactionId, {
+    await ctx.db.patch("marketplace_transactions", args.transactionId, {
       status: "ready_for_payout",
       approvedAt: Date.now(),
     });
 
     // Update job status to approved
-    await ctx.db.patch(tx.jobId, { status: "approved" });
+    await ctx.db.patch("jobs", tx.jobId, { status: "approved" });
 
     // Notify freelancer
     await ctx.db.insert("notifications", {
@@ -260,7 +260,7 @@ export const releaseFromEscrow = internalMutation({
   handler: async (ctx, args) => {
     const escrow = await ctx.db.query("escrow_wallet").first();
     if (!escrow) throw new Error("Escrow wallet not found.");
-    await ctx.db.patch(escrow._id, {
+    await ctx.db.patch("escrow_wallet", escrow._id, {
       balance: Math.max(0, escrow.balance - args.amount),
       totalReleased: escrow.totalReleased + args.amount,
       lastUpdated: Date.now(),
@@ -273,7 +273,7 @@ export const markReleased = internalMutation({
   args: { transactionId: v.id("marketplace_transactions"), koraReference: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.transactionId, {
+    await ctx.db.patch("marketplace_transactions", args.transactionId, {
       status: "released",
       releasedAt: Date.now(),
       koraPayoutReference: args.koraReference,
@@ -325,7 +325,7 @@ export const deductFromMainWallet = internalMutation({
       .withIndex("by_type", (q) => q.eq("type", "main"))
       .first();
     if (main) {
-      await ctx.db.patch(main._id, {
+      await ctx.db.patch("system_wallets", main._id, {
         balance: Math.max(0, main.balance - args.amount),
         lastUpdated: Date.now(),
       });

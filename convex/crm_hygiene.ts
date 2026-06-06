@@ -1,5 +1,5 @@
-﻿import { mutation, query, internalAction, action, internalQuery, internalMutation } from "./_generated/server";
-import { v } from "convex/values";
+﻿import { v } from "convex/values";
+import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
@@ -17,7 +17,7 @@ export const runHygieneScan = internalAction({
     const results: Array<{ type: string; severity: string; affectedCount: number; details: any }> = [];
 
     // 1. Check for duplicate emails
-    const duplicateEmails: Array<{ email: string; userIds: Id<"users">[]; count: number }> = await ctx.runQuery(internal.crm_hygiene.findDuplicateEmails);
+    const duplicateEmails: Array<{ email: string; userIds: Array<Id<"users">>; count: number }> = await ctx.runQuery(internal.crm_hygiene.findDuplicateEmails);
     if (duplicateEmails.length > 0) {
       results.push({
         type: "duplicate_email",
@@ -28,7 +28,7 @@ export const runHygieneScan = internalAction({
     }
 
     // 2. Check for duplicate phones
-    const duplicatePhones: Array<{ phone: string; userIds: Id<"users">[]; count: number }> = await ctx.runQuery(internal.crm_hygiene.findDuplicatePhones);
+    const duplicatePhones: Array<{ phone: string; userIds: Array<Id<"users">>; count: number }> = await ctx.runQuery(internal.crm_hygiene.findDuplicatePhones);
     if (duplicatePhones.length > 0) {
       results.push({
         type: "duplicate_phone",
@@ -39,7 +39,7 @@ export const runHygieneScan = internalAction({
     }
 
     // 3. Check for incomplete profiles
-    const incompleteProfiles: Array<{ userId: Id<"users">; missingFields: string[]; completionPercentage: number }> = await ctx.runQuery(internal.crm_hygiene.findIncompleteProfiles);
+    const incompleteProfiles: Array<{ userId: Id<"users">; missingFields: Array<string>; completionPercentage: number }> = await ctx.runQuery(internal.crm_hygiene.findIncompleteProfiles);
     if (incompleteProfiles.length > 0) {
       results.push({
         type: "incomplete_profile",
@@ -87,7 +87,7 @@ export const findDuplicateEmails = internalQuery({
   })),
   handler: async (ctx, args) => {
     const users = await ctx.db.query("users").collect();
-    const emailGroups: Record<string, Id<"users">[]> = {};
+    const emailGroups: Record<string, Array<Id<"users">>> = {};
 
     for (const user of users) {
       if (user.email) {
@@ -117,7 +117,7 @@ export const findDuplicatePhones = internalQuery({
   })),
   handler: async (ctx, args) => {
     const users = await ctx.db.query("users").collect();
-    const phoneGroups: Record<string, Id<"users">[]> = {};
+    const phoneGroups: Record<string, Array<Id<"users">>> = {};
 
     for (const user of users) {
       if (user.phone) {
@@ -147,10 +147,10 @@ export const findIncompleteProfiles = internalQuery({
   })),
   handler: async (ctx, args) => {
     const users = await ctx.db.query("users").collect();
-    const incomplete: Array<{userId: Id<"users">; missingFields: string[]; completionPercentage: number}> = [];
+    const incomplete: Array<{userId: Id<"users">; missingFields: Array<string>; completionPercentage: number}> = [];
 
     for (const user of users) {
-      const missingFields: string[] = [];
+      const missingFields: Array<string> = [];
       let filledFields = 0;
       const totalFields = 6; // name, email, phone, image, bankAccount, referralCode
 
@@ -231,7 +231,7 @@ export const resolveHygieneIssue = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.reportId, {
+    await ctx.db.patch("hygiene_reports", args.reportId, {
       actionTaken: args.actionTaken,
       resolvedAt: Date.now(),
     });
@@ -247,7 +247,7 @@ export const mergeUsers = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     // Get secondary user data
-    const secondaryUser = await ctx.db.get(args.secondaryUserId);
+    const secondaryUser = await ctx.db.get("users", args.secondaryUserId);
     if (!secondaryUser) throw new Error("Secondary user not found");
 
     // Merge subscriptions
@@ -256,7 +256,7 @@ export const mergeUsers = mutation({
       .withIndex("by_user", (q) => q.eq("userId", args.secondaryUserId))
       .collect();
     for (const sub of subscriptions) {
-      await ctx.db.patch(sub._id, { userId: args.primaryUserId });
+      await ctx.db.patch("subscriptions", sub._id, { userId: args.primaryUserId });
     }
 
     // Merge projects
@@ -265,7 +265,7 @@ export const mergeUsers = mutation({
       .withIndex("by_user", (q) => q.eq("userId", args.secondaryUserId))
       .collect();
     for (const proj of projects) {
-      await ctx.db.patch(proj._id, { userId: args.primaryUserId });
+      await ctx.db.patch("projects", proj._id, { userId: args.primaryUserId });
     }
 
     // Merge payouts
@@ -274,7 +274,7 @@ export const mergeUsers = mutation({
       .withIndex("by_user", (q) => q.eq("userId", args.secondaryUserId))
       .collect();
     for (const payout of payouts) {
-      await ctx.db.patch(payout._id, { userId: args.primaryUserId });
+      await ctx.db.patch("payouts", payout._id, { userId: args.primaryUserId });
     }
 
     // Merge notifications
@@ -283,7 +283,7 @@ export const mergeUsers = mutation({
       .withIndex("by_user", (q) => q.eq("userId", args.secondaryUserId))
       .collect();
     for (const notif of notifications) {
-      await ctx.db.patch(notif._id, { userId: args.primaryUserId });
+      await ctx.db.patch("notifications", notif._id, { userId: args.primaryUserId });
     }
 
     // Log the merge
@@ -302,7 +302,7 @@ export const mergeUsers = mutation({
     });
 
     // Delete secondary user
-    await ctx.db.delete(args.secondaryUserId);
+    await ctx.db.delete("users", args.secondaryUserId);
 
     return null;
   },

@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
 /**
  * Test the direct OAuth social engine (no Postiz dependency).
@@ -273,7 +273,7 @@ describe("Composio provider blending", () => {
   it("Composio is PRIMARY when enabled and supported — dashboard selector", () => {
     // Mirror the dashboard's provider-status-driven selector
     function pickProvider(
-      providerStatus: { composioEnabled: boolean; composioPlatforms: string[] } | null,
+      providerStatus: { composioEnabled: boolean; composioPlatforms: Array<string> } | null,
       platformId: string
     ): "composio" | "direct" {
       const composioAvailable =

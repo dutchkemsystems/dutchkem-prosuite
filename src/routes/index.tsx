@@ -1,9 +1,9 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { useState, useEffect } from 'react'
+import { Link, createFileRoute } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
-import { SuccessStoriesRotator, JoinCounter } from '~/components/SuccessStoriesRotator';
+import { JoinCounter, SuccessStoriesRotator } from '~/components/SuccessStoriesRotator';
 
 function StatItem({ value, label }: { value: string, label: string }) {
   return (
@@ -16,7 +16,7 @@ function StatItem({ value, label }: { value: string, label: string }) {
 
 function AgentCard({ icon, title, desc, link, isPopular }: { icon: string, title: string, desc: string, link: string, isPopular?: boolean }) {
   return (
-    <Link to={link as any} className="group relative p-0.5 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 rounded-[3rem] hover:from-orange-400 hover:to-orange-600 transition-all duration-700 shadow-2xl shadow-slate-200/40 overflow-hidden active:scale-[0.98]">
+    <Link to={link} className="group relative p-0.5 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 rounded-[3rem] hover:from-orange-400 hover:to-orange-600 transition-all duration-700 shadow-2xl shadow-slate-200/40 overflow-hidden active:scale-[0.98]">
       {isPopular && (
         <div className="absolute top-10 right-[-3.5rem] rotate-45 bg-orange-600 text-white text-[9px] font-black py-2 px-16 shadow-2xl z-10 uppercase tracking-[0.3em]">
            POPULAR
@@ -53,11 +53,11 @@ function ProcessStep({ step, title, desc }: { step: string, title: string, desc:
   )
 }
 
-function PriceCard({ title, price, features, isFeatured, savings }: { title: string, price: string, features: string[], isFeatured?: boolean, savings?: string }) {
+function PriceCard({ title, price, features, isFeatured, savings }: { title: string, price: string, features: Array<string>, isFeatured?: boolean, savings?: string }) {
   const { data: discount } = useSuspenseQuery(convexQuery(api.holidays.getActiveDiscount, {}));
   
   const originalPrice = parseInt(price.replace(/,/g, ''));
-  const discountPercent = (discount as any)?.percent || 0;
+  const discountPercent = (discount)?.percent || 0;
   const discountedPrice = discountPercent > 0 ? Math.floor(originalPrice * (1 - discountPercent / 100)) : originalPrice;
 
   return (

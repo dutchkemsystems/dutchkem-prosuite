@@ -1,5 +1,5 @@
-import { mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { hashPassword } from "./encryption";
 
@@ -109,7 +109,7 @@ export const resetPassword = mutation({
 
     // Update admin user
     const passwordHash = await hashPassword(password);
-    await ctx.db.patch(existing._id, {
+    await ctx.db.patch("users", existing._id, {
       adminPasswordHash: passwordHash,
       adminBackupCodes: backupCodes,
       adminFailedLoginAttempts: 0,

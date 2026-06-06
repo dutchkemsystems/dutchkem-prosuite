@@ -118,7 +118,7 @@ export class AuthError extends Error {
  *   const data = await authFetch('/api/admin/audit-log', { method: 'POST', body: ... });
  */
 export async function authFetch(url: string, options: RequestInit = {}): Promise<any> {
-  let token = getAccessToken();
+  const token = getAccessToken();
 
   // Prepare headers
   const headers = new Headers(options.headers || {});

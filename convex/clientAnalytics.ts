@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, internalMutation } from "./_generated/server";
+import { internalMutation, query } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // CLIENT ANALYTICS DASHBOARD — User behavior insights & metrics
@@ -102,7 +102,7 @@ export const getUserAnalytics = query({
     }
 
     // Daily activity (last 7 days)
-    const dailyActivity: { date: string; count: number }[] = [];
+    const dailyActivity: Array<{ date: string; count: number }> = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
         .toISOString()
@@ -184,7 +184,7 @@ export const getAdminAnalytics = query({
     }
 
     // Event trends (last 7 days)
-    const eventTrends: { date: string; count: number }[] = [];
+    const eventTrends: Array<{ date: string; count: number }> = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date(now - i * oneDay).toISOString().split("T")[0];
       const count = events.filter(

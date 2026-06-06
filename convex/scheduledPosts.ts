@@ -2,8 +2,8 @@
 // Scheduled post queue — schedule, edit, cancel, and process posts
 // Additive: uses the existing social_posts table with status="scheduled"
 
-import { action, mutation, query, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -50,7 +50,7 @@ export const editScheduledPost = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    const post = await ctx.db.get(args.postId);
+    const post = await ctx.db.get("social_posts", args.postId);
     if (!post) throw new Error("Post not found");
     if (post.status !== "scheduled") throw new Error("Can only edit scheduled posts");
 
@@ -62,7 +62,7 @@ export const editScheduledPost = mutation({
     }
     if (args.imageUrl !== undefined) patch.imageUrl = args.imageUrl;
 
-    await ctx.db.patch(args.postId, patch);
+    await ctx.db.patch("social_posts", args.postId, patch);
     return { success: true };
   },
 });
@@ -76,11 +76,11 @@ export const cancelScheduledPost = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    const post = await ctx.db.get(args.postId);
+    const post = await ctx.db.get("social_posts", args.postId);
     if (!post) throw new Error("Post not found");
     if (post.status !== "scheduled") throw new Error("Can only cancel scheduled posts");
 
-    await ctx.db.patch(args.postId, { status: "draft" });
+    await ctx.db.patch("social_posts", args.postId, { status: "draft" });
     return { success: true };
   },
 });
@@ -127,7 +127,7 @@ export const markScheduledPostResult = internalMutation({
     error: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.postId, {
+    await ctx.db.patch("social_posts", args.postId, {
       status: args.success ? "posted" : "failed",
       postedAt: args.success ? Date.now() : undefined,
       externalId: args.externalId,
@@ -141,11 +141,11 @@ export const markScheduledPostResult = internalMutation({
 // ═══════════════════════════════════════════════════════════════════
 export const processScheduledPosts = internalAction({
   args: {},
-  handler: async (ctx): Promise<{ processed: number; results: any[] }> => {
+  handler: async (ctx): Promise<{ processed: number; results: Array<any> }> => {
     const due = await ctx.runQuery(internal.scheduledPosts.getDueScheduledPosts);
     if (due.length === 0) return { processed: 0, results: [] };
 
-    const results: any[] = [];
+    const results: Array<any> = [];
     for (const post of due) {
       // Get the connection for this platform
       const conn: any = await ctx.runQuery(internal.scheduledPosts.getConnectionForPlatformScheduled, {

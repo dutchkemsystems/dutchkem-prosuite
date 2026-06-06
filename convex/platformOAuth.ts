@@ -245,7 +245,7 @@ export function isComposioEnabled(): boolean {
   return !!getComposioApiKey();
 }
 
-export function getPlatformsSupportingComposio(): string[] {
+export function getPlatformsSupportingComposio(): Array<string> {
   return Object.values(PLATFORM_OAUTH_CONFIGS)
     .filter((c) => c.composioSupported)
     .map((c) => c.id);

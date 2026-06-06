@@ -1,26 +1,26 @@
-import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
-import { useConvexAuth, useMutation, useAction } from "convex/react"
+import { useAction, useConvexAuth, useMutation } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
-import { api } from "../../convex/_generated/api"
-import { useState, useEffect } from "react"
-import { CompanyLogo } from '~/components/CompanyLogo';
+import { useEffect, useState } from "react"
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
+  ResponsiveContainer, Tooltip, XAxis, YAxis
 } from 'recharts';
+import { api } from "../../convex/_generated/api"
+import { CompanyLogo } from '~/components/CompanyLogo';
 import { KDPProjectHub } from '~/components/KDPProjectHub';
 import { KDPRoyaltyDashboard } from '~/components/KDPRoyaltyDashboard';
 import { InactivityLogout } from '~/components/InactivityLogout';
 import { FlashSaleBanner } from '~/components/FlashSaleBanner';
 import { UrgencyTriggers } from '~/components/UrgencyTriggers';
-import { SocialProofFeed, ActivityStats } from '~/components/SocialProofFeed';
+import { ActivityStats, SocialProofFeed } from '~/components/SocialProofFeed';
 import { ClientActivityFeed } from '~/components/ClientActivityFeed';
 import { ClientQuickActions } from '~/components/ClientQuickActions';
 import { ClientNotificationPrefs } from '~/components/ClientNotificationPrefs';
 import { ClientPerformanceSummary } from '~/components/ClientPerformanceSummary';
-import { isPushSupported, subscribeToPush, unsubscribeFromPush, getExistingSubscription, subscriptionToJSON } from '~/lib/push';
+import { getExistingSubscription, isPushSupported, subscribeToPush, subscriptionToJSON, unsubscribeFromPush } from '~/lib/push';
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -187,7 +187,7 @@ function TabButton({ active, onClick, icon, label }: { active: boolean, onClick:
   );
 }
 
-function Header({ user, notifications }: { user: any, notifications: any[] }) {
+function Header({ user, notifications }: { user: any, notifications: Array<any> }) {
   const [time, setTime] = useState(new Date().toLocaleTimeString());
   const [showNotifs, setShowNotifs] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);

@@ -6,8 +6,8 @@
 // configs on every call.
 // ═══════════════════════════════════════════════════════════════════
 
-import { action, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { action, internalMutation, query } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 
 const COMPOSIO_BASE = "https://backend.composio.dev/api/v3.1";
@@ -63,7 +63,7 @@ export const upsertAuthConfig = internalMutation({
       .first();
     const now = Date.now();
     if (existing) {
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("composio_auth_configs", existing._id, {
         authConfigId: args.authConfigId,
         isManaged: args.isManaged,
         lastVerifiedAt: now,
@@ -90,7 +90,7 @@ export const recordAuthConfigError = internalMutation({
       .withIndex("by_toolkit", (q) => q.eq("toolkit", args.toolkit))
       .first();
     if (existing) {
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("composio_auth_configs", existing._id, {
         lastError: args.error,
         lastVerifiedAt: Date.now(),
       });

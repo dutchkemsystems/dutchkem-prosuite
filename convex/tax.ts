@@ -1,5 +1,5 @@
-import { internalMutation, internalAction, internalQuery, query } from "./_generated/server";
 import { v } from "convex/values";
+import { internalAction, internalMutation, internalQuery, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 const TAX_BRACKETS = [
@@ -61,8 +61,8 @@ export const runDailyTaxDeduction = internalMutation({
     const taxWallet = await ctx.db.query("system_wallets").withIndex("by_type", q => q.eq("type", "tax")).first();
     if (!taxWallet) throw new Error("Tax wallet not found");
 
-    await ctx.db.patch(mainWallet._id, { balance: mainWallet.balance - dailyTax, lastUpdated: Date.now() });
-    await ctx.db.patch(taxWallet._id, { balance: taxWallet.balance + dailyTax, lastUpdated: Date.now() });
+    await ctx.db.patch("system_wallets", mainWallet._id, { balance: mainWallet.balance - dailyTax, lastUpdated: Date.now() });
+    await ctx.db.patch("system_wallets", taxWallet._id, { balance: taxWallet.balance + dailyTax, lastUpdated: Date.now() });
 
     // 4. Log Transaction
     await ctx.db.insert("tax_transactions", {
@@ -100,7 +100,7 @@ export const runDailyInterestAccrual = internalMutation({
     const interestEarned = taxWallet.balance * INTEREST_RATE_DAILY;
 
     // 1. Interest is paid to MAIN WALLET
-    await ctx.db.patch(mainWallet._id, { balance: mainWallet.balance + interestEarned, lastUpdated: Date.now() });
+    await ctx.db.patch("system_wallets", mainWallet._id, { balance: mainWallet.balance + interestEarned, lastUpdated: Date.now() });
     
     // 2. Log Interest Earning
     await ctx.db.insert("interest_earnings", {
@@ -113,7 +113,7 @@ export const runDailyInterestAccrual = internalMutation({
     });
 
     // 3. Update wallet timestamp
-    await ctx.db.patch(taxWallet._id, {
+    await ctx.db.patch("system_wallets", taxWallet._id, {
         lastUpdated: Date.now(),
     });
 
@@ -349,7 +349,7 @@ export const updateFilingStatus = internalMutation({
       .withIndex("by_year", q => q.eq("tax_year", args.taxYear))
       .first();
     if (filing) {
-      await ctx.db.patch(filing._id, {
+      await ctx.db.patch("annual_tax_filing", filing._id, {
         status: args.status,
         payment_date: args.paymentDate,
       });
@@ -369,7 +369,7 @@ export const deductFromTaxWallet = internalMutation({
       .withIndex("by_type", q => q.eq("type", "tax"))
       .first();
     if (wallet) {
-      await ctx.db.patch(wallet._id, {
+      await ctx.db.patch("system_wallets", wallet._id, {
         balance: Math.max(0, wallet.balance - args.amount),
         lastUpdated: Date.now(),
       });

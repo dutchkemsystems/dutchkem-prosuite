@@ -1429,4 +1429,190 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // AUTOMATED FINANCIAL MANAGEMENT SYSTEM
+  // ═══════════════════════════════════════════════════════════════════
+
+  // Subscription renewal configuration (29-day cycle)
+  subscription_renewal_config: defineTable({
+    serviceName: v.string(), // e.g., "Kora Pay", "Termii", "Resend", "Deepgram", "LiveKit"
+    plan: v.string(), // e.g., "monthly", "yearly"
+    amountNgn: v.number(), // Amount in Naira
+    renewalIntervalDays: v.number(), // 29 days as required
+    designatedAccount: v.string(), // 8121161202
+    designatedBank: v.string(), // PalmPay
+    designatedName: v.string(), // Oladotun Alabi
+    autoRenew: v.boolean(),
+    lastRenewedAt: v.optional(v.number()),
+    nextRenewalAt: v.optional(v.number()),
+    status: v.union(v.literal("active"), v.literal("paused"), v.literal("expired")),
+    koraApiKey: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_service", ["serviceName"])
+    .index("by_next_renewal", ["nextRenewalAt"])
+    .index("by_status", ["status"]),
+
+  // Renewal transactions log
+  renewal_transactions: defineTable({
+    configId: v.id("subscription_renewal_config"),
+    serviceName: v.string(),
+    amountNgn: v.number(),
+    type: v.union(v.literal("auto"), v.literal("manual")),
+    status: v.union(v.literal("pending"), v.literal("completed"), v.literal("failed")),
+    koraReference: v.optional(v.string()),
+    passkeyId: v.optional(v.string()),
+    passkeyVerified: v.optional(v.boolean()),
+    receiptId: v.optional(v.string()),
+    balanceBefore: v.optional(v.number()),
+    balanceAfter: v.optional(v.number()),
+    errorMessage: v.optional(v.string()),
+    initiatedBy: v.optional(v.string()), // admin user id
+    timestamp: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_config", ["configId"])
+    .index("by_status", ["status"])
+    .index("by_timestamp", ["timestamp"]),
+
+  // Transfer passkeys (6-digit, 10-min expiry)
+  transfer_passkeys: defineTable({
+    passkey: v.string(), // 6-digit code
+    purpose: v.string(), // "subscription_renewal", "charity_transfer", "tax_remittance", "direct_transfer"
+    relatedEntityId: v.optional(v.string()), // config id, transaction id, etc.
+    amountNgn: v.optional(v.number()),
+    designatedAccount: v.optional(v.string()),
+    createdAt: v.number(),
+    expiresAt: v.number(), // createdAt + 10 minutes
+    usedAt: v.optional(v.number()),
+    isUsed: v.boolean(),
+    isExpired: v.boolean(),
+    createdBy: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+  })
+    .index("by_purpose", ["purpose"])
+    .index("by_expires", ["expiresAt"])
+    .index("by_used", ["isUsed"]),
+
+  // Tithe transactions (10% of revenue, daily fraction)
+  tithe_transactions: defineTable({
+    type: v.union(
+      v.literal("DAILY_DEDUCTION"),
+      v.literal("MONTHLY_TRANSFER"),
+      v.literal("MANUAL_TRANSFER"),
+      v.literal("AUTO_TRANSFER")
+    ),
+    amountNgn: v.number(),
+    balanceBefore: v.number(),
+    balanceAfter: v.number(),
+    date: v.number(),
+    monthYear: v.string(), // "2026-06" for grouping
+    daysInMonth: v.number(),
+    currentDay: v.number(),
+    monthlyEarnings: v.number(),
+    dailyDeductionAmount: v.number(),
+    percentage: v.number(), // 10%
+    designatedAccount: v.string(), // 8121161202
+    koraReference: v.optional(v.string()),
+    status: v.union(v.literal("completed"), v.literal("pending"), v.literal("failed")),
+    receiptId: v.optional(v.string()),
+    notes: v.optional(v.string()),
+  })
+    .index("by_date", ["date"])
+    .index("by_month", ["monthYear"])
+    .index("by_type", ["type"])
+    .index("by_status", ["status"]),
+
+  // CAC tax transactions (annual fee ÷ 12 monthly)
+  cac_tax_transactions: defineTable({
+    type: v.union(
+      v.literal("MONTHLY_DEDUCTION"),
+      v.literal("ANNUAL_FILING"),
+      v.literal("ANNUAL_PAYMENT"),
+      v.literal("YEAR_END_REMITTANCE")
+    ),
+    amountNgn: v.number(),
+    balanceBefore: v.number(),
+    balanceAfter: v.number(),
+    date: v.number(),
+    monthYear: v.string(), // "2026-06"
+    taxYear: v.number(), // 2026
+    annualCacFee: v.number(), // 100000
+    monthlyFraction: v.number(), // 8333.33
+    cumulativePaid: v.number(), // total paid this year
+    designatedAccount: v.string(), // 8121161202
+    koraReference: v.optional(v.string()),
+    status: v.union(v.literal("completed"), v.literal("pending"), v.literal("failed")),
+    receiptId: v.optional(v.string()),
+    notes: v.optional(v.string()),
+  })
+    .index("by_date", ["date"])
+    .index("by_month", ["monthYear"])
+    .index("by_tax_year", ["taxYear"])
+    .index("by_type", ["type"]),
+
+  // Usage alerts (80%, 90%, 95%, 100% thresholds)
+  usage_alerts: defineTable({
+    serviceName: v.string(), // "deepgram", "termii", "resend", etc.
+    serviceDisplayName: v.string(),
+    freeTierLimit: v.number(),
+    currentUsage: v.number(),
+    usagePercentage: v.number(),
+    threshold: v.union(v.literal("80"), v.literal("90"), v.literal("95"), v.literal("100")),
+    alertSent: v.boolean(),
+    alertSentAt: v.optional(v.number()),
+    acknowledged: v.boolean(),
+    acknowledgedAt: v.optional(v.number()),
+    acknowledgedBy: v.optional(v.string()),
+    lastChecked: v.number(),
+    resetAt: v.optional(v.number()), // monthly reset
+  })
+    .index("by_service", ["serviceName"])
+    .index("by_threshold", ["threshold"])
+    .index("by_alert_sent", ["alertSent"]),
+
+  // Generated receipts (JPG/PDF)
+  generated_receipts: defineTable({
+    receiptNumber: v.string(), // DKV-XXXXX-XXXX format
+    transactionType: v.string(), // "subscription_renewal", "tithe", "cac", "sweep", "transfer"
+    transactionId: v.optional(v.string()), // related transaction id
+    amountNgn: v.number(),
+    fromAccount: v.string(),
+    toAccount: v.string(),
+    toBank: v.string(),
+    toName: v.string(),
+    koraReference: v.optional(v.string()),
+    date: v.number(),
+    status: v.union(v.literal("completed"), v.literal("pending"), v.literal("failed")),
+    receiptData: v.any(), // Full receipt data for regeneration
+    jpgUrl: v.optional(v.string()), // Storage URL for JPG
+    pdfUrl: v.optional(v.string()), // Storage URL for PDF
+    downloads: v.number(),
+    createdBy: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_receipt_number", ["receiptNumber"])
+    .index("by_transaction", ["transactionType", "transactionId"])
+    .index("by_date", ["date"])
+    .index("by_status", ["status"]),
+
+  // Kora Pay webhook events log
+  kora_webhook_events: defineTable({
+    eventType: v.string(), // "transfer.completed", "transfer.failed", etc.
+    reference: v.string(), // Kora reference
+    amount: v.optional(v.number()),
+    status: v.string(),
+    rawPayload: v.any(),
+    verified: v.boolean(),
+    processed: v.boolean(),
+    processedAt: v.optional(v.number()),
+    relatedTransactionId: v.optional(v.string()),
+    receivedAt: v.number(),
+  })
+    .index("by_reference", ["reference"])
+    .index("by_event_type", ["eventType"])
+    .index("by_processed", ["processed"])
+    .index("by_received", ["receivedAt"]),
 });

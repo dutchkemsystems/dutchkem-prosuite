@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { CompanyLogo } from './CompanyLogo';
 
-function FooterColumn({ title, links }: { title: string, links: {label: string, href: string}[] }) {
+function FooterColumn({ title, links }: { title: string, links: Array<{label: string, href: string}> }) {
   return (
     <div className="flex flex-col gap-6">
       <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-950">{title}</h4>

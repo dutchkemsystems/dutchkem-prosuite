@@ -2,7 +2,7 @@
 // Tests for the auth_helpers module — focused on the new checkAdminSession query
 // (which is the public-facing session check used by the admin dashboard).
 import { convexTest } from "convex-test";
-import { expect, test, describe } from "vitest";
+import { describe, expect, test } from "vitest";
 import schema from "./schema";
 import { api, internal } from "./_generated/api";
 

@@ -3,7 +3,7 @@ import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
 
 export function ClientActivityFeed() {
-  const { data: activity } = useSuspenseQuery(convexQuery(api.composioClient.getActivityFeed, { limit: 15 })) as { data: any[] };
+  const { data: activity } = useSuspenseQuery(convexQuery(api.composioClient.getActivityFeed, { limit: 15 })) as { data: Array<any> };
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8">

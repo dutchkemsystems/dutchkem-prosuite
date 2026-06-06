@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useUIMessages, useSmoothText, optimisticallySendMessage } from "@convex-dev/agent/react"
-import { useMutation, useConvexAuth } from "convex/react"
+import { optimisticallySendMessage, useSmoothText, useUIMessages } from "@convex-dev/agent/react"
+import { useConvexAuth, useMutation } from "convex/react"
+import { useEffect, useRef, useState } from "react"
 import { api } from "../../convex/_generated/api"
-import type { UIMessage } from "@convex-dev/agent"
-import { useState, useEffect, useRef } from "react"
 import { AgentHeader } from '../components/AgentHeader'
+import type { UIMessage } from "@convex-dev/agent"
 import { CompanyLogo } from '~/components/CompanyLogo'
 
 export const Route = createFileRoute('/video-production')({
@@ -119,7 +119,7 @@ function MediaStudioProPage() {
   );
 }
 
-function ServiceCategory({ title, items }: { title: string, items: {label: string, price: string}[] }) {
+function ServiceCategory({ title, items }: { title: string, items: Array<{label: string, price: string}> }) {
    return (
       <div className="space-y-6">
          <h3 className="text-xs font-black uppercase tracking-[0.4em] text-orange-500 border-b border-orange-500/20 pb-4">{title}</h3>

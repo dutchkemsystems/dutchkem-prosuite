@@ -1,5 +1,5 @@
-import { action, internalAction, internalMutation, mutation, query, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { tryGetAdminSessionInAction } from "./auth_helpers";
 
@@ -77,7 +77,7 @@ export const autoBackupSystem = internalAction({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const results: string[] = [];
+    const results: Array<string> = [];
 
     // Backup schema config
     try {
@@ -211,8 +211,8 @@ export const runSelfHealing = internalAction({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const issues: string[] = [];
-    const fixes: string[] = [];
+    const issues: Array<string> = [];
+    const fixes: Array<string> = [];
     const timestamp = Date.now();
 
     try {
@@ -299,7 +299,7 @@ export const fixStuckPosts = internalMutation({
   returns: v.null(),
   handler: async (ctx, { postIds }) => {
     for (const postId of postIds) {
-      await ctx.db.patch(postId, {
+      await ctx.db.patch("social_posts", postId, {
         status: "failed",
         error: "Auto-healed: Post was stuck in scheduled state",
       });
@@ -337,7 +337,7 @@ export const cleanupExpiredSessions = internalMutation({
   returns: v.null(),
   handler: async (ctx, { sessionIds }) => {
     for (const sessionId of sessionIds) {
-      await ctx.db.delete(sessionId);
+      await ctx.db.delete("user_sessions", sessionId);
     }
   },
 });
@@ -413,7 +413,7 @@ export const restoreFromBackup = mutation({
   args: { backupId: v.id("system_backups") },
   returns: v.any(),
   handler: async (ctx, { backupId }) => {
-    const backup = await ctx.db.get(backupId);
+    const backup = await ctx.db.get("system_backups", backupId);
     if (!backup) throw new Error("Backup not found");
     
     // Log the restore attempt
@@ -588,8 +588,8 @@ export const runSelfHealingAction = action({
   }),
   handler: async (ctx, args) => {
     const timestamp = Date.now();
-    const issues: string[] = [];
-    const fixes: string[] = [];
+    const issues: Array<string> = [];
+    const fixes: Array<string> = [];
 
     try {
       const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
@@ -599,7 +599,7 @@ export const runSelfHealingAction = action({
 
       // ─── Check for stuck social posts ───
       try {
-        const stuckPosts: any[] = await ctx.runQuery(internal.cloud_memory.getStuckPosts);
+        const stuckPosts: Array<any> = await ctx.runQuery(internal.cloud_memory.getStuckPosts);
         if (stuckPosts.length > 0) {
           await ctx.runMutation(internal.cloud_memory.fixStuckPosts, {
             postIds: stuckPosts.map((p: any) => p._id),
@@ -612,7 +612,7 @@ export const runSelfHealingAction = action({
 
       // ─── Check for expired sessions ───
       try {
-        const expiredSessions: any[] = await ctx.runQuery(internal.cloud_memory.getExpiredSessions);
+        const expiredSessions: Array<any> = await ctx.runQuery(internal.cloud_memory.getExpiredSessions);
         if (expiredSessions.length > 0) {
           await ctx.runMutation(internal.cloud_memory.cleanupExpiredSessions, {
             sessionIds: expiredSessions.map((s: any) => s._id),
@@ -671,7 +671,7 @@ export const autoBackupAction = action({
   }),
   handler: async (ctx, args) => {
     const timestamp = Date.now();
-    const results: string[] = [];
+    const results: Array<string> = [];
 
     try {
       const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);

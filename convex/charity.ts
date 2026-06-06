@@ -1,5 +1,5 @@
-import { query, mutation, action, internalQuery, internalMutation, internalAction } from "./_generated/server";
 import { v } from "convex/values";
+import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 function getWATDate(): Date {
@@ -40,7 +40,7 @@ async function getOrCreateCharityWallet(ctx: import("./_generated/server").Mutat
       daysInMonth,
       isPaused: false,
     });
-    wallet = await ctx.db.get(id);
+    wallet = await ctx.db.get("charity_wallet", id);
   }
   return wallet!;
 }
@@ -85,7 +85,7 @@ export const runDailyCharityDeduction = internalMutation({
 
     if (wallet.currentMonth !== currentMonthStr) {
       const newDaysInMonth = getDaysInMonth(watNow.getFullYear(), watNow.getMonth());
-      await ctx.db.patch(wallet._id, {
+      await ctx.db.patch("charity_wallet", wallet._id, {
         currentMonth: currentMonthStr,
         monthlyEarningsSoFar: 0,
         balance: 0,
@@ -97,7 +97,7 @@ export const runDailyCharityDeduction = internalMutation({
     const yesterdayEarnings = await getYesterdayPlatformEarnings(ctx);
     if (yesterdayEarnings <= 0) return null;
 
-    const fresh = await ctx.db.get(wallet._id);
+    const fresh = await ctx.db.get("charity_wallet", wallet._id);
     if (!fresh) return null;
 
     const newMonthlyEarnings = fresh.monthlyEarningsSoFar + yesterdayEarnings;
@@ -115,7 +115,7 @@ export const runDailyCharityDeduction = internalMutation({
 
     const newBalance = fresh.balance + dailyDeduction;
 
-    await ctx.db.patch(fresh._id, {
+    await ctx.db.patch("charity_wallet", fresh._id, {
       balance: newBalance,
       totalSetAsideLifetime: fresh.totalSetAsideLifetime + dailyDeduction,
       lastDeductionDate: Date.now(),
@@ -266,7 +266,7 @@ export const updateCharityAfterTransfer = internalMutation({
       notes: `Charity transfer completed. Ref: ${args.reference}`,
     });
 
-    await ctx.db.patch(wallet._id, {
+    await ctx.db.patch("charity_wallet", wallet._id, {
       balance: 0,
       totalTransferred: args.totalTransferred + args.amount,
       lastTransferDate: Date.now(),
@@ -325,14 +325,14 @@ export const toggleCharityPause = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const session = await ctx.db.get(args.sessionId);
+    const session = await ctx.db.get("user_sessions", args.sessionId);
     if (!session || !session.isCurrent || !session.isTwoFactorVerified) {
       throw new Error("2FA Required for charity configuration");
     }
 
     const wallet = await ctx.db.query("charity_wallet").first();
     if (wallet) {
-      await ctx.db.patch(wallet._id, { isPaused: args.paused });
+      await ctx.db.patch("charity_wallet", wallet._id, { isPaused: args.paused });
     }
     return null;
   },
@@ -378,7 +378,7 @@ export const verifySession = internalQuery({
   args: { sessionId: v.id("user_sessions") },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const session = await ctx.db.get(args.sessionId);
+    const session = await ctx.db.get("user_sessions", args.sessionId);
     if (!session || !session.isCurrent || !session.isTwoFactorVerified) return null;
     return session;
   },
@@ -532,7 +532,7 @@ export const updateSettings = mutation({
       // Update wallet pause state
       const wallet = await ctx.db.query("charity_wallet").first();
       if (wallet) {
-        await ctx.db.patch(wallet._id, { isPaused: args.pauseTithe });
+        await ctx.db.patch("charity_wallet", wallet._id, { isPaused: args.pauseTithe });
       }
     }
 
@@ -543,7 +543,7 @@ export const updateSettings = mutation({
         .first();
       
       if (existing) {
-        await ctx.db.patch(existing._id, { value, updatedAt: Date.now() });
+        await ctx.db.patch("system_config", existing._id, { value, updatedAt: Date.now() });
       } else {
         await ctx.db.insert("system_config", { key, value, updatedAt: Date.now() });
       }
@@ -605,7 +605,7 @@ export const performTithe = mutation({
       });
 
       // Update wallet balance
-      await ctx.db.patch(wallet._id, {
+      await ctx.db.patch("charity_wallet", wallet._id, {
         balance: wallet.balance + titheAmount,
         totalSetAsideLifetime: wallet.totalSetAsideLifetime + titheAmount,
       });

@@ -1,8 +1,8 @@
 // convex/socialProof.ts
 // Social proof & FOMO widgets — live activity feed, viewer counts, reviews
 
-import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // MUTATION: Record user activity (purchase, signup, review, etc.)
@@ -120,7 +120,7 @@ export const recordViewer = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { lastSeen: Date.now() });
+      await ctx.db.patch("active_viewers", existing._id, { lastSeen: Date.now() });
     } else {
       await ctx.db.insert("active_viewers", {
         agentId: args.agentId,
@@ -144,7 +144,7 @@ export const removeViewer = mutation({
       .first();
 
     if (viewer) {
-      await ctx.db.delete(viewer._id);
+      await ctx.db.delete("active_viewers", viewer._id);
     }
   },
 });

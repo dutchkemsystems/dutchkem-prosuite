@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // CHATBOT LEAD CAPTURE — Automated lead qualification & routing
@@ -77,7 +77,7 @@ export const sendMessage = mutation({
     selectedOption: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const conversation = await ctx.db.get(args.conversationId);
+    const conversation = await ctx.db.get("chatbot_conversations", args.conversationId);
     if (!conversation) throw new Error("Conversation not found");
 
     // Add user message
@@ -94,7 +94,7 @@ export const sendMessage = mutation({
       args.selectedOption
     );
 
-    await ctx.db.patch(args.conversationId, {
+    await ctx.db.patch("chatbot_conversations", args.conversationId, {
       messages: [...conversation.messages, userMessage, botResponse.message],
       state: botResponse.nextState,
       ...(botResponse.leadData ? { leadData: botResponse.leadData } : {}),
@@ -321,7 +321,7 @@ export const getConversations = query({
 export const getConversationDetails = query({
   args: { conversationId: v.id("chatbot_conversations") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.conversationId);
+    return await ctx.db.get("chatbot_conversations", args.conversationId);
   },
 });
 
@@ -371,7 +371,7 @@ export const getStateOptions = query({
   args: { state: v.string() },
   handler: async (_, args) => {
     const stateConfig =
-      CONVERSATION_STATES[args.state as keyof typeof CONVERSATION_STATES] as { message: string; options?: string[]; fields?: string[] } | undefined;
+      CONVERSATION_STATES[args.state as keyof typeof CONVERSATION_STATES] as { message: string; options?: Array<string>; fields?: Array<string> } | undefined;
     return (stateConfig as any)?.options || [];
   },
 });

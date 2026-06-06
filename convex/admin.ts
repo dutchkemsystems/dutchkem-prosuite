@@ -1,5 +1,5 @@
-import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
@@ -30,14 +30,14 @@ async function fetchSweepSettings(ctx: import("./_generated/server").QueryCtx) {
  * Helper for admin security
  */
 async function _verifyAdminAccess(ctx: { db: import("./_generated/server").QueryCtx["db"] }, args: { sessionId: Id<"user_sessions">, ip?: string }) {
-    const session = await ctx.db.get(args.sessionId);
+    const session = await ctx.db.get("user_sessions", args.sessionId);
     if (!session || !session.isCurrent || !session.isTwoFactorVerified) {
         throw new Error("2FA Required for administration");
     }
 
     const config = await ctx.db.query("system_config").withIndex("by_key", q => q.eq("key", "ADMIN_ALLOWED_IPS_ONLY")).first();
     if (config?.value === true && args.ip) {
-        const user = await ctx.db.get(session.userId);
+        const user = await ctx.db.get("users", session.userId);
         if (user && user.adminAllowedIps && !user.adminAllowedIps.includes(args.ip)) {
             throw new Error(`Access Denied: IP ${args.ip} not authorized for administrative operations.`);
         }
@@ -132,7 +132,7 @@ export const getEarningsSummary = query({
 
         const mainWallet = await ctx.db.query("system_wallets").withIndex("by_type", q => q.eq("type", "main")).unique();
 
-        const calculateEarnings = (items: { amount: number }[]) => {
+        const calculateEarnings = (items: Array<{ amount: number }>) => {
             const revenue = items.reduce((acc, i) => acc + i.amount, 0);
             const fee = revenue * 0.15;
             return { revenue, fee, share: revenue - fee };
@@ -184,7 +184,7 @@ export const updateSweepSettings = mutation({
     },
     returns: v.null(),
     handler: async (ctx, args) => {
-        const session = await ctx.db.get(args.sessionId);
+        const session = await ctx.db.get("user_sessions", args.sessionId);
         if (!session || !session.isCurrent || !session.isTwoFactorVerified) {
             throw new Error("2FA Required for payout settings");
         }
@@ -196,7 +196,7 @@ export const updateSweepSettings = mutation({
             const value = args.settings[key];
             
             if (existing) {
-                await ctx.db.patch(existing._id, { value, updatedAt: Date.now() });
+                await ctx.db.patch("system_config", existing._id, { value, updatedAt: Date.now() });
             } else {
                 await ctx.db.insert("system_config", { key: configKey, value, updatedAt: Date.now() });
             }
@@ -227,14 +227,14 @@ export const updateSystemConfig = mutation({
     returns: v.null(),
     handler: async (ctx, args) => {
         // Security check
-        const session = await ctx.db.get(args.sessionId);
+        const session = await ctx.db.get("user_sessions", args.sessionId);
         if (!session || !session.isCurrent || !session.isTwoFactorVerified) {
             throw new Error("2FA Required for configuration changes");
         }
 
         const existing = await ctx.db.query("system_config").withIndex("by_key", q => q.eq("key", args.key)).first();
         if (existing) {
-            await ctx.db.patch(existing._id, { value: args.value, updatedAt: Date.now() });
+            await ctx.db.patch("system_config", existing._id, { value: args.value, updatedAt: Date.now() });
         } else {
             await ctx.db.insert("system_config", { key: args.key, value: args.value, updatedAt: Date.now() });
         }
@@ -261,7 +261,7 @@ export const broadcastNotification = mutation({
     },
     returns: v.null(),
     handler: async (ctx, args) => {
-        const session = await ctx.db.get(args.sessionId);
+        const session = await ctx.db.get("user_sessions", args.sessionId);
         if (!session || !session.isCurrent || !session.isTwoFactorVerified) {
             throw new Error("2FA Required for broadcast");
         }
@@ -297,7 +297,7 @@ export const manualPayout = mutation({
     },
     returns: v.object({ success: v.boolean() }),
     handler: async (ctx, args) => {
-        const session = await ctx.db.get(args.sessionId);
+        const session = await ctx.db.get("user_sessions", args.sessionId);
         if (!session || !session.isCurrent || !session.isTwoFactorVerified) {
             throw new Error("2FA Required for manual payouts");
         }
@@ -479,7 +479,7 @@ export const manualOverrideTransaction = mutation({
   returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     // Security: Verify session and 2FA
-    const session = await ctx.db.get(args.sessionId);
+    const session = await ctx.db.get("user_sessions", args.sessionId);
     if (!session || !session.isCurrent || !session.isTwoFactorVerified) {
       throw new Error("2FA Required for sensitive operations");
     }
@@ -490,7 +490,7 @@ export const manualOverrideTransaction = mutation({
     
     if (!verification) throw new Error("Transaction not found");
 
-    await ctx.db.patch(verification._id, {
+    await ctx.db.patch("payment_verifications", verification._id, {
       status: args.action === "approve" ? "approved" : "rejected",
       reason: `Manual Override by ${args.adminEmail}`,
     });
@@ -510,7 +510,7 @@ export const terminateSession = mutation({
     args: { sessionId: v.id("user_sessions"), adminEmail: v.string() },
     returns: v.null(),
     handler: async (ctx, args) => {
-        await ctx.db.delete(args.sessionId);
+        await ctx.db.delete("user_sessions", args.sessionId);
         await ctx.runMutation(internal.admin.logAdminAction, {
             adminEmail: args.adminEmail,
             action: "TERMINATE_SESSION",
@@ -524,11 +524,11 @@ export const archiveBeneficiary = mutation({
     args: { id: v.id("beneficiaries"), adminEmail: v.string(), sessionId: v.id("user_sessions") },
     returns: v.null(),
     handler: async (ctx, args) => {
-        const session = await ctx.db.get(args.sessionId);
+        const session = await ctx.db.get("user_sessions", args.sessionId);
         if (!session || !session.isCurrent || !session.isTwoFactorVerified) {
             throw new Error("2FA Required");
         }
-        await ctx.db.patch(args.id, { status: "archived", updatedAt: Date.now() });
+        await ctx.db.patch("beneficiaries", args.id, { status: "archived", updatedAt: Date.now() });
         await ctx.runMutation(internal.admin.logAdminAction, {
             adminEmail: args.adminEmail,
             action: "ARCHIVE_BENEFICIARY",
@@ -573,7 +573,7 @@ export const rotateEncryptionKeys = mutation({
     args: { adminEmail: v.string(), sessionId: v.id("user_sessions") },
     returns: v.any(),
     handler: async (ctx, args) => {
-        const session = await ctx.db.get(args.sessionId);
+        const session = await ctx.db.get("user_sessions", args.sessionId);
         if (!session || !session.isCurrent || !session.isTwoFactorVerified) {
             throw new Error("2FA Required for key rotation");
         }

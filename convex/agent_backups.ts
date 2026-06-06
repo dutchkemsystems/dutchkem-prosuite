@@ -1,5 +1,5 @@
-import { query, mutation, internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { internalAction, internalMutation, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 /**
@@ -100,7 +100,7 @@ export const getBackupDetails = query({
   args: { backupId: v.id("system_backups") },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const backup = await ctx.db.get(args.backupId);
+    const backup = await ctx.db.get("system_backups", args.backupId);
     if (!backup) return null;
 
     return {
@@ -120,10 +120,10 @@ export const restoreBackup = mutation({
   args: { backupId: v.id("system_backups") },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const backup = await ctx.db.get(args.backupId);
+    const backup = await ctx.db.get("system_backups", args.backupId);
     if (!backup) return { success: false, error: "Backup not found" };
 
-    const backupData = backup.data as any;
+    const backupData = backup.data;
     if (!backupData?.configs) return { success: false, error: "Invalid backup data" };
 
     // Restore each config
@@ -134,7 +134,7 @@ export const restoreBackup = mutation({
         .first();
 
       if (existing) {
-        await ctx.db.patch(existing._id, {
+        await ctx.db.patch("system_config", existing._id, {
           value: config.value,
           updatedAt: Date.now(),
         });
@@ -166,10 +166,10 @@ export const deleteBackup = mutation({
   args: { backupId: v.id("system_backups") },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const backup = await ctx.db.get(args.backupId);
+    const backup = await ctx.db.get("system_backups", args.backupId);
     if (!backup) return { success: false, error: "Backup not found" };
 
-    await ctx.db.patch(args.backupId, { status: "deleted" });
+    await ctx.db.patch("system_backups", args.backupId, { status: "deleted" });
 
     return { success: true, message: "Backup deleted" };
   },

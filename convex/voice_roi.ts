@@ -1,5 +1,5 @@
-import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 /**
  * VOICE ROI - Return on Investment Analytics
@@ -204,7 +204,7 @@ export const updateSettings = mutation({
         .first();
       
       if (existing) {
-        await ctx.db.patch(existing._id, { value, updatedAt: Date.now() });
+        await ctx.db.patch("system_config", existing._id, { value, updatedAt: Date.now() });
       } else {
         await ctx.db.insert("system_config", { key, value, updatedAt: Date.now() });
       }

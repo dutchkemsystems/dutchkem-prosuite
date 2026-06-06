@@ -1,5 +1,5 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 // Feature 1: AI Chatbot for Sales & Support
 
@@ -45,7 +45,7 @@ export const sendMessage = mutation({
     shouldEscalate: v.boolean(),
   }),
   handler: async (ctx, args) => {
-    const chat = await ctx.db.get(args.chatId);
+    const chat = await ctx.db.get("support_chats", args.chatId);
     if (!chat) throw new Error("Chat not found");
 
     // Add user message
@@ -114,7 +114,7 @@ export const sendMessage = mutation({
       updates.escalatedTo = "human_support";
     }
 
-    await ctx.db.patch(args.chatId, updates);
+    await ctx.db.patch("support_chats", args.chatId, updates);
 
     // Log to audit if escalated
     if (shouldEscalate && chat.status !== "escalated") {
@@ -153,7 +153,7 @@ export const getChatHistory = query({
     }),
   }),
   handler: async (ctx, args) => {
-    const chat = await ctx.db.get(args.chatId);
+    const chat = await ctx.db.get("support_chats", args.chatId);
     if (!chat) throw new Error("Chat not found");
     return { chat };
   },
@@ -182,7 +182,7 @@ export const resolveChat = mutation({
   args: { chatId: v.id("support_chats") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.chatId, { status: "resolved" });
+    await ctx.db.patch("support_chats", args.chatId, { status: "resolved" });
     return null;
   },
 });

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, action, internalMutation, internalQuery } from "./_generated/server";
+import { action, internalMutation, internalQuery, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -50,7 +50,7 @@ export const completeCheckout = internalMutation({
 
     if (session.status === "completed") return { success: true, alreadyCompleted: true };
 
-    await ctx.db.patch(session._id, {
+    await ctx.db.patch("checkout_sessions", session._id, {
       status: "completed",
       completedAt: Date.now(),
     });
@@ -124,7 +124,7 @@ export const updateRecoveryStage = internalMutation({
     stage: v.number(),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.sessionId, {
+    await ctx.db.patch("checkout_sessions", args.sessionId, {
       recoveryStage: args.stage,
       lastRecoveryAt: Date.now(),
     });
@@ -241,7 +241,7 @@ export const cancelOldCheckouts = internalMutation({
     let cancelled = 0;
     for (const session of oldPending) {
       if (session.createdAt < cutoff) {
-        await ctx.db.patch(session._id, { status: "cancelled" });
+        await ctx.db.patch("checkout_sessions", session._id, { status: "cancelled" });
         cancelled++;
       }
     }

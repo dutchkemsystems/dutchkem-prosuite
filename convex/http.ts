@@ -1,7 +1,8 @@
 ﻿import { httpRouter } from "convex/server";
 import { auth } from "./auth";
 import { httpAction } from "./_generated/server";
-import { internal, api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
+import { koraWebhook } from "./kora_webhook";
 
 const http = httpRouter();
 
@@ -9,9 +10,9 @@ auth.addHttpRoutes(http);
 
 const B64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 function manualBase64(input: string): string {
-  const utf8: number[] = [];
+  const utf8: Array<number> = [];
   for (let i = 0; i < input.length; i++) {
-    let c = input.charCodeAt(i);
+    const c = input.charCodeAt(i);
     if (c < 0x80) utf8.push(c);
     else if (c < 0x800) utf8.push((c >> 6) | 0xc0, (c & 0x3f) | 0x80);
     else if (c < 0x10000) utf8.push((c >> 12) | 0xe0, ((c >> 6) & 0x3f) | 0x80, (c & 0x3f) | 0x80);
@@ -37,7 +38,7 @@ const DASHBOARD_URL = "https://dutchkem-prosuite-app.vercel.app/admin/dashboard"
 // ═══════════════════════════════════════════════════════════════════
 // OTP RATE LIMITING (5 requests per hour per phone number)
 // ═══════════════════════════════════════════════════════════════════
-const otpRateLimit = new Map<string, number[]>();
+const otpRateLimit = new Map<string, Array<number>>();
 const OTP_MAX_REQUESTS = 5;
 const OTP_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
@@ -338,6 +339,43 @@ http.route({
     const badge = status === "ACTIVE" ? "Managed by Composio" : "Polling status...";
 
     return new Response(html(true, title, msg, badge), { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } });
+  }),
+});
+
+// ========== KORA PAY WEBHOOK (Financial System) ==========
+http.route({
+  path: "/kora-webhook",
+  method: "POST",
+  handler: koraWebhook,
+});
+
+// ========== KORA PAY DISBURSEMENT CALLBACK ==========
+http.route({
+  path: "/api/kora/callback",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const body = await req.json();
+      const { reference, status, amount } = body;
+      if (reference) {
+        await ctx.runMutation(internal.kora_pay.logWebhookEvent, {
+          eventType: status === "success" ? "transfer.completed" : "transfer.failed",
+          reference,
+          amount: amount || 0,
+          status: status || "unknown",
+          rawPayload: body,
+          verified: false,
+        });
+        if (status === "success") {
+          await ctx.runMutation(internal.kora_pay.handleTransferCompleted, { reference });
+        } else {
+          await ctx.runMutation(internal.kora_pay.handleTransferFailed, { reference, reason: body.reason || body.message || "Unknown" });
+        }
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+    } catch (e: any) {
+      return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+    }
   }),
 });
 

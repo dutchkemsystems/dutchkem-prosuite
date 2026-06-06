@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useConvexAuth } from 'convex/react';
 import { CompanyLogo } from './CompanyLogo';
 

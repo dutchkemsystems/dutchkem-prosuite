@@ -1,5 +1,5 @@
-import { internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 /**
@@ -47,7 +47,7 @@ export const verifyPayment = internalMutation({
     }
     
     let confidenceScore = 100;
-    const flags: string[] = [];
+    const flags: Array<string> = [];
 
     // 2. FRAUD DETECTION SUITE
     const windowStart = Date.now() - (5 * 60 * 1000);
@@ -77,7 +77,7 @@ export const verifyPayment = internalMutation({
     const blacklistConfig = await ctx.db.query("system_config")
       .withIndex("by_key", q => q.eq("key", "blacklisted_ips"))
       .first();
-    const fraudList: string[] = (blacklistConfig?.value as string[]) || [];
+    const fraudList: Array<string> = (blacklistConfig?.value as Array<string>) || [];
     if (fraudList.includes(args.ip)) {
         confidenceScore = 0;
         flags.push("blacklisted_ip");
@@ -177,13 +177,13 @@ export const updateSystemWallets = internalMutation({
         const taxWallet = await ctx.db.query("system_wallets").withIndex("by_type", q => q.eq("type", "tax")).unique();
 
         // 1. Owner gets platform fee
-        await ctx.db.patch(mainWallet!._id, { balance: mainWallet!.balance + platformFee, lastUpdated: Date.now() });
+        await ctx.db.patch("system_wallets", mainWallet!._id, { balance: mainWallet!.balance + platformFee, lastUpdated: Date.now() });
         
         // 2. Freelancer pool gets 85%
-        await ctx.db.patch(freelancerWallet!._id, { balance: freelancerWallet!.balance + freelancerShare, lastUpdated: Date.now() });
+        await ctx.db.patch("system_wallets", freelancerWallet!._id, { balance: freelancerWallet!.balance + freelancerShare, lastUpdated: Date.now() });
 
         // 3. Collect VAT into Tax Wallet
-        await ctx.db.patch(taxWallet!._id, { balance: taxWallet!.balance + vat, lastUpdated: Date.now() });
+        await ctx.db.patch("system_wallets", taxWallet!._id, { balance: taxWallet!.balance + vat, lastUpdated: Date.now() });
 
         // 4. Log Tax Transaction for VAT
         await ctx.db.insert("tax_transactions", {
@@ -216,7 +216,7 @@ export const enforceSingleSession = internalMutation({
     
     for (const session of activeSessions) {
       if (session.fingerprint !== args.currentFingerprint) {
-        await ctx.db.delete(session._id);
+        await ctx.db.delete("user_sessions", session._id);
         // Log invalidation
         await ctx.db.insert("audit_logs", {
             userId: args.userId,

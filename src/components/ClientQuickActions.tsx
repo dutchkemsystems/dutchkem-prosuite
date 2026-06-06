@@ -5,7 +5,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 export function ClientQuickActions() {
-  const { data: actions } = useSuspenseQuery(convexQuery(api.composioClient.getQuickActions, {})) as { data: any[] };
+  const { data: actions } = useSuspenseQuery(convexQuery(api.composioClient.getQuickActions, {})) as { data: Array<any> };
   const triggerAction = useMutation(api.composioClient.triggerQuickAction);
   const [triggering, setTriggering] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<{ actionId: string; message: string } | null>(null);

@@ -1,5 +1,5 @@
-import { query, mutation, internalQuery, internalMutation, internalAction } from "./_generated/server";
 import { v } from "convex/values";
+import { internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 /**
@@ -97,7 +97,7 @@ export const recordApiUsage = mutation({
       .first();
     
     if (existing) {
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("system_config", existing._id, {
         value: ((existing.value as number) || 0) + args.amount,
         updatedAt: Date.now(),
       });
@@ -170,7 +170,7 @@ export const deductFromWallet = internalMutation({
       .first();
     
     if (wallet) {
-      await ctx.db.patch(wallet._id, {
+      await ctx.db.patch("system_wallets", wallet._id, {
         balance: Math.max(0, wallet.balance - args.amount),
         lastUpdated: Date.now(),
       });
@@ -206,7 +206,7 @@ export const resetMonthlyUsage = internalMutation({
     const usageLogs = allConfigs.filter(c => c.key.startsWith("API_USE_"));
     
     for (const log of usageLogs) {
-      await ctx.db.patch(log._id, { value: 0, updatedAt: Date.now() });
+      await ctx.db.patch("system_config", log._id, { value: 0, updatedAt: Date.now() });
     }
     return null;
   },

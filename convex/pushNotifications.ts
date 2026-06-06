@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation, action, internalMutation, internalQuery } from "./_generated/server";
+import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // PUSH NOTIFICATIONS — Web Push API integration
@@ -42,7 +42,7 @@ export const subscribe = mutation({
     // Remove old subscriptions for this endpoint (if any)
     for (const sub of existing) {
       if (sub.endpoint !== args.endpoint) {
-        await ctx.db.delete(sub._id);
+        await ctx.db.delete("push_subscriptions", sub._id);
       }
     }
 
@@ -72,7 +72,7 @@ export const unsubscribe = mutation({
       .collect();
 
     for (const sub of subs) {
-      await ctx.db.delete(sub._id);
+      await ctx.db.delete("push_subscriptions", sub._id);
     }
 
     return { success: true };
@@ -149,7 +149,7 @@ export const sendPushToUser = internalMutation({
         sent++;
       } catch {
         // Subscription might be expired, remove it
-        await ctx.db.delete(sub._id);
+        await ctx.db.delete("push_subscriptions", sub._id);
       }
     }
 
@@ -242,7 +242,7 @@ export const removeSubscription = internalMutation({
       .first();
 
     if (sub) {
-      await ctx.db.delete(sub._id);
+      await ctx.db.delete("push_subscriptions", sub._id);
     }
   },
 });
@@ -285,7 +285,7 @@ export const triggerPushForNotification = internalMutation({
         sent++;
       } catch {
         // Subscription might be expired
-        await ctx.db.delete(sub._id);
+        await ctx.db.delete("push_subscriptions", sub._id);
       }
     }
 

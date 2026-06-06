@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
-import { api } from "../../convex/_generated/api";
 import { useAction } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 // Feature 1: AI Chatbot Panel
 function ChatbotPanel() {
@@ -347,7 +347,7 @@ function FacebookLeadsPanel() {
       <div className="grid grid-cols-5 gap-3">
         {(["total", "new", "contacted", "qualified", "converted"] as const).map((s) => (
           <div key={s} className="bg-slate-800 rounded-lg p-3 border border-slate-700 text-center">
-            <p className="text-xl font-bold text-white">{(stats.data as any)?.[s] || 0}</p>
+            <p className="text-xl font-bold text-white">{(stats.data)?.[s] || 0}</p>
             <p className="text-xs text-slate-400 capitalize">{s}</p>
           </div>
         ))}

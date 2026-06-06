@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
 // ═══════════════════════════════════════════════════════════════════
 // PHASE 4 UNIT TESTS — SEO Engine, Team Accounts, Influencer Recruitment
@@ -71,7 +71,7 @@ describe("SEO Engine", () => {
     });
 
     it("returns 100 for no issues", () => {
-      const issues: any[] = [];
+      const issues: Array<any> = [];
       const totalImpact = issues.reduce((sum, i) => sum + i.impact, 0);
       const score = Math.max(0, Math.min(100, 100 - totalImpact));
 

@@ -1,5 +1,5 @@
-import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { tryGetAdminSession } from "./auth_helpers";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -150,7 +150,7 @@ export const getComposioActionLogs = query({
     // FIX: also include `social_posts` so the logs view shows BOTH the
     // composio_action_logs stream AND the social_posts stream from
     // direct OAuth / social engine posts. The two are merged by timestamp.
-    let composioLogs: any[] = [];
+    let composioLogs: Array<any> = [];
     if (platform) {
       composioLogs = await ctx.db.query("composio_action_logs")
         .withIndex("by_platform", q => q.eq("platform", platform))
@@ -324,10 +324,10 @@ export const togglePlatform = mutation({
       .withIndex("by_platform", q => q.eq("platform", platform))
       .first();
 
-    let postingMode: "auto" | "manual" | "paused" = existing?.postingMode ?? "paused";
+    const postingMode: "auto" | "manual" | "paused" = existing?.postingMode ?? "paused";
 
     if (existing) {
-      await ctx.db.patch(existing._id, { enabled, updatedAt: Date.now() });
+      await ctx.db.patch("composio_settings", existing._id, { enabled, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("composio_settings", {
         platform,
@@ -365,10 +365,10 @@ export const setPlatformMode = mutation({
       .withIndex("by_platform", q => q.eq("platform", platform))
       .first();
 
-    let enabled = existing?.enabled ?? true;
+    const enabled = existing?.enabled ?? true;
 
     if (existing) {
-      await ctx.db.patch(existing._id, { postingMode, updatedAt: Date.now() });
+      await ctx.db.patch("composio_settings", existing._id, { postingMode, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("composio_settings", {
         platform,
@@ -411,7 +411,7 @@ export const setPlatformSchedule = mutation({
     if (dailyPostLimit !== undefined) patch.dailyPostLimit = dailyPostLimit;
 
     if (existing) {
-      await ctx.db.patch(existing._id, patch);
+      await ctx.db.patch("composio_settings", existing._id, patch);
     } else {
       await ctx.db.insert("composio_settings", {
         platform,
@@ -447,7 +447,7 @@ export const syncPlatformFromSocial = internalMutation({
     if (enabled !== undefined) patch.enabled = enabled;
     if (isConnected === false) patch.enabled = false;
     if (existing) {
-      await ctx.db.patch(existing._id, patch);
+      await ctx.db.patch("composio_settings", existing._id, patch);
     } else {
       await ctx.db.insert("composio_settings", {
         platform,
@@ -480,7 +480,7 @@ export const toggleAgentComposio = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { composioEnabled, updatedAt: Date.now() });
+      await ctx.db.patch("composio_agent_settings", existing._id, { composioEnabled, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("composio_agent_settings", {
         agentId,
@@ -508,7 +508,7 @@ export const setAgentPlatforms = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { enabledPlatforms, updatedAt: Date.now() });
+      await ctx.db.patch("composio_agent_settings", existing._id, { enabledPlatforms, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("composio_agent_settings", {
         agentId,

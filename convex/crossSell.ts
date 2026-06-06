@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, internalMutation } from "./_generated/server";
+import { internalMutation, query } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // AI CROSS-SELL ENGINE — Smart service recommendations
@@ -82,13 +82,13 @@ const SERVICE_CATALOG = {
 
 // User behavior tracking
 interface UserBehavior {
-  planHistory: string[];
+  planHistory: Array<string>;
   connectedPlatforms: number;
   marketplaceJobs: number;
   booksPublished: number;
   totalSpent: number;
   lastAction: string;
-  interests: string[];
+  interests: Array<string>;
 }
 
 // Get personalized recommendations
@@ -237,8 +237,8 @@ export const getTrendingServices = query({
 });
 
 // Helper: Extract user interests from subscriptions
-function extractInterests(subscriptions: any[], projects: any[]): string[] {
-  const interests: string[] = [];
+function extractInterests(subscriptions: Array<any>, projects: Array<any>): Array<string> {
+  const interests: Array<string> = [];
 
   for (const sub of subscriptions) {
     if (sub.service === "kdp") interests.push("publishing");
@@ -255,7 +255,7 @@ function extractInterests(subscriptions: any[], projects: any[]): string[] {
 
 // Helper: Generate recommendations based on behavior
 function generateRecommendations(behavior: UserBehavior) {
-  const recommendations: any[] = [];
+  const recommendations: Array<any> = [];
 
   // Subscription upgrade suggestions
   if (behavior.planHistory.includes("weekly")) {

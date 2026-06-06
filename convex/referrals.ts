@@ -1,6 +1,6 @@
 // convex/referrals.ts — Viral Referral & Affiliate System
-import { mutation, query, internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 const COMMISSION_RATE = 0.20;
@@ -54,7 +54,7 @@ export const applyReferralCode = mutation({
       referrerId: referrer.userId, referredUserId: args.newUserId,
       amount: 0, commission: 0, status: "pending", createdAt: Date.now(),
     });
-    await ctx.db.patch(referrer._id, { totalRefs: referrer.totalRefs + 1 });
+    await ctx.db.patch("referral_codes", referrer._id, { totalRefs: referrer.totalRefs + 1 });
     return { success: true, referrerName: referrer.code };
   },
 });
@@ -81,7 +81,7 @@ export const trackReferralConversion = internalMutation({
       amount: args.amount, commission, status: "earned", createdAt: Date.now(),
     });
     const code = await ctx.db.query("referral_codes").withIndex("by_user", (q) => q.eq("userId", args.referrerId)).first();
-    if (code) await ctx.db.patch(code._id, { totalEarnings: code.totalEarnings + commission });
+    if (code) await ctx.db.patch("referral_codes", code._id, { totalEarnings: code.totalEarnings + commission });
   },
 });
 

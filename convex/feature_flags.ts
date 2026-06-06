@@ -1,5 +1,5 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 export const listFlags = query({
   args: {},
@@ -33,7 +33,7 @@ export const setFlag = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { enabled, updatedAt: Date.now() });
+      await ctx.db.patch("feature_flags", existing._id, { enabled, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("feature_flags", {
         key,

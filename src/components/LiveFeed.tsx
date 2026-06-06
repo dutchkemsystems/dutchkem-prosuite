@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
 import { api } from "../../convex/_generated/api"
@@ -42,7 +42,7 @@ const AGENT_NAMES: Record<string, string> = {
 
 export function LiveFeed() {
   const [filter, setFilter] = useState('')
-  const [events, setEvents] = useState<ActivityEvent[]>([])
+  const [events, setEvents] = useState<Array<ActivityEvent>>([])
   const scrollRef = useRef<HTMLDivElement>(null)
   const { data: sessions } = useSuspenseQuery(convexQuery(api.admin.getAdminStats, {}))
 
@@ -52,9 +52,9 @@ export function LiveFeed() {
       const now = Date.now()
       const clients = ['Adebayo O.', 'Chinelo K.', 'Ibrahim M.', 'Blessing A.', 'Fatima H.', 'Tunde O.', 'Ngozi P.', 'Emeka U.']
       const agents = Object.keys(AGENT_NAMES)
-      const types: ActivityEvent['type'][] = ['login', 'task_started', 'agent_assigned', 'agent_working', 'task_completed', 'download']
+      const types: Array<ActivityEvent['type']> = ['login', 'task_started', 'agent_assigned', 'agent_working', 'task_completed', 'download']
       
-      const newEvents: ActivityEvent[] = []
+      const newEvents: Array<ActivityEvent> = []
       for (let i = 0; i < 12; i++) {
         const type = types[Math.floor(Math.random() * types.length)]
         const client = clients[Math.floor(Math.random() * clients.length)]

@@ -9,7 +9,7 @@ interface FlashSale {
   endsAt: number;
   maxUses: number | null;
   currentUses: number;
-  applicablePlans: string[];
+  applicablePlans: Array<string>;
 }
 
 interface Countdown {

@@ -1,5 +1,5 @@
-import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 /**
  * LIVE CHATS - Real-time chat support
@@ -39,7 +39,7 @@ export const getChatHistory = query({
   args: { chatId: v.id("support_chats") },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const chat = await ctx.db.get(args.chatId);
+    const chat = await ctx.db.get("support_chats", args.chatId);
     if (!chat) return [];
 
     return chat.messages.map(msg => ({
@@ -63,7 +63,7 @@ export const sendReply = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const chat = await ctx.db.get(args.chatId);
+    const chat = await ctx.db.get("support_chats", args.chatId);
     if (!chat) throw new Error("Chat not found");
 
     const newMessage = {
@@ -72,7 +72,7 @@ export const sendReply = mutation({
       timestamp: Date.now(),
     };
 
-    await ctx.db.patch(args.chatId, {
+    await ctx.db.patch("support_chats", args.chatId, {
       messages: [...chat.messages, newMessage],
       lastMessageAt: Date.now(),
     });
@@ -88,7 +88,7 @@ export const resolveChat = mutation({
   args: { chatId: v.id("support_chats") },
   returns: v.any(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.chatId, {
+    await ctx.db.patch("support_chats", args.chatId, {
       status: "resolved",
     });
 
@@ -106,7 +106,7 @@ export const assignToAgent = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.chatId, {
+    await ctx.db.patch("support_chats", args.chatId, {
       escalatedTo: args.agentId,
       escalatedAt: Date.now(),
     });

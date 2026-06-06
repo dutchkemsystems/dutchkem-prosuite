@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 
 import { api } from "../../convex/_generated/api";
@@ -18,7 +18,7 @@ export function ChatbotWidget({
 }: ChatbotWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Array<any>>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -41,7 +41,7 @@ export function ChatbotWidget({
         page: window.location.pathname,
         referrer: document.referrer,
       });
-      setConversationId(id as string);
+      setConversationId(id);
 
       // Get initial message
       setMessages([

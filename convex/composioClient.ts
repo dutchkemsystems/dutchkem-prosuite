@@ -1,6 +1,6 @@
-import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { mutation, query } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // COMPOSIO CLIENT — View-only queries for client dashboard
@@ -31,7 +31,7 @@ export const getActivityFeed = query({
     // Get the authenticated user's ID from Convex Auth
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
-    const user = await ctx.db.get(userId);
+    const user = await ctx.db.get("users", userId);
     if (!user) return [];
     const logs = await ctx.db.query("composio_action_logs")
       .withIndex("by_client", q => q.eq("clientId", user._id))
@@ -168,7 +168,7 @@ export const getNotificationPrefs = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return { emailOnAction: true, pushOnAction: true, weeklyReport: true, agentActivityDigest: false };
-    const user = await ctx.db.get(userId);
+    const user = await ctx.db.get("users", userId);
     if (!user) return { emailOnAction: true, pushOnAction: true, weeklyReport: true, agentActivityDigest: false };
 
     const prefs = await ctx.db.query("composio_notification_prefs")
@@ -196,7 +196,7 @@ export const updateNotificationPrefs = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return null;
-    const user = await ctx.db.get(userId);
+    const user = await ctx.db.get("users", userId);
     if (!user) return null;
 
     const existing = await ctx.db.query("composio_notification_prefs")
@@ -210,7 +210,7 @@ export const updateNotificationPrefs = mutation({
     if (args.agentActivityDigest !== undefined) patch.agentActivityDigest = args.agentActivityDigest;
 
     if (existing) {
-      await ctx.db.patch(existing._id, patch);
+      await ctx.db.patch("composio_notification_prefs", existing._id, patch);
     } else {
       await ctx.db.insert("composio_notification_prefs", {
         userId: user._id,
@@ -233,7 +233,7 @@ export const getPerformanceSummary = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return { thisWeek: { totalActions: 0, successRate: 0, platformsUsed: 0, agentsUsed: 0 }, thisMonth: { totalActions: 0, successRate: 0, platformsUsed: 0, agentsUsed: 0 }, platformStats: {}, agentStats: {} };
-    const user = await ctx.db.get(userId);
+    const user = await ctx.db.get("users", userId);
     if (!user) return { thisWeek: { totalActions: 0, successRate: 0, platformsUsed: 0, agentsUsed: 0 }, thisMonth: { totalActions: 0, successRate: 0, platformsUsed: 0, agentsUsed: 0 }, platformStats: {}, agentStats: {} };
 
     const now = Date.now();

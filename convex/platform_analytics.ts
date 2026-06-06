@@ -1,5 +1,5 @@
-import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 /**
  * PLATFORM ANALYTICS - Track visits, registrations, subscriptions, revenue per platform
@@ -162,7 +162,7 @@ export const trackVisit = mutation({
       .first();
     
     if (existing) {
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("system_config", existing._id, {
         value: ((existing.value as number) || 0) + 1,
         updatedAt: Date.now(),
       });

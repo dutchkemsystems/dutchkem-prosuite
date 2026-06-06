@@ -4,8 +4,8 @@
 // Reuses autoPosting.postToOnePlatform for posting ads to connected platforms.
 // Additive — does not modify any existing tables or functions.
 
-import { query, mutation, action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -51,7 +51,7 @@ export const toggleAdEngine = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { enabled: args.enabled, updatedAt: Date.now() });
+      await ctx.db.patch("ad_engine_status", existing._id, { enabled: args.enabled, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("ad_engine_status", {
         singleton: "global",
@@ -79,7 +79,7 @@ export const toggleAutoPost = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { autoPost: args.enabled, updatedAt: Date.now() });
+      await ctx.db.patch("ad_engine_status", existing._id, { autoPost: args.enabled, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("ad_engine_status", {
         singleton: "global",
@@ -170,7 +170,7 @@ export const getCampaigns = query({
 export const getCampaign = query({
   args: { campaignId: v.id("ad_campaigns") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.campaignId);
+    return await ctx.db.get("ad_campaigns", args.campaignId);
   },
 });
 
@@ -200,7 +200,7 @@ export const updateCampaign = mutation({
     if (args.goals !== undefined) patch.goals = args.goals;
     if (args.targetAudience !== undefined) patch.targetAudience = args.targetAudience;
 
-    await ctx.db.patch(args.campaignId, patch);
+    await ctx.db.patch("ad_campaigns", args.campaignId, patch);
     return { success: true };
   },
 });
@@ -217,7 +217,7 @@ export const deleteCampaign = mutation({
       .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId))
       .collect();
     for (const ad of ads) {
-      await ctx.db.delete(ad._id);
+      await ctx.db.delete("ad_ads", ad._id);
     }
 
     // Delete all flyers for the campaign
@@ -226,7 +226,7 @@ export const deleteCampaign = mutation({
       .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId))
       .collect();
     for (const f of flyers) {
-      await ctx.db.delete(f._id);
+      await ctx.db.delete("ad_flyers", f._id);
     }
 
     // Delete all analytics
@@ -235,10 +235,10 @@ export const deleteCampaign = mutation({
       .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId))
       .collect();
     for (const a of analytics) {
-      await ctx.db.delete(a._id);
+      await ctx.db.delete("ad_analytics", a._id);
     }
 
-    await ctx.db.delete(args.campaignId);
+    await ctx.db.delete("ad_campaigns", args.campaignId);
     return { success: true };
   },
 });
@@ -260,7 +260,7 @@ export const createAd = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    const campaign = await ctx.db.get(args.campaignId);
+    const campaign = await ctx.db.get("ad_campaigns", args.campaignId);
     if (!campaign) throw new Error("Campaign not found");
 
     const status = args.scheduledFor && args.scheduledFor > Date.now() ? "scheduled" : "draft";
@@ -317,7 +317,7 @@ export const deleteAd = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
-    await ctx.db.delete(args.adId);
+    await ctx.db.delete("ad_ads", args.adId);
     return { success: true };
   },
 });
@@ -454,7 +454,7 @@ export const executeAdPost = action({
 export const getAdById = internalQuery({
   args: { adId: v.id("ad_ads") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.adId);
+    return await ctx.db.get("ad_ads", args.adId);
   },
 });
 
@@ -471,7 +471,7 @@ export const getConnectionForAd = internalQuery({
 export const markAdPosted = internalMutation({
   args: { adId: v.id("ad_ads"), externalId: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.adId, {
+    await ctx.db.patch("ad_ads", args.adId, {
       status: "posted",
       postedAt: Date.now(),
       externalId: args.externalId,
@@ -483,7 +483,7 @@ export const markAdPosted = internalMutation({
 export const markAdFailed = internalMutation({
   args: { adId: v.id("ad_ads"), error: v.string() },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.adId, { status: "failed", error: args.error });
+    await ctx.db.patch("ad_ads", args.adId, { status: "failed", error: args.error });
   },
 });
 
@@ -500,9 +500,9 @@ export const getDueAds = internalQuery({
 
 export const processScheduledAds = internalAction({
   args: {},
-  handler: async (ctx): Promise<{ processed: number; results: any[] }> => {
+  handler: async (ctx): Promise<{ processed: number; results: Array<any> }> => {
     const due = await ctx.runQuery(internal.adEngine.getDueAds);
-    const results: any[] = [];
+    const results: Array<any> = [];
     for (const ad of due) {
       const result: any = await ctx.runAction(internal.adEngine.executeAdInternal, { adId: ad._id });
       results.push({ adId: ad._id, ...result });
@@ -592,17 +592,17 @@ export const getAdAnalytics = query({
 export const recordAdImpression = mutation({
   args: { adId: v.id("ad_ads") },
   handler: async (ctx, args) => {
-    const ad = await ctx.db.get(args.adId);
+    const ad = await ctx.db.get("ad_ads", args.adId);
     if (!ad) return;
-    await ctx.db.patch(args.adId, { impressions: (ad.impressions || 0) + 1 });
+    await ctx.db.patch("ad_ads", args.adId, { impressions: (ad.impressions || 0) + 1 });
   },
 });
 
 export const recordAdClick = mutation({
   args: { adId: v.id("ad_ads") },
   handler: async (ctx, args) => {
-    const ad = await ctx.db.get(args.adId);
+    const ad = await ctx.db.get("ad_ads", args.adId);
     if (!ad) return;
-    await ctx.db.patch(args.adId, { clicks: (ad.clicks || 0) + 1 });
+    await ctx.db.patch("ad_ads", args.adId, { clicks: (ad.clicks || 0) + 1 });
   },
 });

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation, internalMutation } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // TESTIMONIAL GENERATOR — AI-powered testimonial collection & display
@@ -43,7 +43,7 @@ export const submitTestimonial = mutation({
       throw new Error("Rating must be between 1 and 5");
     }
 
-    const user = await ctx.db.get(args.userId);
+    const user = await ctx.db.get("users", args.userId);
 
     return await ctx.db.insert("testimonials", {
       userId: args.userId,
@@ -68,7 +68,7 @@ export const submitTestimonial = mutation({
 export const approveTestimonial = mutation({
   args: { testimonialId: v.id("testimonials") },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.testimonialId, {
+    await ctx.db.patch("testimonials", args.testimonialId, {
       status: "approved",
       approvedAt: Date.now(),
     });
@@ -83,7 +83,7 @@ export const featureTestimonial = mutation({
     featured: v.boolean(),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.testimonialId, { featured: args.featured });
+    await ctx.db.patch("testimonials", args.testimonialId, { featured: args.featured });
     return { success: true };
   },
 });
@@ -92,7 +92,7 @@ export const featureTestimonial = mutation({
 export const verifyTestimonial = mutation({
   args: { testimonialId: v.id("testimonials") },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.testimonialId, { verified: true });
+    await ctx.db.patch("testimonials", args.testimonialId, { verified: true });
     return { success: true };
   },
 });
@@ -101,10 +101,10 @@ export const verifyTestimonial = mutation({
 export const markHelpful = mutation({
   args: { testimonialId: v.id("testimonials") },
   handler: async (ctx, args) => {
-    const testimonial = await ctx.db.get(args.testimonialId);
+    const testimonial = await ctx.db.get("testimonials", args.testimonialId);
     if (!testimonial) throw new Error("Testimonial not found");
 
-    await ctx.db.patch(args.testimonialId, {
+    await ctx.db.patch("testimonials", args.testimonialId, {
       helpful: testimonial.helpful + 1,
     });
     return { success: true };
@@ -120,7 +120,7 @@ export const getTestimonials = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    let query = ctx.db
+    const query = ctx.db
       .query("testimonials")
       .withIndex("by_status", (q) => q.eq("status", "approved"));
 
@@ -236,7 +236,7 @@ export const getAllTestimonials = query({
 export const deleteTestimonial = mutation({
   args: { testimonialId: v.id("testimonials") },
   handler: async (ctx, args) => {
-    await ctx.db.delete(args.testimonialId);
+    await ctx.db.delete("testimonials", args.testimonialId);
     return { success: true };
   },
 });

@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useUIMessages, useSmoothText, optimisticallySendMessage } from "@convex-dev/agent/react"
-import { useMutation, useConvexAuth } from "convex/react"
+import { optimisticallySendMessage, useSmoothText, useUIMessages } from "@convex-dev/agent/react"
+import { useConvexAuth, useMutation } from "convex/react"
+import { useEffect, useRef, useState } from "react"
 import { api } from "../../convex/_generated/api"
-import type { UIMessage } from "@convex-dev/agent"
-import { useState, useEffect, useRef } from "react"
-import { CompanyLogo } from "~/components/CompanyLogo"
 import { AgentHeader } from '../components/AgentHeader'
+import type { UIMessage } from "@convex-dev/agent"
+import { CompanyLogo } from "~/components/CompanyLogo"
 
 export const Route = createFileRoute('/finance-advisor')({
   component: FinanceAdvisorPage,

@@ -1,8 +1,8 @@
 // convex/social.ts
 // Direct OAuth + API integration for 12 social media platforms
 
-import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 
@@ -12,7 +12,7 @@ import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 export const PLATFORM_CONFIGS: Record<string, {
   name: string; icon: string; color: string;
   authUrl: string; tokenUrl: string; apiUrl: string;
-  scopes: string[]; anonymousSupported: boolean;
+  scopes: Array<string>; anonymousSupported: boolean;
   usesCodeVerifier: boolean;
 }> = {
   x: {
@@ -158,7 +158,7 @@ export const getOAuthState = internalQuery({
 
 export const deleteOAuthState = internalMutation({
   args: { stateId: v.id("oauth_states") },
-  handler: async (ctx, { stateId }) => { await ctx.db.delete(stateId); },
+  handler: async (ctx, { stateId }) => { await ctx.db.delete("oauth_states", stateId); },
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -333,7 +333,7 @@ export const savePlatformConnection = internalMutation({
     };
 
     if (existing) {
-      await ctx.db.patch(existing._id, patch);
+      await ctx.db.patch("platform_connections", existing._id, patch);
     } else {
       await ctx.db.insert("platform_connections", {
         adminId: args.adminId,
@@ -508,7 +508,7 @@ export const disconnectPlatform = mutation({
       )
       .first();
     if (conn) {
-      await ctx.db.patch(conn._id, {
+      await ctx.db.patch("platform_connections", conn._id, {
         isConnected: false, accessToken: "", refreshToken: "", updatedAt: Date.now(),
       });
     }
@@ -545,7 +545,7 @@ export const updatePostingSettings = mutation({
       )
       .first();
     if (!doc) throw new Error("Platform not connected");
-    await ctx.db.patch(doc._id, {
+    await ctx.db.patch("platform_connections", doc._id, {
       autoPostEnabled: args.mode === "auto",
       anonymousByDefault: args.anonymous || false,
       updatedAt: Date.now(),
@@ -1035,7 +1035,7 @@ async function fetchUserInfo(
 
 async function postToPlatformApi(
   platform: string, accessToken: string, content: string,
-  _mediaUrls?: string[], _anonymous?: boolean
+  _mediaUrls?: Array<string>, _anonymous?: boolean
 ): Promise<{ success: boolean; postId?: string; error?: string }> {
   const config = PLATFORM_CONFIGS[platform];
   if (!config) return { success: false, error: "Unknown platform" };
@@ -1131,7 +1131,7 @@ function uuidV4(): string {
   const bytes = safeRandomBytes(16);
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  const hex: string[] = [];
+  const hex: Array<string> = [];
   for (let i = 0; i < 16; i++) hex.push(bytes[i].toString(16).padStart(2, "0"));
   return (
     hex.slice(0, 4).join("") + "-" + hex.slice(4, 6).join("") + "-" +
@@ -1163,7 +1163,7 @@ function generateCodeVerifier(): string {
 }
 
 function generateCodeChallenge(verifier: string): string {
-  const utf8: number[] = [];
+  const utf8: Array<number> = [];
   for (let i = 0; i < verifier.length; i++) {
     const c = verifier.charCodeAt(i);
     if (c < 0x80) utf8.push(c);
@@ -1177,7 +1177,7 @@ function generateCodeChallenge(verifier: string): string {
 // ═══════════════════════════════════════════════════════════════════
 // MANUAL SHA-256 (pure JS — Convex action runtime has no crypto.subtle)
 // ═══════════════════════════════════════════════════════════════════
-const SHA256_K: number[] = [
+const SHA256_K: Array<number> = [
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
   0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
   0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
@@ -1239,7 +1239,7 @@ function rotr(x: number, n: number): number {
 const B64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 function manualBase64Standard(input: string): string {
-  const utf8: number[] = [];
+  const utf8: Array<number> = [];
   for (let i = 0; i < input.length; i++) {
     const c = input.charCodeAt(i);
     if (c < 0x80) utf8.push(c);

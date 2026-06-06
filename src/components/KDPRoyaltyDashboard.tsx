@@ -1,11 +1,11 @@
-﻿import { useSuspenseQuery, useQuery } from "@tanstack/react-query";
+﻿import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
-import { api } from "../../convex/_generated/api";
 import { useMutation } from "convex/react";
 import { useState } from "react";
+import { api } from "../../convex/_generated/api";
 
 export function KDPRoyaltyDashboard({ userId: _userId }: { userId: any }) {
-  const { data: projects } = useSuspenseQuery(convexQuery(api.kdp_agent.listBookProjects, {})) as { data: any[] };
+  const { data: projects } = useSuspenseQuery(convexQuery(api.kdp_agent.listBookProjects, {})) as { data: Array<any> };
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const { data: royalties } = useQuery(
     selectedProjectId ? convexQuery(api.kdp_agent.getBookRoyalties, { projectId: selectedProjectId as any }) : { queryKey: [], enabled: false, queryFn: () => Promise.resolve(null) } as any

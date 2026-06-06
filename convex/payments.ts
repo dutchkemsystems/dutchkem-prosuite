@@ -1,5 +1,5 @@
-import { internalAction, internalMutation, internalQuery, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { internalAction, internalMutation, internalQuery, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 
@@ -107,20 +107,20 @@ export const getSubscriptionsForRetry = internalQuery({
 export const getSubscription = internalQuery({
   args: { subscriptionId: v.id("subscriptions") },
   returns: v.any(),
-  handler: async (ctx, { subscriptionId }) => await ctx.db.get(subscriptionId),
+  handler: async (ctx, { subscriptionId }) => await ctx.db.get("subscriptions", subscriptionId),
 });
 
 export const getUser = internalQuery({
   args: { userId: v.id("users") },
   returns: v.any(),
-  handler: async (ctx, { userId }) => await ctx.db.get(userId),
+  handler: async (ctx, { userId }) => await ctx.db.get("users", userId),
 });
 
 export const handleSuccessfulRenewal = internalMutation({
   args: { subscriptionId: v.id("subscriptions") },
   returns: v.null(),
   handler: async (ctx, { subscriptionId }) => {
-    const sub = await ctx.db.get(subscriptionId);
+    const sub = await ctx.db.get("subscriptions", subscriptionId);
     if (!sub) return;
 
     const intervals = {
@@ -131,7 +131,7 @@ export const handleSuccessfulRenewal = internalMutation({
     };
     const extension = (intervals as any)[sub.plan];
 
-    await ctx.db.patch(subscriptionId, {
+    await ctx.db.patch("subscriptions", subscriptionId, {
       status: "active",
       endsAt: Date.now() + extension,
       failureCount: 0,
@@ -153,7 +153,7 @@ export const handleFailedRenewal = internalMutation({
   args: { subscriptionId: v.id("subscriptions") },
   returns: v.null(),
   handler: async (ctx, { subscriptionId }) => {
-    const sub = await ctx.db.get(subscriptionId);
+    const sub = await ctx.db.get("subscriptions", subscriptionId);
     if (!sub) return;
 
     const newFailureCount = sub.failureCount + 1;
@@ -172,7 +172,7 @@ export const handleFailedRenewal = internalMutation({
       nextRetryAt = undefined;
     }
 
-    await ctx.db.patch(subscriptionId, {
+    await ctx.db.patch("subscriptions", subscriptionId, {
       status,
       failureCount: newFailureCount,
       nextRetryAt,
@@ -198,7 +198,7 @@ export const requestRefund = mutation({
   args: { subscriptionId: v.id("subscriptions"), reason: v.string() },
   returns: v.any(),
   handler: async (ctx, { subscriptionId, reason }) => {
-    const sub = await ctx.db.get(subscriptionId);
+    const sub = await ctx.db.get("subscriptions", subscriptionId);
     if (!sub) throw new Error("Subscription not found");
 
     const userId = (await ctx.auth.getUserIdentity())?.subject;
@@ -237,7 +237,7 @@ export const requestRefund = mutation({
       createdAt: Date.now(),
     });
 
-    await ctx.db.patch(subscriptionId, { status: "canceled", autoRenew: false });
+    await ctx.db.patch("subscriptions", subscriptionId, { status: "canceled", autoRenew: false });
 
     return { status: "submitted", message: "Your refund request is being processed." };
   },

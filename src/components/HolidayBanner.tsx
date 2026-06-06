@@ -1,7 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
+import { useEffect, useState } from "react";
 import { api } from "../../convex/_generated/api";
-import { useState, useEffect } from "react";
 
 export function HolidayBanner() {
   const { data: discount } = useSuspenseQuery(convexQuery(api.holidays.getActiveDiscount, {})) as any;

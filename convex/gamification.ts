@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, internalMutation } from "./_generated/server";
+import { internalMutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -123,7 +123,7 @@ export const awardPoints = internalMutation({
         totalActions: 0,
         createdAt: Date.now(),
       });
-      profile = await ctx.db.get(profileId);
+      profile = await ctx.db.get("gamification_profiles", profileId);
     }
 
     if (!profile) return { awarded: 0 };
@@ -145,7 +145,7 @@ export const awardPoints = internalMutation({
     const newTotalXp = profile.totalXp + points;
     const newLevel = getCurrentLevel(newTotalXp).level;
 
-    await ctx.db.patch(profile._id, {
+    await ctx.db.patch("gamification_profiles", profile._id, {
       totalXp: newTotalXp,
       level: newLevel,
       currentStreak: newStreak,
@@ -182,7 +182,7 @@ export const awardPoints = internalMutation({
     // Check for streak bonuses
     if (newStreak > 0 && newStreak % 7 === 0) {
       const bonusPoints = POINTS_CONFIG.weekly_streak_bonus;
-      await ctx.db.patch(profile._id, { totalXp: newTotalXp + bonusPoints });
+      await ctx.db.patch("gamification_profiles", profile._id, { totalXp: newTotalXp + bonusPoints });
       await ctx.db.insert("gamification_log", {
         userId: args.userId,
         action: "weekly_streak_bonus",

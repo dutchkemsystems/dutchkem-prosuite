@@ -1,5 +1,5 @@
-import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 /**
@@ -45,7 +45,7 @@ export const updateModelStatus = internalMutation({
       .first();
     
     if (existing) {
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("model_status", existing._id, {
         status: args.status,
         lastFailureAt: args.status === "healthy" ? undefined : Date.now(),
         failureCount: args.status === "healthy" ? 0 : (existing.failureCount + 1),

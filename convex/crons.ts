@@ -1,5 +1,5 @@
 import { cronJobs } from "convex/server";
-import { internal, api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 
 // Note: Functions registered with `query`, `mutation`, or `action` (public)
 // must be referenced via `api.*`. Only `internalQuery`, `internalMutation`,
@@ -305,6 +305,74 @@ crons.interval(
   "auto backup synthetic agents",
   { hours: 12 },
   internal.agent_backups.autoBackup,
+  {}
+);
+
+// ═══════════════════════════════════════════════════════════════════
+// FINANCIAL AUTOMATION SYSTEM (Renewals, Tithe, CAC, Usage Alerts)
+// ═══════════════════════════════════════════════════════════════════
+
+// 🔄 29-day subscription renewal check (every hour)
+crons.interval(
+  "process 29-day subscription renewals",
+  { hours: 1 },
+  internal.subscription_renewal.processAutoRenewals,
+  {}
+);
+
+// 🌱 Seed default subscription configs (monthly safety net)
+crons.cron(
+  "seed default subscription configs",
+  "0 0 1 * *",
+  internal.subscription_renewal.seedDefaultConfigs,
+  {}
+);
+
+// 🕊️ Daily tithe deduction (10% of revenue - last day of day)
+crons.cron(
+  "daily tithe deduction",
+  "55 23 * * *",
+  internal.tithe_deductions.runDailyTitheDeduction,
+  {}
+);
+
+// 🕊️ Monthly tithe transfer to designated account
+crons.cron(
+  "monthly tithe transfer",
+  "58 23 28-31 * *",
+  internal.tithe_deductions.runMonthlyTitheTransfer,
+  {}
+);
+
+// 🏛️ Monthly CAC annual fraction deduction (1st of month)
+crons.cron(
+  "monthly CAC deduction",
+  "5 0 1 * *",
+  internal.cac_deductions.runMonthlyCacDeduction,
+  {}
+);
+
+// 🏛️ Annual CAC filing (Dec 31)
+crons.cron(
+  "annual CAC filing",
+  "30 23 31 12 *",
+  internal.cac_deductions.runAnnualCacFiling,
+  {}
+);
+
+// 📊 Usage threshold check (80%, 90%, 95%, 100%) - every 6 hours
+crons.interval(
+  "check usage thresholds",
+  { hours: 6 },
+  internal.usage_alerts.checkUsageThresholds,
+  {}
+);
+
+// 🔑 Cleanup expired passkeys (every hour)
+crons.interval(
+  "cleanup expired passkeys",
+  { hours: 1 },
+  internal.transfer_passkeys.cleanupExpiredPasskeys,
   {}
 );
 

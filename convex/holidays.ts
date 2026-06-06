@@ -1,5 +1,5 @@
-import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { internalMutation, mutation, query } from "./_generated/server";
 
 /**
  * SEED 2026 HOLIDAYS
@@ -57,7 +57,7 @@ export const refreshActiveDiscounts = mutation({
     for (const h of holidays) {
       const active = now >= h.start_date && now <= h.end_date;
       if (h.is_active !== active) {
-        await ctx.db.patch(h._id, { is_active: active });
+        await ctx.db.patch("holiday_discounts", h._id, { is_active: active });
       }
       
       if (active) {
@@ -79,7 +79,7 @@ export const refreshActiveDiscounts = mutation({
     } : null;
 
     if (config) {
-      await ctx.db.patch(config._id, { value, updatedAt: now });
+      await ctx.db.patch("system_config", config._id, { value, updatedAt: now });
     } else {
       await ctx.db.insert("system_config", { key: "ACTIVE_DISCOUNT", value, updatedAt: now });
     }

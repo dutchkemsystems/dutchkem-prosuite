@@ -21,7 +21,7 @@ const EMPTY_STATUS = {
   authError: true,
 };
 
-const EMPTY_LOGS: any[] = [];
+const EMPTY_LOGS: Array<any> = [];
 const EMPTY_STATS = {
   overview: { totalActions: 0, successRate: 0, avgDuration: 0 },
   periods: { last24h: { total: 0, success: 0, failed: 0 }, last7d: { total: 0, success: 0, failed: 0 }, last30d: { total: 0, success: 0, failed: 0 } },
@@ -64,7 +64,7 @@ export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
   });
 
   const status = (statusQuery.data as any) ?? EMPTY_STATUS;
-  const logs = (logsQuery.data as any[]) ?? EMPTY_LOGS;
+  const logs = (logsQuery.data as Array<any>) ?? EMPTY_LOGS;
   const stats = (statsQuery.data as any) ?? EMPTY_STATS;
 
   const togglePlatform = useMutation(api.composioHub.togglePlatform);

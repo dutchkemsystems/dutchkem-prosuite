@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
-import { useConvexAuth, useMutation, useAction, useQuery } from "convex/react"
+import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
+import { Component,  Suspense, useCallback, useEffect, useState } from "react"
 import { api, internal } from "../../../convex/_generated/api"
-import { useState, useEffect, useCallback, Suspense, Component, type ReactNode } from "react"
+import type {ReactNode} from "react";
 import { CompanyLogo } from "~/components/CompanyLogo";
 import { useSocket } from "~/lib/socket";
 import { LiveFeed } from "~/components/LiveFeed";
@@ -12,6 +13,7 @@ import { LiveCharts } from "~/components/LiveCharts";
 import { PaymentMonitor } from "~/components/PaymentMonitor";
 import { InactivityLogout } from "~/components/InactivityLogout";
 import { ComposioAdminHub } from "~/components/ComposioAdminHub";
+import { RenewalsTithePanel } from "~/components/RenewalsTithePanel";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -143,7 +145,8 @@ function AdminDashboardPage() {
            <AdminTab active={activeTab === "platform-analytics"} onClick={() => setActiveTab("platform-analytics")} icon="📊" label="Platform Analytics" />
            <AdminTab active={activeTab === "synthetic"} onClick={() => setActiveTab("synthetic")} icon="🤖" label="Synthetic AI" />
            <AdminTab active={activeTab === "ad-engine"} onClick={() => setActiveTab("ad-engine")} icon="📢" label="Ad Engine" />
-           <AdminTab active={activeTab === "composio-hub"} onClick={() => setActiveTab("composio-hub")} icon="🔗" label="Composio Hub" />
+             <AdminTab active={activeTab === "composio-hub"} onClick={() => setActiveTab("composio-hub")} icon="🔗" label="Composio Hub" />
+             <AdminTab active={activeTab === "renewals-tithe"} onClick={() => setActiveTab("renewals-tithe")} icon="🔄" label="Renewals & Tithe" />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -185,6 +188,7 @@ function AdminDashboardPage() {
              {activeTab === "synthetic" && <SyntheticIntelPanel />}
              {activeTab === "ad-engine" && <AdEnginePanel />}
              {activeTab === "composio-hub" && <ComposioAdminHub adminToken={adminToken} />}
+             {activeTab === "renewals-tithe" && <RenewalsTithePanel adminToken={adminToken} />}
           </AdminSuspense>
         </div>
         <Footer />
@@ -267,7 +271,7 @@ function ManualAgentTaskPanel() {
     { id: "A15", name: "Event Planner", icon: "🎉" },
   ];
 
-  const agentServices: Record<string, string[]> = {
+  const agentServices: Record<string, Array<string>> = {
     A1: ["Thesis Writing", "Research Papers", "Dissertation Support", "Literature Review", "Data Analysis", "Academic Editing", "Citation Formatting", "Plagiarism Check", "Abstract Writing", "Case Study Analysis"],
     A2: ["Business Plan", "Financial Model", "Pitch Deck", "Market Research", "Competitor Analysis", "GTM Strategy", "Revenue Projection", "Investor Memo", "SWOT Analysis", "Business Valuation"],
     A3: ["SEO Blog Posts", "Social Media Content", "Sales Copy", "Email Campaigns", "Website Copy", "Product Descriptions", "Newsletter Content", "Video Scripts", "Ad Copy", "Brand Voice Guide"],
@@ -463,14 +467,12 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
   // so providerStatus was always null, so the dashboard ALWAYS fell back to
   // direct OAuth instead of using Composio as primary.
   // Now using useQuery (which goes to /api/query) so the value actually loads.
-  const providerStatus = useQuery(api.social.getOAuthProviderStatus, {}) as
-    | { composioEnabled: boolean; composioPlatforms: string[]; directEnabled: boolean }
-    | undefined;
+  const providerStatus = useQuery(api.social.getOAuthProviderStatus, {});
   const disconnectPlatform = useMutation(api.social.disconnectPlatform);
   const updatePostingSettings = useMutation(api.social.updatePostingSettings);
   const manualPost = useAction(api.social.postToPlatform);
 
-  const [platforms, setPlatforms] = useState<any[]>([]);
+  const [platforms, setPlatforms] = useState<Array<any>>([]);
   const [platformsLoading, setPlatformsLoading] = useState(true);
   const [rotating, setRotating] = useState(false);
   const [connecting, setConnecting] = useState<string | null>(null);
@@ -2332,7 +2334,7 @@ function ChangePasswordModal({ onClose, adminId, adminToken }: { onClose: () => 
 function Enable2FAModal({ onClose, adminId }: { onClose: () => void; adminId: string }) {
   const [code, setCode] = useState("");
   const [secret] = useState(() => Array.from({ length: 32 }, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 62)]).join(""));
-  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [backupCodes, setBackupCodes] = useState<Array<string>>([]);
   const [enabled, setEnabled] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -2382,7 +2384,7 @@ function Enable2FAModal({ onClose, adminId }: { onClose: () => void; adminId: st
 }
 
 function IPWhitelistModal({ onClose, adminId }: { onClose: () => void; adminId: string }) {
-  const [ips, setIps] = useState<string[]>(["127.0.0.1"]);
+  const [ips, setIps] = useState<Array<string>>(["127.0.0.1"]);
   const [newIp, setNewIp] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -2807,7 +2809,7 @@ function FreelancerMarketplacePanel() {
 function CloudMemoryPanel({ adminToken }: { adminToken: string }) {
   const { data: health } = useSuspenseQuery(convexQuery(api.cloud_memory.getSystemHealth, {}));
   const { data: backups } = useSuspenseQuery(convexQuery(api.cloud_memory.getAllBackups, {}));
-  const { data: healingHistory } = useSuspenseQuery(convexQuery(api.cloud_memory.getHealingHistory, { limit: 10 })) as { data: any[] };
+  const { data: healingHistory } = useSuspenseQuery(convexQuery(api.cloud_memory.getHealingHistory, { limit: 10 })) as { data: Array<any> };
   // REGRESSION FIX: Use public *Action wrappers (not the internalAction
   // versions) — useAction(internal.*) returns [CONVEX A] Server Error.
   const runSelfHealing = useAction(api.cloud_memory.runSelfHealingAction);

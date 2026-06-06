@@ -1,5 +1,5 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 // Feature 8: Agent Onboarding & Performance Dashboard
 
@@ -60,7 +60,7 @@ export const updateAgentPerformance = mutation({
     );
 
     if (existing) {
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("agent_performance", existing._id, {
         metrics: args.metrics,
         target: args.target,
         commission: args.commission,
@@ -195,7 +195,7 @@ export const getAllAgentPerformance = query({
 
     const result = [];
     for (const entry of entries) {
-      const user = await ctx.db.get(entry.userId);
+      const user = await ctx.db.get("users", entry.userId);
       result.push({
         userId: entry.userId,
         userName: user?.name ?? undefined,

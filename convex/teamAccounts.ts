@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // TEAM ACCOUNTS (B2B) — Multi-user access, roles, team billing
@@ -114,12 +114,12 @@ export const getUserTeams = query({
 
     const teams = [];
     for (const membership of memberships) {
-      const team = await ctx.db.get(membership.teamId);
+      const team = await ctx.db.get("teams", membership.teamId);
       if (team) {
         teams.push({
           ...team,
           myRole: membership.role,
-          myPermissions: TEAM_ROLES[membership.role as keyof typeof TEAM_ROLES].permissions,
+          myPermissions: TEAM_ROLES[membership.role].permissions,
         });
       }
     }
@@ -135,7 +135,7 @@ export const getTeamDetails = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return null;
 
-    const team = await ctx.db.get(args.teamId);
+    const team = await ctx.db.get("teams", args.teamId);
     if (!team) return null;
 
     // Get members
@@ -146,20 +146,20 @@ export const getTeamDetails = query({
 
     const memberDetails = [];
     for (const member of members) {
-      const user = await ctx.db.get(member.userId);
+      const user = await ctx.db.get("users", member.userId);
       memberDetails.push({
         ...member,
         userName: user?.name || "Unknown",
         userEmail: user?.email || "Unknown",
-        roleLabel: TEAM_ROLES[member.role as keyof typeof TEAM_ROLES].label,
-        permissions: TEAM_ROLES[member.role as keyof typeof TEAM_ROLES].permissions,
+        roleLabel: TEAM_ROLES[member.role].label,
+        permissions: TEAM_ROLES[member.role].permissions,
       });
     }
 
     return {
       ...team,
       members: memberDetails,
-      planDetails: TEAM_PLANS[team.plan as keyof typeof TEAM_PLANS],
+      planDetails: TEAM_PLANS[team.plan],
     };
   },
 });
@@ -195,7 +195,7 @@ export const inviteMember = mutation({
     }
 
     // Check team capacity
-    const team = await ctx.db.get(args.teamId);
+    const team = await ctx.db.get("teams", args.teamId);
     if (!team) throw new Error("Team not found");
 
     if (team.currentMembers >= team.maxMembers) {
@@ -246,7 +246,7 @@ export const acceptInvite = mutation({
     if (invite.expiresAt < Date.now()) throw new Error("Invite expired");
 
     // Check team capacity
-    const team = await ctx.db.get(invite.teamId);
+    const team = await ctx.db.get("teams", invite.teamId);
     if (!team) throw new Error("Team not found");
 
     if (team.currentMembers >= team.maxMembers) {
@@ -264,12 +264,12 @@ export const acceptInvite = mutation({
     });
 
     // Update team member count
-    await ctx.db.patch(invite.teamId, {
+    await ctx.db.patch("teams", invite.teamId, {
       currentMembers: team.currentMembers + 1,
     });
 
     // Update invite status
-    await ctx.db.patch(invite._id, { status: "accepted" });
+    await ctx.db.patch("team_invites", invite._id, { status: "accepted" });
 
     return { success: true, teamId: invite.teamId };
   },
@@ -314,12 +314,12 @@ export const removeMember = mutation({
 
     if (!memberToRemove) throw new Error("Member not found");
 
-    await ctx.db.delete(memberToRemove._id);
+    await ctx.db.delete("team_members", memberToRemove._id);
 
     // Update team member count
-    const team = await ctx.db.get(args.teamId);
+    const team = await ctx.db.get("teams", args.teamId);
     if (team) {
-      await ctx.db.patch(args.teamId, {
+      await ctx.db.patch("teams", args.teamId, {
         currentMembers: Math.max(0, team.currentMembers - 1),
       });
     }
@@ -367,7 +367,7 @@ export const updateMemberRole = mutation({
 
     if (!memberToUpdate) throw new Error("Member not found");
 
-    await ctx.db.patch(memberToUpdate._id, { role: args.newRole });
+    await ctx.db.patch("team_members", memberToUpdate._id, { role: args.newRole });
 
     return { success: true };
   },
@@ -377,7 +377,7 @@ export const updateMemberRole = mutation({
 export const getTeamStats = query({
   args: { teamId: v.id("teams") },
   handler: async (ctx, args) => {
-    const team = await ctx.db.get(args.teamId);
+    const team = await ctx.db.get("teams", args.teamId);
     if (!team) return null;
 
     const members = await ctx.db
@@ -390,7 +390,7 @@ export const getTeamStats = query({
     return {
       teamName: team.name,
       plan: team.plan,
-      planDetails: TEAM_PLANS[team.plan as keyof typeof TEAM_PLANS],
+      planDetails: TEAM_PLANS[team.plan],
       memberCount: activeMembers,
       maxMembers: team.maxMembers,
       utilizationPercent: Math.round((activeMembers / team.maxMembers) * 100),
