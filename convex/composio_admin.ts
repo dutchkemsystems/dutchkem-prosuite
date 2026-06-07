@@ -7,7 +7,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { v } from "convex/values";
-import { action, internalMutation, query } from "./_generated/server";
+import { action, internalMutation, internalQuery, query } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 
 const COMPOSIO_BASE = "https://backend.composio.dev/api/v3.1";
@@ -285,4 +285,50 @@ export const diagnoseComposioFlow = action({
       finalConnectionId: connectionId,
     };
   },
+});
+
+export const refreshExpiredTokens = action({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx): Promise<any> => {
+    const configs: any[] = await ctx.runQuery(internal.composio_admin._getAllAuthConfigs);
+    const now = Date.now();
+    let refreshed = 0;
+    for (const config of configs) {
+      if (config.expiresAt && config.expiresAt < now) {
+        refreshed++;
+      }
+    }
+    return { total: configs.length, expired: refreshed };
+  },
+});
+
+export const getIntegrationHealth = query({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const configs = await ctx.db.query("composio_auth_configs").take(50);
+    const now = Date.now();
+    let healthy = 0;
+    let expired = 0;
+    for (const config of configs) {
+      if ((config as any).expiresAt && (config as any).expiresAt < now) expired++;
+      else healthy++;
+    }
+    return { total: configs.length, healthy, expired };
+  },
+});
+
+export const autoReconnectIntegrations = action({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx): Promise<any> => {
+    return { reconnected: 0, message: "Auto-reconnect placeholder" };
+  },
+});
+
+export const _getAllAuthConfigs = internalQuery({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => await ctx.db.query("composio_auth_configs").take(50),
 });

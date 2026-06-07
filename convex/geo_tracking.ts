@@ -243,3 +243,39 @@ function isPointInPolygon(lat: number, lng: number, polygon: Array<{lat: number;
   }
   return inside;
 }
+
+const BLOCKED_COUNTRIES = [
+  "SA", "AE", "EG", "QA", "KW", "OM", "BH", "JO", "LB", "IQ",
+  "YE", "SY", "PS", "LY", "TN", "DZ", "MA", "SD", "SO", "DJ", "MR", "KM",
+];
+
+export const isCountryBlocked = query({
+  args: { countryCode: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, args) => BLOCKED_COUNTRIES.includes(args.countryCode),
+});
+
+export const logGeoBlock = mutation({
+  args: { ip: v.string(), country: v.string(), path: v.optional(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.insert("security_logs", {
+      type: "geo-block", ip: args.ip, details: `Blocked access from ${args.country}`,
+      path: args.path, severity: "medium", resolved: false, createdAt: Date.now(),
+    });
+  },
+});
+
+export const getGeoStats = query({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const logs = await ctx.db.query("security_logs").withIndex("by_type", (q) => q.eq("type", "geo-block")).order("desc").take(500);
+    const byCountry: Record<string, number> = {};
+    for (const log of logs) {
+      const match = log.details.match(/from (.+)/);
+      if (match) byCountry[match[1]] = (byCountry[match[1]] ?? 0) + 1;
+    }
+    return { totalBlocked: logs.length, byCountry };
+  },
+});

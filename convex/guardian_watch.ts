@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action, internalAction, internalMutation, query } from "./_generated/server";
+import { action, internalAction, internalMutation, internalQuery, query } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 
 /**
@@ -261,4 +261,85 @@ export const getGuardianLogs = query({
     }
     return await q.order("desc").take(50);
   },
+});
+
+export const monitorAllSystems = internalAction({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx): Promise<any> => {
+    const results: any[] = [];
+    try {
+      const userCount = await ctx.runQuery(internal.guardian_watch._countUsersForMonitor);
+      results.push({ system: "users", status: userCount > 0 ? "ok" : "warning", count: userCount });
+    } catch (e: any) { results.push({ system: "users", status: "error", error: e?.message }); }
+    try {
+      const connCount = await ctx.runQuery(internal.guardian_watch._countConnectionsForMonitor);
+      results.push({ system: "connections", status: "ok", count: connCount });
+    } catch (e: any) { results.push({ system: "connections", status: "error", error: e?.message }); }
+    try {
+      const healthLogs = await ctx.runQuery(internal.guardian_watch._countHealthLogs);
+      results.push({ system: "healing", status: "ok", count: healthLogs });
+    } catch (e: any) { results.push({ system: "healing", status: "error", error: e?.message }); }
+    return { systems: results, checkedAt: Date.now() };
+  },
+});
+
+export const revokeCompromisedTokens = internalAction({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx): Promise<number> => {
+    const sessions: any[] = await ctx.runQuery(internal.guardian_watch._getActiveSessions);
+    let revoked = 0;
+    for (const session of sessions) {
+      const age = Date.now() - (session.createdAt ?? 0);
+      if (age > 86400000) {
+        await ctx.runMutation(internal.guardian_watch._revokeSession, { sessionId: session._id });
+        revoked++;
+      }
+    }
+    return revoked;
+  },
+});
+
+export const checkSystemHealth = internalAction({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx): Promise<any> => {
+    const userCount: number = await ctx.runQuery(internal.guardian_watch._countUsersForMonitor);
+    const connCount: number = await ctx.runQuery(internal.guardian_watch._countConnectionsForMonitor);
+    const issues: string[] = [];
+    if (userCount === 0) issues.push("No users found");
+    if (connCount === 0) issues.push("No platform connections");
+    return { healthy: issues.length === 0, issues, userCount, connCount, checkedAt: Date.now() };
+  },
+});
+
+export const _countUsersForMonitor = internalQuery({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => (await ctx.db.query("users").take(100)).length,
+});
+
+export const _countConnectionsForMonitor = internalQuery({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => (await ctx.db.query("platform_connections").take(100)).length,
+});
+
+export const _countHealthLogs = internalQuery({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => (await ctx.db.query("healing_logs").take(100)).length,
+});
+
+export const _getActiveSessions = internalQuery({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => await ctx.db.query("admin_sessions").take(50),
+});
+
+export const _revokeSession = internalMutation({
+  args: { sessionId: v.id("admin_sessions") },
+  returns: v.null(),
+  handler: async (ctx, args) => { await ctx.db.delete(args.sessionId); },
 });

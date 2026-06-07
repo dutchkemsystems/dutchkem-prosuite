@@ -2063,4 +2063,139 @@ export default defineSchema({
     .index("by_action", ["action"])
     .index("by_admin", ["adminId"])
     .index("by_timestamp", ["timestamp"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // GLOBAL EXPANSION — DUAL CURRENCY, SECURITY, HEALING, FEEDS
+  // ═══════════════════════════════════════════════════════════════════
+
+  usd_wallets: defineTable({
+    userId: v.string(),
+    balance: v.number(),
+    sweepEnabled: v.boolean(),
+    sweepThreshold: v.number(),
+    lastSweepAt: v.optional(v.number()),
+    isEncrypted: v.boolean(),
+    encryptionKeySalt: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId"]),
+
+  exchange_rates: defineTable({
+    fromCurrency: v.string(),
+    toCurrency: v.string(),
+    rate: v.number(),
+    source: v.string(),
+    effectiveDate: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_currencies", ["fromCurrency", "toCurrency"])
+    .index("by_date", ["effectiveDate"]),
+
+  auto_transfer_config: defineTable({
+    adminId: v.string(),
+    currency: v.string(),
+    destinationAccountName: v.string(),
+    destinationAccountNumber: v.string(),
+    destinationBankCode: v.string(),
+    isActivated: v.boolean(),
+    activationCode: v.optional(v.string()),
+    manualPasteRequired: v.boolean(),
+    scheduledFrequency: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_admin_currency", ["adminId", "currency"]),
+
+  security_logs: defineTable({
+    type: v.string(),
+    ip: v.optional(v.string()),
+    userId: v.optional(v.string()),
+    path: v.optional(v.string()),
+    details: v.string(),
+    severity: v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("critical")),
+    resolved: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_severity", ["severity"])
+    .index("by_type", ["type"])
+    .index("by_created", ["createdAt"]),
+
+  blocked_ips: defineTable({
+    ip: v.string(),
+    reason: v.string(),
+    blockedAt: v.number(),
+    expiresAt: v.optional(v.number()),
+    permanent: v.boolean(),
+  })
+    .index("by_ip", ["ip"])
+    .index("by_expires", ["expiresAt"]),
+
+  healing_logs: defineTable({
+    errorType: v.string(),
+    errorMessage: v.string(),
+    fixApplied: v.string(),
+    success: v.boolean(),
+    affectedArea: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_error_type", ["errorType"])
+    .index("by_created", ["createdAt"]),
+
+  health_reports: defineTable({
+    date: v.string(),
+    totalUsers: v.number(),
+    totalPosts: v.number(),
+    totalPayments: v.number(),
+    agentsUsed: v.number(),
+    errorsFound: v.number(),
+    errorsFixed: v.number(),
+    platformsConnected: v.number(),
+    report: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_date", ["date"]),
+
+  live_feeds: defineTable({
+    feedType: v.string(),
+    title: v.string(),
+    message: v.string(),
+    severity: v.string(),
+    isRead: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_type", ["feedType"])
+    .index("by_created", ["createdAt"]),
+
+  transaction_analytics: defineTable({
+    transactionId: v.optional(v.string()),
+    amountNgn: v.optional(v.number()),
+    amountUsd: v.optional(v.number()),
+    exchangeRateUsed: v.optional(v.number()),
+    transactionHash: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_created", ["createdAt"]),
+
+  agent_autonomy_logs: defineTable({
+    agentId: v.string(),
+    actionType: v.string(),
+    actionDetails: v.string(),
+    executedBy: v.string(),
+    status: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_agent", ["agentId"])
+    .index("by_created", ["createdAt"]),
+
+  cloud_memory_autonomy: defineTable({
+    checkType: v.string(),
+    status: v.string(),
+    issuesFound: v.string(),
+    autoFixesApplied: v.string(),
+    healingTimeMs: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
 });

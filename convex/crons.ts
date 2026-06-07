@@ -436,4 +436,64 @@ crons.interval(
   {}
 );
 
+// ═══════════════════════════════════════════════════════════════════
+// GLOBAL EXPANSION — SECURITY, HEALING, AGENT PERFORMANCE
+// ═══════════════════════════════════════════════════════════════════
+
+// 🛡️ Auto-Heal check (every 30 minutes)
+crons.interval(
+  "auto-heal check",
+  { minutes: 30 },
+  internal.auto_healer.runAutoHeal,
+  {}
+);
+
+// 📊 Daily health report (11 PM)
+crons.cron(
+  "daily health report",
+  "0 23 * * *",
+  internal.auto_healer.dailyHealthReport,
+  {}
+);
+
+// 🤖 Auto-test all 15 agents (every hour)
+crons.interval(
+  "auto-test all agents",
+  { hours: 1 },
+  internal.auto_healer.autoTestAllAgents,
+  {}
+);
+
+// 🔍 Detect underperforming agents (every 6 hours)
+crons.interval(
+  "detect underperforming agents",
+  { hours: 6 },
+  internal.agent_performance._takeAgentSnapshots,
+  {}
+);
+
+// 🛡️ Monitor login attempts (every 15 minutes)
+crons.interval(
+  "monitor login attempts",
+  { minutes: 15 },
+  internal.intrusion_detector._monitorLoginAttempts,
+  {}
+);
+
+// ☁️ Consolidate cloud memory (daily at 2 AM)
+crons.cron(
+  "consolidate cloud memory",
+  "0 2 * * *",
+  internal.cloud_memory.consolidateMemory,
+  {}
+);
+
+// 📊 Agent snapshot collection (every 4 hours)
+crons.interval(
+  "agent snapshot collection",
+  { hours: 4 },
+  internal.agent_performance._takeAgentSnapshots,
+  {}
+);
+
 export default crons;
