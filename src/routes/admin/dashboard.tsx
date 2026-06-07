@@ -16,6 +16,7 @@ import { ComposioAdminHub } from "~/components/ComposioAdminHub";
 import { RenewalsTithePanel } from "~/components/RenewalsTithePanel";
 import { ComposioObservability } from "~/components/ComposioObservability";
 import { TryPostScheduler } from "~/components/TryPostScheduler";
+import { AutoHealDashboard } from "~/components/AutoHealDashboard";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -150,6 +151,7 @@ function AdminDashboardPage() {
               <AdminTab active={activeTab === "composio-hub"} onClick={() => setActiveTab("composio-hub")} icon="🔗" label="Composio Hub" />
               <AdminTab active={activeTab === "composio-obs"} onClick={() => setActiveTab("composio-obs")} icon="🔌" label="Composio Max" />
               <AdminTab active={activeTab === "trypost"} onClick={() => setActiveTab("trypost")} icon="📅" label="TryPost" />
+              <AdminTab active={activeTab === "auto-heal"} onClick={() => setActiveTab("auto-heal")} icon="🛡️" label="Auto-Heal" />
               <AdminTab active={activeTab === "renewals-tithe"} onClick={() => setActiveTab("renewals-tithe")} icon="🔄" label="Renewals & Tithe" />
         </nav>
 
@@ -194,6 +196,7 @@ function AdminDashboardPage() {
              {activeTab === "composio-hub" && <ComposioAdminHub adminToken={adminToken} />}
              {activeTab === "composio-obs" && <ComposioObservability adminToken={adminToken} />}
              {activeTab === "trypost" && <TryPostScheduler adminToken={adminToken} />}
+             {activeTab === "auto-heal" && <AutoHealDashboard adminToken={adminToken} />}
              {activeTab === "renewals-tithe" && <RenewalsTithePanel adminToken={adminToken} />}
           </AdminSuspense>
         </div>
