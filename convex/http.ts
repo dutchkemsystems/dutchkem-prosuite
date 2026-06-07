@@ -3,6 +3,7 @@ import { auth } from "./auth";
 import { httpAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { koraWebhook } from "./kora_webhook";
+import { trypostWebhook } from "./trypost_webhook";
 
 const http = httpRouter();
 
@@ -377,6 +378,13 @@ http.route({
       return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers: { "Content-Type": "application/json" } });
     }
   }),
+});
+
+// ========== TRYPOST WEBHOOK (Social Media Engine) ==========
+http.route({
+  path: "/trypost-webhook",
+  method: "POST",
+  handler: trypostWebhook,
 });
 
 export default http;

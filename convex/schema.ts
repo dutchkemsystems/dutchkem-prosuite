@@ -1615,4 +1615,234 @@ export default defineSchema({
     .index("by_event_type", ["eventType"])
     .index("by_processed", ["processed"])
     .index("by_received", ["receivedAt"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // COMPOSIO ENHANCED - Triggers, Webhooks, Observability
+  // ═══════════════════════════════════════════════════════════════════
+
+  // Composio Triggers - real-time event subscriptions
+  composio_triggers: defineTable({
+    triggerId: v.string(),
+    toolkit: v.string(),
+    triggerName: v.string(),
+    description: v.string(),
+    enabled: v.boolean(),
+    agentId: v.string(),
+    connectedAccountId: v.optional(v.string()),
+    config: v.optional(v.any()),
+    lastFiredAt: v.optional(v.number()),
+    fireCount: v.number(),
+    webhookUrl: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_trigger", ["triggerId"])
+    .index("by_toolkit", ["toolkit"])
+    .index("by_agent", ["agentId"])
+    .index("by_enabled", ["enabled"]),
+
+  // Composio Trigger Events - audit log of fired triggers
+  composio_trigger_events: defineTable({
+    triggerId: v.string(),
+    toolkit: v.string(),
+    eventType: v.string(),
+    payload: v.any(),
+    processed: v.boolean(),
+    agentId: v.optional(v.string()),
+    receivedAt: v.number(),
+  })
+    .index("by_trigger", ["triggerId"])
+    .index("by_toolkit", ["toolkit"])
+    .index("by_received", ["receivedAt"]),
+
+  // Composio Custom Tools - admin-built tools
+  composio_custom_tools: defineTable({
+    toolName: v.string(),
+    toolkit: v.string(),
+    description: v.string(),
+    inputSchema: v.any(),
+    outputSchema: v.optional(v.any()),
+    handler: v.string(), // Function name reference
+    enabled: v.boolean(),
+    createdBy: v.string(),
+    usageCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_tool_name", ["toolName"])
+    .index("by_toolkit", ["toolkit"])
+    .index("by_enabled", ["enabled"]),
+
+  // Composio Webhooks - inbound webhook configurations
+  composio_webhooks: defineTable({
+    webhookId: v.string(),
+    url: v.string(),
+    events: v.array(v.string()),
+    secret: v.string(),
+    enabled: v.boolean(),
+    lastDeliveryAt: v.optional(v.number()),
+    deliveryCount: v.number(),
+    failureCount: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_webhook", ["webhookId"])
+    .index("by_enabled", ["enabled"]),
+
+  // Composio Sessions - Tool Router session management
+  composio_sessions: defineTable({
+    sessionId: v.string(),
+    userId: v.string(),
+    agentId: v.optional(v.string()),
+    toolkits: v.array(v.string()),
+    activeTools: v.number(),
+    toolCallCount: v.number(),
+    startedAt: v.number(),
+    lastActivityAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_user", ["userId"])
+    .index("by_agent", ["agentId"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // TRYPOST - Dedicated Social Media Scheduling Engine
+  // ═══════════════════════════════════════════════════════════════════
+
+  // TryPost Brand Profile
+  trypost_brand_profile: defineTable({
+    brandName: v.string(),
+    voice: v.string(), // e.g., "Professional", "Casual", "Witty"
+    toneKeywords: v.array(v.string()),
+    targetAudience: v.string(),
+    colorPalette: v.optional(v.array(v.string())),
+    logoUrl: v.optional(v.string()),
+    websiteUrl: v.optional(v.string()),
+    autoHashtags: v.optional(v.array(v.string())),
+    active: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }),
+
+  // TryPost Scheduled Posts
+  trypost_scheduled_posts: defineTable({
+    content: v.string(),
+    mediaUrls: v.optional(v.array(v.string())),
+    carouselSlides: v.optional(v.array(v.any())),
+    platforms: v.array(v.string()), // ["twitter", "linkedin", ...]
+    scheduledFor: v.number(),
+    timezone: v.optional(v.string()),
+    status: v.union(
+      v.literal("draft"),
+      v.literal("scheduled"),
+      v.literal("publishing"),
+      v.literal("published"),
+      v.literal("failed")
+    ),
+    agentId: v.optional(v.string()),
+    workflowId: v.optional(v.string()),
+    hashtags: v.optional(v.array(v.string())),
+    mentions: v.optional(v.array(v.string())),
+    aiGenerated: v.optional(v.boolean()),
+    publishResults: v.optional(v.any()),
+    publishedAt: v.optional(v.number()),
+    errorMessage: v.optional(v.string()),
+    createdBy: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_scheduled", ["scheduledFor"])
+    .index("by_status", ["status"])
+    .index("by_agent", ["agentId"])
+    .index("by_workflow", ["workflowId"]),
+
+  // TryPost Workflows (automated campaign templates)
+  trypost_workflows: defineTable({
+    name: v.string(),
+    description: v.string(),
+    triggerType: v.string(), // "manual", "blog-published", "agent-completed", "schedule"
+    triggerConfig: v.optional(v.any()),
+    steps: v.array(v.any()),
+    platforms: v.array(v.string()),
+    active: v.boolean(),
+    lastRunAt: v.optional(v.number()),
+    runCount: v.number(),
+    successCount: v.number(),
+    failureCount: v.number(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_active", ["active"])
+    .index("by_trigger_type", ["triggerType"]),
+
+  // TryPost Workflow Runs (audit log)
+  trypost_workflow_runs: defineTable({
+    workflowId: v.id("trypost_workflows"),
+    triggeredBy: v.string(), // "manual", "cron", "blog-123", etc.
+    status: v.union(
+      v.literal("running"),
+      v.literal("completed"),
+      v.literal("failed")
+    ),
+    postsCreated: v.number(),
+    postsPublished: v.number(),
+    errors: v.optional(v.array(v.string())),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_workflow", ["workflowId"])
+    .index("by_status", ["status"])
+    .index("by_started", ["startedAt"]),
+
+  // TryPost Carousels (AI-generated visual content)
+  trypost_carousels: defineTable({
+    topic: v.string(),
+    platform: v.string(),
+    slides: v.array(v.any()),
+    caption: v.optional(v.string()),
+    aiPrompt: v.optional(v.string()),
+    generatedBy: v.string(),
+    status: v.union(
+      v.literal("generating"),
+      v.literal("ready"),
+      v.literal("published"),
+      v.literal("failed")
+    ),
+    scheduledFor: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_platform", ["platform"]),
+
+  // TryPost Analytics
+  trypost_analytics: defineTable({
+    postId: v.id("trypost_scheduled_posts"),
+    platform: v.string(),
+    impressions: v.optional(v.number()),
+    reach: v.optional(v.number()),
+    likes: v.optional(v.number()),
+    comments: v.optional(v.number()),
+    shares: v.optional(v.number()),
+    clicks: v.optional(v.number()),
+    engagementRate: v.optional(v.number()),
+    recordedAt: v.number(),
+  })
+    .index("by_post", ["postId"])
+    .index("by_platform", ["platform"])
+    .index("by_recorded", ["recordedAt"]),
+
+  // TryPost Webhook Events
+  trypost_webhook_events: defineTable({
+    eventType: v.string(), // "post.published", "post.failed", "analytics.updated"
+    reference: v.string(),
+    platform: v.optional(v.string()),
+    payload: v.any(),
+    verified: v.boolean(),
+    processed: v.boolean(),
+    processedAt: v.optional(v.number()),
+    receivedAt: v.number(),
+  })
+    .index("by_reference", ["reference"])
+    .index("by_event_type", ["eventType"])
+    .index("by_processed", ["processed"])
+    .index("by_received", ["receivedAt"]),
 });

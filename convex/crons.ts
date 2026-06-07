@@ -376,4 +376,64 @@ crons.interval(
   {}
 );
 
+// ═══════════════════════════════════════════════════════════════════
+// COMPOSIO ENHANCED + TRYPOST AUTOMATION
+// ═══════════════════════════════════════════════════════════════════
+
+// 🧹 Cleanup expired Composio Tool Router sessions (every hour)
+crons.interval(
+  "cleanup expired composio sessions",
+  { hours: 1 },
+  internal.composioEnhanced.cleanupExpiredSessions,
+  {}
+);
+
+// 🔄 Refresh Composio tool catalog (daily at 3 AM)
+crons.cron(
+  "refresh composio tool catalog",
+  "0 3 * * *",
+  internal.composioEnhanced.refreshToolCatalog,
+  {}
+);
+
+// 📅 Process TryPost scheduled posts due for publication (every minute)
+crons.interval(
+  "process TryPost due posts",
+  { minutes: 1 },
+  internal.trypost.processDuePosts,
+  {}
+);
+
+// 🌅 Daily TryPost posting - morning briefing (8 AM WAT)
+crons.cron(
+  "trypost daily morning briefing",
+  "0 8 * * *",
+  internal.trypost.executeDailyPosting,
+  { hourSlot: 8 }
+);
+
+// ☀️ Daily TryPost posting - midday update (12 PM WAT)
+crons.cron(
+  "trypost daily midday update",
+  "0 12 * * *",
+  internal.trypost.executeDailyPosting,
+  { hourSlot: 12 }
+);
+
+// 🌆 Daily TryPost posting - evening wrap (6 PM WAT)
+crons.cron(
+  "trypost daily evening wrap",
+  "0 18 * * *",
+  internal.trypost.executeDailyPosting,
+  { hourSlot: 18 }
+);
+
+// 📊 Refresh TryPost analytics (every 4 hours)
+crons.interval(
+  "refresh trypost analytics",
+  { hours: 4 },
+  internal.trypost.refreshAnalytics,
+  {}
+);
+
 export default crons;

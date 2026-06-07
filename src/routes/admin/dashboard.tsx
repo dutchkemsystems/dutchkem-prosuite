@@ -14,6 +14,8 @@ import { PaymentMonitor } from "~/components/PaymentMonitor";
 import { InactivityLogout } from "~/components/InactivityLogout";
 import { ComposioAdminHub } from "~/components/ComposioAdminHub";
 import { RenewalsTithePanel } from "~/components/RenewalsTithePanel";
+import { ComposioObservability } from "~/components/ComposioObservability";
+import { TryPostScheduler } from "~/components/TryPostScheduler";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -145,8 +147,10 @@ function AdminDashboardPage() {
            <AdminTab active={activeTab === "platform-analytics"} onClick={() => setActiveTab("platform-analytics")} icon="📊" label="Platform Analytics" />
            <AdminTab active={activeTab === "synthetic"} onClick={() => setActiveTab("synthetic")} icon="🤖" label="Synthetic AI" />
            <AdminTab active={activeTab === "ad-engine"} onClick={() => setActiveTab("ad-engine")} icon="📢" label="Ad Engine" />
-             <AdminTab active={activeTab === "composio-hub"} onClick={() => setActiveTab("composio-hub")} icon="🔗" label="Composio Hub" />
-             <AdminTab active={activeTab === "renewals-tithe"} onClick={() => setActiveTab("renewals-tithe")} icon="🔄" label="Renewals & Tithe" />
+              <AdminTab active={activeTab === "composio-hub"} onClick={() => setActiveTab("composio-hub")} icon="🔗" label="Composio Hub" />
+              <AdminTab active={activeTab === "composio-obs"} onClick={() => setActiveTab("composio-obs")} icon="🔌" label="Composio Max" />
+              <AdminTab active={activeTab === "trypost"} onClick={() => setActiveTab("trypost")} icon="📅" label="TryPost" />
+              <AdminTab active={activeTab === "renewals-tithe"} onClick={() => setActiveTab("renewals-tithe")} icon="🔄" label="Renewals & Tithe" />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -188,6 +192,8 @@ function AdminDashboardPage() {
              {activeTab === "synthetic" && <SyntheticIntelPanel />}
              {activeTab === "ad-engine" && <AdEnginePanel />}
              {activeTab === "composio-hub" && <ComposioAdminHub adminToken={adminToken} />}
+             {activeTab === "composio-obs" && <ComposioObservability adminToken={adminToken} />}
+             {activeTab === "trypost" && <TryPostScheduler adminToken={adminToken} />}
              {activeTab === "renewals-tithe" && <RenewalsTithePanel adminToken={adminToken} />}
           </AdminSuspense>
         </div>
