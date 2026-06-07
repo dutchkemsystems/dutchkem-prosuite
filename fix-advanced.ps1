@@ -24,7 +24,7 @@ $RunReport = [ordered]@{
     runId          = $RUN_ID
     triggeredBy    = $TRIGGERED_BY
     status         = "running"
-    startedAt      = $RUN_START.ToUnixTimeMilliseconds()
+    startedAt      = ([System.DateTimeOffset]$RUN_START).ToUnixTimeMilliseconds()
     sections       = @()
     issuesFound    = 0
     issuesFixed    = 0
@@ -562,7 +562,7 @@ $finalStatus = "success"
 if ($IssueCount -gt 0 -and $FixedCount -gt 0) { $finalStatus = "partial" }
 elseif ($IssueCount -gt 0 -and $FixedCount -eq 0) { $finalStatus = "failed" }
 
-$summaryText = "Run $RUN_ID: $($RunReport.sections.Count) sections, $FixedCount fixed, $IssueCount remaining, Vercel: $($vercelResult.status), Convex: $($convexResult.status)"
+$summaryText = "Run ${RUN_ID}: $($RunReport.sections.Count) sections, $FixedCount fixed, $IssueCount remaining, Vercel: $($vercelResult.status), Convex: $($convexResult.status)"
 
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Cyan
@@ -604,7 +604,7 @@ if (-not (Test-Path $reportDir)) {
     New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
 }
 $RunReport.status = $finalStatus
-$RunReport.completedAt = $RUN_END.ToUnixTimeMilliseconds()
+$RunReport.completedAt = ([System.DateTimeOffset]$RUN_END).ToUnixTimeMilliseconds()
 $RunReport.durationMs = $TOTAL_DURATION * 1000
 $RunReport.issuesFound = $IssueCount
 $RunReport.issuesFixed = $FixedCount

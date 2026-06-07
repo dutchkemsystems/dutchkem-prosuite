@@ -1723,7 +1723,7 @@ export default defineSchema({
     updatedAt: v.number(),
   }),
 
-  // TryPost Scheduled Posts
+  // TryPost Scheduled Posts (v3 — extended)
   trypost_scheduled_posts: defineTable({
     content: v.string(),
     mediaUrls: v.optional(v.array(v.string())),
@@ -1746,13 +1746,72 @@ export default defineSchema({
     publishResults: v.optional(v.any()),
     publishedAt: v.optional(v.number()),
     errorMessage: v.optional(v.string()),
+    // v3 additions
+    recurrence: v.optional(v.union(
+      v.literal("none"),
+      v.literal("daily"),
+      v.literal("weekly"),
+      v.literal("monthly")
+    )),
+    parentRecurrenceId: v.optional(v.id("trypost_scheduled_posts")),
+    requiresApproval: v.optional(v.boolean()),
+    approvedBy: v.optional(v.string()),
+    approvedAt: v.optional(v.number()),
+    rejectedReason: v.optional(v.string()),
+    category: v.optional(v.string()),
+    notes: v.optional(v.string()),
     createdBy: v.string(),
     createdAt: v.number(),
   })
     .index("by_scheduled", ["scheduledFor"])
     .index("by_status", ["status"])
     .index("by_agent", ["agentId"])
-    .index("by_workflow", ["workflowId"]),
+    .index("by_workflow", ["workflowId"])
+    .index("by_category", ["category"])
+    .index("by_recurrence", ["recurrence"]),
+
+  // TryPost Media Library
+  trypost_media: defineTable({
+    name: v.string(),
+    url: v.string(),
+    type: v.union(v.literal("image"), v.literal("video"), v.literal("gif")),
+    tags: v.optional(v.array(v.string())),
+    sizeBytes: v.optional(v.number()),
+    width: v.optional(v.number()),
+    height: v.optional(v.number()),
+    uploadedBy: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_type", ["type"])
+    .index("by_created", ["createdAt"]),
+
+  // TryPost Templates
+  trypost_templates: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    category: v.optional(v.string()),
+    content: v.string(),
+    hashtags: v.optional(v.array(v.string())),
+    platforms: v.optional(v.array(v.string())),
+    variables: v.optional(v.array(v.string())),
+    useCount: v.number(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_category", ["category"])
+    .index("by_use_count", ["useCount"]),
+
+  // TryPost Post Comments / Notes (collaboration)
+  trypost_post_comments: defineTable({
+    postId: v.id("trypost_scheduled_posts"),
+    author: v.string(),
+    text: v.string(),
+    isInternal: v.optional(v.boolean()),
+    createdAt: v.number(),
+  })
+    .index("by_post", ["postId"])
+    .index("by_created", ["createdAt"]),
 
   // TryPost Workflows (automated campaign templates)
   trypost_workflows: defineTable({

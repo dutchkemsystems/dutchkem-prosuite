@@ -63,6 +63,12 @@ export function TryPostScheduler({ adminToken }: AdminPanelProps) {
   const carousels = useQuery(api.trypost.listCarousels, { adminToken });
   const analytics = useQuery(api.trypost.getAnalytics, { adminToken, period: "7d" });
   const schedule = useQuery(api.trypost.getPostingSchedule, { adminToken });
+  const bestTimes = useQuery(api.trypost.getBestPostingTimes, { adminToken });
+  const trending = useQuery(api.trypost.getTrendingTopics, { adminToken });
+  const templates = useQuery(api.trypost.listTemplates, { adminToken });
+  const media = useQuery(api.trypost.listMedia, { adminToken });
+  const pendingApprovals = useQuery(api.trypost.listPendingApprovals, { adminToken });
+  const categories = useQuery(api.trypost.listCategories, { adminToken });
 
   const upsertBrand = useMutation(api.trypost.upsertBrandProfile);
   const schedulePost = useMutation(api.trypost.schedulePost);
@@ -71,6 +77,37 @@ export function TryPostScheduler({ adminToken }: AdminPanelProps) {
   const createWorkflow = useMutation(api.trypost.createWorkflow);
   const cancelPost = useMutation(api.trypost.cancelScheduled);
   const toggleWorkflow = useMutation(api.trypost.toggleWorkflow);
+  const generateCaption = useAction(api.trypost.generateCaption);
+  const suggestHashtags = useAction(api.trypost.suggestHashtags);
+  const addMedia = useMutation(api.trypost.addMedia);
+  const deleteMedia = useMutation(api.trypost.deleteMedia);
+  const createTemplate = useMutation(api.trypost.createTemplate);
+  const deleteTemplate = useMutation(api.trypost.deleteTemplate);
+  const useTemplate = useMutation(api.trypost.useTemplate);
+  const bulkDeletePosts = useMutation(api.trypost.bulkDeletePosts);
+  const approvePost = useMutation(api.trypost.approvePost);
+  const rejectPost = useMutation(api.trypost.rejectPost);
+  const addComment = useMutation(api.trypost.addComment);
+  const exportPosts = useQuery(api.trypost.exportPosts, { adminToken });
+
+  const [v3Modal, setV3Modal] = useState<null | "caption" | "hashtags" | "besttime" | "media" | "templates" | "trending" | "approvals" | "export">(null);
+  const [v3Result, setV3Result] = useState<any>(null);
+  const [v3Loading, setV3Loading] = useState(false);
+  const [v3Form, setV3Form] = useState<any>({
+    topic: "",
+    platform: "twitter",
+    tone: "professional",
+    content: "",
+    hashtagCount: 10,
+    mediaName: "",
+    mediaUrl: "",
+    mediaType: "image",
+    templateName: "",
+    templateContent: "",
+    templateCategory: "",
+    rejectReason: "",
+    selectedPosts: [] as string[],
+  });
 
   const handleSaveBrand = async () => {
     try {
@@ -247,6 +284,40 @@ export function TryPostScheduler({ adminToken }: AdminPanelProps) {
             {t.label}
           </button>
         ))}
+      </div>
+
+      <div className="bg-slate-900/50 border border-pink-500/20 rounded-3xl p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-sm font-black text-white">⚡ v3 Tools</span>
+          <span className="text-xs text-slate-400">AI + automation</span>
+          {pendingApprovals && pendingApprovals.posts && pendingApprovals.posts.length > 0 && (
+            <span className="ml-auto px-2 py-1 bg-amber-500 text-white rounded-full text-xs font-bold animate-pulse">
+              {pendingApprovals.posts.length} pending approval
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
+          {[
+            { key: "caption" as const, label: "✍️ Caption", color: "indigo" },
+            { key: "hashtags" as const, label: "#️⃣ Hashtags", color: "purple" },
+            { key: "besttime" as const, label: "⏰ Best Time", color: "blue" },
+            { key: "trending" as const, label: "🔥 Trending", color: "rose" },
+            { key: "media" as const, label: "🖼️ Media", color: "emerald" },
+            { key: "templates" as const, label: "📋 Templates", color: "amber" },
+            { key: "approvals" as const, label: "✅ Approvals", color: "pink" },
+            { key: "export" as const, label: "⬇️ Export", color: "slate" },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => { setV3Modal(t.key); setV3Result(null); }}
+              className={`px-3 py-2 rounded-xl text-xs font-bold transition ${
+                v3Modal === t.key ? `bg-${t.color}-500 text-white` : `bg-${t.color}-500/20 text-${t.color}-300 hover:bg-${t.color}-500/30`
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {section === "brand" && (
@@ -495,6 +566,440 @@ export function TryPostScheduler({ adminToken }: AdminPanelProps) {
             >
               Create Workflow
             </button>
+          </div>
+        </Modal>
+      )}
+
+      {v3Modal === "caption" && (
+        <Modal title="✍️ AI Caption Generator" onClose={() => setV3Modal(null)}>
+          <div className="space-y-3">
+            <input
+              placeholder="Topic (e.g. New AI feature launch)"
+              value={v3Form.topic}
+              onChange={(e) => setV3Form({ ...v3Form, topic: e.target.value })}
+              className="w-full bg-slate-800 text-white rounded-xl px-3 py-2 text-sm"
+            />
+            <select
+              value={v3Form.platform}
+              onChange={(e) => setV3Form({ ...v3Form, platform: e.target.value })}
+              className="w-full bg-slate-800 text-white rounded-xl px-3 py-2 text-sm"
+            >
+              {(platforms ?? []).map((p: any) => (
+                <option key={p.id} value={p.id}>{p.icon} {p.name}</option>
+              ))}
+            </select>
+            <select
+              value={v3Form.tone}
+              onChange={(e) => setV3Form({ ...v3Form, tone: e.target.value })}
+              className="w-full bg-slate-800 text-white rounded-xl px-3 py-2 text-sm"
+            >
+              {VOICES.map((v) => (
+                <option key={v} value={v.toLowerCase()}>{v}</option>
+              ))}
+            </select>
+            <button
+              onClick={async () => {
+                if (!v3Form.topic) { showToast("error", "Topic is required"); return; }
+                setV3Loading(true);
+                try {
+                  const res = await generateCaption({ adminToken, topic: v3Form.topic, platform: v3Form.platform, tone: v3Form.tone });
+                  if (res?.authError) { showToast("error", "Auth failed"); }
+                  else { setV3Result(res); showToast("success", `Caption generated (${res.charCount} chars)`); }
+                } catch (e: any) { showToast("error", e?.message ?? "Failed"); }
+                finally { setV3Loading(false); }
+              }}
+              disabled={v3Loading}
+              className="w-full bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white font-bold py-2 rounded-xl"
+            >
+              {v3Loading ? "Generating..." : "Generate Caption"}
+            </button>
+            {v3Result && (
+              <div className="space-y-2">
+                <div className="bg-slate-800 rounded-xl p-3 text-sm text-white whitespace-pre-wrap">{v3Result.caption}</div>
+                {v3Result.hashtags?.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {v3Result.hashtags.map((h: string, i: number) => (
+                      <span key={i} className="px-2 py-1 bg-indigo-500/20 text-indigo-300 rounded-full text-xs">{h}</span>
+                    ))}
+                  </div>
+                )}
+                <div className="text-xs text-slate-400">
+                  {v3Result.charCount}/{v3Result.charLimit} chars · {v3Result.withinLimit ? "✅ Fits" : "❌ Too long"} · via {v3Result.source}
+                </div>
+                <button
+                  onClick={() => {
+                    setScheduleForm({ ...scheduleForm, content: v3Result.caption, hashtags: v3Result.hashtags?.join(" ") ?? "", platforms: [v3Form.platform] });
+                    setScheduleModal(true);
+                    setV3Modal(null);
+                  }}
+                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-xl text-sm"
+                >
+                  Use in Post →
+                </button>
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {v3Modal === "hashtags" && (
+        <Modal title="#️⃣ Hashtag Suggester" onClose={() => setV3Modal(null)}>
+          <div className="space-y-3">
+            <textarea
+              placeholder="Paste your post content here..."
+              value={v3Form.content}
+              onChange={(e) => setV3Form({ ...v3Form, content: e.target.value })}
+              className="w-full bg-slate-800 text-white rounded-xl px-3 py-2 text-sm"
+              rows={4}
+            />
+            <div className="flex gap-2">
+              <select
+                value={v3Form.platform}
+                onChange={(e) => setV3Form({ ...v3Form, platform: e.target.value })}
+                className="flex-1 bg-slate-800 text-white rounded-xl px-3 py-2 text-sm"
+              >
+                {(platforms ?? []).map((p: any) => (
+                  <option key={p.id} value={p.id}>{p.icon} {p.name}</option>
+                ))}
+              </select>
+              <input
+                type="number"
+                min={5}
+                max={30}
+                value={v3Form.hashtagCount}
+                onChange={(e) => setV3Form({ ...v3Form, hashtagCount: parseInt(e.target.value) || 10 })}
+                className="w-20 bg-slate-800 text-white rounded-xl px-3 py-2 text-sm"
+              />
+            </div>
+            <button
+              onClick={async () => {
+                if (!v3Form.content) { showToast("error", "Content is required"); return; }
+                setV3Loading(true);
+                try {
+                  const res = await suggestHashtags({ adminToken, content: v3Form.content, platform: v3Form.platform, count: v3Form.hashtagCount });
+                  if (res?.authError) { showToast("error", "Auth failed"); }
+                  else { setV3Result(res); showToast("success", `${res.count} hashtags suggested`); }
+                } catch (e: any) { showToast("error", e?.message ?? "Failed"); }
+                finally { setV3Loading(false); }
+              }}
+              disabled={v3Loading}
+              className="w-full bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white font-bold py-2 rounded-xl"
+            >
+              {v3Loading ? "Suggesting..." : "Suggest Hashtags"}
+            </button>
+            {v3Result && v3Result.hashtags && (
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-1">
+                  {v3Result.hashtags.map((h: string, i: number) => (
+                    <span key={i} className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded-full text-xs">{h}</span>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    setScheduleForm({ ...scheduleForm, hashtags: v3Result.hashtags.join(" ") });
+                    setV3Modal(null);
+                    showToast("success", "Hashtags copied to post form");
+                  }}
+                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-xl text-sm"
+                >
+                  Use in Post →
+                </button>
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {v3Modal === "besttime" && (
+        <Modal title="⏰ Best Times to Post" onClose={() => setV3Modal(null)}>
+          <div className="space-y-4">
+            <p className="text-xs text-slate-400">Recommended posting hours (WAT) by platform — based on audience engagement data.</p>
+            {bestTimes && !bestTimes.authError && Object.entries(bestTimes.times).map(([platform, hours]: [string, any]) => (
+              <div key={platform} className="bg-slate-800/50 rounded-xl p-3">
+                <div className="text-sm font-bold text-white mb-2 capitalize">{platform}</div>
+                <div className="flex flex-wrap gap-1">
+                  {(hours ?? []).map((h: number) => (
+                    <span key={h} className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded-lg text-xs font-mono">
+                      {h.toString().padStart(2, "0")}:00
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {v3Modal === "trending" && (
+        <Modal title="🔥 Trending Topics" onClose={() => setV3Modal(null)}>
+          <div className="space-y-3">
+            <p className="text-xs text-slate-400">Curated trending topics — click to use as post inspiration.</p>
+            {trending && !trending.authError && trending.topics.map((t: any, i: number) => (
+              <div
+                key={i}
+                className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 hover:border-rose-500/50 transition cursor-pointer"
+                onClick={() => {
+                  setV3Form({ ...v3Form, topic: t.topic });
+                  setV3Modal("caption");
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-bold text-white">{t.topic}</div>
+                    <div className="text-xs text-slate-400 capitalize">{t.category}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-black text-rose-300">{t.score}</div>
+                    <div className="text-[9px] text-slate-500">score</div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {t.hashtags.map((h: string, j: number) => (
+                    <span key={j} className="px-1.5 py-0.5 bg-rose-500/20 text-rose-300 rounded text-[9px]">{h}</span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {v3Modal === "media" && (
+        <Modal title="🖼️ Media Library" onClose={() => setV3Modal(null)}>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <input
+                placeholder="Media name"
+                value={v3Form.mediaName}
+                onChange={(e) => setV3Form({ ...v3Form, mediaName: e.target.value })}
+                className="flex-1 bg-slate-800 text-white rounded-xl px-3 py-2 text-sm"
+              />
+              <select
+                value={v3Form.mediaType}
+                onChange={(e) => setV3Form({ ...v3Form, mediaType: e.target.value })}
+                className="w-28 bg-slate-800 text-white rounded-xl px-3 py-2 text-sm"
+              >
+                <option value="image">Image</option>
+                <option value="video">Video</option>
+                <option value="gif">GIF</option>
+              </select>
+            </div>
+            <input
+              placeholder="URL (https://...)"
+              value={v3Form.mediaUrl}
+              onChange={(e) => setV3Form({ ...v3Form, mediaUrl: e.target.value })}
+              className="w-full bg-slate-800 text-white rounded-xl px-3 py-2 text-sm"
+            />
+            <button
+              onClick={async () => {
+                if (!v3Form.mediaName || !v3Form.mediaUrl) { showToast("error", "Name and URL required"); return; }
+                try {
+                  await addMedia({ adminToken, name: v3Form.mediaName, url: v3Form.mediaUrl, type: v3Form.mediaType as any });
+                  showToast("success", "Media added");
+                  setV3Form({ ...v3Form, mediaName: "", mediaUrl: "" });
+                } catch (e: any) { showToast("error", e?.message ?? "Failed"); }
+              }}
+              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-xl text-sm"
+            >
+              Add to Library
+            </button>
+            {media && media.media && media.media.length > 0 && (
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {media.media.map((m: any) => (
+                  <div key={m._id} className="flex items-center justify-between bg-slate-800/50 rounded-xl px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{m.type === "image" ? "🖼️" : m.type === "video" ? "🎬" : "🎞️"}</span>
+                      <div>
+                        <div className="text-xs text-white font-bold">{m.name}</div>
+                        <div className="text-[10px] text-slate-400 truncate max-w-48">{m.url}</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try { await deleteMedia({ adminToken, mediaId: m._id }); showToast("success", "Deleted"); }
+                        catch (e: any) { showToast("error", e?.message ?? "Failed"); }
+                      }}
+                      className="text-xs text-rose-400 hover:text-rose-300 font-bold"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {v3Modal === "templates" && (
+        <Modal title="📋 Post Templates" onClose={() => setV3Modal(null)}>
+          <div className="space-y-3">
+            <input
+              placeholder="Template name"
+              value={v3Form.templateName}
+              onChange={(e) => setV3Form({ ...v3Form, templateName: e.target.value })}
+              className="w-full bg-slate-800 text-white rounded-xl px-3 py-2 text-sm"
+            />
+            <input
+              placeholder="Category (announcement, promo, education...)"
+              value={v3Form.templateCategory}
+              onChange={(e) => setV3Form({ ...v3Form, templateCategory: e.target.value })}
+              className="w-full bg-slate-800 text-white rounded-xl px-3 py-2 text-sm"
+            />
+            <textarea
+              placeholder="Template content (use {{variable}} for dynamic values)"
+              value={v3Form.templateContent}
+              onChange={(e) => setV3Form({ ...v3Form, templateContent: e.target.value })}
+              className="w-full bg-slate-800 text-white rounded-xl px-3 py-2 text-sm"
+              rows={4}
+            />
+            <button
+              onClick={async () => {
+                if (!v3Form.templateName || !v3Form.templateContent) { showToast("error", "Name and content required"); return; }
+                try {
+                  await createTemplate({ adminToken, name: v3Form.templateName, content: v3Form.templateContent, category: v3Form.templateCategory || undefined });
+                  showToast("success", "Template created");
+                  setV3Form({ ...v3Form, templateName: "", templateContent: "", templateCategory: "" });
+                } catch (e: any) { showToast("error", e?.message ?? "Failed"); }
+              }}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 rounded-xl text-sm"
+            >
+              Create Template
+            </button>
+            {templates && templates.templates && templates.templates.length > 0 && (
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {templates.templates.map((t: any) => (
+                  <div key={t._id} className="bg-slate-800/50 rounded-xl p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-xs text-white font-bold">{t.name}</div>
+                        <div className="text-[10px] text-slate-400">{t.category ?? "uncategorized"} · used {t.useCount}×</div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await useTemplate({ adminToken, templateId: t._id });
+                              if (res?.template) {
+                                setScheduleForm({ ...scheduleForm, content: res.template.content, hashtags: (res.template.hashtags ?? []).join(" ") });
+                                setScheduleModal(true);
+                                setV3Modal(null);
+                              }
+                            } catch (e: any) { showToast("error", e?.message ?? "Failed"); }
+                          }}
+                          className="text-xs text-emerald-400 hover:text-emerald-300 font-bold"
+                        >
+                          Use
+                        </button>
+                        <button
+                          onClick={async () => {
+                            try { await deleteTemplate({ adminToken, templateId: t._id }); showToast("success", "Deleted"); }
+                            catch (e: any) { showToast("error", e?.message ?? "Failed"); }
+                          }}
+                          className="text-xs text-rose-400 hover:text-rose-300 font-bold"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1 truncate">{t.content.slice(0, 100)}...</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {v3Modal === "approvals" && (
+        <Modal title="✅ Pending Approvals" onClose={() => setV3Modal(null)}>
+          <div className="space-y-3">
+            {!pendingApprovals || pendingApprovals.posts.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">
+                <div className="text-3xl mb-2">✅</div>
+                <div className="text-sm">No posts pending approval</div>
+              </div>
+            ) : (
+              pendingApprovals.posts.map((p: any) => (
+                <div key={p._id} className="bg-slate-800/50 border border-amber-500/20 rounded-xl p-3 space-y-2">
+                  <div className="text-xs text-white font-bold truncate">{p.content.slice(0, 120)}...</div>
+                  <div className="flex flex-wrap gap-1">
+                    {(p.platforms ?? []).map((plat: string) => (
+                      <span key={plat} className="px-1.5 py-0.5 bg-slate-700 text-slate-300 rounded text-[9px]">{plat}</span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        try { await approvePost({ adminToken, postId: p._id }); showToast("success", "Approved"); }
+                        catch (e: any) { showToast("error", e?.message ?? "Failed"); }
+                      }}
+                      className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-1.5 rounded-lg text-xs"
+                    >
+                      ✓ Approve
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const reason = prompt("Rejection reason:");
+                        if (!reason) return;
+                        try { await rejectPost({ adminToken, postId: p._id, reason }); showToast("success", "Rejected"); }
+                        catch (e: any) { showToast("error", e?.message ?? "Failed"); }
+                      }}
+                      className="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-bold py-1.5 rounded-lg text-xs"
+                    >
+                      ✕ Reject
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {v3Modal === "export" && (
+        <Modal title="⬇️ Export Posts (CSV)" onClose={() => setV3Modal(null)}>
+          <div className="space-y-3">
+            {exportPosts && !exportPosts.authError ? (
+              <>
+                <div className="text-xs text-slate-400">{exportPosts.count} posts exported</div>
+                <textarea
+                  readOnly
+                  value={exportPosts.csv}
+                  className="w-full bg-slate-800 text-emerald-300 rounded-xl px-3 py-2 text-xs font-mono"
+                  rows={12}
+                />
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(exportPosts.csv);
+                    showToast("success", "CSV copied to clipboard");
+                  }}
+                  className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 rounded-xl text-sm"
+                >
+                  Copy to Clipboard
+                </button>
+                <button
+                  onClick={() => {
+                    const blob = new Blob([exportPosts.csv], { type: "text/csv" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `trypost-export-${new Date().toISOString().slice(0, 10)}.csv`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    showToast("success", "Downloaded");
+                  }}
+                  className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 rounded-xl text-sm"
+                >
+                  Download CSV
+                </button>
+              </>
+            ) : (
+              <div className="text-center py-8 text-slate-400">
+                <div className="text-3xl mb-2">📊</div>
+                <div className="text-sm">No posts to export</div>
+              </div>
+            )}
           </div>
         </Modal>
       )}

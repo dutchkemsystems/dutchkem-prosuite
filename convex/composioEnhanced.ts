@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { tryGetAdminSession } from "./auth_helpers";
+import { getAllToolkitDetails, getToolkitDetail, searchTools } from "./composioToolkitDetails";
 
 // ═══════════════════════════════════════════════════════════════════
 // COMPOSIO ENHANCED — Triggers, Webhooks, Observability, Custom Tools
@@ -138,6 +139,124 @@ export const getToolCatalogStats = query({
         successRate: recentLogs.length > 0 ? (success / recentLogs.length) * 100 : 100,
       },
     };
+  },
+});
+
+// ─── TOOLKIT DETAILS (clickable catalog) ───
+
+export const getToolkitDetails = query({
+  args: { adminToken: v.optional(v.string()) },
+  returns: v.any(),
+  handler: async (ctx, { adminToken }) => {
+    const identity = await tryGetAdminSession(ctx, adminToken);
+    if (!identity) return { authError: true, toolkits: [] };
+    const toolkits = getAllToolkitDetails().map((tk) => ({
+      toolkit: tk.toolkit,
+      name: tk.name,
+      icon: tk.icon,
+      category: tk.category,
+      description: tk.description,
+      toolCount: tk.tools.length,
+      tools: tk.tools,
+    }));
+    return { authError: false, toolkits };
+  },
+});
+
+export const getToolkitDetailByName = query({
+  args: { adminToken: v.optional(v.string()), toolkit: v.string() },
+  returns: v.any(),
+  handler: async (ctx, { adminToken, toolkit }) => {
+    const identity = await tryGetAdminSession(ctx, adminToken);
+    if (!identity) return { authError: true, toolkit: null };
+    const detail = getToolkitDetail(toolkit);
+    if (!detail) return { authError: false, toolkit: null };
+    return {
+      authError: false,
+      toolkit: {
+        toolkit: detail.toolkit,
+        name: detail.name,
+        icon: detail.icon,
+        category: detail.category,
+        description: detail.description,
+        toolCount: detail.tools.length,
+        tools: detail.tools,
+      },
+    };
+  },
+});
+
+export const searchAllTools = query({
+  args: { adminToken: v.optional(v.string()), query: v.string(), toolkitFilter: v.optional(v.string()) },
+  returns: v.any(),
+  handler: async (ctx, { adminToken, query, toolkitFilter }) => {
+    const identity = await tryGetAdminSession(ctx, adminToken);
+    if (!identity) return { authError: true, results: [] };
+    const results = searchTools(query, toolkitFilter);
+    return { authError: false, results };
+  },
+});
+
+export const executeToolByName = action({
+  args: {
+    adminToken: v.string(),
+    toolkit: v.string(),
+    toolName: v.string(),
+    params: v.any(),
+    agentId: v.optional(v.string()),
+    clientId: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const start = Date.now();
+    const apiKey = process.env.COMPOSIO_API_KEY;
+    const composioUserId = "admin_" + args.adminToken.slice(0, 16);
+
+    let response: any = { success: false, error: "Unknown" };
+    try {
+      const detail = getToolkitDetail(args.toolkit);
+      const toolExists = detail?.tools.some((t) => t.name === args.toolName);
+      if (!toolExists) {
+        response = { success: false, error: `Tool "${args.toolName}" not found in toolkit "${args.toolkit}"` };
+      } else {
+        const res = await fetch("https://backend.composio.dev/api/v2/actions/execute", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey ?? "",
+          },
+          body: JSON.stringify({
+            actionName: `${args.toolkit.toUpperCase()}_${args.toolName.toUpperCase()}`,
+            input: args.params ?? {},
+            userId: composioUserId,
+            connectedAccountId: "default",
+          }),
+        });
+        const json: any = await res.json().catch(() => ({}));
+        response = {
+          success: res.ok,
+          status: res.status,
+          data: json?.data ?? json,
+          toolSlug: `${args.toolkit}/${args.toolName}`,
+        };
+      }
+    } catch (e: any) {
+      response = { success: false, error: e?.message ?? String(e) };
+    }
+
+    const durationMs = Date.now() - start;
+    await ctx.runMutation(internal.composioEnhanced._logInvocation, {
+      action: `${args.toolkit}/${args.toolName}`,
+      platform: args.toolkit,
+      status: response.success ? "success" : "failed",
+      duration: durationMs,
+      params: args.params ?? {},
+      result: response.data,
+      error: response.success ? undefined : response.error,
+      adminId: "admin_" + args.adminToken.slice(0, 16),
+    });
+
+    return { ...response, durationMs };
   },
 });
 

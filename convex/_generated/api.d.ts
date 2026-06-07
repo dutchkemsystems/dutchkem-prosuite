@@ -42,6 +42,7 @@ import type * as communication from "../communication.js";
 import type * as composioClient from "../composioClient.js";
 import type * as composioEnhanced from "../composioEnhanced.js";
 import type * as composioHub from "../composioHub.js";
+import type * as composioToolkitDetails from "../composioToolkitDetails.js";
 import type * as composio_admin from "../composio_admin.js";
 import type * as content_agent from "../content_agent.js";
 import type * as content_chat from "../content_chat.js";
@@ -171,6 +172,7 @@ declare const fullApi: ApiFromModules<{
   composioClient: typeof composioClient;
   composioEnhanced: typeof composioEnhanced;
   composioHub: typeof composioHub;
+  composioToolkitDetails: typeof composioToolkitDetails;
   composio_admin: typeof composio_admin;
   content_agent: typeof content_agent;
   content_chat: typeof content_chat;
