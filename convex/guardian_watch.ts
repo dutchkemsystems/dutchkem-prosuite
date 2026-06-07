@@ -335,11 +335,11 @@ export const _countHealthLogs = internalQuery({
 export const _getActiveSessions = internalQuery({
   args: {},
   returns: v.array(v.any()),
-  handler: async (ctx) => await ctx.db.query("admin_sessions").take(50),
+  handler: async (ctx) => await ctx.db.query("user_sessions").take(50),
 });
 
 export const _revokeSession = internalMutation({
-  args: { sessionId: v.id("admin_sessions") },
+  args: { sessionId: v.id("user_sessions") },
   returns: v.null(),
   handler: async (ctx, args) => { await ctx.db.delete(args.sessionId); },
 });

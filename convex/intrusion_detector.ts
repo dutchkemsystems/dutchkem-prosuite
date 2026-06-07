@@ -70,8 +70,24 @@ export const isIpBlocked = internalQuery({
     if (!blocked) return false;
     if (blocked.permanent) return true;
     if (blocked.expiresAt && blocked.expiresAt > Date.now()) return true;
-    await ctx.db.delete(blocked._id);
     return false;
+  },
+});
+
+export const cleanupExpiredBlocks = mutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const now = Date.now();
+    const blocks = await ctx.db.query("blocked_ips").collect();
+    let cleaned = 0;
+    for (const block of blocks) {
+      if (!block.permanent && block.expiresAt && block.expiresAt < now) {
+        await ctx.db.delete(block._id);
+        cleaned++;
+      }
+    }
+    return cleaned;
   },
 });
 

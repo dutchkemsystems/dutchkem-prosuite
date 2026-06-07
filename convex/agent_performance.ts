@@ -94,6 +94,20 @@ export const pauseAgent = mutation({
   },
 });
 
+export const getAllAgentPerformance = query({
+  args: { period: v.optional(v.string()) },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const agentIds = Array.from({ length: 15 }, (_, i) => `A${i + 1}`);
+    const agents = [];
+    for (const agentId of agentIds) {
+      const logs = await ctx.db.query("agent_autonomy_logs").withIndex("by_agent", (q) => q.eq("agentId", agentId)).take(5);
+      agents.push({ agentId, logCount: logs.length, lastActivity: logs[0]?.createdAt ?? 0 });
+    }
+    return { agents, period: args.period ?? "weekly" };
+  },
+});
+
 export const getAgentPerformanceDashboard = query({
   args: { adminToken: v.optional(v.string()) },
   returns: v.any(),

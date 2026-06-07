@@ -2883,9 +2883,9 @@ function CloudMemoryPanel({ adminToken }: { adminToken: string }) {
           {/* Health Status */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <MetricCard label="System Health" value={`${health?.healthScore || 100}%`} icon="🛡️" color={health?.status === 'optimal' ? 'emerald' : 'amber'} subValue={health?.status === 'optimal' ? 'OPTIMAL' : 'DEGRADED'} />
-            <MetricCard label="Active Backups" value={health?.database?.tables?.backups || 0} icon="☁️" color="cyan" subValue="Auto-synced" />
-            <MetricCard label="Active Sessions" value={health?.database?.tables?.sessions || 0} icon="👥" color="blue" />
-            <MetricCard label="Stuck Posts" value={health?.database?.tables?.posts || 0} icon="⚠️" color={(health?.database?.tables?.posts || 0) > 0 ? 'red' : 'emerald'} subValue={(health?.database?.tables?.posts || 0) > 0 ? 'Needs attention' : 'All clear'} />
+            <MetricCard label="Active Backups" value={health?.backups || 0} icon="☁️" color="cyan" subValue="Auto-synced" />
+            <MetricCard label="Active Sessions" value={0} icon="👥" color="blue" />
+            <MetricCard label="Stuck Posts" value={health?.social?.stuckPosts || 0} icon="⚠️" color={(health?.social?.stuckPosts || 0) > 0 ? 'red' : 'emerald'} subValue={(health?.social?.stuckPosts || 0) > 0 ? 'Needs attention' : 'All clear'} />
           </div>
 
           {/* Last Healing Result */}
