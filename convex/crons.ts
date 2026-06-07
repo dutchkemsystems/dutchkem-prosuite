@@ -496,4 +496,32 @@ crons.interval(
   {}
 );
 
+// ═══════════════════════════════════════════════════════════════════
+// NIGERIA TAX ACT 2025 — COMPLIANCE AUTOMATION
+// ═══════════════════════════════════════════════════════════════════
+
+// 📋 Seed expense categories (1st of year safety net)
+crons.cron(
+  "seed expense categories",
+  "0 0 1 1 *",
+  internal.tax.seedExpenseCategories,
+  {}
+);
+
+// 📅 Seed tax payment schedule (1st of year)
+crons.cron(
+  "seed tax payment schedule",
+  "0 1 1 1 *",
+  internal.tax.seedTaxPaymentSchedule,
+  { taxYear: new Date().getFullYear() }
+);
+
+// ⏰ Check for overdue tax payments (daily at 9 AM)
+crons.interval(
+  "check overdue tax payments",
+  { hours: 24 },
+  internal.tax._checkOverduePayments,
+  {}
+);
+
 export default crons;

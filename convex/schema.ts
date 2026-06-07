@@ -2198,4 +2198,71 @@ export default defineSchema({
   })
     .index("by_status", ["status"])
     .index("by_created", ["createdAt"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // NIGERIAN TAX COMPLIANCE — Nigeria Tax Act 2025
+  // ═══════════════════════════════════════════════════════════════════
+
+  expense_categories: defineTable({
+    name: v.string(),
+    description: v.string(),
+    deductiblePercentage: v.number(),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_name", ["name"]),
+
+  business_expenses: defineTable({
+    category: v.string(),
+    description: v.string(),
+    amountNgn: v.number(),
+    receiptUrl: v.optional(v.string()),
+    receiptData: v.optional(v.string()),
+    expenseDate: v.number(),
+    isDeductible: v.boolean(),
+    deductibleAmount: v.number(),
+    taxYear: v.number(),
+    verifiedBy: v.optional(v.string()),
+    verifiedAt: v.optional(v.number()),
+    status: v.union(v.literal("pending"), v.literal("verified"), v.literal("rejected")),
+    createdAt: v.number(),
+  })
+    .index("by_category", ["category"])
+    .index("by_tax_year", ["taxYear"])
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
+
+  tax_calculations: defineTable({
+    taxYear: v.number(),
+    totalIncome: v.number(),
+    totalDeductibleExpenses: v.number(),
+    taxableIncome: v.number(),
+    taxFreeThreshold: v.number(),
+    effectiveRate: v.number(),
+    taxOwed: v.number(),
+    citOwed: v.number(),
+    turnover: v.number(),
+    isSmallBusiness: v.boolean(),
+    breakdown: v.any(),
+    calculatedBy: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_tax_year", ["taxYear"])
+    .index("by_created", ["createdAt"]),
+
+  tax_payment_schedule: defineTable({
+    taxYear: v.number(),
+    quarter: v.string(),
+    dueDate: v.string(),
+    estimatedAmount: v.number(),
+    paidAmount: v.number(),
+    status: v.union(v.literal("upcoming"), v.literal("paid"), v.literal("overdue"), v.literal("deferred")),
+    paymentRef: v.optional(v.string()),
+    paidAt: v.optional(v.number()),
+    reminderSent: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_tax_year", ["taxYear"])
+    .index("by_status", ["status"])
+    .index("by_due_date", ["dueDate"]),
 });
