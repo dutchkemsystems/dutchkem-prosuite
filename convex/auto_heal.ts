@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { tryGetAdminSession } from "./auth_helpers";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -572,8 +572,7 @@ export const triggerAutoHealRun = action({
   args: { adminToken: v.string() },
   returns: v.any(),
   handler: async (ctx, args): Promise<any> => {
-    const internalAny: any = internal.auto_heal;
-    const identity = await ctx.runQuery(internalAny._verifyAdminAction, {
+    const identity: any = await ctx.runQuery(internal.auto_heal._verifyAdminAction, {
       adminToken: args.adminToken,
     });
     if (!identity) throw new Error("Unauthorized");
@@ -581,12 +580,10 @@ export const triggerAutoHealRun = action({
     const runId = `manual-${Date.now()}`;
     const now = Date.now();
 
-    // Create a run record
-    await ctx.runMutation(internalAny.startRun, {
+    // Create a run record (public mutation — must use api)
+    await ctx.runMutation((api as any).auto_heal.startRun, {
       runId,
       triggeredBy: "admin-ui",
-      status: "running",
-      startedAt: now,
       hostInfo: `Manual trigger from admin UI`,
     });
 
@@ -596,7 +593,7 @@ export const triggerAutoHealRun = action({
     // 1. Check database
     const s1Start = Date.now();
     try {
-      const userCount = await ctx.runQuery(internalAny._checkUserCount);
+      const userCount = await ctx.runQuery(internal.auto_heal._checkUserCount);
       sections.push({ name: "database", status: "ok", message: `${userCount} users`, durationMs: Date.now() - s1Start });
     } catch (e: any) {
       sections.push({ name: "database", status: "error", message: e?.message ?? "DB check failed", durationMs: Date.now() - s1Start });
@@ -613,7 +610,7 @@ export const triggerAutoHealRun = action({
     // 3. Check platform connections
     const s3Start = Date.now();
     try {
-      const connCount = await ctx.runQuery(internalAny._checkPlatformConnections);
+      const connCount = await ctx.runQuery(internal.auto_heal._checkPlatformConnections);
       sections.push({ name: "platform-connections", status: "ok", message: `${connCount} connections`, durationMs: Date.now() - s3Start });
     } catch (e: any) {
       sections.push({ name: "platform-connections", status: "warn", message: e?.message ?? "Connection check issue", durationMs: Date.now() - s3Start });
@@ -639,15 +636,15 @@ export const triggerAutoHealRun = action({
     const warns = sections.filter((s) => s.status === "warn").length;
     const finalStatus = errors > 0 ? "failed" : warns > 0 ? "partial" : "success";
 
-    // Complete the run
-    await ctx.runMutation(internalAny.completeRun, {
+    // Complete the run (public mutation — must use api)
+    await ctx.runMutation((api as any).auto_heal.completeRun, {
       runId,
-      status: finalStatus,
-      completedAt: Date.now(),
-      durationMs: Date.now() - now,
-      sections,
+      status: finalStatus as any,
       issuesFound: errors + warns,
       issuesFixed: 0,
+      convexDeployed: false,
+      vercelDeployed: false,
+      summary: `Manual UI run: ${sections.length} sections, ${errors} errors, ${warns} warnings`,
     });
 
     return {

@@ -263,6 +263,44 @@ export const getGuardianLogs = query({
   },
 });
 
+export const getSystemHealthStatus = query({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").take(100);
+    const conns = await ctx.db.query("platform_connections").take(100);
+    const sessions = await ctx.db.query("user_sessions").take(100);
+    const activeSessions = sessions.filter((s: any) => s.expiresAt && s.expiresAt > Date.now());
+    return {
+      userCount: users.length,
+      connectionCount: conns.length,
+      activeSessions: activeSessions.length,
+      status: users.length > 0 ? "operational" : "degraded",
+    };
+  },
+});
+
+export const getGuardianDashboard = query({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const logs = await ctx.db.query("guardian_tests").order("desc").take(100);
+    const users = await ctx.db.query("users").take(100);
+    const conns = await ctx.db.query("platform_connections").take(100);
+    const healingLogs = await ctx.db.query("healing_logs").take(50);
+    return {
+      totalTests: logs.length,
+      passCount: logs.filter((l: any) => l.status === "pass").length,
+      failCount: logs.filter((l: any) => l.status === "fail").length,
+      healedCount: logs.filter((l: any) => l.status === "healed").length,
+      userCount: users.length,
+      connectionCount: conns.length,
+      recentHealing: healingLogs.slice(0, 5),
+      status: logs.length > 0 && logs.filter((l: any) => l.status === "fail").length === 0 ? "optimal" : "attention",
+    };
+  },
+});
+
 export const monitorAllSystems = internalAction({
   args: {},
   returns: v.any(),

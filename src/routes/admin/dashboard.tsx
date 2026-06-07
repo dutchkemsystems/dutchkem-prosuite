@@ -180,7 +180,7 @@ function AdminDashboardPage() {
             {activeTab === "guardian" && <GuardianWatchPanel />}
             {activeTab === "tax" && <TaxDashboardPanel />}
             {activeTab === "payouts" && <DailySweepStatusPanel />}
-            {activeTab === "security" && <SecurityHubPanel />}
+            {activeTab === "security" && <SecurityHubPanel adminToken={adminToken} />}
             {activeTab === "agents" && <AgentHealthMatrixLazy />}
             {activeTab === "freelancers" && <FreelancerPanelLazy />}
             {activeTab === "audit" && <AuditTrailPanel />}
@@ -1192,6 +1192,7 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
 
 function GuardianWatchPanel() {
   const { data: logs } = useSuspenseQuery(convexQuery(api.guardian_watch.getGuardianLogs, {}));
+  const { data: dashboard } = useSuspenseQuery(convexQuery(api.guardian_watch.getGuardianDashboard, {})) as { data: any };
   const runDiagnosis = useAction(api.guardian_watch.runFullDiagnosis);
   const [running, setRunning] = useState(false);
 
@@ -1200,6 +1201,8 @@ function GuardianWatchPanel() {
     await runDiagnosis({});
     setRunning(false);
   };
+
+  const dash = dashboard ?? {};
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
@@ -1221,10 +1224,10 @@ function GuardianWatchPanel() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <MetricCard label="System Integrity" value="OPTIMAL" icon="🛡️" color="emerald" />
-            <MetricCard label="Active Sentinels" value="12" icon="👁️" color="blue" />
-            <MetricCard label="Total Tests" value={logs.length} icon="🧪" color="indigo" />
-            <MetricCard label="Healed Issues" value={logs.filter((l: any) => l.status === 'healed').length} icon="🏥" color="teal" />
+            <MetricCard label="System Status" value={dash.status === 'optimal' ? 'OPTIMAL' : 'ATTENTION'} icon="🛡️" color={dash.status === 'optimal' ? 'emerald' : 'amber'} />
+            <MetricCard label="Users" value={dash.userCount ?? 0} icon="👥" color="blue" />
+            <MetricCard label="Total Tests" value={dash.totalTests ?? logs.length} icon="🧪" color="indigo" />
+            <MetricCard label="Healed Issues" value={dash.healedCount ?? logs.filter((l: any) => l.status === 'healed').length} icon="🏥" color="teal" />
           </div>
 
           <div className="bg-slate-950 p-10 rounded-[2.5rem] border border-white/5">
@@ -1965,58 +1968,126 @@ function DailySweepStatusPanel() {
    )
 }
 
-function SecurityHubPanel() {
+function SecurityHubPanel({ adminToken }: { adminToken: string }) {
    const { data: beneficiaries } = useSuspenseQuery(convexQuery(api.payouts.getBeneficiaries, {}));
-   const rotateKeys = useMutation(api.admin.rotateEncryptionKeys);
+   const securityDashboard = useSuspenseQuery(convexQuery(api.intrusion_detector.getSecurityDashboard, {})) as { data: any };
+   const geoStats = useSuspenseQuery(convexQuery(api.geo_tracking.getGeoStats, {})) as any;
+   const resolveLog = useMutation(api.intrusion_detector.resolveSecurityLog);
+   const unblockIp = useMutation(api.intrusion_detector.unblockIp);
 
-  // handleRotate removed — rotateSocialAgentsManual not in current social engine
-  const handleRotate = async () => {
-    alert("Agent rotation not available in this version");
-  };
+   const dash = securityDashboard?.data ?? {};
+   const geo = geoStats ?? {};
 
    return (
       <div className="space-y-12 animate-in fade-in duration-700">
+         {/* Security Dashboard Header */}
          <div className="bg-gradient-to-br from-indigo-600/20 to-slate-900 border border-indigo-500/20 rounded-[3.5rem] p-12 relative overflow-hidden">
             <div className="relative z-10 space-y-10">
                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-6">
                      <div className="w-20 h-20 bg-white rounded-[2.5rem] flex items-center justify-center text-4xl shadow-2xl">🔐</div>
                      <div>
-                        <h3 className="text-3xl font-black uppercase tracking-tighter text-white leading-tight">Encryption Hub</h3>
-                        <p className="text-xs font-black text-indigo-500 uppercase tracking-widest mt-1">AES-256-GCM (Institutional Grade)</p>
-                     </div>
-                  </div>
-                  <button onClick={handleRotate} className="px-8 py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-indigo-600/20">Rotate Keys</button>
-               </div>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                  <div className="bg-slate-950/50 p-10 rounded-[2.5rem] border border-white/5 space-y-6">
-                     <p className="text-xs font-black text-slate-500 uppercase tracking-[0.3em]">Encrypted Beneficiaries</p>
-                     <div className="space-y-4">
-                         {beneficiaries.map((b: any) => (
-                            <div key={b._id} className="flex justify-between items-center py-4 border-b border-white/5">
-                               <div>
-                                  <p className="text-sm font-black text-white">{b.bankName}</p>
-                                  <p className="text-[10px] font-mono text-slate-500 truncate max-w-[150px]">AES256:{b.encryptedAccountNumber.slice(0,12)}...</p>
-                               </div>
-                               <span className="px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-full text-[8px] font-black uppercase">ACTIVE</span>
-                            </div>
-                         ))}
-                     </div>
-                     <button className="w-full py-4 border border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-400 hover:bg-white hover:text-slate-950 transition-all">+ Add Encrypted Destination</button>
-                  </div>
-                  <div className="bg-slate-950/50 p-10 rounded-[2.5rem] border border-white/5 space-y-8">
-                     <p className="text-xs font-black text-slate-500 uppercase tracking-[0.3em]">Security Metrics</p>
-                     <div className="space-y-6">
-                        <SecurityBar label="Entropy Pool Integrity" value={98} color="indigo" />
-                        <SecurityBar label="Database Encryption" value={100} color="emerald" />
-                        <SecurityBar label="TLS 1.3 Hardening" value={100} color="indigo" />
-                     </div>
-                     <div className="pt-4 grid grid-cols-2 gap-4">
-                        <div className="text-center p-4 bg-slate-900 rounded-2xl"><p className="text-[8px] font-black text-slate-500 uppercase mb-1">Last Rotation</p><p className="text-xs font-black text-white">MAY 1, 2026</p></div>
-                        <div className="text-center p-4 bg-slate-900 rounded-2xl"><p className="text-[8px] font-black text-slate-500 uppercase mb-1">Next Scheduled</p><p className="text-xs font-black text-white">AUG 1, 2026</p></div>
+                        <h3 className="text-3xl font-black uppercase tracking-tighter text-white leading-tight">Security Hub</h3>
+                        <p className="text-xs font-black text-indigo-500 uppercase tracking-widest mt-1">Intrusion Detection &amp; Geo-Blocking</p>
                      </div>
                   </div>
                </div>
+
+               {/* Live Security Metrics */}
+               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  <MetricCard label="Total Incidents (24h)" value={dash.totalIncidents ?? 0} icon="🚨" color="red" />
+                  <MetricCard label="Critical Alerts" value={dash.criticalCount ?? 0} icon="💀" color="red" subValue="Immediate" />
+                  <MetricCard label="High Severity" value={dash.highCount ?? 0} icon="⚠️" color="amber" />
+                  <MetricCard label="Blocked IPs" value={dash.activeBlockedIps ?? 0} icon="🚫" color="slate" />
+               </div>
+
+               {/* Incident Breakdown by Type */}
+               <div className="bg-slate-950/50 p-10 rounded-[2.5rem] border border-white/5 space-y-6">
+                  <p className="text-xs font-black text-slate-500 uppercase tracking-[0.3em]">Incidents by Type (24h)</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                     {Object.entries(dash.byType ?? {}).map(([type, count]) => (
+                        <div key={type} className="text-center p-4 bg-slate-900 rounded-2xl">
+                           <p className="text-2xl font-black text-white">{count as number}</p>
+                           <p className="text-[9px] font-black text-slate-500 uppercase mt-1">{type}</p>
+                        </div>
+                     ))}
+                     {Object.keys(dash.byType ?? {}).length === 0 && (
+                        <div className="col-span-4 text-center p-4 bg-emerald-500/10 rounded-2xl">
+                           <p className="text-xs font-black text-emerald-500">No incidents detected</p>
+                        </div>
+                     )}
+                  </div>
+               </div>
+
+               {/* Geo-Blocking Stats */}
+               <div className="bg-slate-950/50 p-10 rounded-[2.5rem] border border-white/5 space-y-6">
+                  <p className="text-xs font-black text-slate-500 uppercase tracking-[0.3em]">Geo-Blocking (Arab League)</p>
+                  <div className="flex items-center gap-4 mb-4">
+                     <span className="text-3xl font-black text-white">{geo.totalBlocked ?? 0}</span>
+                     <span className="text-xs font-black text-slate-500 uppercase">blocked attempts (all time)</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                     {Object.entries(geo.byCountry ?? {}).slice(0, 6).map(([country, count]) => (
+                        <div key={country} className="flex justify-between items-center p-3 bg-slate-900 rounded-xl">
+                           <span className="text-[10px] font-black text-slate-400">{country}</span>
+                           <span className="text-xs font-black text-white">{count as number}</span>
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         {/* Security Logs */}
+         <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden">
+            <div className="p-10 border-b border-slate-800">
+               <h3 className="text-xl font-black uppercase tracking-tighter">Security Logs</h3>
+            </div>
+            <div className="divide-y divide-slate-800">
+               {(dash.recentLogs ?? []).slice(0, 20).map((log: any) => (
+                  <div key={log._id} className="p-6 flex items-center justify-between hover:bg-slate-800/50 transition-colors">
+                     <div className="flex items-center gap-4">
+                        <div className={`w-3 h-3 rounded-full ${log.severity === 'critical' ? 'bg-red-500' : log.severity === 'high' ? 'bg-amber-500' : log.severity === 'medium' ? 'bg-yellow-500' : 'bg-slate-500'}`}></div>
+                        <div>
+                           <p className="text-sm font-black text-white">{log.type}</p>
+                           <p className="text-[10px] text-slate-500">{log.details}{log.ip ? ` — IP: ${log.ip}` : ''}</p>
+                        </div>
+                     </div>
+                     <div className="flex items-center gap-3">
+                        <span className={`px-2 py-1 rounded-full text-[8px] font-black uppercase ${log.resolved ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                           {log.resolved ? 'Resolved' : 'Open'}
+                        </span>
+                        {!log.resolved && (
+                           <button onClick={() => resolveLog({ adminToken: adminToken, logId: log._id })} className="px-3 py-1 bg-slate-800 hover:bg-emerald-500/20 text-[8px] font-black uppercase rounded-lg transition-colors">
+                              Resolve
+                           </button>
+                        )}
+                     </div>
+                  </div>
+               ))}
+               {(dash.recentLogs ?? []).length === 0 && (
+                  <div className="p-10 text-center">
+                     <p className="text-sm text-slate-500">No security logs in the last 24 hours</p>
+                  </div>
+               )}
+            </div>
+         </div>
+
+         {/* Encrypted Beneficiaries */}
+         <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden">
+            <div className="p-10 border-b border-slate-800">
+               <h3 className="text-xl font-black uppercase tracking-tighter">Encrypted Beneficiaries</h3>
+            </div>
+            <div className="p-10 space-y-4">
+               {beneficiaries.map((b: any) => (
+                  <div key={b._id} className="flex justify-between items-center py-4 border-b border-white/5">
+                     <div>
+                        <p className="text-sm font-black text-white">{b.bankName}</p>
+                        <p className="text-[10px] font-mono text-slate-500 truncate max-w-[150px]">AES256:{b.encryptedAccountNumber.slice(0,12)}...</p>
+                     </div>
+                     <span className="px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-full text-[8px] font-black uppercase">ACTIVE</span>
+                  </div>
+               ))}
             </div>
          </div>
       </div>
