@@ -112,8 +112,8 @@ export const getComposioStatus = query({
       const agentSetting = agentSettings.find(a => a.agentId === agentId);
       return {
         agentId,
-        composioEnabled: agentSetting?.composioEnabled ?? false,
-        enabledPlatforms: agentSetting?.enabledPlatforms ?? [],
+        composioEnabled: agentSetting?.enabled ?? agentSetting?.composioEnabled ?? false,
+        enabledPlatforms: agentSetting?.tools ?? agentSetting?.enabledPlatforms ?? [],
       };
     });
 
@@ -476,16 +476,22 @@ export const toggleAgentComposio = mutation({
     if (!identity) return null;
 
     const existing = await ctx.db.query("composio_agent_settings")
-      .withIndex("by_agent", q => q.eq("agentId", agentId))
+      .withIndex("by_agent_id", q => q.eq("agentId", agentId))
       .first();
 
     if (existing) {
-      await ctx.db.patch("composio_agent_settings", existing._id, { composioEnabled, updatedAt: Date.now() });
+      await ctx.db.patch(existing._id, { enabled: composioEnabled, composioEnabled, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("composio_agent_settings", {
         agentId,
+        agentName: agentId,
+        agentIcon: "🤖",
+        enabled: composioEnabled,
         composioEnabled,
-        enabledPlatforms: [],
+        tools: [],
+        toolCount: 0,
+        configVersion: 1,
+        createdAt: Date.now(),
         updatedAt: Date.now(),
       });
     }
@@ -504,16 +510,23 @@ export const setAgentPlatforms = mutation({
     if (!identity) return null;
 
     const existing = await ctx.db.query("composio_agent_settings")
-      .withIndex("by_agent", q => q.eq("agentId", agentId))
+      .withIndex("by_agent_id", q => q.eq("agentId", agentId))
       .first();
 
     if (existing) {
-      await ctx.db.patch("composio_agent_settings", existing._id, { enabledPlatforms, updatedAt: Date.now() });
+      await ctx.db.patch(existing._id, { tools: enabledPlatforms, enabledPlatforms, toolCount: enabledPlatforms.length, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("composio_agent_settings", {
         agentId,
+        agentName: agentId,
+        agentIcon: "🤖",
+        enabled: true,
         composioEnabled: true,
+        tools: enabledPlatforms,
         enabledPlatforms,
+        toolCount: enabledPlatforms.length,
+        configVersion: 1,
+        createdAt: Date.now(),
         updatedAt: Date.now(),
       });
     }

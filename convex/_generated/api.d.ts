@@ -41,6 +41,7 @@ import type * as cloud_memory from "../cloud_memory.js";
 import type * as communication from "../communication.js";
 import type * as composioClient from "../composioClient.js";
 import type * as composioEnhanced from "../composioEnhanced.js";
+import type * as composioEnhancement from "../composioEnhancement.js";
 import type * as composioHub from "../composioHub.js";
 import type * as composioToolkitDetails from "../composioToolkitDetails.js";
 import type * as composio_admin from "../composio_admin.js";
@@ -171,6 +172,7 @@ declare const fullApi: ApiFromModules<{
   communication: typeof communication;
   composioClient: typeof composioClient;
   composioEnhanced: typeof composioEnhanced;
+  composioEnhancement: typeof composioEnhancement;
   composioHub: typeof composioHub;
   composioToolkitDetails: typeof composioToolkitDetails;
   composio_admin: typeof composio_admin;

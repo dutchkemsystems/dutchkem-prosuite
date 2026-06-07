@@ -17,6 +17,7 @@ import { RenewalsTithePanel } from "~/components/RenewalsTithePanel";
 import { ComposioObservability } from "~/components/ComposioObservability";
 import { TryPostScheduler } from "~/components/TryPostScheduler";
 import { AutoHealDashboard } from "~/components/AutoHealDashboard";
+import { ComposioEnhancementPanel } from "~/components/ComposioEnhancementPanel";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -153,6 +154,7 @@ function AdminDashboardPage() {
               <AdminTab active={activeTab === "trypost"} onClick={() => setActiveTab("trypost")} icon="📅" label="TryPost" />
               <AdminTab active={activeTab === "auto-heal"} onClick={() => setActiveTab("auto-heal")} icon="🛡️" label="Auto-Heal" />
               <AdminTab active={activeTab === "renewals-tithe"} onClick={() => setActiveTab("renewals-tithe")} icon="🔄" label="Renewals & Tithe" />
+              <AdminTab active={activeTab === "composio-enhance"} onClick={() => setActiveTab("composio-enhance")} icon="🔧" label="Composio Enhance" />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -197,8 +199,9 @@ function AdminDashboardPage() {
              {activeTab === "composio-obs" && <ComposioObservability adminToken={adminToken} />}
              {activeTab === "trypost" && <TryPostScheduler adminToken={adminToken} />}
              {activeTab === "auto-heal" && <AutoHealDashboard adminToken={adminToken} />}
-             {activeTab === "renewals-tithe" && <RenewalsTithePanel adminToken={adminToken} />}
-          </AdminSuspense>
+              {activeTab === "renewals-tithe" && <RenewalsTithePanel adminToken={adminToken} />}
+              {activeTab === "composio-enhance" && <ComposioEnhancementPanel adminToken={adminToken} />}
+           </AdminSuspense>
         </div>
         <Footer />
       </main>

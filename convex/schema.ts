@@ -1392,14 +1392,28 @@ export default defineSchema({
   })
     .index("by_platform", ["platform"]),
 
-  // Per-agent Composio configuration
+  // Per-agent Composio configuration (Enhanced Toggle System)
   composio_agent_settings: defineTable({
     agentId: v.string(),                  // "A1" - "A15"
-    composioEnabled: v.boolean(),
-    enabledPlatforms: v.array(v.string()),// ["twitter", "linkedin"]
+    agentName: v.optional(v.string()),
+    agentIcon: v.optional(v.string()),
+    enabled: v.optional(v.boolean()),
+    tools: v.optional(v.array(v.string())),
+    toolCount: v.optional(v.number()),
+    enabledBy: v.optional(v.string()),
+    enabledAt: v.optional(v.number()),
+    disabledBy: v.optional(v.string()),
+    disabledAt: v.optional(v.number()),
+    lastConfiguredAt: v.optional(v.number()),
+    configVersion: v.optional(v.number()),
+    // Legacy fields (kept for backward compat)
+    composioEnabled: v.optional(v.boolean()),
+    enabledPlatforms: v.optional(v.array(v.string())),
     updatedAt: v.number(),
+    createdAt: v.optional(v.number()),
   })
-    .index("by_agent", ["agentId"]),
+    .index("by_agent_id", ["agentId"])
+    .index("by_enabled", ["enabled"]),
 
   // Action execution logs (feeds admin logs + client activity feed)
   composio_action_logs: defineTable({
@@ -2027,4 +2041,26 @@ export default defineSchema({
     .index("by_endpoint", ["endpoint"])
     .index("by_status", ["status"])
     .index("by_checked", ["checkedAt"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // COMPOSIO ENHANCEMENT TOGGLE SYSTEM — AUDIT LOGS
+  // ═══════════════════════════════════════════════════════════════════
+
+  composio_enhancement_logs: defineTable({
+    action: v.string(), // "enable", "disable", "auto-configure", "enable-all", "disable-all"
+    agentId: v.string(),
+    agentName: v.string(),
+    adminId: v.string(),
+    tools: v.array(v.string()),
+    toolCount: v.number(),
+    previousState: v.boolean(),
+    newState: v.boolean(),
+    bulkOperation: v.boolean(),
+    metadata: v.optional(v.any()),
+    timestamp: v.number(),
+  })
+    .index("by_agent", ["agentId"])
+    .index("by_action", ["action"])
+    .index("by_admin", ["adminId"])
+    .index("by_timestamp", ["timestamp"]),
 });
