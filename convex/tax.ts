@@ -497,7 +497,7 @@ export const verifyExpense = mutation({
     if (!identity) return { authError: true };
     await ctx.db.patch(args.expenseId, {
       status: args.approved ? "verified" : "rejected",
-      verifiedBy: identity.userId ?? "admin",
+      verifiedBy: (identity as any)?._id ?? "admin",
       verifiedAt: Date.now(),
     });
     return { success: true };
@@ -509,7 +509,7 @@ export const listBusinessExpenses = query({
   returns: v.any(),
   handler: async (ctx, args) => {
     let q: any = ctx.db.query("business_expenses");
-    if (args.taxYear) q = q.withIndex("by_tax_year", (q2) => q2.eq("taxYear", args.taxYear!));
+    if (args.taxYear) q = q.withIndex("by_tax_year", (q2: any) => q2.eq("taxYear", args.taxYear!));
     const all = await q.order("desc").take(200);
     return all.filter((e: any) => {
       if (args.category && e.category !== args.category) return false;
@@ -594,7 +594,7 @@ export const getTaxCalculations = query({
   handler: async (ctx, args) => {
     const year = args.taxYear;
     let q: any = ctx.db.query("tax_calculations");
-    if (year) q = q.withIndex("by_tax_year", (q2) => q2.eq("taxYear", year!));
+    if (year) q = q.withIndex("by_tax_year", (q2: any) => q2.eq("taxYear", year!));
     return await q.order("desc").take(args.limit ?? 20);
   },
 });
@@ -750,7 +750,7 @@ export const getTaxComplianceDashboard = query({
   },
 });
 
-export const _checkOverduePayments = internalQuery({
+export const _checkOverduePayments = internalMutation({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {

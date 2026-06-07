@@ -2265,4 +2265,289 @@ export default defineSchema({
     .index("by_tax_year", ["taxYear"])
     .index("by_status", ["status"])
     .index("by_due_date", ["dueDate"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ENTERPRISE FEATURES — ADDITIVE LAYER
+  // ═══════════════════════════════════════════════════════════════════
+
+  // ─── AGENT MARKETPLACE ───
+  agent_marketplace_templates: defineTable({
+    templateId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    category: v.string(),
+    author: v.string(),
+    version: v.string(),
+    priceNgn: v.number(),
+    isFree: v.boolean(),
+    config: v.any(),
+    tags: v.array(v.string()),
+    installCount: v.number(),
+    rating: v.number(),
+    reviewCount: v.number(),
+    isPublished: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_template_id", ["templateId"])
+    .index("by_category", ["category"])
+    .index("by_author", ["author"]),
+
+  agent_marketplace_reviews: defineTable({
+    templateId: v.string(),
+    reviewerId: v.string(),
+    reviewerName: v.string(),
+    rating: v.number(),
+    title: v.string(),
+    comment: v.string(),
+    helpful: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_template", ["templateId"])
+    .index("by_reviewer", ["reviewerId"]),
+
+  agent_marketplace_installations: defineTable({
+    templateId: v.string(),
+    installedBy: v.string(),
+    agentId: v.string(),
+    status: v.union(v.literal("active"), v.literal("paused"), v.literal("uninstalled")),
+    installedAt: v.number(),
+    uninstalledAt: v.optional(v.number()),
+  })
+    .index("by_template", ["templateId"])
+    .index("by_installer", ["installedBy"])
+    .index("by_status", ["status"]),
+
+  // ─── KNOWLEDGE GRAPH ───
+  knowledge_graph_nodes: defineTable({
+    nodeId: v.string(),
+    nodeType: v.string(),
+    label: v.string(),
+    description: v.string(),
+    metadata: v.any(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_node_id", ["nodeId"])
+    .index("by_type", ["nodeType"]),
+
+  knowledge_graph_edges: defineTable({
+    edgeId: v.string(),
+    sourceNodeId: v.string(),
+    targetNodeId: v.string(),
+    relationship: v.string(),
+    weight: v.number(),
+    metadata: v.any(),
+    createdAt: v.number(),
+  })
+    .index("by_source", ["sourceNodeId"])
+    .index("by_target", ["targetNodeId"])
+    .index("by_relationship", ["relationship"]),
+
+  knowledge_graph_queries: defineTable({
+    queryText: v.string(),
+    resultCount: v.number(),
+    executionMs: v.number(),
+    queriedBy: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_querier", ["queriedBy"]),
+
+  // ─── COMPANION AGENT ───
+  companion_agent_sessions: defineTable({
+    sessionId: v.string(),
+    userId: v.string(),
+    agentId: v.string(),
+    personality: v.string(),
+    mood: v.string(),
+    isActive: v.boolean(),
+    startedAt: v.number(),
+    lastInteractionAt: v.number(),
+    endedAt: v.optional(v.number()),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_user", ["userId"])
+    .index("by_agent", ["agentId"]),
+
+  companion_agent_memory: defineTable({
+    sessionId: v.string(),
+    userId: v.string(),
+    memoryType: v.string(),
+    content: v.string(),
+    importance: v.number(),
+    createdAt: v.number(),
+    expiresAt: v.optional(v.number()),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_user", ["userId"])
+    .index("by_importance", ["importance"]),
+
+  companion_agent_conversations: defineTable({
+    sessionId: v.string(),
+    userId: v.string(),
+    role: v.union(v.literal("user"), v.literal("agent")),
+    content: v.string(),
+    sentiment: v.optional(v.string()),
+    timestamp: v.number(),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_timestamp", ["timestamp"]),
+
+  // ─── AGENTIC PAYMENTS ───
+  agentic_payment_methods: defineTable({
+    methodId: v.string(),
+    name: v.string(),
+    type: v.string(),
+    provider: v.string(),
+    config: v.any(),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_method_id", ["methodId"])
+    .index("by_type", ["type"]),
+
+  agentic_payment_transactions: defineTable({
+    transactionId: v.string(),
+    agentId: v.string(),
+    methodId: v.string(),
+    amountNgn: v.number(),
+    recipient: v.string(),
+    description: v.string(),
+    status: v.union(v.literal("pending"), v.literal("completed"), v.literal("failed"), v.literal("reversed")),
+    koraReference: v.optional(v.string()),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_agent", ["agentId"])
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
+
+  agentic_payment_limits: defineTable({
+    agentId: v.string(),
+    dailyLimitNgn: v.number(),
+    monthlyLimitNgn: v.number(),
+    perTransactionLimitNgn: v.number(),
+    spentToday: v.number(),
+    spentThisMonth: v.number(),
+    lastResetAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_agent", ["agentId"]),
+
+  // ─── ORCHESTRATION ───
+  orchestration_workflows: defineTable({
+    workflowId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    steps: v.array(v.any()),
+    triggers: v.any(),
+    isActive: v.boolean(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_workflow_id", ["workflowId"])
+    .index("by_creator", ["createdBy"]),
+
+  orchestration_workflow_runs: defineTable({
+    runId: v.string(),
+    workflowId: v.string(),
+    status: v.union(v.literal("running"), v.literal("completed"), v.literal("failed"), v.literal("paused")),
+    currentStep: v.number(),
+    totalSteps: v.number(),
+    result: v.optional(v.any()),
+    error: v.optional(v.string()),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_workflow", ["workflowId"])
+    .index("by_status", ["status"])
+    .index("by_started", ["startedAt"]),
+
+  // ─── EMOTIONAL AI ───
+  emotional_ai_profiles: defineTable({
+    userId: v.string(),
+    dominantEmotion: v.string(),
+    emotionalRange: v.any(),
+    lastUpdated: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"]),
+
+  emotional_ai_interactions: defineTable({
+    userId: v.string(),
+    agentId: v.string(),
+    detectedEmotion: v.string(),
+    confidence: v.number(),
+    responseStrategy: v.string(),
+    content: v.string(),
+    timestamp: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_agent", ["agentId"])
+    .index("by_timestamp", ["timestamp"]),
+
+  emotional_ai_memory: defineTable({
+    userId: v.string(),
+    emotion: v.string(),
+    context: v.string(),
+    intensity: v.number(),
+    triggers: v.array(v.string()),
+    createdAt: v.number(),
+    expiresAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_emotion", ["emotion"]),
+
+  // ─── ENHANCEMENTS: ANALYTICS, VERSION CONTROL, WEBHOOKS, AUDIT ───
+  agent_analytics_metrics: defineTable({
+    agentId: v.string(),
+    metricType: v.string(),
+    value: v.number(),
+    dimensions: v.any(),
+    recordedAt: v.number(),
+  })
+    .index("by_agent", ["agentId"])
+    .index("by_metric", ["metricType"])
+    .index("by_recorded", ["recordedAt"]),
+
+  agent_version_control: defineTable({
+    agentId: v.string(),
+    version: v.string(),
+    config: v.any(),
+    changelog: v.string(),
+    createdBy: v.string(),
+    isRollback: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_agent", ["agentId"])
+    .index("by_version", ["version"]),
+
+  webhook_notifications: defineTable({
+    webhookId: v.string(),
+    url: v.string(),
+    events: v.array(v.string()),
+    secret: v.string(),
+    isActive: v.boolean(),
+    lastTriggeredAt: v.optional(v.number()),
+    failureCount: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_webhook_id", ["webhookId"])
+    .index("by_events", ["events"]),
+
+  enterprise_audit_logs: defineTable({
+    eventType: v.string(),
+    actor: v.string(),
+    action: v.string(),
+    target: v.string(),
+    details: v.any(),
+    ipAddress: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_event_type", ["eventType"])
+    .index("by_actor", ["actor"])
+    .index("by_created", ["createdAt"]),
 });

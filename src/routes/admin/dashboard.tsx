@@ -19,6 +19,7 @@ import { TryPostScheduler } from "~/components/TryPostScheduler";
 import { AutoHealDashboard } from "~/components/AutoHealDashboard";
 import { ComposioEnhancementPanel } from "~/components/ComposioEnhancementPanel";
 import { TaxCompliancePanel } from "~/components/TaxCompliancePanel";
+import { EnterpriseHub } from "~/components/EnterpriseHub";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -157,6 +158,7 @@ function AdminDashboardPage() {
               <AdminTab active={activeTab === "renewals-tithe"} onClick={() => setActiveTab("renewals-tithe")} icon="🔄" label="Renewals & Tithe" />
                <AdminTab active={activeTab === "composio-enhance"} onClick={() => setActiveTab("composio-enhance")} icon="🔧" label="Composio Enhance" />
                <AdminTab active={activeTab === "tax-compliance"} onClick={() => setActiveTab("tax-compliance")} icon="📋" label="Tax Compliance" />
+               <AdminTab active={activeTab === "enterprise"} onClick={() => setActiveTab("enterprise")} icon="🏢" label="Enterprise Hub" />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -204,6 +206,7 @@ function AdminDashboardPage() {
               {activeTab === "renewals-tithe" && <RenewalsTithePanel adminToken={adminToken} />}
                {activeTab === "composio-enhance" && <ComposioEnhancementPanel adminToken={adminToken} />}
                {activeTab === "tax-compliance" && <TaxCompliancePanel adminToken={adminToken} />}
+               {activeTab === "enterprise" && <EnterpriseHub adminToken={adminToken} />}
            </AdminSuspense>
         </div>
         <Footer />
