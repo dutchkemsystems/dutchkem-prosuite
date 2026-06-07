@@ -23,6 +23,25 @@ export const sendMessage = mutation({
   returns: v.string(),
   handler: async (ctx, { prompt, threadId }) => {
     const userId = await getAuthUserId(ctx);
+    // SUBSCRIPTION CHECK — require active plan before AI processing
+    if (userId) {
+      const sub = await ctx.runQuery(internal.subscription_guard.checkUserSubscription, { userId });
+      if (!sub.active) {
+        const { messageId } = await careerAgent.agents[0].saveMessage(ctx, {
+          threadId,
+          prompt,
+          userId,
+          skipEmbeddings: true,
+        });
+        await (careerAgent.agents[0] as any).answer(ctx, {
+          threadId,
+          promptMessageId: messageId,
+          assistantId: (careerAgent.agents[0] as any).agentId ?? "career-agent",
+          text: "⚠️ Active subscription required. Please subscribe at https://dutchkem-prosuite-app.vercel.app/dashboard to use this agent.",
+        });
+        return messageId;
+      }
+    }
     const { messageId } = await careerAgent.agents[0].saveMessage(ctx, {
       threadId,
       prompt,

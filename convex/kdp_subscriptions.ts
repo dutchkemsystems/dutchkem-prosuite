@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 
 export const KDP_PLANS = {
   BASIC: {
@@ -57,11 +57,12 @@ export const createKDPSubscription = mutation({
     };
     const endsAt = now + (frequencyMs[planConfig.frequency] || frequencyMs.monthly);
 
+    // Create subscription as PENDING — activated only after webhook confirms payment
     const subscriptionId = await ctx.db.insert("subscriptions", {
       userId,
-      plan: planConfig.frequency,
+      plan: planConfig.frequency as "weekly" | "monthly" | "quarterly" | "yearly",
       service: "kdp",
-      status: "active",
+      status: "pending" as any,
       endsAt,
       autoRenew: true,
       failureCount: 0,
@@ -69,8 +70,8 @@ export const createKDPSubscription = mutation({
 
     await ctx.db.insert("notifications", {
       userId,
-      title: "KDP Subscription Activated 🎉",
-      message: `Your ${plan} plan has been activated. You now have access to ${planConfig.features.join(", ")}.`,
+      title: "KDP Subscription — Awaiting Payment",
+      message: `Please complete payment for your ${plan} plan to activate.`,
       type: "payment",
       read: false,
       createdAt: now,
@@ -82,7 +83,7 @@ export const createKDPSubscription = mutation({
       price: planConfig.price,
       frequency: planConfig.frequency,
       endsAt,
-      status: "active",
+      status: "pending",
     };
   },
 });
@@ -158,21 +159,113 @@ export const getKDPCheckoutUrl = mutation({
     if (!planConfig) throw new Error("Invalid plan");
 
     const reference = `KDP-${plan}-${userId.replace(/\W/g, "")}-${Date.now()}`;
+    const secretKey = process.env.KORA_SECRET_KEY;
 
-    // Simulated Kora Pay checkout — in production, call Kora Pay API:
-    //   POST https://api.korapay.com/v1/checkout
-    //   Headers: { Authorization: `Bearer ${process.env.KORA_SECRET_KEY}` }
-    //   Body: { amount: planConfig.price, currency: "NGN", reference, ... }
+    // Real Kora Pay checkout initialization
+    if (secretKey) {
+      try {
+        const response = await fetch("https://api.korapay.com/merchant/api/v1/transactions/initialize", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${secretKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            amount: planConfig.price,
+            currency: "NGN",
+            reference,
+            customer: { email: "client@dutchkem.com" },
+            redirect_url: returnUrl || `${process.env.SITE_URL || "https://dutchkem-prosuite-app.vercel.app"}/dashboard?kdp=success&reference=${reference}`,
+            metadata: {
+              userId,
+              service: "kdp",
+              plan: plan,
+              type: "subscription",
+            },
+          }),
+        });
+        const data = await response.json();
+        if (data.status && data.data?.checkout_url) {
+          return {
+            checkoutUrl: data.data.checkout_url,
+            reference,
+            amount: planConfig.price,
+            currency: "NGN",
+            plan,
+          };
+        }
+      } catch (e: any) {
+        console.error("[KDP] Kora Pay checkout init failed:", e.message);
+      }
+    }
+
+    // Fallback: simulated checkout URL
     const checkoutUrl = returnUrl
       ? `${returnUrl}?reference=${reference}&plan=${plan}&amount=${planConfig.price}`
       : `https://pay.korapay.com?reference=${reference}&amount=${planConfig.price}&currency=NGN`;
 
-    return {
-      checkoutUrl,
-      reference,
-      amount: planConfig.price,
-      currency: "NGN",
-      plan,
+    return { checkoutUrl, reference, amount: planConfig.price, currency: "NGN", plan };
+  },
+});
+
+/**
+ * Activate KDP subscription after webhook payment confirmation
+ * Called from /api/webhooks/kora
+ */
+export const activateKDPPayment = internalMutation({
+  args: {
+    userId: v.id("users"),
+    plan: v.string(),
+    reference: v.string(),
+    amount: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const frequencyMs: Record<string, number> = {
+      monthly: 30 * 24 * 60 * 60 * 1000,
+      quarterly: 90 * 24 * 60 * 60 * 1000,
+      yearly: 365 * 24 * 60 * 60 * 1000,
     };
+
+    const planMap: Record<string, string> = { BASIC: "monthly", PRO: "quarterly", ENTERPRISE: "yearly" };
+    const frequency = planMap[args.plan] || "monthly";
+    const endsAt = now + (frequencyMs[frequency] || frequencyMs.monthly);
+
+    // Find pending KDP subscription for this user
+    const pending = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.and(q.eq(q.field("service"), "kdp"), q.eq(q.field("status"), "pending")))
+      .order("desc")
+      .first();
+
+    if (pending) {
+      await ctx.db.patch("subscriptions", pending._id, {
+        status: "active",
+        endsAt,
+        failureCount: 0,
+      });
+    } else {
+      // Create new active subscription
+      await ctx.db.insert("subscriptions", {
+        userId: args.userId,
+        plan: frequency as "weekly" | "monthly" | "quarterly" | "yearly",
+        service: "kdp",
+        status: "active",
+        endsAt,
+        autoRenew: true,
+        failureCount: 0,
+      });
+    }
+
+    await ctx.db.insert("notifications", {
+      userId: args.userId,
+      title: "KDP Subscription Activated 🎉",
+      message: `Your KDP plan is now active. Reference: ${args.reference}`,
+      type: "payment",
+      read: false,
+      createdAt: now,
+    });
   },
 });

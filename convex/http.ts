@@ -139,8 +139,35 @@ http.route({
     const signature = req.headers.get("x-kora-signature") || "";
     const body = await req.json();
     const ip = req.headers.get("x-forwarded-for") || "unknown";
-    const verification = await ctx.runMutation(internal.guardian.verifyPayment, { reference: body.reference, amount: body.amount, currency: body.currency, ip, userId: body.metadata?.userId || body.userId, signature, agentId: body.metadata?.agentId, service: body.metadata?.service });
-    if (verification.status === "approved") { try { await ctx.runMutation(internal.abandonedCheckouts.completeCheckout, { reference: body.reference }); } catch { } }
+    const userId = body.metadata?.userId || body.userId;
+    const verification = await ctx.runMutation(internal.guardian.verifyPayment, { reference: body.reference, amount: body.amount, currency: body.currency, ip, userId, signature, agentId: body.metadata?.agentId, service: body.metadata?.service });
+    if (verification.status === "approved") {
+      // 1. Complete abandoned checkout if any
+      try { await ctx.runMutation(internal.abandonedCheckouts.completeCheckout, { reference: body.reference }); } catch { }
+      // 2. Activate subscription if metadata indicates a subscription payment
+      if (body.metadata?.service && body.metadata?.plan && userId) {
+        try {
+          await ctx.runMutation(internal.payments.activateSubscription, {
+            userId,
+            service: body.metadata.service,
+            plan: body.metadata.plan,
+            reference: body.reference,
+            amount: body.amount,
+          });
+        } catch (e: any) { console.error("[Webhook] Subscription activation failed:", e.message); }
+      }
+      // 3. Activate KDP subscription if metadata indicates KDP
+      if (body.metadata?.service === "kdp" && body.metadata?.plan && userId) {
+        try {
+          await ctx.runMutation(internal.kdp_subscriptions.activateKDPPayment, {
+            userId,
+            plan: body.metadata.plan,
+            reference: body.reference,
+            amount: body.amount,
+          });
+        } catch (e: any) { console.error("[Webhook] KDP subscription activation failed:", e.message); }
+      }
+    }
     return new Response(JSON.stringify({ webhookStatus: "processed", ...verification }), { status: 200, headers: { "Content-Type": "application/json" } });
   }),
 });

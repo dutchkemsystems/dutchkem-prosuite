@@ -13,8 +13,12 @@ import { internal } from "./_generated/api";
 async function verifyKoraSignature(payload: string, signature: string | null): Promise<boolean> {
   const secret = process.env.KORA_WEBHOOK_SECRET;
   if (!secret) {
-    console.warn("[KORA WEBHOOK] No KORA_WEBHOOK_SECRET configured - accepting all (INSECURE)");
-    return true; // Allow in dev mode; reject in production by setting secret
+    if (process.env.NODE_ENV === "production") {
+      console.error("[KORA WEBHOOK] No KORA_WEBHOOK_SECRET in production — REJECTING");
+      return false;
+    }
+    console.warn("[KORA WEBHOOK] No KORA_WEBHOOK_SECRET configured - accepting all (DEV MODE)");
+    return true;
   }
   if (!signature) return false;
 

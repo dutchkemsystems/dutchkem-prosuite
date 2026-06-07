@@ -191,10 +191,45 @@ export const runMarketplacePayouts = internalAction({
           amount: tx.freelancerAmount,
         });
 
-        // 2. Transfer to freelancer via Kora Payout API
-        // (In production this calls the actual Kora Payout endpoint)
-        const koraRef = `KORA_PAYOUT_${Date.now()}_${tx._id}`;
-        console.log(`[Marketplace] Payout ${koraRef} → ₦${tx.freelancerAmount}`);
+        // 2. Transfer to freelancer via real Kora Payout API
+        const secretKey = process.env.KORA_SECRET_KEY;
+        let koraRef = `KORA_PAYOUT_${Date.now()}_${tx._id}`;
+        
+        // Look up freelancer's bank details from users table
+        const freelancer = await ctx.runQuery(internal.marketplace.getUserById, { userId: tx.freelancerId });
+        
+        if (secretKey && freelancer?.bankCode && freelancer?.bankAccountNumber) {
+          try {
+            const response = await fetch("https://api.korapay.com/merchant/api/v1/transactions/disburse", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${secretKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                amount: tx.freelancerAmount,
+                currency: "NGN",
+                reference: koraRef,
+                destination: {
+                  type: "bank_account",
+                  bank_code: freelancer.bankCode,
+                  account_number: freelancer.bankAccountNumber,
+                },
+                customer: { email: freelancer.email || "freelancer@dutchkem.com" },
+              }),
+            });
+            const data = await response.json();
+            if (data.status) {
+              console.log(`[Marketplace] Kora payout success: ${koraRef} → ₦${tx.freelancerAmount}`);
+            } else {
+              console.error(`[Marketplace] Kora payout failed:`, data);
+            }
+          } catch (e: any) {
+            console.error(`[Marketplace] Kora payout API error:`, e.message);
+          }
+        } else {
+          console.log(`[Marketplace] Payout ${koraRef} → ₦${tx.freelancerAmount} (no bank details or KORA_SECRET_KEY)`);
+        }
 
         // 3. Update transaction to released
         await ctx.runMutation(internal.marketplace.markReleased, {
@@ -414,6 +449,24 @@ export const getMarketplaceStats = query({
       totalPlatformFees: allTx.reduce((s, t) => s + t.platformFee, 0),
       pendingPayouts: allTx.filter(t => t.status === "ready_for_payout").length,
       totalTransactions: allTx.length,
+    };
+  },
+});
+
+/**
+ * Get user by ID (internal helper for payout)
+ */
+export const getUserById = internalQuery({
+  args: { userId: v.id("users") },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get("users", args.userId);
+    if (!user) return null;
+    return {
+      email: (user as any).email,
+      bankCode: (user as any).bankCode,
+      bankAccountNumber: (user as any).bankAccountNumber,
+      bankName: (user as any).bankName,
     };
   },
 });

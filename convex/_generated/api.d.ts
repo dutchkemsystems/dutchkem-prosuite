@@ -121,6 +121,7 @@ import type * as shopping_agent from "../shopping_agent.js";
 import type * as shopping_chat from "../shopping_chat.js";
 import type * as social from "../social.js";
 import type * as socialProof from "../socialProof.js";
+import type * as subscription_guard from "../subscription_guard.js";
 import type * as subscription_renewal from "../subscription_renewal.js";
 import type * as synthetic_intelligence from "../synthetic_intelligence.js";
 import type * as tax from "../tax.js";
@@ -267,6 +268,7 @@ declare const fullApi: ApiFromModules<{
   shopping_chat: typeof shopping_chat;
   social: typeof social;
   socialProof: typeof socialProof;
+  subscription_guard: typeof subscription_guard;
   subscription_renewal: typeof subscription_renewal;
   synthetic_intelligence: typeof synthetic_intelligence;
   tax: typeof tax;

@@ -51,7 +51,7 @@ export default defineSchema({
     userId: v.id("users"),
     plan: v.union(v.literal("weekly"), v.literal("monthly"), v.literal("quarterly"), v.literal("yearly")),
     service: v.optional(v.union(v.literal("standard"), v.literal("kdp"))),
-    status: v.union(v.literal("active"), v.literal("canceled"), v.literal("expired"), v.literal("suspended")),
+    status: v.union(v.literal("active"), v.literal("pending"), v.literal("canceled"), v.literal("expired"), v.literal("suspended")),
     endsAt: v.number(),
     autoRenew: v.boolean(),
     paymentMethodId: v.optional(v.id("payment_methods")),
