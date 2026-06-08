@@ -2566,6 +2566,8 @@ export default defineSchema({
     status: v.union(v.literal("trial"), v.literal("active"), v.literal("suspended"), v.literal("expired")),
     plan: v.union(v.literal("trial"), v.literal("growth"), v.literal("enterprise"), v.literal("scale")),
     trialEndsAt: v.optional(v.number()),
+    subscriptionEndsAt: v.optional(v.number()),
+    spendingLimit: v.optional(v.number()),
     twoFactorSecret: v.optional(v.string()),
     twoFactorEnabled: v.optional(v.boolean()),
     logo: v.optional(v.string()),

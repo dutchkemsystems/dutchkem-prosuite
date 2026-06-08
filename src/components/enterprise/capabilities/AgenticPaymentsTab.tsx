@@ -5,8 +5,12 @@ import { api } from '../../../../convex/_generated/api'
 export function AgenticPaymentsTab({ token }: { token: string }) {
   const transactions = useQuery(api.enterprise_payments.listTransactions, { token }) || []
   const stats = useQuery(api.enterprise_payments.getStats, { token }) || { totalVolume: 0, transactionCount: 0, completedCount: 0, pendingCount: 0, avgAmount: 0 }
+  const spendingLimitData = useQuery(api.enterprise_payments.getSpendingLimit, { token }) || { limit: 500000 }
   const createTransaction = useMutation(api.enterprise_payments.createTransaction)
   const simulatePayment = useMutation(api.enterprise_payments.simulatePayment)
+  const setSpendingLimitMut = useMutation(api.enterprise_payments.setSpendingLimit)
+  const initiateSubPayment = useMutation(api.enterprise_payments.initiateSubscriptionPayment)
+  const verifySubPayment = useMutation(api.enterprise_payments.verifySubscriptionPayment)
 
   const [showPay, setShowPay] = useState(false)
   const [payFrom, setPayFrom] = useState('')
@@ -14,19 +18,31 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
   const [payAmount, setPayAmount] = useState('')
   const [paying, setPaying] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [limit, setLimit] = useState(50000)
+  const [spendingLimit, setSpendingLimit] = useState(0)
+  const [savingLimit, setSavingLimit] = useState(false)
   const [requireApproval, setRequireApproval] = useState(true)
   const [realTimeNotif, setRealTimeNotif] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [showSubPay, setShowSubPay] = useState(false)
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
+  const [selectedPlan, setSelectedPlan] = useState<'growth' | 'enterprise' | 'scale' | null>(null)
+
+  const [subStep, setSubStep] = useState<'details' | 'passkey' | 'processing' | 'done'>('details')
+  const [subAmount, setSubAmount] = useState('')
+  const [subPasskey, setSubPasskey] = useState('')
+  const [generatedPasskey, setGeneratedPasskey] = useState('')
+  const [subReference, setSubReference] = useState('')
+  const [subCompanyName] = useState('Dutchkem Ventures')
 
   const SUBSCRIPTION_PLANS = [
-    { id: 'growth', name: 'Growth Plan', price: 50000, period: 'month', features: ['5 Users', '10 Workflows', 'Basic Support'] },
-    { id: 'enterprise', name: 'Enterprise Plan', price: 150000, period: 'month', features: ['25 Users', 'Unlimited Workflows', 'Priority Support', 'Custom Integrations'] },
-    { id: 'scale', name: 'Scale Plan', price: 500000, period: 'month', features: ['Unlimited Users', 'Unlimited Workflows', '24/7 Support', 'Custom Integrations', 'Dedicated Account Manager'] },
+    { id: 'growth' as const, name: 'Growth Plan', price: 50000, period: 'month', features: ['5 Users', '10 Workflows', 'Basic Support'] },
+    { id: 'enterprise' as const, name: 'Enterprise Plan', price: 150000, period: 'month', features: ['25 Users', 'Unlimited Workflows', 'Priority Support', 'Custom Integrations'] },
+    { id: 'scale' as const, name: 'Scale Plan', price: 500000, period: 'month', features: ['Unlimited Users', 'Unlimited Workflows', '24/7 Support', 'Custom Integrations', 'Dedicated Account Manager'] },
   ]
+
+  if (spendingLimitData.limit !== spendingLimit && spendingLimit === 0) {
+    setSpendingLimit(spendingLimitData.limit)
+  }
 
   const showToast = (msg: string, isError = false) => {
     if (isError) setError(msg)
@@ -49,23 +65,45 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
     finally { setPaying(false) }
   }
 
-  const handleSubscribe = async (planId: string) => {
-    setSelectedPlan(planId)
+  const handleStartSubPayment = async (planId: 'growth' | 'enterprise' | 'scale') => {
     const plan = SUBSCRIPTION_PLANS.find(p => p.id === planId)
     if (!plan) return
+    setSelectedPlan(planId)
+    setSubAmount(String(plan.price))
+    setSubStep('details')
+    setSubPasskey('')
+    setGeneratedPasskey('')
+    setSubReference('')
+    setShowSubPay(true)
+    setShowPay(false)
+  }
+
+  const handleInitiateSubPayment = async () => {
+    if (!selectedPlan) return
+    const amount = Number(subAmount)
+    if (amount < 1000) { showToast('Minimum payment is ₦1,000', true); return }
     setPaying(true)
     try {
-      const result = await createTransaction({
-        token,
-        fromAgent: 'Organization',
-        toAgent: 'Dutchkem Ventures',
-        amount: plan.price,
-      })
+      const result: any = await initiateSubPayment({ token, planId: selectedPlan, amount })
       if (result.error) { showToast(result.error, true); return }
-      showToast(`Subscription to ${plan.name} activated! Ref: ${result.reference}`)
-      setShowSubPay(false)
-      setSelectedPlan(null)
-    } catch (e: any) { showToast(e.message || 'Payment failed', true) }
+      setGeneratedPasskey(result.passkey)
+      setSubReference(result.reference)
+      setSubStep('passkey')
+    } catch (e: any) { showToast(e.message || 'Failed to initiate payment', true) }
+    finally { setPaying(false) }
+  }
+
+  const handleVerifySubPayment = async () => {
+    if (!subPasskey || subPasskey.length !== 6) { showToast('Enter the 6-digit passkey', true); return }
+    setPaying(true)
+    setSubStep('processing')
+    try {
+      const result = await verifySubPayment({ token, reference: subReference, passkey: subPasskey })
+      if (result.error) { showToast(result.error, true); setSubStep('passkey'); return }
+      showToast(`Subscription to ${SUBSCRIPTION_PLANS.find(p => p.id === result.plan)?.name} activated!`)
+      setSubStep('done')
+      setTimeout(() => { setShowSubPay(false); setSubStep('details') }, 3000)
+    } catch (e: any) { showToast(e.message || 'Verification failed', true); setSubStep('passkey') }
     finally { setPaying(false) }
   }
 
@@ -82,6 +120,16 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
       setPayFrom(''); setPayTo(''); setPayAmount('')
     } catch (e: any) { showToast(e.message || 'Payment failed', true) }
     finally { setPaying(false) }
+  }
+
+  const handleSaveSpendingLimit = async () => {
+    setSavingLimit(true)
+    try {
+      const result = await setSpendingLimitMut({ token, limit: spendingLimit })
+      if (result.error) { showToast(result.error, true); return }
+      showToast(`Spending limit set to ₦${spendingLimit.toLocaleString()}`)
+    } catch (e: any) { showToast(e.message || 'Failed to save', true) }
+    finally { setSavingLimit(false) }
   }
 
   const statusColors: Record<string, string> = {
@@ -106,15 +154,15 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
         <div className="flex gap-3">
           <button onClick={() => { setShowPay(!showPay); setShowSubPay(false) }}
             className="px-5 py-3 bg-gradient-to-r from-amber-500 to-yellow-600 text-white font-black text-sm rounded-xl hover:scale-105 transition-all">
-            💸 Send Payment
+            Send Payment
           </button>
-          <button onClick={() => { setShowSubPay(!showSubPay); setShowPay(false) }}
+          <button onClick={() => { handleStartSubPayment('growth') }}
             className="px-5 py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white font-black text-sm rounded-xl hover:scale-105 transition-all">
-            🔄 Subscribe
+            Subscribe
           </button>
           <button onClick={() => setShowSettings(!showSettings)}
             className="px-5 py-3 bg-white/5 border border-white/10 text-white font-black text-sm rounded-xl hover:bg-white/10 transition-all">
-            ⚙️ Settings
+            Settings
           </button>
         </div>
       </div>
@@ -122,7 +170,6 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
       {error && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm font-bold">{error}</div>}
       {success && <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-sm font-bold">{success}</div>}
 
-      {/* Send Payment Form */}
       {showPay && (
         <div className="p-6 bg-white/5 border border-white/10 rounded-2xl space-y-4">
           <h3 className="font-black">Send Agent Payment</h3>
@@ -150,26 +197,80 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
         </div>
       )}
 
-      {/* Subscription Plans */}
+      {/* Subscription Payment Modal */}
       {showSubPay && (
-        <div className="p-6 bg-white/5 border border-white/10 rounded-2xl space-y-4">
-          <h3 className="font-black">Enterprise Subscription Plans</h3>
-          <div className="grid grid-cols-3 gap-4">
-            {SUBSCRIPTION_PLANS.map(plan => (
-              <div key={plan.id} className={`p-5 rounded-xl border transition-all ${selectedPlan === plan.id ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}>
-                <h4 className="font-black text-lg">{plan.name}</h4>
-                <p className="text-2xl font-black text-emerald-400 mt-2">₦{plan.price.toLocaleString()}<span className="text-xs text-slate-500">/{plan.period}</span></p>
-                <ul className="mt-3 space-y-1">
-                  {plan.features.map((f, i) => (
-                    <li key={i} className="text-xs text-slate-400 flex items-center gap-2"><span className="text-emerald-400">✓</span>{f}</li>
-                  ))}
-                </ul>
-                <button onClick={() => handleSubscribe(plan.id)} disabled={paying && selectedPlan === plan.id}
-                  className="w-full mt-4 py-2 bg-emerald-600 text-white font-black text-sm rounded-xl hover:bg-emerald-700 transition-all disabled:opacity-50">
-                  {paying && selectedPlan === plan.id ? 'Processing...' : 'Subscribe Now'}
-                </button>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl w-[480px] max-w-[90%] shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-white/10">
+              <h3 className="font-black text-lg">Enterprise Subscription Payment</h3>
+              <button onClick={() => setShowSubPay(false)} className="text-slate-500 hover:text-white text-xl font-bold">&times;</button>
+            </div>
+            <div className="p-6 space-y-5">
+              {/* Company Info */}
+              <div className="bg-white/5 rounded-xl p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Paying to:</span>
+                  <span className="font-black text-emerald-400">{subCompanyName}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Plan:</span>
+                  <span className="font-black text-white">{SUBSCRIPTION_PLANS.find(p => p.id === selectedPlan)?.name}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Amount:</span>
+                  <span className="font-black text-amber-400">₦{Number(subAmount || 0).toLocaleString()}</span>
+                </div>
               </div>
-            ))}
+
+              {subStep === 'details' && (
+                <>
+                  <div>
+                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-2">Payment Amount (₦)</label>
+                    <input type="number" value={subAmount} onChange={e => setSubAmount(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-lg font-black placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50" />
+                  </div>
+                  <button onClick={handleInitiateSubPayment} disabled={paying}
+                    className="w-full py-3 bg-emerald-600 text-white font-black rounded-xl hover:bg-emerald-700 transition-all disabled:opacity-50">
+                    {paying ? 'Generating Passkey...' : 'Proceed to Payment'}
+                  </button>
+                </>
+              )}
+
+              {subStep === 'passkey' && (
+                <>
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-center space-y-2">
+                    <p className="text-sm text-amber-400 font-bold">A 6-digit passkey has been generated for this transaction</p>
+                    <div className="text-4xl font-black text-white tracking-[0.3em] font-mono bg-white/5 rounded-xl py-3">{generatedPasskey}</div>
+                    <p className="text-xs text-slate-500">Enter this passkey below to complete payment (expires in 10 minutes)</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest block mb-2">Enter Passkey</label>
+                    <input type="text" value={subPasskey} onChange={e => setSubPasskey(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="000000" maxLength={6}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-center text-2xl font-black tracking-[0.2em] placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 font-mono" />
+                  </div>
+                  <button onClick={handleVerifySubPayment} disabled={paying || subPasskey.length !== 6}
+                    className="w-full py-3 bg-emerald-600 text-white font-black rounded-xl hover:bg-emerald-700 transition-all disabled:opacity-50">
+                    {paying ? 'Verifying...' : 'Verify & Complete Payment'}
+                  </button>
+                </>
+              )}
+
+              {subStep === 'processing' && (
+                <div className="text-center py-8 space-y-4">
+                  <div className="w-12 h-12 border-4 border-white/10 border-t-emerald-500 rounded-full animate-spin mx-auto" />
+                  <p className="text-slate-400 font-bold">Processing payment...</p>
+                </div>
+              )}
+
+              {subStep === 'done' && (
+                <div className="text-center py-8 space-y-4">
+                  <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto text-3xl">✓</div>
+                  <p className="text-emerald-400 font-black text-lg">Payment Successful!</p>
+                  <p className="text-sm text-slate-400">Your subscription has been activated. Admin wallet has been updated.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -179,9 +280,13 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
         <div className="p-6 bg-white/5 border border-white/10 rounded-2xl space-y-4">
           <h3 className="font-black">Payment Settings</h3>
           <div className="flex items-center gap-4">
-            <label className="text-sm text-slate-400">Daily Spending Limit (₦):</label>
-            <input type="number" value={limit} onChange={(e) => setLimit(Number(e.target.value))}
+            <label className="text-sm text-slate-400">Transaction Spending Limit (₦):</label>
+            <input type="number" value={spendingLimit} onChange={(e) => setSpendingLimit(Number(e.target.value))}
               className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white font-medium w-40" />
+            <button onClick={handleSaveSpendingLimit} disabled={savingLimit}
+              className="px-4 py-2 bg-emerald-600 text-white font-black text-sm rounded-xl hover:bg-emerald-700 transition-all disabled:opacity-50">
+              {savingLimit ? 'Saving...' : 'Save Limit'}
+            </button>
           </div>
           <div className="flex items-center gap-6">
             <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer">
@@ -212,7 +317,7 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
         </div>
         <div className="p-5 bg-white/5 border border-white/10 rounded-2xl">
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Spending Limit</p>
-          <p className="text-3xl font-black text-violet-400">₦{limit.toLocaleString()}</p>
+          <p className="text-3xl font-black text-violet-400">₦{spendingLimitData.limit.toLocaleString()}</p>
         </div>
       </div>
 

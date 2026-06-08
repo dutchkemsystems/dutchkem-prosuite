@@ -2,18 +2,6 @@ import { useState, useEffect } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../../convex/_generated/api'
 
-function ErrorFallback({ error, reset }: { error: string; reset: () => void }) {
-  return (
-    <div className="p-8 bg-red-500/10 border border-red-500/20 rounded-2xl text-center space-y-4">
-      <p className="text-4xl">⚠️</p>
-      <p className="text-red-400 font-black">{error}</p>
-      <button onClick={reset} className="px-6 py-3 bg-red-600 text-white font-black text-sm rounded-xl hover:bg-red-700 transition-all">
-        Try Again
-      </button>
-    </div>
-  )
-}
-
 export function WorkflowBuilderTab({ token }: { token: string }) {
   const [retryKey, setRetryKey] = useState(0)
   const [view, setView] = useState<'list' | 'templates' | 'builder'>('list')
@@ -29,18 +17,11 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
   const [editNodeId, setEditNodeId] = useState<string | null>(null)
   const [editLabel, setEditLabel] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
 
-  let workflows: any[] = []
-  let templates: any[] = []
-  try {
-    const wq = useQuery(api.enterprise_workflows.listWorkflows, { token })
-    const tq = useQuery(api.enterprise_workflows.listTemplates)
-    workflows = wq || []
-    templates = tq || []
-  } catch (e: any) {
-    if (!loadError) setLoadError(e?.message || 'Failed to load workflows')
-  }
+  const wq = useQuery(api.enterprise_workflows.listWorkflows, { token })
+  const tq = useQuery(api.enterprise_workflows.listTemplates)
+  const workflows = wq || []
+  const templates = tq || []
 
   const createWorkflow = useMutation(api.enterprise_workflows.createWorkflow)
   const updateWorkflow = useMutation(api.enterprise_workflows.updateWorkflow)
@@ -48,13 +29,10 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
   const runWorkflow = useMutation(api.enterprise_workflows.runWorkflow)
   const duplicateWorkflow = useMutation(api.enterprise_workflows.duplicateWorkflow)
 
-  let getWorkflow: any = null
-  try {
-    getWorkflow = useQuery(
-      api.enterprise_workflows.getWorkflow,
-      token && selectedWorkflow ? { token, workflowId: selectedWorkflow._id } : 'skip'
-    ) || null
-  } catch {}
+  const getWorkflow = useQuery(
+    api.enterprise_workflows.getWorkflow,
+    token && selectedWorkflow ? { token, workflowId: selectedWorkflow._id } : 'skip'
+  ) || null
 
   useEffect(() => {
     if (getWorkflow && getWorkflow.nodes) {
@@ -173,10 +151,6 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
     draft: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
     paused: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
     archived: 'bg-red-500/10 text-red-400 border-red-500/20',
-  }
-
-  if (loadError) {
-    return <ErrorFallback error={loadError} reset={() => { setLoadError(null); setRetryKey(k => k + 1) }} />
   }
 
   return (
