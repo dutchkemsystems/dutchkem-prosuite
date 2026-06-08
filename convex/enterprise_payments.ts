@@ -32,6 +32,7 @@ export const createTransaction = mutation({
     if (!orgId) return { error: "Invalid session" };
 
     const now = Date.now();
+    const ref = generateRef();
     const txnId = await ctx.db.insert("enterprise_transactions", {
       orgId,
       fromAgent: args.fromAgent,
@@ -39,12 +40,12 @@ export const createTransaction = mutation({
       amount: args.amount,
       currency: args.currency || "NGN",
       status: "completed",
-      reference: generateRef(),
+      reference: ref,
       metadata: args.metadata,
       createdAt: now,
     });
 
-    return { success: true, transactionId: txnId };
+    return { success: true, transactionId: txnId, reference: ref };
   },
 });
 
@@ -104,6 +105,7 @@ export const simulatePayment = mutation({
     if (!orgId) return { error: "Invalid session" };
 
     const now = Date.now();
+    const ref = generateRef();
     const txnId = await ctx.db.insert("enterprise_transactions", {
       orgId,
       fromAgent: args.fromAgent,
@@ -111,7 +113,7 @@ export const simulatePayment = mutation({
       amount: args.amount,
       currency: "NGN",
       status: "pending",
-      reference: generateRef(),
+      reference: ref,
       createdAt: now,
     });
 
@@ -127,6 +129,6 @@ export const simulatePayment = mutation({
       createdAt: now,
     });
 
-    return { success: true, transactionId: txnId, reference: generateRef() };
+    return { success: true, transactionId: txnId, reference: ref };
   },
 });
