@@ -30,7 +30,7 @@ export function CompanionAgentTab({ token }: { token: string }) {
     try {
       const result = await startSession({ token, userId, channel })
       if (result.error) { showToast(result.error, true); return }
-      setActiveSessionId(result.sessionId)
+      setActiveSessionId(result.sessionId as string)
       setShowStartForm(false)
       showToast('Companion session started!')
     } catch (e: any) { showToast(e.message || 'Failed', true) }

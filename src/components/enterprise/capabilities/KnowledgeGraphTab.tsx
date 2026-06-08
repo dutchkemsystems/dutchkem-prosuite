@@ -43,7 +43,7 @@ export function KnowledgeGraphTab({ token }: { token: string }) {
   }
 
   const handleDelete = async (entryId: string) => {
-    const result = await deleteEntry({ token, entryId })
+    const result = await deleteEntry({ token, entryId: entryId as any })
     if (result.error) { showToast(result.error, true); return }
     showToast('Entry deleted!')
   }

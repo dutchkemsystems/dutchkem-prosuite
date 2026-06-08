@@ -102,10 +102,7 @@ function EnterpriseLogin() {
 
           <div className="mt-8 text-center space-y-3">
             <p className="text-slate-500 text-sm">
-              Don't have an account?{' '}
-              <Link to="/enterprise/register" className="text-orange-400 font-bold hover:underline">
-                Start Free Trial
-              </Link>
+              Contact your administrator for access.
             </p>
             <p className="text-slate-600 text-xs">
               <Link to="/auth" className="hover:text-slate-400 transition-colors">

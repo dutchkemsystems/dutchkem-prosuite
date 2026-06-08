@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../../convex/_generated/api'
 
@@ -13,9 +13,17 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
 
   const [view, setView] = useState<'list' | 'templates' | 'builder'>('list')
   const [selectedWorkflow, setSelectedWorkflow] = useState<any>(null)
+  const getWorkflow = useQuery(api.enterprise_workflows.getWorkflow, token && selectedWorkflow ? { token, workflowId: selectedWorkflow._id } : 'skip') || null
   const [builderNodes, setBuilderNodes] = useState<any[]>([])
   const [builderEdges, setBuilderEdges] = useState<any[]>([])
   const [workflowName, setWorkflowName] = useState('')
+
+  useEffect(() => {
+    if (getWorkflow) {
+      setBuilderNodes(getWorkflow.nodes || [])
+      setBuilderEdges(getWorkflow.edges || [])
+    }
+  }, [getWorkflow])
   const [workflowDesc, setWorkflowDesc] = useState('')
   const [saving, setSaving] = useState(false)
   const [running, setRunning] = useState<string | null>(null)
@@ -67,16 +75,10 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
     setView('builder')
   }
 
-  const handleEditWorkflow = async (wf: any) => {
+  const handleEditWorkflow = (wf: any) => {
     setSelectedWorkflow(wf)
     setWorkflowName(wf.name)
     setWorkflowDesc(wf.description || '')
-    // Fetch full workflow data
-    const full = await (api.enterprise_workflows.getWorkflow as any)({ token, workflowId: wf._id })
-    if (full) {
-      setBuilderNodes(full.nodes || [])
-      setBuilderEdges(full.edges || [])
-    }
     setView('builder')
   }
 
@@ -122,7 +124,7 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
   }
 
   const handleDelete = async (wfId: string) => {
-    const result = await deleteWorkflow({ token, workflowId: wfId })
+    const result = await deleteWorkflow({ token, workflowId: wfId as any })
     if (result.error) { showToast(result.error, true); return }
     showToast('Workflow deleted!')
     setConfirmDelete(null)

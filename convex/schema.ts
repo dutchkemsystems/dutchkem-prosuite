@@ -2692,4 +2692,23 @@ export default defineSchema({
   })
     .index("by_org", ["orgId"])
     .index("by_user", ["userId"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // ENTERPRISE ORG USERS (admin-created accounts)
+  // ═══════════════════════════════════════════════════════════════
+
+  enterprise_org_users: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    name: v.string(),
+    email: v.string(),
+    passwordHash: v.string(),
+    role: v.union(v.literal("org_admin"), v.literal("org_member")),
+    status: v.union(v.literal("active"), v.literal("suspended")),
+    mustChangePassword: v.boolean(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_email", ["email"]),
 });

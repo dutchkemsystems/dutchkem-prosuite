@@ -86,7 +86,7 @@ export const register = mutation({
   },
 });
 
-/** Login to enterprise portal */
+/** Login to enterprise portal — supports both org-level and org_admin users */
 export const login = mutation({
   args: {
     email: v.string(),
@@ -94,12 +94,78 @@ export const login = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
+    const emailLower = args.email.toLowerCase();
+
+    // First check if it's an org_admin user
+    const orgUser = await ctx.db.query("enterprise_org_users")
+      .withIndex("by_email", q => q.eq("email", emailLower))
+      .first();
+
+    if (orgUser) {
+      if (orgUser.status === "suspended") {
+        return { error: "This account has been suspended. Contact your administrator." };
+      }
+
+      const valid = await verifyPassword(args.password, orgUser.passwordHash);
+      if (!valid) {
+        return { error: "Invalid password" };
+      }
+
+      const org = await ctx.db.get("enterprise_organizations", orgUser.orgId);
+      if (!org) return { error: "Organization not found" };
+      if (org.status === "suspended") return { error: "Organization is suspended" };
+      if (org.status === "expired") return { error: "Organization trial has expired" };
+
+      const now = Date.now();
+      const token = generateToken();
+
+      // Invalidate old sessions for this org
+      const oldSessions = await ctx.db.query("enterprise_sessions")
+        .withIndex("by_org", q => q.eq("orgId", org._id))
+        .collect();
+      for (const session of oldSessions) {
+        await ctx.db.patch(session._id, { isCurrent: false });
+      }
+
+      await ctx.db.insert("enterprise_sessions", {
+        orgId: org._id,
+        token,
+        isCurrent: true,
+        expiresAt: now + (30 * 24 * 60 * 60 * 1000),
+        createdAt: now,
+      });
+
+      await ctx.db.insert("enterprise_audit_logs", {
+        eventType: "ORG_USER_LOGIN",
+        actor: emailLower,
+        action: "login",
+        target: org._id,
+        details: { plan: org.plan, status: org.status, role: orgUser.role, mustChangePassword: orgUser.mustChangePassword },
+        createdAt: now,
+      });
+
+      return {
+        success: true,
+        token,
+        mustChangePassword: orgUser.mustChangePassword,
+        org: {
+          _id: org._id,
+          name: org.name,
+          email: org.email,
+          status: org.status,
+          plan: org.plan,
+          trialEndsAt: org.trialEndsAt,
+        },
+      };
+    }
+
+    // Fallback: check org-level login (org created with its own email as login)
     const org = await ctx.db.query("enterprise_organizations")
-      .withIndex("by_email", q => q.eq("email", args.email.toLowerCase()))
+      .withIndex("by_email", q => q.eq("email", emailLower))
       .first();
 
     if (!org) {
-      return { error: "No organization found with this email" };
+      return { error: "No account found with this email" };
     }
 
     if (org.status === "suspended") {
@@ -142,7 +208,7 @@ export const login = mutation({
 
     await ctx.db.insert("enterprise_audit_logs", {
       eventType: "ORG_LOGIN",
-      actor: args.email,
+      actor: emailLower,
       action: "login",
       target: org._id,
       details: { plan: org.plan, status: org.status },
