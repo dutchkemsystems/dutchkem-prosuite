@@ -2550,4 +2550,146 @@ export default defineSchema({
     .index("by_event_type", ["eventType"])
     .index("by_actor", ["actor"])
     .index("by_created", ["createdAt"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // ENTERPRISE PORTAL TABLES (completely separate from client portal)
+  // ═══════════════════════════════════════════════════════════════
+
+  enterprise_organizations: defineTable({
+    name: v.string(),
+    email: v.string(),
+    passwordHash: v.string(),
+    industry: v.optional(v.string()),
+    size: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    website: v.optional(v.string()),
+    status: v.union(v.literal("trial"), v.literal("active"), v.literal("suspended"), v.literal("expired")),
+    plan: v.union(v.literal("trial"), v.literal("growth"), v.literal("enterprise"), v.literal("scale")),
+    trialEndsAt: v.optional(v.number()),
+    twoFactorSecret: v.optional(v.string()),
+    twoFactorEnabled: v.optional(v.boolean()),
+    logo: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_email", ["email"])
+    .index("by_status", ["status"])
+    .index("by_plan", ["plan"]),
+
+  enterprise_sessions: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    token: v.string(),
+    isCurrent: v.boolean(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_token", ["token"]),
+
+  enterprise_invitations: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    email: v.string(),
+    role: v.union(v.literal("admin"), v.literal("manager"), v.literal("member")),
+    invitedBy: v.string(),
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("expired")),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_email", ["email"]),
+
+  enterprise_members: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    userId: v.id("users"),
+    role: v.union(v.literal("admin"), v.literal("manager"), v.literal("member")),
+    joinedAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_user", ["userId"]),
+
+  enterprise_capability_usage: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    capability: v.string(),
+    action: v.string(),
+    details: v.optional(v.any()),
+    createdAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_capability", ["capability"]),
+
+  enterprise_workflows: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    name: v.string(),
+    description: v.optional(v.string()),
+    nodes: v.array(v.any()),
+    edges: v.array(v.any()),
+    status: v.union(v.literal("draft"), v.literal("active"), v.literal("paused"), v.literal("archived")),
+    createdBy: v.string(),
+    lastRunAt: v.optional(v.number()),
+    runCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_status", ["status"]),
+
+  enterprise_marketplace_installs: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    templateId: v.string(),
+    templateName: v.string(),
+    status: v.union(v.literal("installed"), v.literal("uninstalled")),
+    installedAt: v.number(),
+  })
+    .index("by_org", ["orgId"]),
+
+  enterprise_knowledge_entries: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    source: v.string(),
+    entity: v.string(),
+    relationship: v.string(),
+    confidence: v.number(),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_entity", ["entity"]),
+
+  enterprise_companion_sessions: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    userId: v.string(),
+    channel: v.string(),
+    status: v.union(v.literal("active"), v.literal("ended")),
+    startedAt: v.number(),
+    endedAt: v.optional(v.number()),
+    guidanceCount: v.number(),
+  })
+    .index("by_org", ["orgId"]),
+
+  enterprise_transactions: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    fromAgent: v.string(),
+    toAgent: v.string(),
+    amount: v.number(),
+    currency: v.string(),
+    status: v.union(v.literal("pending"), v.literal("completed"), v.literal("failed")),
+    reference: v.string(),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_status", ["status"]),
+
+  enterprise_emotional_profiles: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    userId: v.string(),
+    personality: v.optional(v.any()),
+    memories: v.array(v.any()),
+    sentimentHistory: v.array(v.any()),
+    retentionScore: v.number(),
+    lastInteraction: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_user", ["userId"]),
 });

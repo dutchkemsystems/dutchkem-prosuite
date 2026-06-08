@@ -61,6 +61,7 @@ import type * as dashboard from "../dashboard.js";
 import type * as emotional_ai from "../emotional_ai.js";
 import type * as encryption from "../encryption.js";
 import type * as enterprise_audit_logs from "../enterprise_audit_logs.js";
+import type * as enterprise_auth from "../enterprise_auth.js";
 import type * as event_agent from "../event_agent.js";
 import type * as event_chat from "../event_chat.js";
 import type * as exam_career_agent from "../exam_career_agent.js";
@@ -210,6 +211,7 @@ declare const fullApi: ApiFromModules<{
   emotional_ai: typeof emotional_ai;
   encryption: typeof encryption;
   enterprise_audit_logs: typeof enterprise_audit_logs;
+  enterprise_auth: typeof enterprise_auth;
   event_agent: typeof event_agent;
   event_chat: typeof event_chat;
   exam_career_agent: typeof exam_career_agent;

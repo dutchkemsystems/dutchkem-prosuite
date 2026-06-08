@@ -85,7 +85,7 @@ export function AnimatedCTA() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-          <Link to="/auth" className="group relative px-14 py-7 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-black text-lg rounded-full shadow-[0_0_60px_rgba(255,107,53,0.4)] hover:shadow-[0_0_80px_rgba(255,107,53,0.6)] hover:scale-105 active:scale-95 transition-all">
+          <Link to="/enterprise/register" className="group relative px-14 py-7 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-black text-lg rounded-full shadow-[0_0_60px_rgba(255,107,53,0.4)] hover:shadow-[0_0_80px_rgba(255,107,53,0.6)] hover:scale-105 active:scale-95 transition-all">
             <span className="relative z-10 flex items-center gap-3">
               Start Free Trial
               <span className="group-hover:translate-x-3 transition-transform text-xl">→</span>

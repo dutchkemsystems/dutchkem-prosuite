@@ -35,6 +35,9 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
+import { Route as EnterpriseRegisterRouteImport } from './routes/enterprise/register'
+import { Route as EnterpriseLoginRouteImport } from './routes/enterprise/login'
+import { Route as EnterpriseDashboardRouteImport } from './routes/enterprise/dashboard'
 
 const WellnessCoachRoute = WellnessCoachRouteImport.update({
   id: '/wellness-coach',
@@ -166,6 +169,21 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
   path: '/admin/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EnterpriseRegisterRoute = EnterpriseRegisterRouteImport.update({
+  id: '/enterprise/register',
+  path: '/enterprise/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EnterpriseLoginRoute = EnterpriseLoginRouteImport.update({
+  id: '/enterprise/login',
+  path: '/enterprise/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EnterpriseDashboardRoute = EnterpriseDashboardRouteImport.update({
+  id: '/enterprise/dashboard',
+  path: '/enterprise/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -194,6 +212,9 @@ export interface FileRoutesByFullPath {
   '/wellness-coach': typeof WellnessCoachRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/login': typeof AdminLoginRoute
+  '/enterprise/register': typeof EnterpriseRegisterRoute
+  '/enterprise/login': typeof EnterpriseLoginRoute
+  '/enterprise/dashboard': typeof EnterpriseDashboardRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -222,6 +243,9 @@ export interface FileRoutesByTo {
   '/wellness-coach': typeof WellnessCoachRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/login': typeof AdminLoginRoute
+  '/enterprise/register': typeof EnterpriseRegisterRoute
+  '/enterprise/login': typeof EnterpriseLoginRoute
+  '/enterprise/dashboard': typeof EnterpriseDashboardRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -251,6 +275,9 @@ export interface FileRoutesById {
   '/wellness-coach': typeof WellnessCoachRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/login': typeof AdminLoginRoute
+  '/enterprise/register': typeof EnterpriseRegisterRoute
+  '/enterprise/login': typeof EnterpriseLoginRoute
+  '/enterprise/dashboard': typeof EnterpriseDashboardRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -281,6 +308,9 @@ export interface FileRouteTypes {
     | '/wellness-coach'
     | '/admin/dashboard'
     | '/admin/login'
+    | '/enterprise/register'
+    | '/enterprise/login'
+    | '/enterprise/dashboard'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -309,6 +339,9 @@ export interface FileRouteTypes {
     | '/wellness-coach'
     | '/admin/dashboard'
     | '/admin/login'
+    | '/enterprise/register'
+    | '/enterprise/login'
+    | '/enterprise/dashboard'
   id:
     | '__root__'
     | '/'
@@ -337,6 +370,9 @@ export interface FileRouteTypes {
     | '/wellness-coach'
     | '/admin/dashboard'
     | '/admin/login'
+    | '/enterprise/register'
+    | '/enterprise/login'
+    | '/enterprise/dashboard'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -552,6 +588,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/enterprise/register': {
+      id: '/enterprise/register'
+      path: '/enterprise/register'
+      fullPath: '/enterprise/register'
+      preLoaderRoute: typeof EnterpriseRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/enterprise/login': {
+      id: '/enterprise/login'
+      path: '/enterprise/login'
+      fullPath: '/enterprise/login'
+      preLoaderRoute: typeof EnterpriseLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/enterprise/dashboard': {
+      id: '/enterprise/dashboard'
+      path: '/enterprise/dashboard'
+      fullPath: '/enterprise/dashboard'
+      preLoaderRoute: typeof EnterpriseDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -582,6 +639,9 @@ const rootRouteChildren: RootRouteChildren = {
   WellnessCoachRoute: WellnessCoachRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminLoginRoute: AdminLoginRoute,
+  EnterpriseRegisterRoute: EnterpriseRegisterRoute,
+  EnterpriseLoginRoute: EnterpriseLoginRoute,
+  EnterpriseDashboardRoute: EnterpriseDashboardRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
