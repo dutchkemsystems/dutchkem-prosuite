@@ -47,7 +47,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const result = await createOrganization({ adminToken, ...orgForm })
+      const result = await createOrganization({ adminToken, ...orgForm, plan: orgForm.plan as any })
       setShowCreateOrg(false)
       setOrgForm({ name: '', email: '', industry: '', size: '', phone: '', website: '', plan: 'trial' })
       showToast(`Organization created. Temp password: ${result.tempPassword}`, 'success')
