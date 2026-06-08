@@ -42,6 +42,7 @@ import type * as chatbot from "../chatbot.js";
 import type * as chatbotLeads from "../chatbotLeads.js";
 import type * as classification from "../classification.js";
 import type * as clientAnalytics from "../clientAnalytics.js";
+import type * as client_actions from "../client_actions.js";
 import type * as cloud_memory from "../cloud_memory.js";
 import type * as communication from "../communication.js";
 import type * as companion_agent from "../companion_agent.js";
@@ -190,6 +191,7 @@ declare const fullApi: ApiFromModules<{
   chatbotLeads: typeof chatbotLeads;
   classification: typeof classification;
   clientAnalytics: typeof clientAnalytics;
+  client_actions: typeof client_actions;
   cloud_memory: typeof cloud_memory;
   communication: typeof communication;
   companion_agent: typeof companion_agent;

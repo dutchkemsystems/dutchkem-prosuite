@@ -33,7 +33,14 @@ function DashboardPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [modal, setModal] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [tfaMessage, setTfaMessage] = useState("");
+  const [payoutMessage, setPayoutMessage] = useState("");
   const { data } = useSuspenseQuery(convexQuery(api.dashboard.getDashboardData, {}));
+  const toggle2FAAction = useMutation(api.client_actions.toggle2FA);
+  const changePasswordAction = useMutation(api.client_actions.changeClientPassword);
+  const requestReferralPayoutAction = useMutation(api.client_actions.requestReferralPayout);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -119,8 +126,8 @@ function DashboardPage() {
             </div>
           )}
           {activeTab === "projects" && <Projects data={data} setActiveTab={setActiveTab} setModal={setModal} />}
-          {activeTab === "referrals" && <Referrals data={data} />}
-          {activeTab === "security" && <Security data={data} />}
+          {activeTab === "referrals" && <Referrals data={data} payoutMessage={payoutMessage} setPayoutMessage={setPayoutMessage} requestReferralPayoutAction={requestReferralPayoutAction} />}
+          {activeTab === "security" && <Security data={data} tfaMessage={tfaMessage} setTfaMessage={setTfaMessage} toggle2FAAction={toggle2FAAction} newPassword={newPassword} setNewPassword={setNewPassword} passwordMessage={passwordMessage} setPasswordMessage={setPasswordMessage} changePasswordAction={changePasswordAction} />}
           {activeTab === "settings" && <Settings data={data} />}
         </div>
         <Footer />
@@ -490,7 +497,9 @@ function Overview({ data, setActiveTab, setModal }: { data: any, setActiveTab: (
             <p className="text-slate-400 text-sm mb-4">Share your link and earn ₦500 for every friend who subscribes.</p>
             <div className="flex gap-2">
               <input readOnly value={`prosuite.ng/ref/${data.user.referralCode}`} className="flex-grow bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-500 focus:outline-none" />
-              <button onClick={() => {}} className="px-3 py-2 bg-indigo-600 rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all">Copy</button>
+              <button onClick={() => {
+                navigator.clipboard.writeText(`prosuite.ng/ref/${data.user.referralCode}`);
+              }} className="px-3 py-2 bg-indigo-600 rounded-lg text-xs font-bold hover:bg-indigo-700 transition-all">Copy</button>
             </div>
             <div className="mt-4 flex items-center justify-between">
               <div className="text-xs text-slate-500">Earned: <span className="text-slate-100 font-bold">₦{data.referrals.totalEarned}</span></div>
@@ -550,6 +559,7 @@ function Section({ title, children, actionLabel }: { title: string, children: an
 function SubscriptionRow({ sub }: { sub: any }) {
   const daysRemaining = Math.max(0, Math.ceil((sub.endsAt - Date.now()) / (1000 * 60 * 60 * 24)));
   const percentage = Math.min(100, Math.max(0, (daysRemaining / 30) * 100)); // Simplified for 30-day plans
+  const priceMap: Record<string, string> = { weekly: "₦3,500/wk", monthly: "₦12,500/mo", quarterly: "₦32,000/qtr", yearly: "₦120,000/yr" };
 
   return (
     <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:border-indigo-500/50 transition-all">
@@ -560,7 +570,7 @@ function SubscriptionRow({ sub }: { sub: any }) {
         <div>
           <p className="font-black capitalize text-lg tracking-tight">{sub.plan} Agent Access</p>
           <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-black uppercase">₦12,500 / mo</span>
+            <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-black uppercase">{priceMap[sub.plan] || "₦12,500/mo"}</span>
             <span className="text-[10px] text-slate-500 italic">Next: {new Date(sub.endsAt).toLocaleDateString()}</span>
           </div>
         </div>
@@ -605,12 +615,22 @@ function EmptyState({ icon, text }: { icon: string, text: string }) {
 }
 
 function Subscriptions({ data }: { data: any }) { 
+  const activeSubs = data.subscriptions.filter((s: any) => s.status === "active");
+  const monthlySpend = activeSubs.reduce((sum: number, s: any) => {
+    if (s.plan === "weekly") return sum + 3500;
+    if (s.plan === "monthly") return sum + 12500;
+    if (s.plan === "quarterly") return sum + 32000;
+    if (s.plan === "yearly") return sum + 120000;
+    return sum + 12500;
+  }, 0);
+  const nextPayout = activeSubs.length > 0 ? new Date(Math.min(...activeSubs.map((s: any) => s.endsAt))).toLocaleDateString() : "N/A";
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <StatCard label="Monthly Spend" value="₦12,500" icon="💳" color="indigo" />
-        <StatCard label="Next Payout" value="Friday 2PM" icon="📅" color="emerald" />
-        <StatCard label="Credits Left" value="450" icon="💎" color="amber" />
+        <StatCard label="Monthly Spend" value={`₦${monthlySpend.toLocaleString()}`} icon="💳" color="indigo" />
+        <StatCard label="Next Renewal" value={nextPayout} icon="📅" color="emerald" />
+        <StatCard label="Active Plans" value={activeSubs.length.toString()} icon="💎" color="amber" />
       </div>
       <Section title="Active Subscriptions">
         <div className="space-y-4">
@@ -650,7 +670,7 @@ function Subscriptions({ data }: { data: any }) {
 
 function Projects({ data, setActiveTab, setModal }: { data: any, setActiveTab: (tab: string) => void, setModal: (m: string | null) => void }) { return <Overview data={data} setActiveTab={setActiveTab} setModal={setModal} />; }
 
-function Referrals({ data }: { data: any }) {
+function Referrals({ data, payoutMessage, setPayoutMessage, requestReferralPayoutAction }: { data: any; payoutMessage: string; setPayoutMessage: (v: string) => void; requestReferralPayoutAction: any }) {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -711,7 +731,13 @@ function Referrals({ data }: { data: any }) {
               <button className="py-3 bg-slate-800 rounded-xl text-xs font-bold hover:bg-slate-700 border border-slate-700">Bank Transfer</button>
               <button className="py-3 bg-slate-800 rounded-xl text-xs font-bold hover:bg-slate-700 border border-slate-700">OPay / Palmpay</button>
             </div>
-            <button disabled={data.referrals.availableBalance < 1000} className="w-full max-w-xs py-4 bg-emerald-600 text-white rounded-xl font-black text-lg hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-600/20 disabled:grayscale disabled:opacity-50">REQUEST PAYOUT</button>
+            {payoutMessage && <p className={`text-xs font-bold ${payoutMessage.includes("success") ? "text-emerald-400" : "text-red-400"}`}>{payoutMessage}</p>}
+            <button disabled={data.referrals.availableBalance < 1000} onClick={async () => {
+              setPayoutMessage("");
+              const result = await requestReferralPayoutAction({});
+              setPayoutMessage(result?.success ? `Payout of ₦${result.amount?.toLocaleString()} requested!` : result?.error || "Failed to request payout");
+              setTimeout(() => setPayoutMessage(""), 4000);
+            }} className="w-full max-w-xs py-4 bg-emerald-600 text-white rounded-xl font-black text-lg hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-600/20 disabled:grayscale disabled:opacity-50">REQUEST PAYOUT</button>
             <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tighter">Minimum withdrawal: ₦1,000 • Processed every Friday 2 PM</p>
           </div>
         </Section>
@@ -720,7 +746,7 @@ function Referrals({ data }: { data: any }) {
   );
 }
 
-function Security({ data }: { data: any }) {
+function Security({ data, tfaMessage, setTfaMessage, toggle2FAAction, newPassword, setNewPassword, passwordMessage, setPasswordMessage, changePasswordAction }: { data: any; tfaMessage: string; setTfaMessage: (v: string) => void; toggle2FAAction: any; newPassword: string; setNewPassword: (v: string) => void; passwordMessage: string; setPasswordMessage: (v: string) => void; changePasswordAction: any }) {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex justify-between items-center">
@@ -793,17 +819,38 @@ function Security({ data }: { data: any }) {
               <p className="font-bold">Authenticator App</p>
               <p className="text-xs text-slate-500 italic">Google Authenticator, Authy, etc.</p>
             </div>
-            <button className="px-6 py-2 bg-indigo-600 rounded-lg text-xs font-black hover:bg-indigo-700">ENABLE</button>
+            <button onClick={async () => {
+              const result = await toggle2FAAction({ enable: true });
+              setTfaMessage(result?.success ? "2FA enabled successfully!" : result?.error || "Failed to enable 2FA");
+              setTimeout(() => setTfaMessage(""), 3000);
+            }} className="px-6 py-2 bg-indigo-600 rounded-lg text-xs font-black hover:bg-indigo-700">ENABLE</button>
           </div>
+          {tfaMessage && <p className={`text-xs font-bold ${tfaMessage.includes("success") ? "text-emerald-400" : "text-red-400"}`}>{tfaMessage}</p>}
         </div>
         <div className="p-8 bg-slate-900 border border-slate-800 rounded-2xl space-y-6">
           <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">🔑 Change Password</h3>
-          <form className="space-y-4">
+          <form className="space-y-4" onSubmit={async (e) => {
+            e.preventDefault();
+            setPasswordMessage("");
+            const form = e.target as HTMLFormElement;
+            const currentPw = (form.elements[0] as HTMLInputElement).value;
+            const newPw = newPassword;
+            if (!currentPw || !newPw) { setPasswordMessage("Both fields required"); return; }
+            const result = await changePasswordAction({ currentPassword: currentPw, newPassword: newPw });
+            setPasswordMessage(result?.success ? "Password updated!" : result?.error || "Failed to update password");
+            if (result?.success) { form.reset(); setNewPassword(""); }
+            setTimeout(() => setPasswordMessage(""), 3000);
+          }}>
             <div className="space-y-2">
-              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest">New Password</label>
+              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Current Password</label>
               <input type="password" placeholder="••••••••" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50" />
             </div>
-            <button className="w-full py-3 bg-slate-800 rounded-xl text-sm font-black border border-slate-700 hover:bg-slate-700">UPDATE PASSWORD</button>
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-black text-slate-500 tracking-widest">New Password</label>
+              <input type="password" placeholder="••••••••" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50" />
+            </div>
+            {passwordMessage && <p className={`text-xs font-bold ${passwordMessage.includes("success") || passwordMessage.includes("updated") ? "text-emerald-400" : "text-red-400"}`}>{passwordMessage}</p>}
+            <button type="submit" className="w-full py-3 bg-slate-800 rounded-xl text-sm font-black border border-slate-700 hover:bg-slate-700">UPDATE PASSWORD</button>
           </form>
         </div>
       </div>

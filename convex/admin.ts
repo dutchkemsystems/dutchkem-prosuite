@@ -85,12 +85,41 @@ const monthAgo = now - (30 * 24 * 60 * 60 * 1000);
       fraudStopped: 0,
     };
 
-    const agentHealth = [
-        { modelName: "meta-llama/llama-3.3-70b-instruct", status: "healthy", failureCount: 0, avgResponseTime: 1.8, requestsToday: 0, fallbackTriggered: 0 },
-        { modelName: "meta-llama/llama-3.1-70b-instruct", status: "healthy", failureCount: 0, avgResponseTime: 2.1, requestsToday: 0, fallbackTriggered: 0 },
-        { modelName: "mistralai/mixtral-8x22b-instruct", status: "healthy", failureCount: 0, avgResponseTime: 2.5, requestsToday: 0, fallbackTriggered: 0 },
-        { modelName: "meta-llama/llama-3-8b-instruct", status: "healthy", failureCount: 0, avgResponseTime: 0.9, requestsToday: 0, fallbackTriggered: 0 },
-    ];
+    // Query real agent performance data from agent_autonomy_logs
+    const agentIds = ["A1","A2","A3","A4","A5","A6","A7","A8","A9","A10","A11","A12","A13","A14","A15"];
+    const modelNames: Record<string, string> = {
+      A1:"llama-3.3-70b", A2:"llama-3.3-70b", A3:"llama-3.3-70b", A4:"llama-3.3-70b",
+      A5:"llama-3.3-70b", A6:"llama-3.3-70b", A7:"llama-3.3-70b", A8:"mixtral-8x22b",
+      A9:"llama-3.3-70b", A10:"llama-3.3-70b", A11:"llama-3.3-70b", A12:"llama-3.3-70b",
+      A13:"llama-3.3-70b", A14:"llama-3.3-70b", A15:"llama-3.3-70b",
+    };
+    const agentHealth = [];
+    for (const agentId of agentIds) {
+      const logs = await ctx.db.query("agent_autonomy_logs")
+        .filter((q) => q.and(q.eq(q.field("agentId"), agentId), q.eq(q.field("actionType"), "snapshot")))
+        .order("desc").take(5);
+      let avgResponseTime = 2.0;
+      let totalScore = 100;
+      let failureCount = 0;
+      let requestsToday = 0;
+      if (logs.length > 0) {
+        const scores = logs.map((l: any) => { try { return JSON.parse(l.actionDetails).score ?? 100; } catch { return 100; } });
+        const times = logs.map((l: any) => { try { return JSON.parse(l.actionDetails).avgResponseMs ?? 2000; } catch { return 2000; } });
+        const failures = logs.map((l: any) => { try { return JSON.parse(l.actionDetails).tasksFailed ?? 0; } catch { return 0; } });
+        totalScore = Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length);
+        avgResponseTime = Math.round(times.reduce((a: number, b: number) => a + b, 0) / times.length / 100) / 10;
+        failureCount = failures.reduce((a: number, b: number) => a + b, 0);
+        requestsToday = logs.filter((l: any) => l.createdAt >= dayAgo).length;
+      }
+      agentHealth.push({
+        modelName: modelNames[agentId] || "llama-3.3-70b",
+        status: totalScore >= 80 ? "healthy" : totalScore >= 60 ? "degraded" : "critical",
+        failureCount,
+        avgResponseTime,
+        requestsToday,
+        fallbackTriggered: failureCount > 0 ? 1 : 0,
+      });
+    }
 
     const recentPayments = await ctx.db.query("payment_verifications")
       .withIndex("by_status", q => q.eq("status", "approved"))
@@ -648,6 +677,153 @@ export const getUpgradeStatus = query({
       autoUpgradeEnabled: enabled,
       currentStatus: enabled ? "System current" : "Updates pending",
       statusIndicator: enabled ? "🟢" : "🔴",
+    };
+  },
+});
+
+// ── Admin Subscription CRUD ──
+
+async function validateAdminSession(ctx: import("./_generated/server").MutationCtx, adminToken: string) {
+  const session: any = await ctx.db.get(adminToken as any);
+  if (session && session.userId && session.userType === "admin" && !session.isRevoked) {
+    return await ctx.db.get(session.userId);
+  }
+  return null;
+}
+
+export const listSubscriptions = query({
+  args: { adminToken: v.optional(v.string()) },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    if (!args.adminToken) return { authError: true, data: [] };
+    const adminUser = await (async () => {
+      const session: any = await ctx.db.get(args.adminToken as any);
+      return session && session.userId && session.userType === "admin" && !session.isRevoked ? await ctx.db.get(session.userId) : null;
+    })();
+    if (!adminUser) return { authError: true, data: [] };
+    const subs = await ctx.db.query("subscriptions").collect();
+    const users = await ctx.db.query("users").collect();
+    const userMap: Record<string, any> = {};
+    users.forEach((u: any) => { userMap[u._id] = u; });
+    return {
+      data: subs.map((s: any) => ({
+        ...s,
+        userName: userMap[s.userId]?.name || "Unknown",
+        userEmail: userMap[s.userId]?.email || "unknown",
+      })),
+    };
+  },
+});
+
+export const updateSubscription = mutation({
+  args: {
+    adminToken: v.string(),
+    subscriptionId: v.id("subscriptions"),
+    status: v.optional(v.union(v.literal("active"), v.literal("canceled"), v.literal("expired"), v.literal("suspended"), v.literal("pending"))),
+    plan: v.optional(v.union(v.literal("weekly"), v.literal("monthly"), v.literal("quarterly"), v.literal("yearly"))),
+    autoRenew: v.optional(v.boolean()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const adminUser = await validateAdminSession(ctx, args.adminToken);
+    if (!adminUser) return { authError: true };
+
+    const patch: any = {};
+    if (args.status) patch.status = args.status;
+    if (args.plan) patch.plan = args.plan;
+    if (args.autoRenew !== undefined) patch.autoRenew = args.autoRenew;
+
+    await ctx.db.patch("subscriptions", args.subscriptionId, patch);
+
+    await ctx.runMutation(internal.admin.logAdminAction, {
+      adminEmail: (adminUser as any).email,
+      action: "UPDATE_SUBSCRIPTION",
+      details: `Updated sub ${args.subscriptionId}: ${Object.keys(patch).join(", ")}`,
+      ip: "internal",
+    });
+
+    return { success: true };
+  },
+});
+
+export const cancelSubscription = mutation({
+  args: { adminToken: v.string(), subscriptionId: v.id("subscriptions") },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const adminUser = await validateAdminSession(ctx, args.adminToken);
+    if (!adminUser) return { authError: true };
+
+    await ctx.db.patch("subscriptions", args.subscriptionId, {
+      status: "canceled",
+      autoRenew: false,
+    });
+
+    await ctx.runMutation(internal.admin.logAdminAction, {
+      adminEmail: (adminUser as any).email,
+      action: "CANCEL_SUBSCRIPTION",
+      details: `Canceled subscription: ${args.subscriptionId}`,
+      ip: "internal",
+    });
+
+    return { success: true };
+  },
+});
+
+export const extendSubscription = mutation({
+  args: {
+    adminToken: v.string(),
+    subscriptionId: v.id("subscriptions"),
+    days: v.number(),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const adminUser = await validateAdminSession(ctx, args.adminToken);
+    if (!adminUser) return { authError: true };
+
+    const sub = await ctx.db.get("subscriptions", args.subscriptionId);
+    if (!sub) return { error: "Subscription not found" };
+
+    const newEndsAt = Math.max(sub.endsAt, Date.now()) + (args.days * 24 * 60 * 60 * 1000);
+    await ctx.db.patch("subscriptions", args.subscriptionId, {
+      endsAt: newEndsAt,
+      status: "active",
+    });
+
+    await ctx.runMutation(internal.admin.logAdminAction, {
+      adminEmail: (adminUser as any).email,
+      action: "EXTEND_SUBSCRIPTION",
+      details: `Extended sub ${args.subscriptionId} by ${args.days} days (new end: ${new Date(newEndsAt).toISOString()})`,
+      ip: "internal",
+    });
+
+    return { success: true, newEndsAt };
+  },
+});
+
+export const getSubscriptionStats = query({
+  args: { adminToken: v.optional(v.string()) },
+  returns: v.any(),
+  handler: async (ctx) => {
+    const subs = await ctx.db.query("subscriptions").collect();
+    const active = subs.filter((s: any) => s.status === "active").length;
+    const pending = subs.filter((s: any) => s.status === "pending").length;
+    const canceled = subs.filter((s: any) => s.status === "canceled").length;
+    const expired = subs.filter((s: any) => s.status === "expired").length;
+    const suspended = subs.filter((s: any) => s.status === "suspended").length;
+    const total = subs.length;
+
+    const byPlan: Record<string, number> = {};
+    subs.forEach((s: any) => { byPlan[s.plan] = (byPlan[s.plan] || 0) + 1; });
+
+    return {
+      total,
+      active,
+      pending,
+      canceled,
+      expired,
+      suspended,
+      byPlan,
+      mrr: active * 12500,
     };
   },
 });

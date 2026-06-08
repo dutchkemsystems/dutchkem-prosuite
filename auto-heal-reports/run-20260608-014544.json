@@ -1,0 +1,64 @@
+﻿{
+    "runId":  "run-20260608-014544",
+    "triggeredBy":  "manual",
+    "status":  "success",
+    "startedAt":  1780879544933,
+    "sections":  [
+                     {
+                         "status":  "ok",
+                         "name":  "1-dependency-health",
+                         "durationMs":  29982.7717,
+                         "message":  "No critical security vulnerabilities"
+                     },
+                     {
+                         "status":  "ok",
+                         "name":  "2-secret-scan",
+                         "durationMs":  3924.0313,
+                         "message":  "No hardcoded secrets detected"
+                     },
+                     {
+                         "status":  "ok",
+                         "name":  "3-env-vars",
+                         "durationMs":  22.6067,
+                         "message":  "All required env vars present"
+                     },
+                     {
+                         "status":  "ok",
+                         "name":  "4-typescript",
+                         "durationMs":  115849.46070000001,
+                         "message":  "No TypeScript errors"
+                     },
+                     {
+                         "status":  "ok",
+                         "name":  "5-lint",
+                         "durationMs":  11303.723,
+                         "message":  "All lint issues auto-fixed"
+                     },
+                     {
+                         "status":  "ok",
+                         "name":  "6-git-push",
+                         "durationMs":  872.2532,
+                         "message":  "No changes to commit"
+                     },
+                     {
+                         "status":  "ok",
+                         "name":  "7-convex-deploy",
+                         "durationMs":  21720.9964,
+                         "message":  "Deployed successfully"
+                     },
+                     {
+                         "status":  "ok",
+                         "name":  "8-health-check",
+                         "durationMs":  2583.077,
+                         "message":  "Vercel: healthy, Convex: healthy"
+                     }
+                 ],
+    "issuesFound":  0,
+    "issuesFixed":  2,
+    "convexDeployed":  true,
+    "vercelDeployed":  true,
+    "completedAt":  1780879737172,
+    "durationMs":  192239.1518,
+    "commitSha":  "932f053",
+    "summary":  "Run run-20260608-014544: 8 sections, 2 fixed, 0 remaining, Vercel: healthy, Convex: healthy"
+}

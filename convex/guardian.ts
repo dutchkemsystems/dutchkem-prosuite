@@ -134,6 +134,8 @@ export const verifyPayment = internalMutation({
       userAgent: "Guardian AI Engine",
     });
 
+    // 7. Webhook triggers are handled by the caller (http.ts) — no double-fire here
+
     return { status, confidenceScore };
   },
 });

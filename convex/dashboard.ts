@@ -98,11 +98,17 @@ export const getDashboardData = query({
       .order("desc")
       .take(10);
 
-    const notifications = await ctx.db
+    const notifications = (await ctx.db
       .query("notifications")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
-      .take(10);
+      .take(10));
+
+    // Also fetch broadcast notifications (userId = null means broadcast to all)
+    const allNotifications = await ctx.db.query("notifications").order("desc").take(50);
+    const broadcasts = allNotifications.filter((n: any) => !n.userId && !notifications.some((pn: any) => pn._id === n._id)).slice(0, 5);
+
+    const mergedNotifications = [...notifications, ...broadcasts].sort((a: any, b: any) => b.createdAt - a.createdAt).slice(0, 15);
 
     const paymentMethods = await ctx.db
       .query("payment_methods")
@@ -170,7 +176,7 @@ export const getDashboardData = query({
         completedAt: p.completedAt,
         downloadUrl: p.downloadUrl,
       })),
-      notifications: notifications.map(n => ({
+      notifications: mergedNotifications.map(n => ({
         _id: n._id,
         title: n.title,
         message: n.message,
