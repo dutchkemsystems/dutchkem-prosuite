@@ -1,38 +1,67 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../../convex/_generated/api'
 
+function ErrorFallback({ error, reset }: { error: string; reset: () => void }) {
+  return (
+    <div className="p-8 bg-red-500/10 border border-red-500/20 rounded-2xl text-center space-y-4">
+      <p className="text-4xl">⚠️</p>
+      <p className="text-red-400 font-black">{error}</p>
+      <button onClick={reset} className="px-6 py-3 bg-red-600 text-white font-black text-sm rounded-xl hover:bg-red-700 transition-all">
+        Try Again
+      </button>
+    </div>
+  )
+}
+
 export function WorkflowBuilderTab({ token }: { token: string }) {
-  const workflows = useQuery(api.enterprise_workflows.listWorkflows, { token }) || []
-  const templates = useQuery(api.enterprise_workflows.listTemplates) || []
+  const [retryKey, setRetryKey] = useState(0)
+  const [view, setView] = useState<'list' | 'templates' | 'builder'>('list')
+  const [selectedWorkflow, setSelectedWorkflow] = useState<any>(null)
+  const [builderNodes, setBuilderNodes] = useState<any[]>([])
+  const [builderEdges, setBuilderEdges] = useState<any[]>([])
+  const [workflowName, setWorkflowName] = useState('')
+  const [workflowDesc, setWorkflowDesc] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [running, setRunning] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [editNodeId, setEditNodeId] = useState<string | null>(null)
+  const [editLabel, setEditLabel] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  let workflows: any[] = []
+  let templates: any[] = []
+  try {
+    const wq = useQuery(api.enterprise_workflows.listWorkflows, { token })
+    const tq = useQuery(api.enterprise_workflows.listTemplates)
+    workflows = wq || []
+    templates = tq || []
+  } catch (e: any) {
+    if (!loadError) setLoadError(e?.message || 'Failed to load workflows')
+  }
+
   const createWorkflow = useMutation(api.enterprise_workflows.createWorkflow)
   const updateWorkflow = useMutation(api.enterprise_workflows.updateWorkflow)
   const deleteWorkflow = useMutation(api.enterprise_workflows.deleteWorkflow)
   const runWorkflow = useMutation(api.enterprise_workflows.runWorkflow)
   const duplicateWorkflow = useMutation(api.enterprise_workflows.duplicateWorkflow)
 
-  const [view, setView] = useState<'list' | 'templates' | 'builder'>('list')
-  const [selectedWorkflow, setSelectedWorkflow] = useState<any>(null)
-  const getWorkflow = useQuery(api.enterprise_workflows.getWorkflow, token && selectedWorkflow ? { token, workflowId: selectedWorkflow._id } : 'skip') || null
-  const [builderNodes, setBuilderNodes] = useState<any[]>([])
-  const [builderEdges, setBuilderEdges] = useState<any[]>([])
-  const [workflowName, setWorkflowName] = useState('')
+  let getWorkflow: any = null
+  try {
+    getWorkflow = useQuery(
+      api.enterprise_workflows.getWorkflow,
+      token && selectedWorkflow ? { token, workflowId: selectedWorkflow._id } : 'skip'
+    ) || null
+  } catch {}
 
   useEffect(() => {
-    if (getWorkflow) {
+    if (getWorkflow && getWorkflow.nodes) {
       setBuilderNodes(getWorkflow.nodes || [])
       setBuilderEdges(getWorkflow.edges || [])
     }
   }, [getWorkflow])
-  const [workflowDesc, setWorkflowDesc] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [running, setRunning] = useState<string | null>(null)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-  const [draggedNode, setDraggedNode] = useState<string | null>(null)
-  const [editNodeId, setEditNodeId] = useState<string | null>(null)
-  const [editLabel, setEditLabel] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const NODE_TYPES = [
     { type: 'trigger', label: 'Trigger', icon: '⚡', color: '#f59e0b' },
@@ -51,25 +80,18 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
   const handleCreateFromTemplate = async (template: any) => {
     setSaving(true)
     try {
-      const result = await createWorkflow({
-        token,
-        name: template.name,
-        description: template.description,
-        templateId: template.id,
-      })
+      const result = await createWorkflow({ token, name: template.name, description: template.description, templateId: template.id })
       if (result.error) { showToast(result.error, true); return }
-      showToast(`Workflow "${template.name}" created from template!`)
+      showToast(`Workflow "${template.name}" created!`)
       setView('list')
-    } catch (e: any) { showToast(e.message || 'Failed to create', true) }
+    } catch (e: any) { showToast(e.message || 'Failed', true) }
     finally { setSaving(false) }
   }
 
   const handleCreateFromScratch = () => {
     setWorkflowName('')
     setWorkflowDesc('')
-    setBuilderNodes([
-      { id: 'node_1', type: 'trigger', label: 'Start', icon: '⚡', x: 50, y: 120, config: {} },
-    ])
+    setBuilderNodes([{ id: 'node_1', type: 'trigger', label: 'Start', icon: '⚡', x: 50, y: 120, config: {} }])
     setBuilderEdges([])
     setSelectedWorkflow(null)
     setView('builder')
@@ -87,29 +109,16 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
     setSaving(true)
     try {
       if (selectedWorkflow) {
-        const result = await updateWorkflow({
-          token,
-          workflowId: selectedWorkflow._id,
-          name: workflowName,
-          description: workflowDesc,
-          nodes: builderNodes,
-          edges: builderEdges,
-        })
+        const result = await updateWorkflow({ token, workflowId: selectedWorkflow._id, name: workflowName, description: workflowDesc, nodes: builderNodes, edges: builderEdges })
         if (result.error) { showToast(result.error, true); return }
         showToast('Workflow updated!')
       } else {
-        const result = await createWorkflow({
-          token,
-          name: workflowName,
-          description: workflowDesc,
-          nodes: builderNodes,
-          edges: builderEdges,
-        })
+        const result = await createWorkflow({ token, name: workflowName, description: workflowDesc, nodes: builderNodes, edges: builderEdges })
         if (result.error) { showToast(result.error, true); return }
         showToast('Workflow created!')
       }
       setView('list')
-    } catch (e: any) { showToast(e.message || 'Failed to save', true) }
+    } catch (e: any) { showToast(e.message || 'Failed', true) }
     finally { setSaving(false) }
   }
 
@@ -118,8 +127,8 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
     try {
       const result = await runWorkflow({ token, workflowId: wf._id })
       if (result.error) { showToast(result.error, true); return }
-      showToast(`Workflow "${wf.name}" executed! Run #${result.runNumber}`)
-    } catch (e: any) { showToast(e.message || 'Failed to run', true) }
+      showToast(`Workflow executed! Run #${result.runNumber}`)
+    } catch (e: any) { showToast(e.message || 'Failed', true) }
     finally { setRunning(null) }
   }
 
@@ -140,15 +149,7 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
     const nodeType = NODE_TYPES.find(n => n.type === type)!
     const id = `node_${Date.now()}`
     const maxX = builderNodes.length > 0 ? Math.max(...builderNodes.map((n: any) => n.x)) : 0
-    setBuilderNodes([...builderNodes, {
-      id,
-      type,
-      label: nodeType.label,
-      icon: nodeType.icon,
-      x: maxX + 180,
-      y: 120,
-      config: {},
-    }])
+    setBuilderNodes([...builderNodes, { id, type, label: nodeType.label, icon: nodeType.icon, x: maxX + 180, y: 120, config: {} }])
   }
 
   const handleRemoveNode = (nodeId: string) => {
@@ -174,9 +175,12 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
     archived: 'bg-red-500/10 text-red-400 border-red-500/20',
   }
 
+  if (loadError) {
+    return <ErrorFallback error={loadError} reset={() => { setLoadError(null); setRetryKey(k => k + 1) }} />
+  }
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Toast */}
+    <div className="space-y-6 animate-in fade-in duration-500" key={retryKey}>
       {(error || success) && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-black ${error ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}`}>
           {error || success}
@@ -207,10 +211,6 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
         </div>
       </div>
 
-      {error && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm font-bold">{error}</div>}
-      {success && <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-sm font-bold">{success}</div>}
-
-      {/* Templates View */}
       {view === 'templates' && (
         <div className="space-y-6">
           <p className="text-sm text-slate-400">Choose a pre-built template to get started quickly</p>
@@ -219,34 +219,27 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
               <div key={tpl.id} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all group">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-12 h-12 bg-violet-500/10 rounded-xl flex items-center justify-center text-2xl">🔄</div>
-                  <div>
-                    <span className="px-2 py-0.5 bg-white/5 rounded text-[9px] font-black uppercase text-slate-500">{tpl.category}</span>
-                  </div>
+                  <span className="px-2 py-0.5 bg-white/5 rounded text-[9px] font-black uppercase text-slate-500">{tpl.category}</span>
                 </div>
                 <h3 className="font-black text-lg mb-2">{tpl.name}</h3>
                 <p className="text-sm text-slate-400 mb-4">{tpl.description}</p>
                 <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
-                  <span>{tpl.nodes.length} nodes</span>
-                  <span>·</span>
-                  <span>{tpl.edges.length} connections</span>
+                  <span>{tpl.nodes.length} nodes</span><span>·</span><span>{tpl.edges.length} connections</span>
                 </div>
-                <button
-                  onClick={() => handleCreateFromTemplate(tpl)}
-                  disabled={saving}
-                  className="w-full py-3 bg-violet-600 text-white font-black text-sm rounded-xl hover:bg-violet-700 transition-all disabled:opacity-50"
-                >
+                <button onClick={() => handleCreateFromTemplate(tpl)} disabled={saving}
+                  className="w-full py-3 bg-violet-600 text-white font-black text-sm rounded-xl hover:bg-violet-700 transition-all disabled:opacity-50">
                   {saving ? 'Creating...' : 'Use Template'}
                 </button>
               </div>
             ))}
           </div>
-          <button onClick={() => { setView('list'); handleCreateFromScratch() }} className="w-full py-4 border-2 border-dashed border-white/10 rounded-2xl text-slate-500 font-black hover:border-violet-500/50 hover:text-violet-400 transition-all">
+          <button onClick={() => { setView('list'); handleCreateFromScratch() }}
+            className="w-full py-4 border-2 border-dashed border-white/10 rounded-2xl text-slate-500 font-black hover:border-violet-500/50 hover:text-violet-400 transition-all">
             + Create From Scratch
           </button>
         </div>
       )}
 
-      {/* Builder View */}
       {view === 'builder' && (
         <div className="space-y-6">
           <div className="flex gap-4">
@@ -259,9 +252,7 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
               {saving ? 'Saving...' : selectedWorkflow ? 'Update' : 'Save Workflow'}
             </button>
           </div>
-
           <div className="grid grid-cols-5 gap-6">
-            {/* Node palette */}
             <div className="space-y-3">
               <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Add Nodes</p>
               {NODE_TYPES.map(nt => (
@@ -271,14 +262,10 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
                 </button>
               ))}
             </div>
-
-            {/* Canvas */}
             <div className="col-span-4 bg-white/5 border border-white/10 rounded-2xl p-6 min-h-[400px] relative overflow-hidden">
               <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Agent Flow Canvas</p>
               {builderNodes.length === 0 ? (
-                <div className="flex items-center justify-center h-64 text-slate-600 font-bold">
-                  Add nodes from the palette to start building
-                </div>
+                <div className="flex items-center justify-center h-64 text-slate-600 font-bold">Add nodes from the palette to start building</div>
               ) : (
                 <div className="relative" style={{ minHeight: 350 }}>
                   <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
@@ -286,10 +273,7 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
                       const from = builderNodes.find((n: any) => n.id === edge.from)
                       const to = builderNodes.find((n: any) => n.id === edge.to)
                       if (!from || !to) return null
-                      return (
-                        <line key={i} x1={from.x + 80} y1={from.y + 25} x2={to.x + 20} y2={to.y + 25}
-                          stroke="rgba(139,92,246,0.4)" strokeWidth="2" strokeDasharray="5,5" />
-                      )
+                      return <line key={i} x1={from.x + 80} y1={from.y + 25} x2={to.x + 20} y2={to.y + 25} stroke="rgba(139,92,246,0.4)" strokeWidth="2" strokeDasharray="5,5" />
                     })}
                   </svg>
                   {builderNodes.map((node: any) => {
@@ -305,18 +289,11 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
                             onKeyDown={e => e.key === 'Enter' && handleUpdateNodeLabel(node.id, editLabel)}
                             className="bg-transparent border-b border-white/30 text-sm font-black text-white w-24 focus:outline-none" autoFocus />
                         ) : (
-                          <span className="text-sm font-black text-white" onDoubleClick={() => { setEditNodeId(node.id); setEditLabel(node.label) }}>
-                            {node.label}
-                          </span>
+                          <span className="text-sm font-black text-white" onDoubleClick={() => { setEditNodeId(node.id); setEditLabel(node.label) }}>{node.label}</span>
                         )}
-                        <button onClick={() => handleRemoveNode(node.id)}
-                          className="opacity-0 group-hover:opacity-100 ml-1 text-red-400 text-xs hover:text-red-300 transition-all">✕</button>
-                        {/* Connect button */}
+                        <button onClick={() => handleRemoveNode(node.id)} className="opacity-0 group-hover:opacity-100 ml-1 text-red-400 text-xs hover:text-red-300 transition-all">✕</button>
                         {builderNodes.indexOf(node) < builderNodes.length - 1 && (
-                          <button onClick={() => {
-                            const nextNode = builderNodes[builderNodes.indexOf(node) + 1]
-                            if (nextNode) handleConnectNodes(node.id, nextNode.id)
-                          }}
+                          <button onClick={() => { const next = builderNodes[builderNodes.indexOf(node) + 1]; if (next) handleConnectNodes(node.id, next.id) }}
                             className="opacity-0 group-hover:opacity-100 text-violet-400 text-xs hover:text-violet-300 transition-all ml-1">→</button>
                         )}
                       </div>
@@ -329,7 +306,6 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
         </div>
       )}
 
-      {/* Workflow List */}
       {view === 'list' && (
         <div className="space-y-4">
           {workflows.length === 0 ? (
@@ -346,13 +322,11 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
                 <div className="w-12 h-12 bg-violet-500/10 rounded-xl flex items-center justify-center text-2xl">🔄</div>
                 <div>
                   <h3 className="font-black">{wf.name}</h3>
-                  <p className="text-xs text-slate-400">{wf.nodeCount} agents · {wf.runCount} runs · Last: {wf.lastRunAt ? new Date(wf.lastRunAt).toLocaleString() : 'Never'}</p>
+                  <p className="text-xs text-slate-400">{wf.nodeCount} nodes · {wf.runCount} runs · Last: {wf.lastRunAt ? new Date(wf.lastRunAt).toLocaleString() : 'Never'}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${statusColors[wf.status] || statusColors.draft}`}>
-                  {wf.status}
-                </span>
+                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${statusColors[wf.status] || statusColors.draft}`}>{wf.status}</span>
                 <button onClick={() => handleEditWorkflow(wf)} className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-xs font-bold hover:bg-white/10 transition-all">Edit</button>
                 <button onClick={() => handleDuplicate(wf)} className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-xs font-bold hover:bg-white/10 transition-all">Duplicate</button>
                 <button onClick={() => handleRun(wf)} disabled={running === wf._id}
