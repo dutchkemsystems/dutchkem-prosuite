@@ -1,107 +1,370 @@
-import { useState } from 'react'
-import { useMutation } from 'convex/react'
+import { useState, useCallback } from 'react'
+import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../../convex/_generated/api'
 
-const sampleWorkflows = [
-  { id: '1', name: 'Lead Generation Pipeline', status: 'active' as const, nodes: 5, runs: 142, lastRun: '2 hours ago' },
-  { id: '2', name: 'Content Production Line', status: 'active' as const, nodes: 8, runs: 89, lastRun: '5 hours ago' },
-  { id: '3', name: 'Customer Support Triage', status: 'draft' as const, nodes: 4, runs: 0, lastRun: 'Never' },
-]
-
 export function WorkflowBuilderTab({ token }: { token: string }) {
-  const [workflows, setWorkflows] = useState(sampleWorkflows)
-  const [selectedWorkflow, setSelectedWorkflow] = useState<string | null>(null)
-  const [showBuilder, setShowBuilder] = useState(false)
-  const [newName, setNewName] = useState('')
+  const workflows = useQuery(api.enterprise_workflows.listWorkflows, { token }) || []
+  const templates = useQuery(api.enterprise_workflows.listTemplates) || []
+  const createWorkflow = useMutation(api.enterprise_workflows.createWorkflow)
+  const updateWorkflow = useMutation(api.enterprise_workflows.updateWorkflow)
+  const deleteWorkflow = useMutation(api.enterprise_workflows.deleteWorkflow)
+  const runWorkflow = useMutation(api.enterprise_workflows.runWorkflow)
+  const duplicateWorkflow = useMutation(api.enterprise_workflows.duplicateWorkflow)
 
-  const nodes = [
-    { id: 'trigger', label: 'Trigger', icon: '⚡', x: 50, y: 120, color: '#f59e0b' },
-    { id: 'research', label: 'Research Agent', icon: '🔍', x: 220, y: 60, color: '#8b5cf6' },
-    { id: 'analyze', label: 'Analysis Agent', icon: '📊', x: 220, y: 180, color: '#3b82f6' },
-    { id: 'write', label: 'Writing Agent', icon: '✍️', x: 400, y: 60, color: '#10b981' },
-    { id: 'review', label: 'Review Agent', icon: '✅', x: 400, y: 180, color: '#ef4444' },
-    { id: 'output', label: 'Output', icon: '📤', x: 570, y: 120, color: '#06b6d4' },
+  const [view, setView] = useState<'list' | 'templates' | 'builder'>('list')
+  const [selectedWorkflow, setSelectedWorkflow] = useState<any>(null)
+  const [builderNodes, setBuilderNodes] = useState<any[]>([])
+  const [builderEdges, setBuilderEdges] = useState<any[]>([])
+  const [workflowName, setWorkflowName] = useState('')
+  const [workflowDesc, setWorkflowDesc] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [running, setRunning] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [draggedNode, setDraggedNode] = useState<string | null>(null)
+  const [editNodeId, setEditNodeId] = useState<string | null>(null)
+  const [editLabel, setEditLabel] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+
+  const NODE_TYPES = [
+    { type: 'trigger', label: 'Trigger', icon: '⚡', color: '#f59e0b' },
+    { type: 'action', label: 'Action', icon: '🔧', color: '#8b5cf6' },
+    { type: 'condition', label: 'Condition', icon: '🔀', color: '#3b82f6' },
+    { type: 'output', label: 'Output', icon: '📤', color: '#06b6d4' },
+    { type: 'delay', label: 'Delay', icon: '⏱️', color: '#ef4444' },
   ]
 
-  const connections = [
-    { from: 'trigger', to: 'research' }, { from: 'trigger', to: 'analyze' },
-    { from: 'research', to: 'write' }, { from: 'analyze', to: 'review' },
-    { from: 'write', to: 'output' }, { from: 'review', to: 'output' },
-  ]
+  const showToast = (msg: string, isError = false) => {
+    if (isError) setError(msg)
+    else setSuccess(msg)
+    setTimeout(() => { setError(''); setSuccess('') }, 3000)
+  }
+
+  const handleCreateFromTemplate = async (template: any) => {
+    setSaving(true)
+    try {
+      const result = await createWorkflow({
+        token,
+        name: template.name,
+        description: template.description,
+        templateId: template.id,
+      })
+      if (result.error) { showToast(result.error, true); return }
+      showToast(`Workflow "${template.name}" created from template!`)
+      setView('list')
+    } catch (e: any) { showToast(e.message || 'Failed to create', true) }
+    finally { setSaving(false) }
+  }
+
+  const handleCreateFromScratch = () => {
+    setWorkflowName('')
+    setWorkflowDesc('')
+    setBuilderNodes([
+      { id: 'node_1', type: 'trigger', label: 'Start', icon: '⚡', x: 50, y: 120, config: {} },
+    ])
+    setBuilderEdges([])
+    setSelectedWorkflow(null)
+    setView('builder')
+  }
+
+  const handleEditWorkflow = async (wf: any) => {
+    setSelectedWorkflow(wf)
+    setWorkflowName(wf.name)
+    setWorkflowDesc(wf.description || '')
+    // Fetch full workflow data
+    const full = await (api.enterprise_workflows.getWorkflow as any)({ token, workflowId: wf._id })
+    if (full) {
+      setBuilderNodes(full.nodes || [])
+      setBuilderEdges(full.edges || [])
+    }
+    setView('builder')
+  }
+
+  const handleSave = async () => {
+    if (!workflowName.trim()) { showToast('Workflow name is required', true); return }
+    setSaving(true)
+    try {
+      if (selectedWorkflow) {
+        const result = await updateWorkflow({
+          token,
+          workflowId: selectedWorkflow._id,
+          name: workflowName,
+          description: workflowDesc,
+          nodes: builderNodes,
+          edges: builderEdges,
+        })
+        if (result.error) { showToast(result.error, true); return }
+        showToast('Workflow updated!')
+      } else {
+        const result = await createWorkflow({
+          token,
+          name: workflowName,
+          description: workflowDesc,
+          nodes: builderNodes,
+          edges: builderEdges,
+        })
+        if (result.error) { showToast(result.error, true); return }
+        showToast('Workflow created!')
+      }
+      setView('list')
+    } catch (e: any) { showToast(e.message || 'Failed to save', true) }
+    finally { setSaving(false) }
+  }
+
+  const handleRun = async (wf: any) => {
+    setRunning(wf._id)
+    try {
+      const result = await runWorkflow({ token, workflowId: wf._id })
+      if (result.error) { showToast(result.error, true); return }
+      showToast(`Workflow "${wf.name}" executed! Run #${result.runNumber}`)
+    } catch (e: any) { showToast(e.message || 'Failed to run', true) }
+    finally { setRunning(null) }
+  }
+
+  const handleDelete = async (wfId: string) => {
+    const result = await deleteWorkflow({ token, workflowId: wfId })
+    if (result.error) { showToast(result.error, true); return }
+    showToast('Workflow deleted!')
+    setConfirmDelete(null)
+  }
+
+  const handleDuplicate = async (wf: any) => {
+    const result = await duplicateWorkflow({ token, workflowId: wf._id, newName: `${wf.name} (Copy)` })
+    if (result.error) { showToast(result.error, true); return }
+    showToast('Workflow duplicated!')
+  }
+
+  const handleAddNode = (type: string) => {
+    const nodeType = NODE_TYPES.find(n => n.type === type)!
+    const id = `node_${Date.now()}`
+    const maxX = builderNodes.length > 0 ? Math.max(...builderNodes.map((n: any) => n.x)) : 0
+    setBuilderNodes([...builderNodes, {
+      id,
+      type,
+      label: nodeType.label,
+      icon: nodeType.icon,
+      x: maxX + 180,
+      y: 120,
+      config: {},
+    }])
+  }
+
+  const handleRemoveNode = (nodeId: string) => {
+    setBuilderNodes(builderNodes.filter((n: any) => n.id !== nodeId))
+    setBuilderEdges(builderEdges.filter((e: any) => e.from !== nodeId && e.to !== nodeId))
+  }
+
+  const handleConnectNodes = (fromId: string, toId: string) => {
+    if (fromId === toId) return
+    const exists = builderEdges.some((e: any) => e.from === fromId && e.to === toId)
+    if (!exists) setBuilderEdges([...builderEdges, { from: fromId, to: toId }])
+  }
+
+  const handleUpdateNodeLabel = (nodeId: string, label: string) => {
+    setBuilderNodes(builderNodes.map((n: any) => n.id === nodeId ? { ...n, label } : n))
+    setEditNodeId(null)
+  }
+
+  const statusColors: Record<string, string> = {
+    active: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    draft: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+    paused: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    archived: 'bg-red-500/10 text-red-400 border-red-500/20',
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Toast */}
+      {(error || success) && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-black ${error ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}`}>
+          {error || success}
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-black tracking-tight">Workflow Builder</h2>
           <p className="text-sm text-slate-400 mt-1">Visual drag-drop agent orchestration</p>
         </div>
-        <button
-          onClick={() => setShowBuilder(!showBuilder)}
-          className="px-6 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white font-black text-sm rounded-xl hover:scale-105 transition-all"
-        >
-          {showBuilder ? '← Back to List' : '+ New Workflow'}
-        </button>
+        <div className="flex gap-3">
+          {view === 'builder' && (
+            <button onClick={() => setView('list')} className="px-4 py-2 bg-white/5 border border-white/10 text-white font-bold text-sm rounded-xl hover:bg-white/10 transition-all">
+              ← Back
+            </button>
+          )}
+          {view !== 'builder' && (
+            <>
+              <button onClick={() => setView('templates')} className="px-5 py-3 bg-white/5 border border-white/10 text-white font-black text-sm rounded-xl hover:bg-white/10 transition-all">
+                📋 Templates
+              </button>
+              <button onClick={handleCreateFromScratch} className="px-5 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white font-black text-sm rounded-xl hover:scale-105 transition-all">
+                + New Workflow
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {showBuilder ? (
+      {error && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm font-bold">{error}</div>}
+      {success && <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-sm font-bold">{success}</div>}
+
+      {/* Templates View */}
+      {view === 'templates' && (
+        <div className="space-y-6">
+          <p className="text-sm text-slate-400">Choose a pre-built template to get started quickly</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {templates.map((tpl: any) => (
+              <div key={tpl.id} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all group">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-12 h-12 bg-violet-500/10 rounded-xl flex items-center justify-center text-2xl">🔄</div>
+                  <div>
+                    <span className="px-2 py-0.5 bg-white/5 rounded text-[9px] font-black uppercase text-slate-500">{tpl.category}</span>
+                  </div>
+                </div>
+                <h3 className="font-black text-lg mb-2">{tpl.name}</h3>
+                <p className="text-sm text-slate-400 mb-4">{tpl.description}</p>
+                <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
+                  <span>{tpl.nodes.length} nodes</span>
+                  <span>·</span>
+                  <span>{tpl.edges.length} connections</span>
+                </div>
+                <button
+                  onClick={() => handleCreateFromTemplate(tpl)}
+                  disabled={saving}
+                  className="w-full py-3 bg-violet-600 text-white font-black text-sm rounded-xl hover:bg-violet-700 transition-all disabled:opacity-50"
+                >
+                  {saving ? 'Creating...' : 'Use Template'}
+                </button>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => { setView('list'); handleCreateFromScratch() }} className="w-full py-4 border-2 border-dashed border-white/10 rounded-2xl text-slate-500 font-black hover:border-violet-500/50 hover:text-violet-400 transition-all">
+            + Create From Scratch
+          </button>
+        </div>
+      )}
+
+      {/* Builder View */}
+      {view === 'builder' && (
         <div className="space-y-6">
           <div className="flex gap-4">
-            <input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Workflow name..."
-              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/50 font-medium"
-            />
-            <button className="px-6 py-3 bg-emerald-600 text-white font-black text-sm rounded-xl hover:bg-emerald-700 transition-all">
-              Save Workflow
+            <input value={workflowName} onChange={(e) => setWorkflowName(e.target.value)} placeholder="Workflow name..."
+              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/50 font-medium" />
+            <input value={workflowDesc} onChange={(e) => setWorkflowDesc(e.target.value)} placeholder="Description (optional)..."
+              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/50 font-medium" />
+            <button onClick={handleSave} disabled={saving}
+              className="px-6 py-3 bg-emerald-600 text-white font-black text-sm rounded-xl hover:bg-emerald-700 transition-all disabled:opacity-50">
+              {saving ? 'Saving...' : selectedWorkflow ? 'Update' : 'Save Workflow'}
             </button>
           </div>
 
-          {/* Visual Canvas */}
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-8 min-h-[400px] relative overflow-hidden">
-            <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-6">Agent Flow Canvas</p>
-            <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
-              {connections.map((conn, i) => {
-                const from = nodes.find(n => n.id === conn.from)!
-                const to = nodes.find(n => n.id === conn.to)!
-                return (
-                  <line key={i} x1={from.x + 80} y1={from.y + 25} x2={to.x + 20} y2={to.y + 25}
-                    stroke="rgba(255,255,255,0.1)" strokeWidth="2" strokeDasharray="5,5" />
-                )
-              })}
-            </svg>
-            <div className="relative z-10">
-              {nodes.map((node) => (
-                <div
-                  key={node.id}
-                  className="absolute flex items-center gap-3 px-5 py-3 rounded-xl border cursor-move hover:scale-105 transition-transform"
-                  style={{ left: node.x, top: node.y, borderColor: node.color + '40', background: node.color + '15' }}
-                >
-                  <span className="text-xl">{node.icon}</span>
-                  <span className="text-sm font-black text-white">{node.label}</span>
-                </div>
+          <div className="grid grid-cols-5 gap-6">
+            {/* Node palette */}
+            <div className="space-y-3">
+              <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Add Nodes</p>
+              {NODE_TYPES.map(nt => (
+                <button key={nt.type} onClick={() => handleAddNode(nt.type)}
+                  className="w-full flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm font-bold hover:bg-white/10 transition-all text-left">
+                  <span>{nt.icon}</span> {nt.label}
+                </button>
               ))}
+            </div>
+
+            {/* Canvas */}
+            <div className="col-span-4 bg-white/5 border border-white/10 rounded-2xl p-6 min-h-[400px] relative overflow-hidden">
+              <p className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">Agent Flow Canvas</p>
+              {builderNodes.length === 0 ? (
+                <div className="flex items-center justify-center h-64 text-slate-600 font-bold">
+                  Add nodes from the palette to start building
+                </div>
+              ) : (
+                <div className="relative" style={{ minHeight: 350 }}>
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
+                    {builderEdges.map((edge: any, i: number) => {
+                      const from = builderNodes.find((n: any) => n.id === edge.from)
+                      const to = builderNodes.find((n: any) => n.id === edge.to)
+                      if (!from || !to) return null
+                      return (
+                        <line key={i} x1={from.x + 80} y1={from.y + 25} x2={to.x + 20} y2={to.y + 25}
+                          stroke="rgba(139,92,246,0.4)" strokeWidth="2" strokeDasharray="5,5" />
+                      )
+                    })}
+                  </svg>
+                  {builderNodes.map((node: any) => {
+                    const nodeType = NODE_TYPES.find(n => n.type === node.type) || NODE_TYPES[0]
+                    return (
+                      <div key={node.id}
+                        className="absolute flex items-center gap-2 px-4 py-3 rounded-xl border cursor-move hover:scale-105 transition-transform group"
+                        style={{ left: node.x, top: node.y, borderColor: nodeType.color + '40', background: nodeType.color + '15' }}>
+                        <span className="text-lg">{node.icon}</span>
+                        {editNodeId === node.id ? (
+                          <input value={editLabel} onChange={e => setEditLabel(e.target.value)}
+                            onBlur={() => handleUpdateNodeLabel(node.id, editLabel)}
+                            onKeyDown={e => e.key === 'Enter' && handleUpdateNodeLabel(node.id, editLabel)}
+                            className="bg-transparent border-b border-white/30 text-sm font-black text-white w-24 focus:outline-none" autoFocus />
+                        ) : (
+                          <span className="text-sm font-black text-white" onDoubleClick={() => { setEditNodeId(node.id); setEditLabel(node.label) }}>
+                            {node.label}
+                          </span>
+                        )}
+                        <button onClick={() => handleRemoveNode(node.id)}
+                          className="opacity-0 group-hover:opacity-100 ml-1 text-red-400 text-xs hover:text-red-300 transition-all">✕</button>
+                        {/* Connect button */}
+                        {builderNodes.indexOf(node) < builderNodes.length - 1 && (
+                          <button onClick={() => {
+                            const nextNode = builderNodes[builderNodes.indexOf(node) + 1]
+                            if (nextNode) handleConnectNodes(node.id, nextNode.id)
+                          }}
+                            className="opacity-0 group-hover:opacity-100 text-violet-400 text-xs hover:text-violet-300 transition-all ml-1">→</button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
-      ) : (
+      )}
+
+      {/* Workflow List */}
+      {view === 'list' && (
         <div className="space-y-4">
-          {workflows.map((wf) => (
-            <div key={wf.id} className="flex items-center justify-between p-6 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all">
+          {workflows.length === 0 ? (
+            <div className="text-center py-16 bg-white/5 border border-white/10 rounded-2xl">
+              <p className="text-4xl mb-4">🔄</p>
+              <p className="text-slate-500 font-bold mb-4">No workflows yet</p>
+              <button onClick={() => setView('templates')} className="px-6 py-3 bg-violet-600 text-white font-black text-sm rounded-xl hover:bg-violet-700 transition-all">
+                Browse Templates
+              </button>
+            </div>
+          ) : workflows.map((wf: any) => (
+            <div key={wf._id} className="flex items-center justify-between p-6 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-violet-500/10 rounded-xl flex items-center justify-center text-2xl">🔄</div>
                 <div>
                   <h3 className="font-black">{wf.name}</h3>
-                  <p className="text-xs text-slate-400">{wf.nodes} agents · {wf.runs} runs · Last: {wf.lastRun}</p>
+                  <p className="text-xs text-slate-400">{wf.nodeCount} agents · {wf.runCount} runs · Last: {wf.lastRunAt ? new Date(wf.lastRunAt).toLocaleString() : 'Never'}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                  wf.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-500/10 text-slate-400'
-                }`}>{wf.status}</span>
-                <button className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-xs font-bold hover:bg-white/10 transition-all">Edit</button>
-                <button className="px-4 py-2 bg-violet-600 text-white rounded-lg text-xs font-bold hover:bg-violet-700 transition-all">Run</button>
+                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${statusColors[wf.status] || statusColors.draft}`}>
+                  {wf.status}
+                </span>
+                <button onClick={() => handleEditWorkflow(wf)} className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-xs font-bold hover:bg-white/10 transition-all">Edit</button>
+                <button onClick={() => handleDuplicate(wf)} className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-xs font-bold hover:bg-white/10 transition-all">Duplicate</button>
+                <button onClick={() => handleRun(wf)} disabled={running === wf._id}
+                  className="px-4 py-2 bg-violet-600 text-white rounded-lg text-xs font-bold hover:bg-violet-700 transition-all disabled:opacity-50">
+                  {running === wf._id ? 'Running...' : 'Run'}
+                </button>
+                {confirmDelete === wf._id ? (
+                  <div className="flex gap-2">
+                    <button onClick={() => handleDelete(wf._id)} className="px-3 py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700">Confirm</button>
+                    <button onClick={() => setConfirmDelete(null)} className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs font-bold hover:bg-white/10">Cancel</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setConfirmDelete(wf._id)} className="px-3 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg text-xs font-bold hover:bg-red-500/20">Delete</button>
+                )}
               </div>
             </div>
           ))}

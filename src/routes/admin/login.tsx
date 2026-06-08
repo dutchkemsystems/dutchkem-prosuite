@@ -122,7 +122,7 @@ function AdminLoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-slate-950 border-2 border-slate-800 rounded-2xl px-6 py-5 text-white font-black text-lg focus:outline-none focus:border-red-600 transition-all placeholder:text-slate-800"
-                  placeholder="admin@dutchkem.com"
+                  placeholder="Enter your admin email"
                   autoFocus
                 />
               </div>

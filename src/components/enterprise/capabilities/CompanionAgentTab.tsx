@@ -1,82 +1,182 @@
-import { useState, useEffect } from 'react'
-
-const guidanceExamples = [
-  { agent: 'Companion AI', message: 'The customer seems frustrated. Consider offering a 10% discount to retain them.', type: 'suggestion', time: 'Just now' },
-  { agent: 'Companion AI', message: 'This ticket matches Pattern #47 (billing dispute). Recommended response template loaded.', type: 'template', time: '2 min ago' },
-  { agent: 'Companion AI', message: 'Compliance check: This response needs legal review before sending.', type: 'compliance', time: '5 min ago' },
-]
+import { useState, useEffect, useCallback } from 'react'
+import { useMutation, useQuery } from 'convex/react'
+import { api } from '../../../../convex/_generated/api'
 
 export function CompanionAgentTab({ token }: { token: string }) {
-  const [activeSession, setActiveSession] = useState(false)
-  const [guidance, setGuidance] = useState(guidanceExamples)
-  const [metrics, setMetrics] = useState({ handleTime: '7.2 min', resolution: '87%', satisfaction: '4.6/5' })
+  const sessions = useQuery(api.enterprise_companion.listSessions, { token }) || []
+  const stats = useQuery(api.enterprise_companion.getStats, { token }) || { totalSessions: 0, activeSessions: 0, totalGuidance: 0, avgGuidancePerSession: 0 }
+  const startSession = useMutation(api.enterprise_companion.startSession)
+  const endSession = useMutation(api.enterprise_companion.endSession)
+  const generateGuidance = useMutation(api.enterprise_companion.generateGuidance)
+
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const [guidance, setGuidance] = useState<any[]>([])
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [starting, setStarting] = useState(false)
+  const [userId, setUserId] = useState('')
+  const [channel, setChannel] = useState('live_chat')
+  const [showStartForm, setShowStartForm] = useState(false)
+
+  const showToast = (msg: string, isError = false) => {
+    if (isError) setError(msg)
+    else setSuccess(msg)
+    setTimeout(() => { setError(''); setSuccess('') }, 3000)
+  }
+
+  const handleStart = async () => {
+    if (!userId.trim()) { showToast('User ID is required', true); return }
+    setStarting(true)
+    try {
+      const result = await startSession({ token, userId, channel })
+      if (result.error) { showToast(result.error, true); return }
+      setActiveSessionId(result.sessionId)
+      setShowStartForm(false)
+      showToast('Companion session started!')
+    } catch (e: any) { showToast(e.message || 'Failed', true) }
+    finally { setStarting(false) }
+  }
+
+  const handleEnd = async () => {
+    if (!activeSessionId) return
+    try {
+      const result = await endSession({ token, sessionId: activeSessionId as any })
+      if (result.error) { showToast(result.error, true); return }
+      setActiveSessionId(null)
+      setGuidance([])
+      showToast('Session ended')
+    } catch (e: any) { showToast(e.message || 'Failed', true) }
+  }
+
+  const pollGuidance = useCallback(async () => {
+    if (!activeSessionId || !token) return
+    try {
+      const result = await generateGuidance({ token, sessionId: activeSessionId as any })
+      if (result.success && result.guidance) {
+        setGuidance(prev => [result.guidance, ...prev].slice(0, 20))
+      }
+    } catch {}
+  }, [activeSessionId, token])
 
   useEffect(() => {
-    if (!activeSession) return
-    const timer = setInterval(() => {
-      const newGuidance = [
-        { agent: 'Companion AI', message: 'Customer mentioned "competitor" — consider highlighting our unique features.', type: 'suggestion', time: 'Just now' },
-        { agent: 'Companion AI', message: 'This is a high-value account. Escalate to senior support if needed.', type: 'alert', time: 'Just now' },
-        { agent: 'Companion AI', message: 'Suggested upsell: Enterprise plan based on usage patterns.', type: 'upsell', time: 'Just now' },
-      ]
-      setGuidance(prev => [newGuidance[Math.floor(Math.random() * newGuidance.length)], ...prev.slice(0, 9)])
-    }, 5000)
+    if (!activeSessionId) return
+    const timer = setInterval(pollGuidance, 5000)
     return () => clearInterval(timer)
-  }, [activeSession])
+  }, [activeSessionId, pollGuidance])
+
+  const typeColors: Record<string, string> = {
+    suggestion: 'bg-blue-500/10 text-blue-400',
+    compliance: 'bg-red-500/10 text-red-400',
+    template: 'bg-violet-500/10 text-violet-400',
+    alert: 'bg-amber-500/10 text-amber-400',
+    upsell: 'bg-emerald-500/10 text-emerald-400',
+  }
+
+  const typeIcons: Record<string, string> = {
+    suggestion: '💡',
+    compliance: '⚠️',
+    template: '📝',
+    alert: '🔔',
+    upsell: '📈',
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {(error || success) && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-black ${error ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}`}>
+          {error || success}
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-black tracking-tight">Companion Agent</h2>
           <p className="text-sm text-slate-400 mt-1">Real-time guidance for human teams</p>
         </div>
-        <button
-          onClick={() => setActiveSession(!activeSession)}
-          className={`px-6 py-3 font-black text-sm rounded-xl transition-all ${
-            activeSession
-              ? 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20'
-              : 'bg-emerald-600 text-white hover:bg-emerald-700'
-          }`}
-        >
-          {activeSession ? '⏹ End Session' : '▶ Start Session'}
-        </button>
+        {activeSessionId ? (
+          <button onClick={handleEnd}
+            className="px-6 py-3 bg-red-500/10 text-red-400 border border-red-500/20 font-black text-sm rounded-xl hover:bg-red-500/20 transition-all">
+            ⏹ End Session
+          </button>
+        ) : (
+          <button onClick={() => setShowStartForm(!showStartForm)}
+            className="px-6 py-3 bg-emerald-600 text-white font-black text-sm rounded-xl hover:bg-emerald-700 transition-all">
+            ▶ Start Session
+          </button>
+        )}
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      {error && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm font-bold">{error}</div>}
+      {success && <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-sm font-bold">{success}</div>}
+
+      {/* Start Session Form */}
+      {showStartForm && (
+        <div className="p-6 bg-white/5 border border-white/10 rounded-2xl space-y-4">
+          <h3 className="font-black">Start Companion Session</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <input value={userId} onChange={e => setUserId(e.target.value)}
+              placeholder="User/Customer ID" className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 font-medium" />
+            <select value={channel} onChange={e => setChannel(e.target.value)}
+              className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 font-medium">
+              <option value="live_chat">Live Chat</option>
+              <option value="phone">Phone</option>
+              <option value="email">Email</option>
+              <option value="social">Social Media</option>
+            </select>
+          </div>
+          <button onClick={handleStart} disabled={starting}
+            className="px-6 py-3 bg-emerald-600 text-white font-black text-sm rounded-xl hover:bg-emerald-700 transition-all disabled:opacity-50">
+            {starting ? 'Starting...' : 'Start Session'}
+          </button>
+        </div>
+      )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-4 gap-4">
         <div className="p-5 bg-white/5 border border-white/10 rounded-2xl text-center">
-          <p className="text-3xl font-black text-emerald-400">{metrics.handleTime}</p>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Avg Handle Time</p>
+          <p className="text-3xl font-black text-emerald-400">{stats.totalSessions}</p>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Total Sessions</p>
         </div>
         <div className="p-5 bg-white/5 border border-white/10 rounded-2xl text-center">
-          <p className="text-3xl font-black text-blue-400">{metrics.resolution}</p>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">First-Call Resolution</p>
+          <p className="text-3xl font-black text-blue-400">{stats.activeSessions}</p>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Active Now</p>
         </div>
         <div className="p-5 bg-white/5 border border-white/10 rounded-2xl text-center">
-          <p className="text-3xl font-black text-orange-400">{metrics.satisfaction}</p>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Customer Satisfaction</p>
+          <p className="text-3xl font-black text-orange-400">{stats.totalGuidance}</p>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Guidance Given</p>
+        </div>
+        <div className="p-5 bg-white/5 border border-white/10 rounded-2xl text-center">
+          <p className="text-3xl font-black text-violet-400">{stats.avgGuidancePerSession.toFixed(1)}</p>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Avg/Session</p>
         </div>
       </div>
 
+      {/* Live Guidance Feed */}
       <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
         <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 mb-4">
-          {activeSession ? '🔴 Live Guidance Feed' : 'Guidance History'}
+          {activeSessionId ? '🔴 Live Guidance Feed' : 'Recent Guidance'}
         </h3>
         <div className="space-y-3 max-h-[400px] overflow-y-auto">
-          {guidance.map((g, i) => (
-            <div key={i} className={`flex items-start gap-3 p-4 rounded-xl ${
-              i === 0 && activeSession ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-white/5'
+          {guidance.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-4xl mb-4">🤝</p>
+              <p className="text-slate-500 font-bold">
+                {activeSessionId ? 'Waiting for guidance messages...' : 'Start a session to receive real-time guidance'}
+              </p>
+            </div>
+          ) : guidance.map((g: any, i: number) => (
+            <div key={i} className={`flex items-start gap-3 p-4 rounded-xl transition-all ${
+              i === 0 && activeSessionId ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-white/5'
             }`}>
-              <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center text-sm flex-shrink-0">🤝</div>
+              <div className="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center text-sm flex-shrink-0">
+                {typeIcons[g.type] || '🤝'}
+              </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-slate-300">{g.message}</p>
                 <div className="flex items-center gap-3 mt-2">
-                  <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
-                    g.type === 'suggestion' ? 'bg-blue-500/10 text-blue-400' :
-                    g.type === 'compliance' ? 'bg-red-500/10 text-red-400' :
-                    g.type === 'template' ? 'bg-violet-500/10 text-violet-400' :
-                    'bg-amber-500/10 text-amber-400'
-                  }`}>{g.type}</span>
+                  <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${typeColors[g.type] || 'bg-white/5 text-slate-400'}`}>
+                    {g.type}
+                  </span>
                   <span className="text-[10px] text-slate-600">{g.time}</span>
                 </div>
               </div>
@@ -84,6 +184,27 @@ export function CompanionAgentTab({ token }: { token: string }) {
           ))}
         </div>
       </div>
+
+      {/* Recent Sessions */}
+      {sessions.length > 0 && (
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+          <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 mb-4">Recent Sessions</h3>
+          <div className="divide-y divide-white/5">
+            {sessions.slice(0, 5).map((s: any) => (
+              <div key={s._id} className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${s.status === 'active' ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+                  <div>
+                    <p className="text-sm font-bold">{s.userId}</p>
+                    <p className="text-xs text-slate-500">{s.channel} · {s.guidanceCount} guidance</p>
+                  </div>
+                </div>
+                <span className="text-xs text-slate-500">{new Date(s.startedAt).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
