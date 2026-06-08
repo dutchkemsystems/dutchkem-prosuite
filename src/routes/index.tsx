@@ -4,6 +4,12 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
 import { JoinCounter, SuccessStoriesRotator } from '~/components/SuccessStoriesRotator';
+import { EnterpriseHero } from '~/components/enterprise/EnterpriseHero';
+import { EnterpriseFeatures } from '~/components/enterprise/EnterpriseFeatures';
+import { TrustedLogos } from '~/components/enterprise/TrustedLogos';
+import { InteractiveDemo } from '~/components/enterprise/InteractiveDemo';
+import { EnterprisePricing } from '~/components/enterprise/EnterprisePricing';
+import { AnimatedCTA } from '~/components/enterprise/AnimatedCTA';
 
 function StatItem({ value, label }: { value: string, label: string }) {
   return (
@@ -152,7 +158,13 @@ function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 selection:bg-orange-100 selection:text-orange-900 overflow-x-hidden">
       <main className="flex-grow">
-        {/* Hero Section */}
+        {/* ═══════════════ NEW: Enterprise Hero (above existing hero) ═══════════════ */}
+        <EnterpriseHero />
+
+        {/* ═══════════════ NEW: Trusted Logos Carousel ═══════════════ */}
+        <TrustedLogos />
+
+        {/* ═══════════════ EXISTING: Original Hero Section (unchanged) ═══════════════ */}
         <section className="relative pt-32 pb-32 lg:pt-48 lg:pb-48 overflow-hidden">
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,theme(colors.orange.50),transparent)]"></div>
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-orange-400/10 rounded-full blur-[120px] animate-float"></div>
@@ -251,7 +263,10 @@ function Home() {
           </div>
         </section>
 
-        {/* Process Section */}
+        {/* ═══════════════ NEW: Enterprise Features (6 modules) ═══════════════ */}
+        <EnterpriseFeatures />
+
+        {/* ═══════════════ EXISTING: Process Section (unchanged) ═══════════════ */}
         <section id="how-it-works" className="py-32 bg-slate-950 text-white overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,theme(colors.indigo.900/20),transparent)]"></div>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center mb-32 relative z-10">
@@ -270,7 +285,10 @@ function Home() {
           </div>
         </section>
 
-        {/* Pricing Bundles */}
+        {/* ═══════════════ NEW: Interactive Demo Carousel ═══════════════ */}
+        <InteractiveDemo />
+
+        {/* ═══════════════ EXISTING: Pricing Bundles (unchanged) ═══════════════ */}
         <section id="pricing" className="py-32 bg-white relative overflow-hidden">
           <div className="absolute top-0 right-0 w-96 h-96 bg-orange-100/30 blur-[100px] -translate-y-1/2 translate-x-1/2"></div>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center mb-24 relative z-10">
@@ -300,7 +318,10 @@ function Home() {
           </div>
         </section>
 
-        {/* Testimonials */}
+        {/* ═══════════════ NEW: Enterprise Pricing Section ═══════════════ */}
+        <EnterprisePricing />
+
+        {/* ═══════════════ EXISTING: Testimonials (unchanged) ═══════════════ */}
         <section className="py-32 bg-slate-50 relative overflow-hidden">
           <div className="max-w-7xl mx-auto px-4 text-center mb-24">
             <h3 className="text-xl font-black uppercase tracking-tight text-slate-950 mb-6">Agent Verdicts</h3>
@@ -337,7 +358,10 @@ function Home() {
           </div>
         </section>
 
-        {/* Final CTA */}
+        {/* ═══════════════ NEW: Animated CTA with 3D Torus Knot ═══════════════ */}
+        <AnimatedCTA />
+
+        {/* ═══════════════ EXISTING: Final CTA (unchanged) ═══════════════ */}
         <section className="relative py-48 bg-slate-950 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-orange-600/10 to-indigo-600/10"></div>
 
