@@ -10,6 +10,7 @@ import { TrustedLogos } from '~/components/enterprise/TrustedLogos';
 import { InteractiveDemo } from '~/components/enterprise/InteractiveDemo';
 import { EnterprisePricing } from '~/components/enterprise/EnterprisePricing';
 import { AnimatedCTA } from '~/components/enterprise/AnimatedCTA';
+import { BuiltForFuture } from '~/components/enterprise/BuiltForFuture';
 
 function StatItem({ value, label }: { value: string, label: string }) {
   return (
@@ -262,6 +263,9 @@ function Home() {
             <AgentCard icon="🎉" title="Event Coordinator" link="/event-planner" desc="Expert event planning: full-scale planning for corporate galas and weddings." />
           </div>
         </section>
+
+        {/* ═══════════════ NEW: Built For Future (6 interactive modules) ═══════════════ */}
+        <BuiltForFuture />
 
         {/* ═══════════════ NEW: Enterprise Features (6 modules) ═══════════════ */}
         <EnterpriseFeatures />
