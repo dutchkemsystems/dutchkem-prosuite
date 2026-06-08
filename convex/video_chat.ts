@@ -5,6 +5,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { videoAgent } from "./video_agent";
 import { components, internal } from "./_generated/api";
 import { internalAction, mutation, query } from "./_generated/server";
+import { buildComposioContext, AGENT_ID_MAP } from "./agent_runtime";
 
 export const createThread = mutation({
   args: {},
@@ -42,9 +43,20 @@ export const sendMessage = mutation({
         return messageId;
       }
     }
+
+    // COMPOSIO CONTEXT INJECTION — append active toolkits to prompt
+    const composioAgentId = AGENT_ID_MAP["video_chat"];
+    let enhancedPrompt = prompt;
+    if (composioAgentId) {
+      const agentConfig = await ctx.runQuery(internal.agent_runtime.getAgentRuntimeConfig, { agentId: composioAgentId });
+      if (agentConfig.enhanced && agentConfig.toolkits.length > 0) {
+        enhancedPrompt = prompt + buildComposioContext(agentConfig.toolkits, agentConfig.agentName);
+      }
+    }
+
     const { messageId } = await videoAgent.agents[0].saveMessage(ctx, {
       threadId,
-      prompt,
+      prompt: enhancedPrompt,
       userId: userId ?? undefined,
       skipEmbeddings: true,
     });

@@ -20,6 +20,7 @@ import type * as agent_analytics from "../agent_analytics.js";
 import type * as agent_backups from "../agent_backups.js";
 import type * as agent_marketplace from "../agent_marketplace.js";
 import type * as agent_performance from "../agent_performance.js";
+import type * as agent_runtime from "../agent_runtime.js";
 import type * as agentic_payments from "../agentic_payments.js";
 import type * as ai_factory from "../ai_factory.js";
 import type * as api_costs from "../api_costs.js";
@@ -167,6 +168,7 @@ declare const fullApi: ApiFromModules<{
   agent_backups: typeof agent_backups;
   agent_marketplace: typeof agent_marketplace;
   agent_performance: typeof agent_performance;
+  agent_runtime: typeof agent_runtime;
   agentic_payments: typeof agentic_payments;
   ai_factory: typeof ai_factory;
   api_costs: typeof api_costs;

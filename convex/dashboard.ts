@@ -188,12 +188,12 @@ export const getDashboardData = query({
       referrals: {
         friendsSignedUp: referredUsers.length,
         totalEarned,
-        pendingEarnings: 0, // Mock
+        pendingEarnings: 0,
         availableBalance,
         history: referredUsers.map(u => ({
           name: u.name,
           date: u._creationTime,
-          commission: 500, // Fixed referral commission
+          commission: 500,
         })),
       },
       sessions: sessions.map(s => ({
@@ -203,6 +203,12 @@ export const getDashboardData = query({
         ip: s.ip,
         lastActive: s.lastActive,
         isCurrent: s.isCurrent,
+      })),
+      // Composio agent enhancement status for client dashboard
+      agentEnhancement: (await ctx.db.query("composio_agent_settings").collect()).map((s: any) => ({
+        agentId: s.agentId,
+        enhanced: s.enabled,
+        toolCount: s.toolCount ?? 0,
       })),
     };
   },

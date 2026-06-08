@@ -6,6 +6,7 @@ import { academicAgent } from "./academic_agent";
 import { components, internal } from "./_generated/api";
 import { internalAction, mutation, query } from "./_generated/server";
 import { KDP_REPLY } from "./kdp_constants";
+import { buildComposioContext, AGENT_ID_MAP } from "./agent_runtime";
 
 export const createThread = mutation({
   args: {},
@@ -46,10 +47,20 @@ export const sendMessage = mutation({
       }
     }
 
+    // COMPOSIO CONTEXT INJECTION — append active toolkits to prompt
+    const composioAgentId = AGENT_ID_MAP["academic_chat"];
+    let enhancedPrompt = prompt;
+    if (composioAgentId) {
+      const agentConfig = await ctx.runQuery(internal.agent_runtime.getAgentRuntimeConfig, { agentId: composioAgentId });
+      if (agentConfig.enhanced && agentConfig.toolkits.length > 0) {
+        enhancedPrompt = prompt + buildComposioContext(agentConfig.toolkits, agentConfig.agentName);
+      }
+    }
+
     if (prompt === "E-Book Publishing") {
       const { messageId } = await academicAgent.agents[0].saveMessage(ctx, {
         threadId,
-        prompt,
+        prompt: enhancedPrompt,
         userId: userId ?? undefined,
         skipEmbeddings: true,
       });
@@ -67,7 +78,7 @@ export const sendMessage = mutation({
 
     const { messageId } = await academicAgent.agents[0].saveMessage(ctx, {
       threadId,
-      prompt,
+      prompt: enhancedPrompt,
       userId: userId ?? undefined,
       skipEmbeddings: true,
     });

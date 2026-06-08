@@ -135,35 +135,43 @@ function DashboardPage() {
               {modal === "new-project" && (
                 <div className="space-y-6">
                   <h2 className="text-2xl font-black">➕ Start New Project</h2>
-                  <p className="text-slate-400">Select an specialized agent to begin your task.</p>
+                  <p className="text-slate-400">Select a specialized agent to begin your task.</p>
+                  {!data.user.subscription && (
+                    <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                      <p className="text-amber-400 text-sm font-bold">⚠️ Active subscription required to use agents.</p>
+                      <button onClick={() => setModal("buy-credits")} className="mt-2 text-sm text-amber-300 underline">Subscribe now →</button>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-3">
-                    <button onClick={() => navigate({ to: "/" })} className="p-4 bg-slate-800 rounded-2xl border border-slate-700 hover:border-indigo-500 transition-all text-left">
-                      <div className="text-2xl mb-2">📄</div>
-                      <div className="font-bold text-sm">Academic Writer</div>
-                    </button>
-                    <button onClick={() => navigate({ to: "/" })} className="p-4 bg-slate-800 rounded-2xl border border-slate-700 hover:border-indigo-500 transition-all text-left">
-                      <div className="text-2xl mb-2">💼</div>
-                      <div className="font-bold text-sm">Business Consultant</div>
-                    </button>
+                    {[
+                      { icon: "🎓", name: "Academic Writer", agentId: "A1" },
+                      { icon: "💼", name: "Business Consultant", agentId: "A2" },
+                      { icon: "✍️", name: "Content Strategist", agentId: "A3" },
+                      { icon: "📄", name: "Career Coach", agentId: "A4" },
+                      { icon: "🛍️", name: "Personal Shopper", agentId: "A5" },
+                      { icon: "📝", name: "Exam Prep", agentId: "A6" },
+                      { icon: "💰", name: "Finance Advisor", agentId: "A7" },
+                      { icon: "🎬", name: "MediaStudio", agentId: "A8" },
+                    ].map((agent) => {
+                      const enhancement = data.agentEnhancement?.find((e: any) => e.agentId === agent.agentId);
+                      return (
+                        <button key={agent.agentId} onClick={() => navigate({ to: "/" })} className="p-4 bg-slate-800 rounded-2xl border border-slate-700 hover:border-indigo-500 transition-all text-left relative">
+                          {enhancement?.enhanced && (
+                            <span className="absolute top-2 right-2 text-[9px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold border border-emerald-500/30">⚡ Enhanced</span>
+                          )}
+                          <div className="text-2xl mb-2">{agent.icon}</div>
+                          <div className="font-bold text-sm">{agent.name}</div>
+                          {enhancement?.enhanced && <div className="text-[10px] text-emerald-400 mt-1">{enhancement.toolCount} tools active</div>}
+                        </button>
+                      );
+                    })}
                   </div>
                   <button onClick={() => navigate({ to: "/" })} className="w-full py-4 bg-indigo-600 rounded-xl font-bold">View All 15 Agents</button>
                 </div>
               )}
 
               {modal === "buy-credits" && (
-                <div className="space-y-6">
-                  <h2 className="text-2xl font-black">💰 Buy Credits</h2>
-                  <p className="text-slate-400">100 credits = ₦1,000. Credits never expire.</p>
-                  <div className="space-y-3">
-                    {[500, 1000, 5000].map(amount => (
-                      <button key={amount} className="w-full p-4 bg-slate-800 rounded-2xl border border-slate-700 flex justify-between items-center hover:border-indigo-500 transition-all">
-                        <span className="font-bold">{amount} Credits</span>
-                        <span className="text-indigo-400 font-black">₦{(amount * 10).toLocaleString()}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-slate-500 uppercase font-bold text-center">Secure payment powered by Kora Pay</p>
-                </div>
+                <BuyCreditsModal user={data.user} onClose={() => setModal(null)} />
               )}
             </div>
           </div>
@@ -911,5 +919,82 @@ function SocialIcon({ icon }: { icon: string }) {
     <button className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:bg-slate-700 transition-all grayscale hover:grayscale-0">
       {icon}
     </button>
+  );
+}
+
+function BuyCreditsModal({ user, onClose }: { user: any; onClose: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const createCheckout = useAction(api.kdp_subscriptions.getKDPCheckoutUrl as any);
+
+  const plans = [
+    { id: "basic", name: "Basic", price: 8000, period: "monthly", features: ["5 agent tasks/month", "Standard response time", "Email support"] },
+    { id: "pro", name: "Pro", price: 25000, period: "monthly", features: ["Unlimited agent tasks", "Priority response", "All 15 agents", "File generation"] },
+    { id: "enterprise", name: "Enterprise", price: 80000, period: "yearly", features: ["Everything in Pro", "Custom integrations", "Dedicated support", "API access"] },
+  ];
+
+  const handleSubscribe = async (planId: string) => {
+    setLoading(true);
+    setSelectedPlan(planId);
+    try {
+      const planMap: Record<string, "BASIC" | "PRO" | "ENTERPRISE"> = {
+        basic: "BASIC",
+        pro: "PRO",
+        enterprise: "ENTERPRISE",
+      };
+      const result = await createCheckout({
+        plan: planMap[planId],
+        returnUrl: window.location.href,
+      });
+      if (result?.checkoutUrl) {
+        window.location.href = result.checkoutUrl;
+      }
+    } catch (e: any) {
+      console.error("Checkout failed:", e);
+      alert("Failed to initiate checkout. Please try again.");
+    } finally {
+      setLoading(false);
+      setSelectedPlan(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-black">💳 Subscribe to ProSuite</h2>
+      <p className="text-slate-400">Choose a plan to unlock all 15 AI agents and premium features.</p>
+      <div className="space-y-3">
+        {plans.map((plan) => (
+          <button
+            key={plan.id}
+            onClick={() => handleSubscribe(plan.id)}
+            disabled={loading}
+            className={`w-full p-4 rounded-2xl border text-left transition-all ${
+              selectedPlan === plan.id
+                ? "bg-indigo-600/20 border-indigo-500"
+                : "bg-slate-800 border-slate-700 hover:border-indigo-500"
+            } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+          >
+            <div className="flex justify-between items-center mb-2">
+              <span className="font-bold text-lg">{plan.name}</span>
+              <span className="text-indigo-400 font-black text-xl">₦{plan.price.toLocaleString()}<span className="text-xs text-slate-400">/{plan.period}</span></span>
+            </div>
+            <div className="text-xs text-slate-400 space-y-1">
+              {plan.features.map((f, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-emerald-400">✓</span> {f}
+                </div>
+              ))}
+            </div>
+            {selectedPlan === plan.id && loading && (
+              <div className="mt-2 text-xs text-indigo-300 flex items-center gap-2">
+                <div className="w-3 h-3 border-2 border-indigo-300 border-t-transparent rounded-full animate-spin"></div>
+                Redirecting to Kora Pay...
+              </div>
+            )}
+          </button>
+        ))}
+      </div>
+      <p className="text-[10px] text-slate-500 uppercase font-bold text-center">Secure payment powered by Kora Pay</p>
+    </div>
   );
 }
