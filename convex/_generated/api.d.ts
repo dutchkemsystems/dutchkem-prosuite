@@ -17,6 +17,7 @@ import type * as adEngine from "../adEngine.js";
 import type * as admin from "../admin.js";
 import type * as admin_auth from "../admin_auth.js";
 import type * as admin_enterprise from "../admin_enterprise.js";
+import type * as admin_enterprise_hub from "../admin_enterprise_hub.js";
 import type * as agent_analytics from "../agent_analytics.js";
 import type * as agent_backups from "../agent_backups.js";
 import type * as agent_marketplace from "../agent_marketplace.js";
@@ -174,6 +175,7 @@ declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   admin_auth: typeof admin_auth;
   admin_enterprise: typeof admin_enterprise;
+  admin_enterprise_hub: typeof admin_enterprise_hub;
   agent_analytics: typeof agent_analytics;
   agent_backups: typeof agent_backups;
   agent_marketplace: typeof agent_marketplace;

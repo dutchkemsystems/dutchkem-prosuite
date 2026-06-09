@@ -21,6 +21,7 @@ import { ComposioEnhancementPanel } from "~/components/ComposioEnhancementPanel"
 import { TaxCompliancePanel } from "~/components/TaxCompliancePanel";
 import { EnterpriseHub } from "~/components/EnterpriseHub";
 import { EnterprisePortalAdmin } from "~/components/enterprise/EnterprisePortalAdmin";
+import { AdminEnterpriseHub } from "~/components/admin/AdminEnterpriseHub";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -208,7 +209,7 @@ function AdminDashboardPage() {
               {activeTab === "renewals-tithe" && <RenewalsTithePanel adminToken={adminToken} />}
                {activeTab === "composio-enhance" && <ComposioEnhancementPanel adminToken={adminToken} />}
                {activeTab === "tax-compliance" && <TaxCompliancePanel adminToken={adminToken} />}
-                {activeTab === "enterprise" && <EnterpriseHub adminToken={adminToken} />}
+                 {activeTab === "enterprise" && <AdminEnterpriseHub adminToken={adminToken} />}
                 {activeTab === "enterprise-portal" && <EnterprisePortalAdmin adminToken={adminToken} />}
            </AdminSuspense>
         </div>

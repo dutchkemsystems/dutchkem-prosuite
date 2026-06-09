@@ -3,7 +3,7 @@ import { useQuery, useMutation } from 'convex/react'
 import { useState, useEffect } from 'react'
 import { api } from '../../../convex/_generated/api'
 import { CompanyLogo } from '~/components/CompanyLogo'
-import { WorkflowBuilderTab } from '~/components/enterprise/capabilities/WorkflowBuilderTab'
+import { WorkflowViewerTab } from '~/components/enterprise/capabilities/WorkflowViewerTab'
 import { MarketplaceTab } from '~/components/enterprise/capabilities/MarketplaceTab'
 import { KnowledgeGraphTab } from '~/components/enterprise/capabilities/KnowledgeGraphTab'
 import { CompanionAgentTab } from '~/components/enterprise/capabilities/CompanionAgentTab'
@@ -16,7 +16,7 @@ export const Route = createFileRoute('/enterprise/dashboard')({
 
 const tabs = [
   { id: 'overview', icon: '📊', label: 'Overview' },
-  { id: 'workflow', icon: '🔄', label: 'Workflow Builder' },
+  { id: 'workflow', icon: '🔄', label: 'Workflows' },
   { id: 'marketplace', icon: '🛒', label: 'Agent Marketplace' },
   { id: 'knowledge', icon: '🧠', label: 'Knowledge Graph' },
   { id: 'companion', icon: '🤝', label: 'Companion Agent' },
@@ -142,7 +142,7 @@ function EnterpriseDashboard() {
         {/* Content */}
         <div className="p-6">
           {activeTab === 'overview' && <OverviewTab org={org} token={token} />}
-          {activeTab === 'workflow' && <WorkflowBuilderTab token={token} />}
+          {activeTab === 'workflow' && <WorkflowViewerTab token={token} />}
           {activeTab === 'marketplace' && <MarketplaceTab token={token} />}
           {activeTab === 'knowledge' && <KnowledgeGraphTab token={token} />}
           {activeTab === 'companion' && <CompanionAgentTab token={token} />}
@@ -156,7 +156,7 @@ function EnterpriseDashboard() {
 
 function OverviewTab({ org, token }: { org: any; token: string }) {
   const capabilities = [
-    { icon: '🔄', name: 'Workflow Builder', desc: 'Visual drag-drop agent orchestration', tab: 'workflow', color: 'from-violet-500 to-purple-600' },
+    { icon: '🔄', name: 'Workflows', desc: 'View and trigger assigned workflows', tab: 'workflow', color: 'from-violet-500 to-purple-600' },
     { icon: '🛒', name: 'Agent Marketplace', desc: 'Install pre-built AI agents', tab: 'marketplace', color: 'from-orange-500 to-amber-600' },
     { icon: '🧠', name: 'Knowledge Graph', desc: 'Traceable, explainable AI decisions', tab: 'knowledge', color: 'from-blue-500 to-indigo-600' },
     { icon: '🤝', name: 'Companion Agent', desc: 'Real-time guidance for human teams', tab: 'companion', color: 'from-emerald-500 to-green-600' },

@@ -2713,4 +2713,55 @@ export default defineSchema({
   })
     .index("by_org", ["orgId"])
     .index("by_email", ["email"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // ADMIN ENTERPRISE HUB — Workflow Templates & Deployments
+  // ═══════════════════════════════════════════════════════════════
+
+  admin_workflow_templates: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    category: v.string(),
+    industry: v.optional(v.string()),
+    nodes: v.array(v.any()),
+    edges: v.array(v.any()),
+    requiredAgents: v.array(v.string()),
+    isPublished: v.boolean(),
+    publishedToOrgs: v.array(v.id("enterprise_organizations")),
+    createdBy: v.string(),
+    version: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_published", ["isPublished"])
+    .index("by_category", ["category"])
+    .index("by_created_by", ["createdBy"]),
+
+  admin_workflow_assignments: defineTable({
+    templateId: v.id("admin_workflow_templates"),
+    orgId: v.id("enterprise_organizations"),
+    status: v.union(v.literal("active"), v.literal("paused"), v.literal("removed")),
+    customConfig: v.optional(v.any()),
+    deployedBy: v.string(),
+    deployedAt: v.number(),
+  })
+    .index("by_template", ["templateId"])
+    .index("by_org", ["orgId"])
+    .index("by_status", ["status"]),
+
+  admin_workflow_executions: defineTable({
+    templateId: v.id("admin_workflow_templates"),
+    orgId: v.id("enterprise_organizations"),
+    triggeredBy: v.string(),
+    triggerType: v.string(),
+    inputData: v.optional(v.any()),
+    executionLog: v.optional(v.any()),
+    status: v.union(v.literal("running"), v.literal("completed"), v.literal("failed")),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+    errorMessage: v.optional(v.string()),
+  })
+    .index("by_template", ["templateId"])
+    .index("by_org", ["orgId"])
+    .index("by_status", ["status"]),
 });
