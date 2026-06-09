@@ -550,6 +550,43 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
     return () => window.removeEventListener("message", handleMessage);
   }, [fetchPlatforms]);
 
+  // localStorage fallback: popup writes result here when window.opener is null
+  useEffect(() => {
+    const checkLocalStorage = () => {
+      try {
+        const raw = localStorage.getItem("oauth_result");
+        if (raw) {
+          localStorage.removeItem("oauth_result");
+          const data = JSON.parse(raw);
+          if (data?.type === "social_connection_success") {
+            const platformName = data.platformId?.charAt(0).toUpperCase() + data.platformId?.slice(1);
+            setToast({ message: `✅ Connected to ${platformName}!`, type: "success" });
+            setConnecting(null);
+            fetchPlatforms();
+          }
+        }
+        const composioRaw = localStorage.getItem("composio_result");
+        if (composioRaw) {
+          localStorage.removeItem("composio_result");
+          const composioData = JSON.parse(composioRaw);
+          if (composioData?.type === "composio_connection_complete" && composioData?.connectedAccountId) {
+            setComposioPoll({
+              connectionId: composioData.connectedAccountId,
+              platformId: composioData.platformId || "unknown",
+              startedAt: Date.now(),
+            });
+          }
+        }
+      } catch {}
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "oauth_result" || e.key === "composio_result") checkLocalStorage();
+    };
+    window.addEventListener("storage", onStorage);
+    const interval = setInterval(checkLocalStorage, 1500);
+    return () => { clearInterval(interval); window.removeEventListener("storage", onStorage); };
+  }, [fetchPlatforms]);
+
   // Composio postMessage: popup notifies us with the connected_account_id
   useEffect(() => {
     const handleComposioMessage = (event: MessageEvent) => {

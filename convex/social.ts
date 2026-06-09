@@ -112,7 +112,7 @@ export const SUPPORTED_PLATFORMS = Object.entries(PLATFORM_CONFIGS).map(([id, co
 }));
 
 export const COMPOSIO_APP_MAP: Record<string, string | undefined> = {
-  x: "twitter",
+  x: "x",
   linkedin: "linkedin",
   facebook: "facebook",
   youtube: "youtube",
@@ -662,25 +662,40 @@ async function composioFetch(apiKey: string, path: string, init?: RequestInit): 
 }
 
 async function getOrCreateAuthConfigId(apiKey: string, toolkit: string): Promise<string> {
-  const list: any = await composioFetch(
-    apiKey,
-    `/auth_configs?toolkit_slug=${encodeURIComponent(toolkit)}&is_composio_managed=true&limit=1`
-  );
-  const listItems = list?.items || list?.data?.items || [];
-  if (listItems.length > 0) {
-    return (listItems[0].id || listItems[0].auth_config?.id) as string;
+  // Try the primary toolkit slug first, then alternate slugs
+  const toolkitVariants = toolkit === "twitter" ? ["twitter", "x"] : [toolkit];
+  for (const slug of toolkitVariants) {
+    const list: any = await composioFetch(
+      apiKey,
+      `/auth_configs?toolkit_slug=${encodeURIComponent(slug)}&is_composio_managed=true&limit=1`
+    );
+    const listItems = list?.items || list?.data?.items || [];
+    if (listItems.length > 0) {
+      return (listItems[0].id || listItems[0].auth_config?.id) as string;
+    }
   }
+  // Try creating with the primary toolkit slug
   const created: any = await composioFetch(apiKey, "/auth_configs", {
     method: "POST",
     body: JSON.stringify({ toolkit: { slug: toolkit }, type: "use_composio_managed_auth" }),
   });
   const newId = created?.auth_config?.id || created?.id;
-  if (!newId) {
+  if (newId) return newId as string;
+  // If primary slug failed, try alternate for twitter
+  if (toolkit === "twitter") {
+    const createdAlt: any = await composioFetch(apiKey, "/auth_configs", {
+      method: "POST",
+      body: JSON.stringify({ toolkit: { slug: "x" }, type: "use_composio_managed_auth" }),
+    });
+    const altId = createdAlt?.auth_config?.id || createdAlt?.id;
+    if (altId) return altId as string;
     throw new Error(
-      `Composio: failed to create auth config for ${toolkit} — response: ${JSON.stringify(created).slice(0, 200)}`
+      `Composio: failed to create auth config for ${toolkit}/x — response: ${JSON.stringify(created).slice(0, 200)}`
     );
   }
-  return newId as string;
+  throw new Error(
+    `Composio: failed to create auth config for ${toolkit} — response: ${JSON.stringify(created).slice(0, 200)}`
+  );
 }
 
 export const startComposioOAuth = action({

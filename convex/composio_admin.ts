@@ -16,6 +16,7 @@ const COMPOSIO_BASE = "https://backend.composio.dev/api/v3.1";
 // (verified against /api/v3.1/toolkits?limit=500)
 const SUPPORTED_COMPOSIO_TOOLKITS = [
   "twitter",
+  "x",
   "linkedin",
   "facebook",
   "youtube",
@@ -126,17 +127,21 @@ export const getOrCreateAuthConfigIdCached = action({
 
     // 2) List existing configs from Composio
     let existingId: string | null = null;
-    try {
-      const list = await composioFetch(
-        apiKey,
-        `/auth_configs?toolkit_slug=${encodeURIComponent(toolkit)}&is_composio_managed=true&limit=1`
-      );
-      const items = list?.items || list?.data?.items || [];
-      if (items.length > 0) {
-        existingId = items[0].id || items[0].auth_config?.id;
+    const toolkitVariants = toolkit === "twitter" ? ["twitter", "x"] : toolkit === "x" ? ["x", "twitter"] : [toolkit];
+    for (const slug of toolkitVariants) {
+      try {
+        const list = await composioFetch(
+          apiKey,
+          `/auth_configs?toolkit_slug=${encodeURIComponent(slug)}&is_composio_managed=true&limit=1`
+        );
+        const items = list?.items || list?.data?.items || [];
+        if (items.length > 0) {
+          existingId = items[0].id || items[0].auth_config?.id;
+          break;
+        }
+      } catch (e: any) {
+        console.warn(`List auth configs error for ${slug}:`, e?.message || String(e));
       }
-    } catch (e: any) {
-      console.warn("List auth configs error:", e?.message || String(e));
     }
 
     if (existingId) {
@@ -147,29 +152,29 @@ export const getOrCreateAuthConfigIdCached = action({
     }
 
     // 3) Create new managed config
-    try {
-      const created = await composioFetch(apiKey, "/auth_configs", {
-        method: "POST",
-        body: JSON.stringify({
-          toolkit: { slug: toolkit },
-          type: "use_composio_managed_auth",
-        }),
-      });
-      const newId = created?.auth_config?.id || created?.id;
-      if (!newId) {
-        const errMsg = `Composio did not return auth_config.id — response: ${JSON.stringify(created).slice(0, 200)}`;
-        await ctx.runMutation(internal.composio_admin.recordAuthConfigError, { toolkit, error: errMsg });
-        return { authConfigId: null, error: errMsg, fromCache: false };
+    for (const slug of toolkitVariants) {
+      try {
+        const created = await composioFetch(apiKey, "/auth_configs", {
+          method: "POST",
+          body: JSON.stringify({
+            toolkit: { slug },
+            type: "use_composio_managed_auth",
+          }),
+        });
+        const newId = created?.auth_config?.id || created?.id;
+        if (newId) {
+          await ctx.runMutation(internal.composio_admin.upsertAuthConfig, {
+            toolkit, authConfigId: newId, isManaged: true, lastError: undefined,
+          });
+          return { authConfigId: newId, fromCache: false };
+        }
+      } catch (e: any) {
+        console.warn(`Create auth config error for ${slug}:`, e?.message || String(e));
       }
-      await ctx.runMutation(internal.composio_admin.upsertAuthConfig, {
-        toolkit, authConfigId: newId, isManaged: true, lastError: undefined,
-      });
-      return { authConfigId: newId, fromCache: false };
-    } catch (e: any) {
-      const errMsg = e?.message || String(e);
-      await ctx.runMutation(internal.composio_admin.recordAuthConfigError, { toolkit, error: errMsg });
-      return { authConfigId: null, error: errMsg, fromCache: false };
     }
+    const errMsg = `Composio: failed to create auth config for any variant of '${toolkit}' (${toolkitVariants.join(", ")})`;
+    await ctx.runMutation(internal.composio_admin.recordAuthConfigError, { toolkit, error: errMsg });
+    return { authConfigId: null, error: errMsg, fromCache: false };
   },
 });
 
@@ -220,7 +225,7 @@ export const diagnoseComposioFlow = action({
     };
 
     const COMPOSIO_APP_MAP: Record<string, string | undefined> = {
-      x: "twitter",
+      x: "x",
       linkedin: "linkedin",
       facebook: "facebook",
       youtube: "youtube",
