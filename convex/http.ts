@@ -550,4 +550,22 @@ http.route({
   }),
 });
 
+// ========== LIVE EARNINGS ENDPOINT (polls every second from admin dashboard) ==========
+http.route({
+  path: "/api/admin/earnings-live",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const earnings = await ctx.runQuery(api.admin.getEarningsSummary, {});
+    const txs = await ctx.runQuery(api.admin.getRecentTransactions, {});
+    return new Response(JSON.stringify({ earnings, txs }), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    });
+  }),
+});
+
 export default http;

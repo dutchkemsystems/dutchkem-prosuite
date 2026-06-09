@@ -658,3 +658,156 @@ export const getTransferHistory = query({
     }));
   },
 });
+
+/**
+ * SIMPLIFIED DIRECT TRANSFER: Passkey → Kora Pay API → Receipt
+ * No OTP step. Admin enters passkey, transfer fires immediately.
+ */
+export const executeDirectTransfer = mutation({
+  args: {
+    amount: v.number(),
+    bankCode: v.string(),
+    bankName: v.string(),
+    accountNumber: v.string(),
+    accountName: v.string(),
+    purpose: v.optional(v.string()),
+    passkeyId: v.string(),
+    passkey: v.string(),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    try {
+      // Verify passkey
+      const passkeyRecord = await ctx.db.query("system_config")
+        .withIndex("by_key", q => q.eq("key", args.passkeyId))
+        .first();
+
+      if (!passkeyRecord) return { success: false, error: "Passkey not found" };
+      const pkData = passkeyRecord.value;
+      if (pkData.used) return { success: false, error: "Passkey already used" };
+      if (Date.now() > pkData.expiresAt) return { success: false, error: "Passkey expired" };
+      if (pkData.passkey !== args.passkey) return { success: false, error: "Invalid passkey" };
+
+      // Mark passkey as used
+      await ctx.db.patch("system_config", passkeyRecord._id, {
+        value: { ...pkData, used: true },
+        updatedAt: Date.now(),
+      });
+
+      // Get main wallet
+      const mainWallet = await ctx.db.query("system_wallets")
+        .withIndex("by_type", q => q.eq("type", "main"))
+        .first();
+
+      if (!mainWallet || mainWallet.balance < args.amount) {
+        return {
+          success: false,
+          error: `Insufficient balance. Wallet: ₦${(mainWallet?.balance || 0).toLocaleString()}, Transfer: ₦${args.amount.toLocaleString()}`,
+        };
+      }
+
+      // Call Kora Pay API
+      const koraSecret = process.env.KORA_SECRET_KEY;
+      if (!koraSecret) return { success: false, error: "Kora API key not configured" };
+
+      const reference = `KNP_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+      const response = await fetch("https://api.korapay.com/merchant/api/v1/transactions/disburse", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${koraSecret}`,
+        },
+        body: JSON.stringify({
+          reference,
+          destination: {
+            type: "bank_account",
+            amount: args.amount,
+            currency: "NGN",
+            narration: args.purpose || "Direct transfer",
+            bank_account: {
+              bank: args.bankCode,
+              account: args.accountNumber,
+            },
+            customer: {
+              name: args.accountName,
+              email: "dutchkemdeveloper@gmail.com",
+            },
+          },
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.status) {
+        await ctx.db.insert("daily_sweeps", {
+          sweep_id: `TRANSFER_FAIL_${Date.now()}`,
+          date: new Date().toISOString().split("T")[0],
+          amount: args.amount,
+          balance_before: mainWallet.balance,
+          balance_after: mainWallet.balance,
+          status: "failed",
+          kora_reference: reference,
+          timestamp: Date.now(),
+          notes: `Transfer failed: ${result.message || result.error || "Kora API error"}`,
+        });
+
+        // Check for insufficient funds specifically
+        const errMsg = result.message || result.error || "Transfer failed";
+        if (/insufficient|balance|funds/i.test(errMsg)) {
+          return { success: false, error: `Insufficient funds. Wallet balance: ₦${mainWallet.balance.toLocaleString()}`, reference };
+        }
+        return { success: false, error: errMsg, reference };
+      }
+
+      // Deduct from wallet
+      const newBalance = mainWallet.balance - args.amount;
+      await ctx.db.patch("system_wallets", mainWallet._id, {
+        balance: newBalance,
+        lastUpdated: Date.now(),
+      });
+
+      // Record success
+      const sweepId = `TRANSFER_${Date.now()}`;
+      await ctx.db.insert("daily_sweeps", {
+        sweep_id: sweepId,
+        date: new Date().toISOString().split("T")[0],
+        amount: args.amount,
+        balance_before: mainWallet.balance,
+        balance_after: newBalance,
+        status: "completed",
+        kora_reference: reference,
+        timestamp: Date.now(),
+        notes: `Transfer to ${args.bankName} (${args.accountName})`,
+      });
+
+      // Generate receipt
+      const receipt = {
+        id: sweepId,
+        type: "direct_transfer",
+        date: new Date().toISOString(),
+        amount: args.amount,
+        from: "Main Wallet",
+        to: `${args.bankName} - ${args.accountName}`,
+        accountNumber: "****" + args.accountNumber.slice(-4),
+        bankCode: args.bankCode,
+        bankName: args.bankName,
+        reference,
+        koraReference: result.data?.reference || reference,
+        status: "completed",
+        purpose: args.purpose || "Direct transfer",
+        balanceBefore: mainWallet.balance,
+        balanceAfter: newBalance,
+      };
+
+      return {
+        success: true,
+        reference,
+        receipt,
+        message: `₦${args.amount.toLocaleString()} transferred successfully`,
+      };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  },
+});

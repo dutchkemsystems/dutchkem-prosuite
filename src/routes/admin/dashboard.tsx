@@ -1352,7 +1352,7 @@ function AdminTab({ active, onClick, icon, label }: any) {
   );
 }
 
-function MetricCard({ label, value, icon, color, subValue }: any) {
+function MetricCard({ label, value, icon, color, subValue, onClick }: any) {
   const colors: any = {
     red: "from-red-500/20 to-red-600/5 border-red-500/20 text-red-500",
     blue: "from-blue-500/20 to-blue-600/5 border-blue-500/20 text-blue-500",
@@ -1362,26 +1362,189 @@ function MetricCard({ label, value, icon, color, subValue }: any) {
     teal: "from-teal-500/20 to-teal-600/5 border-teal-500/20 text-teal-500",
   };
   return (
-    <div className={`p-8 bg-gradient-to-br ${colors[color]} border rounded-[2.5rem] shadow-2xl hover:scale-[1.02] transition-all relative overflow-hidden group`}>
+    <div onClick={onClick} className={`p-8 bg-gradient-to-br ${colors[color]} border rounded-[2.5rem] shadow-2xl hover:scale-[1.02] transition-all relative overflow-hidden group ${onClick ? "cursor-pointer" : ""}`}>
       <div className="flex justify-between items-start mb-6">
          <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl bg-white shadow-xl">{icon}</div>
          {subValue && <span className="text-[10px] font-black uppercase tracking-widest opacity-60 bg-white/10 px-3 py-1 rounded-full">{subValue}</span>}
       </div>
       <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2">{label}</p>
       <h4 className="text-4xl font-black text-white tracking-tighter">{value}</h4>
+      {onClick && <p className="text-[8px] font-black uppercase tracking-widest opacity-40 mt-2">Click to view details</p>}
     </div>
   );
 }
 
 function StatsOverview({ data, earnings, uaeStatus }: any) {
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [liveEarnings, setLiveEarnings] = useState(earnings);
+  const [liveTxs, setLiveTxs] = useState<any[]>([]);
+
+  // Live poll every second
+  useEffect(() => {
+    const fetchLive = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_CONVEX_URL.replace('.cloud', '.site')}/api/admin/earnings-live`);
+        if (res.ok) {
+          const d = await res.json();
+          if (d.earnings) setLiveEarnings(d.earnings);
+          if (d.txs) setLiveTxs(d.txs);
+        }
+      } catch {}
+    };
+    fetchLive();
+    const interval = setInterval(fetchLive, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleCardClick = (card: string) => {
+    setExpandedCard(expandedCard === card ? null : card);
+  };
+
+  const formatTx = (tx: any) => ({
+    id: tx._id || tx.reference,
+    name: tx.platformUsername || tx.accountName || "User",
+    bank: tx.bankName || tx.platform || "N/A",
+    purpose: tx.purpose || tx.agentId || "Service payment",
+    amount: tx.amount,
+    fee: Math.round(tx.amount * 0.15),
+    share: Math.round(tx.amount * 0.85),
+    time: tx.verifiedAt || tx._creationTime,
+    status: tx.status,
+  });
+
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-        <MetricCard label="Monthly Payout (Est)" value={`₦${(earnings.month.share / 1000000).toFixed(2)}M`} icon="💰" color="emerald" subValue="Ready to Sweep" />
-        <MetricCard label="Evolution Status" value={uaeStatus.code} icon="🔄" color={uaeStatus.type === 'success' ? 'emerald' : 'amber'} subValue={uaeStatus.status} />
-        <MetricCard label="System Health" value="OPTIMAL" icon="🛡️" color="blue" subValue="AES-256 Active" />
-        <MetricCard label="Total Fees Collected" value={`₦${(earnings.allTime.fee / 1000000).toFixed(2)}M`} icon="🏛️" color="amber" />
+        <MetricCard
+          label="Monthly Payout (Est)"
+          value={`₦${((liveEarnings?.month?.share || 0) / 1000000).toFixed(2)}M`}
+          icon="💰" color="emerald"
+          subValue="Ready to Sweep"
+          onClick={() => handleCardClick("sweep")}
+        />
+        <MetricCard
+          label="Evolution Status"
+          value={uaeStatus.code}
+          icon="🔄"
+          color={uaeStatus.type === 'success' ? 'emerald' : 'amber'}
+          subValue={uaeStatus.status}
+        />
+        <MetricCard
+          label="System Health"
+          value="OPTIMAL"
+          icon="🛡️" color="blue"
+          subValue="AES-256 Active"
+        />
+        <MetricCard
+          label="Total Fees Collected"
+          value={`₦${((liveEarnings?.allTime?.fee || 0) / 1000000).toFixed(2)}M`}
+          icon="🏛️" color="amber"
+          onClick={() => handleCardClick("fees")}
+        />
       </div>
+
+      {/* Expanded Transaction Panels */}
+      {expandedCard === "sweep" && (
+        <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl animate-in fade-in duration-300">
+          <div className="p-10 border-b border-slate-800 flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-black uppercase tracking-tighter">Ready to Sweep — Monthly Payout Transactions</h2>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Live • Updates every second • ₦{((liveEarnings?.month?.share || 0)).toLocaleString()} total</p>
+            </div>
+            <button onClick={() => setExpandedCard(null)} className="text-slate-500 hover:text-white text-2xl">✕</button>
+          </div>
+          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-950/50 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 sticky top-0">
+                <tr>
+                  <th className="px-10 py-6">Name</th>
+                  <th className="px-10 py-6">Platform/Bank</th>
+                  <th className="px-10 py-6">Purpose</th>
+                  <th className="px-10 py-6">Amount (₦)</th>
+                  <th className="px-10 py-6">Fee (15%)</th>
+                  <th className="px-10 py-6">Your Share</th>
+                  <th className="px-10 py-6">Time</th>
+                  <th className="px-10 py-6">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800 text-[11px]">
+                {liveTxs.length === 0 ? (
+                  <tr><td colSpan={8} className="px-10 py-10 text-center text-slate-500">Loading transactions...</td></tr>
+                ) : (
+                  liveTxs.filter((t: any) => t.status === "approved").map((tx: any) => {
+                    const f = formatTx(tx);
+                    return (
+                      <tr key={f.id} className="hover:bg-slate-800/30 transition-colors">
+                        <td className="px-10 py-6 font-black text-white">{f.name}</td>
+                        <td className="px-10 py-6 text-slate-400">{f.bank}</td>
+                        <td className="px-10 py-6 text-slate-400">{f.purpose}</td>
+                        <td className="px-10 py-6 font-bold text-white">₦{f.amount.toLocaleString()}</td>
+                        <td className="px-10 py-6 font-bold text-red-500">- ₦{f.fee.toLocaleString()}</td>
+                        <td className="px-10 py-6 font-black text-emerald-500">+ ₦{f.share.toLocaleString()}</td>
+                        <td className="px-10 py-6 text-slate-500 text-[10px]">{new Date(f.time).toLocaleString()}</td>
+                        <td className="px-10 py-6">
+                          <span className="px-2 py-1 rounded text-[9px] font-black uppercase border text-emerald-500 border-emerald-500/20">{f.status}</span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {expandedCard === "fees" && (
+        <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl animate-in fade-in duration-300">
+          <div className="p-10 border-b border-slate-800 flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-black uppercase tracking-tighter">Total Fees Collected — All Time</h2>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Live • Updates every second • ₦{((liveEarnings?.allTime?.fee || 0)).toLocaleString()} total fees</p>
+            </div>
+            <button onClick={() => setExpandedCard(null)} className="text-slate-500 hover:text-white text-2xl">✕</button>
+          </div>
+          <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-950/50 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 sticky top-0">
+                <tr>
+                  <th className="px-10 py-6">Name</th>
+                  <th className="px-10 py-6">Platform/Bank</th>
+                  <th className="px-10 py-6">Purpose</th>
+                  <th className="px-10 py-6">Amount (₦)</th>
+                  <th className="px-10 py-6">Fee (15%)</th>
+                  <th className="px-10 py-6">Your Share</th>
+                  <th className="px-10 py-6">Time</th>
+                  <th className="px-10 py-6">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800 text-[11px]">
+                {liveTxs.length === 0 ? (
+                  <tr><td colSpan={8} className="px-10 py-10 text-center text-slate-500">Loading transactions...</td></tr>
+                ) : (
+                  liveTxs.map((tx: any) => {
+                    const f = formatTx(tx);
+                    return (
+                      <tr key={f.id} className="hover:bg-slate-800/30 transition-colors">
+                        <td className="px-10 py-6 font-black text-white">{f.name}</td>
+                        <td className="px-10 py-6 text-slate-400">{f.bank}</td>
+                        <td className="px-10 py-6 text-slate-400">{f.purpose}</td>
+                        <td className="px-10 py-6 font-bold text-white">₦{f.amount.toLocaleString()}</td>
+                        <td className="px-10 py-6 font-bold text-red-500">- ₦{f.fee.toLocaleString()}</td>
+                        <td className="px-10 py-6 font-black text-emerald-500">+ ₦{f.share.toLocaleString()}</td>
+                        <td className="px-10 py-6 text-slate-500 text-[10px]">{new Date(f.time).toLocaleString()}</td>
+                        <td className="px-10 py-6">
+                          <span className={`px-2 py-1 rounded text-[9px] font-black uppercase border ${f.status === 'approved' ? 'text-emerald-500 border-emerald-500/20' : 'text-red-500 border-red-500/20'}`}>{f.status}</span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1435,8 +1598,7 @@ function DailySweepStatusPanel() {
    
    const updateSettings = useMutation(api.secure_sweeps.updateSettings);
    const performSweep = useMutation(api.secure_sweeps.performSweep);
-   const initiateDirectTransfer = useMutation(api.fintech.initiateDirectTransfer);
-   const verifyDirectTransferOTP = useMutation(api.fintech.verifyDirectTransferOTP);
+   const executeDirectTransfer = useMutation(api.fintech.executeDirectTransfer);
    const resolveBankAccount = useAction(api.fintech.resolveBankAccount);
    const generatePasskey = useMutation(api.secure_sweeps.generatePasskey);
    
@@ -1459,11 +1621,7 @@ function DailySweepStatusPanel() {
    const [passkeyId, setPasskeyId] = useState("");
    const [generatedPasskey, setGeneratedPasskey] = useState("");
    
-   // OTP states
-   const [showOTPModal, setShowOTPModal] = useState(false);
-   const [otpCode, setOtpCode] = useState("");
-   const [otpId, setOtpId] = useState("");
-   const [verifying, setVerifying] = useState(false);
+    // OTP states removed — transfer executes directly after passkey
    
    // Receipt
    const [showReceipt, setShowReceipt] = useState(false);
@@ -1523,61 +1681,42 @@ function DailySweepStatusPanel() {
       setShowPasskeyModal(true);
    };
 
-   // Verify passkey and initiate OTP
-   const handleVerifyPasskeyAndInitiate = async () => {
+    // Verify passkey and execute transfer directly via Kora Pay API
+    const handleVerifyPasskeyAndTransfer = async () => {
       if (passkeyCode !== generatedPasskey) {
          setTransferStatus({ message: "Invalid passkey", type: "error" });
          return;
       }
 
       setShowPasskeyModal(false);
-      setTransferStatus({ message: "Sending OTP...", type: "loading" });
+      setTransferStatus({ message: "Executing transfer via Kora Pay API...", type: "loading" });
       try {
          const bankName = banks?.find((b: any) => b.code === selectedBank)?.name || selectedBank;
-         const result = await initiateDirectTransfer({
+         const result = await executeDirectTransfer({
             amount: parseFloat(transferAmount),
             bankCode: selectedBank,
             bankName,
             accountNumber: recipientAccount,
             accountName: recipientName,
             purpose: `Transfer to ${recipientName}`,
+            passkeyId,
+            passkey: passkeyCode,
          });
 
          if (result?.success) {
-            setOtpId(result.otpId || "");
-            setShowOTPModal(true);
-            setTransferStatus({ message: "OTP sent! Check your email or screen.", type: "otp" });
-         } else {
-            setTransferStatus({ message: result?.error || "Failed to initiate transfer", type: "error" });
-         }
-      } catch (err: any) {
-         setTransferStatus({ message: err.message, type: "error" });
-      }
-   };
-
-   // Verify OTP and complete transfer
-   const handleVerifyOTP = async () => {
-      if (otpCode.length !== 6) return;
-
-      setVerifying(true);
-      try {
-         const result = await verifyDirectTransferOTP({ otpId, otp: otpCode, passkeyId, passkey: passkeyCode });
-
-         if (result?.success) {
             setReceipt(result.receipt);
-            setShowOTPModal(false);
             setShowReceipt(true);
-            setTransferStatus({ message: "Transfer completed!", type: "success" });
-            setOtpCode("");
+            setTransferStatus({ message: "Transfer completed successfully!", type: "success" });
             setPasskeyCode("");
          } else {
-            setTransferStatus({ message: result?.error || "Invalid OTP", type: "error" });
+            setTransferStatus({ message: result?.error || "Transfer failed", type: "error" });
          }
       } catch (err: any) {
          setTransferStatus({ message: err.message, type: "error" });
       }
-      setVerifying(false);
-   };
+    };
+
+    // OTP removed — transfer executes directly after passkey verification
 
    const handleAutoSweepToggle = async () => {
       const newState = !settings?.autoSweep;
@@ -1804,7 +1943,7 @@ function DailySweepStatusPanel() {
             )}
 
             {/* Transfer Form */}
-            {!showOTPModal && !showPasskeyModal && !showReceipt && (
+            {!showPasskeyModal && !showReceipt && (
                <div className="space-y-6">
                   {/* Bank and Account Row */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -1907,53 +2046,17 @@ function DailySweepStatusPanel() {
                         Cancel
                      </button>
                      <button 
-                        onClick={handleVerifyPasskeyAndInitiate}
+                        onClick={handleVerifyPasskeyAndTransfer}
                         disabled={passkeyCode.length !== 6}
                         className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold disabled:opacity-50"
                      >
-                        Verify & Send OTP
+                        Verify & Execute Transfer
                      </button>
                   </div>
                </div>
             )}
 
-            {/* OTP Verification Modal */}
-            {showOTPModal && (
-               <div className="bg-slate-950 p-8 rounded-2xl border border-white/5 space-y-6">
-                  <div className="text-center">
-                     <div className="text-4xl mb-4">🔐</div>
-                     <h4 className="text-lg font-black text-white">Enter OTP</h4>
-                     <p className="text-sm text-slate-500 mt-2">
-                        A 6-digit code has been sent to your email. Valid for 10 minutes.
-                     </p>
-                  </div>
-                  <div className="flex justify-center">
-                     <input
-                        type="text"
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value)}
-                        maxLength={6}
-                        placeholder="000000"
-                        className="w-48 bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-2xl text-center font-mono tracking-[0.5em]"
-                     />
-                  </div>
-                  <div className="flex gap-4">
-                     <button 
-                        onClick={() => setShowOTPModal(false)}
-                        className="flex-1 py-3 bg-slate-800 text-white rounded-xl text-xs font-bold"
-                     >
-                        Cancel
-                     </button>
-                     <button 
-                        onClick={handleVerifyOTP}
-                        disabled={otpCode.length !== 6 || verifying}
-                        className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold disabled:opacity-50"
-                     >
-                        {verifying ? "Processing Transfer..." : "Verify & Complete Transfer"}
-                     </button>
-                  </div>
-               </div>
-            )}
+            {/* OTP Modal removed — transfer executes directly after passkey */}
 
             {/* Receipt Display */}
             {showReceipt && receipt && (
@@ -1986,6 +2089,10 @@ function DailySweepStatusPanel() {
                         <span className="text-white font-mono">{receipt.accountNumber || "N/A"}</span>
                      </div>
                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">Purpose</span>
+                        <span className="text-white">{receipt.purpose || "Transfer"}</span>
+                     </div>
+                     <div className="flex justify-between text-sm">
                         <span className="text-slate-500">Date</span>
                         <span className="text-white">{new Date(receipt.date).toLocaleString()}</span>
                      </div>
@@ -2002,12 +2109,30 @@ function DailySweepStatusPanel() {
                         <span className="text-emerald-500 font-bold">{receipt.status.toUpperCase()}</span>
                      </div>
                   </div>
-                  <button 
-                     onClick={() => { setShowReceipt(false); setReceipt(null); setTransferAmount(""); setSelectedBank(""); setRecipientAccount(""); setRecipientName(""); }}
-                     className="w-full py-3 bg-slate-800 text-white rounded-xl text-xs font-bold"
-                  >
-                     Done
-                  </button>
+                  {/* Download Buttons */}
+                  <div className="flex gap-4">
+                     <button 
+                        onClick={() => {
+                           const content = `DUTCHKEM VENTURES - TRANSFER RECEIPT\n${"=".repeat(50)}\n\nReference: ${receipt.reference}\nKora Ref: ${receipt.koraReference || "N/A"}\nAmount: ₦${receipt.amount.toLocaleString()}\nTo: ${receipt.to}\nAccount: ${receipt.accountNumber || "N/A"}\nPurpose: ${receipt.purpose || "Transfer"}\nDate: ${new Date(receipt.date).toLocaleString()}\nBalance Before: ₦${receipt.balanceBefore?.toLocaleString()}\nBalance After: ₦${receipt.balanceAfter?.toLocaleString()}\nStatus: ${receipt.status.toUpperCase()}\n\n${"=".repeat(50)}\nDutchkem Ventures ProSuite NG+\nSecure Transfer powered by Kora Pay`;
+                           const blob = new Blob([content], { type: "text/plain" });
+                           const url = URL.createObjectURL(blob);
+                           const a = document.createElement("a");
+                           a.href = url;
+                           a.download = `receipt-${receipt.reference}.txt`;
+                           a.click();
+                           URL.revokeObjectURL(url);
+                        }}
+                        className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold"
+                     >
+                        📄 Download Receipt
+                     </button>
+                     <button 
+                        onClick={() => { setShowReceipt(false); setReceipt(null); setTransferAmount(""); setSelectedBank(""); setRecipientAccount(""); setRecipientName(""); }}
+                        className="flex-1 py-3 bg-slate-800 text-white rounded-xl text-xs font-bold"
+                     >
+                        Done
+                     </button>
+                  </div>
                </div>
             )}
          </div>
