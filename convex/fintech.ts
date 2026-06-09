@@ -1,6 +1,6 @@
 ﻿import { v } from "convex/values";
-import { action, mutation, query } from "./_generated/server";
-import { api } from "./_generated/api";
+import { action, internalAction, internalMutation, mutation, query } from "./_generated/server";
+import { api, internal } from "./_generated/api";
 
 /**
  * FINTECH INTEGRATION - Kora Pay + Nigerian Banks
@@ -662,8 +662,9 @@ export const getTransferHistory = query({
 /**
  * SIMPLIFIED DIRECT TRANSFER: Passkey → Kora Pay API → Receipt
  * No OTP step. Admin enters passkey, transfer fires immediately.
+ * Uses action (not mutation) because fetch() requires it.
  */
-export const executeDirectTransfer = mutation({
+export const executeDirectTransfer = action({
   args: {
     amount: v.number(),
     bankCode: v.string(),
@@ -675,38 +676,18 @@ export const executeDirectTransfer = mutation({
     passkey: v.string(),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     try {
-      // Verify passkey
-      const passkeyRecord = await ctx.db.query("system_config")
-        .withIndex("by_key", q => q.eq("key", args.passkeyId))
-        .first();
-
-      if (!passkeyRecord) return { success: false, error: "Passkey not found" };
-      const pkData = passkeyRecord.value;
-      if (pkData.used) return { success: false, error: "Passkey already used" };
-      if (Date.now() > pkData.expiresAt) return { success: false, error: "Passkey expired" };
-      if (pkData.passkey !== args.passkey) return { success: false, error: "Invalid passkey" };
-
-      // Mark passkey as used
-      await ctx.db.patch("system_config", passkeyRecord._id, {
-        value: { ...pkData, used: true },
-        updatedAt: Date.now(),
+      // 1. Verify passkey and check balance via internal mutation
+      const prepResult: any = await ctx.runMutation(internal.fintech.prepareDirectTransfer, {
+        passkeyId: args.passkeyId,
+        passkey: args.passkey,
+        amount: args.amount,
       });
 
-      // Get main wallet
-      const mainWallet = await ctx.db.query("system_wallets")
-        .withIndex("by_type", q => q.eq("type", "main"))
-        .first();
+      if (!prepResult.success) return prepResult;
 
-      if (!mainWallet || mainWallet.balance < args.amount) {
-        return {
-          success: false,
-          error: `Insufficient balance. Wallet: ₦${(mainWallet?.balance || 0).toLocaleString()}, Transfer: ₦${args.amount.toLocaleString()}`,
-        };
-      }
-
-      // Call Kora Pay API
+      // 2. Call Kora Pay API (fetch is allowed in actions)
       const koraSecret = process.env.KORA_SECRET_KEY;
       if (!koraSecret) return { success: false, error: "Kora API key not configured" };
 
@@ -740,26 +721,116 @@ export const executeDirectTransfer = mutation({
       const result = await response.json();
 
       if (!response.ok || !result.status) {
-        await ctx.db.insert("daily_sweeps", {
-          sweep_id: `TRANSFER_FAIL_${Date.now()}`,
-          date: new Date().toISOString().split("T")[0],
+        // Record failed attempt
+        await ctx.runMutation(internal.fintech.recordTransferResult, {
+          success: false,
           amount: args.amount,
-          balance_before: mainWallet.balance,
-          balance_after: mainWallet.balance,
-          status: "failed",
-          kora_reference: reference,
-          timestamp: Date.now(),
-          notes: `Transfer failed: ${result.message || result.error || "Kora API error"}`,
+          balanceBefore: prepResult.balanceBefore,
+          bankName: args.bankName,
+          accountName: args.accountName,
+          reference,
+          koraReference: result.data?.reference,
+          errorMessage: result.message || result.error || "Kora API error",
         });
 
-        // Check for insufficient funds specifically
         const errMsg = result.message || result.error || "Transfer failed";
         if (/insufficient|balance|funds/i.test(errMsg)) {
-          return { success: false, error: `Insufficient funds. Wallet balance: ₦${mainWallet.balance.toLocaleString()}`, reference };
+          return { success: false, error: `Insufficient funds. Wallet balance: ₦${prepResult.balanceBefore.toLocaleString()}`, reference };
         }
         return { success: false, error: errMsg, reference };
       }
 
+      // 3. Record success and deduct from wallet
+      const recordResult: any = await ctx.runMutation(internal.fintech.recordTransferResult, {
+        success: true,
+        amount: args.amount,
+        balanceBefore: prepResult.balanceBefore,
+        bankCode: args.bankCode,
+        bankName: args.bankName,
+        accountNumber: args.accountNumber,
+        accountName: args.accountName,
+        purpose: args.purpose,
+        reference,
+        koraReference: result.data?.reference || reference,
+      });
+
+      return recordResult;
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  },
+});
+
+/**
+ * INTERNAL MUTATION: Verify passkey and check wallet balance
+ * Called by executeDirectTransfer action before the API call
+ */
+export const prepareDirectTransfer = internalMutation({
+  args: {
+    passkeyId: v.string(),
+    passkey: v.string(),
+    amount: v.number(),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    // Verify passkey
+    const passkeyRecord = await ctx.db.query("system_config")
+      .withIndex("by_key", q => q.eq("key", args.passkeyId))
+      .first();
+
+    if (!passkeyRecord) return { success: false, error: "Passkey not found" };
+    const pkData = passkeyRecord.value;
+    if (pkData.used) return { success: false, error: "Passkey already used" };
+    if (Date.now() > pkData.expiresAt) return { success: false, error: "Passkey expired" };
+    if (pkData.passkey !== args.passkey) return { success: false, error: "Invalid passkey" };
+
+    // Mark passkey as used
+    await ctx.db.patch("system_config", passkeyRecord._id, {
+      value: { ...pkData, used: true },
+      updatedAt: Date.now(),
+    });
+
+    // Get main wallet
+    const mainWallet = await ctx.db.query("system_wallets")
+      .withIndex("by_type", q => q.eq("type", "main"))
+      .first();
+
+    if (!mainWallet || mainWallet.balance < args.amount) {
+      return {
+        success: false,
+        error: `Insufficient balance. Wallet: ₦${(mainWallet?.balance || 0).toLocaleString()}, Transfer: ₦${args.amount.toLocaleString()}`,
+      };
+    }
+
+    return { success: true, balanceBefore: mainWallet.balance, walletId: mainWallet._id };
+  },
+});
+
+/**
+ * INTERNAL MUTATION: Record transfer result (success or failure)
+ * Called by executeDirectTransfer action after the API call
+ */
+export const recordTransferResult = internalMutation({
+  args: {
+    success: v.boolean(),
+    amount: v.number(),
+    balanceBefore: v.number(),
+    bankCode: v.optional(v.string()),
+    bankName: v.string(),
+    accountNumber: v.optional(v.string()),
+    accountName: v.string(),
+    purpose: v.optional(v.string()),
+    reference: v.string(),
+    koraReference: v.optional(v.string()),
+    errorMessage: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const mainWallet = await ctx.db.query("system_wallets")
+      .withIndex("by_type", q => q.eq("type", "main"))
+      .first();
+
+    if (args.success && mainWallet) {
       // Deduct from wallet
       const newBalance = mainWallet.balance - args.amount;
       await ctx.db.patch("system_wallets", mainWallet._id, {
@@ -776,12 +847,11 @@ export const executeDirectTransfer = mutation({
         balance_before: mainWallet.balance,
         balance_after: newBalance,
         status: "completed",
-        kora_reference: reference,
+        kora_reference: args.reference,
         timestamp: Date.now(),
         notes: `Transfer to ${args.bankName} (${args.accountName})`,
       });
 
-      // Generate receipt
       const receipt = {
         id: sweepId,
         type: "direct_transfer",
@@ -789,11 +859,11 @@ export const executeDirectTransfer = mutation({
         amount: args.amount,
         from: "Main Wallet",
         to: `${args.bankName} - ${args.accountName}`,
-        accountNumber: "****" + args.accountNumber.slice(-4),
-        bankCode: args.bankCode,
+        accountNumber: args.accountNumber ? "****" + args.accountNumber.slice(-4) : "N/A",
+        bankCode: args.bankCode || "",
         bankName: args.bankName,
-        reference,
-        koraReference: result.data?.reference || reference,
+        reference: args.reference,
+        koraReference: args.koraReference || args.reference,
         status: "completed",
         purpose: args.purpose || "Direct transfer",
         balanceBefore: mainWallet.balance,
@@ -802,12 +872,25 @@ export const executeDirectTransfer = mutation({
 
       return {
         success: true,
-        reference,
+        reference: args.reference,
         receipt,
         message: `₦${args.amount.toLocaleString()} transferred successfully`,
       };
-    } catch (error: any) {
-      return { success: false, error: error.message };
+    } else {
+      // Record failure
+      await ctx.db.insert("daily_sweeps", {
+        sweep_id: `TRANSFER_FAIL_${Date.now()}`,
+        date: new Date().toISOString().split("T")[0],
+        amount: args.amount,
+        balance_before: args.balanceBefore,
+        balance_after: args.balanceBefore,
+        status: "failed",
+        kora_reference: args.reference,
+        timestamp: Date.now(),
+        notes: `Transfer failed: ${args.errorMessage || "Unknown error"}`,
+      });
+
+      return { success: false, error: args.errorMessage || "Transfer failed", reference: args.reference };
     }
   },
 });

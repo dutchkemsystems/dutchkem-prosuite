@@ -1652,7 +1652,7 @@ function DailySweepStatusPanel() {
    
    const updateSettings = useMutation(api.secure_sweeps.updateSettings);
    const performSweep = useMutation(api.secure_sweeps.performSweep);
-   const executeDirectTransfer = useMutation(api.fintech.executeDirectTransfer);
+   const executeDirectTransfer = useAction(api.fintech.executeDirectTransfer);
    const resolveBankAccount = useAction(api.fintech.resolveBankAccount);
    const generatePasskey = useMutation(api.secure_sweeps.generatePasskey);
    
