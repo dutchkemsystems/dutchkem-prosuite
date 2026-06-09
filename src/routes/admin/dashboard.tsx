@@ -274,6 +274,7 @@ function ManualAgentTaskPanel() {
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [taskOutput, setTaskOutput] = useState<any>(null);
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
 
   const agents = [
     { id: "A1", name: "Academic Pro", icon: "🎓" },
@@ -318,16 +319,47 @@ function ManualAgentTaskPanel() {
   const { data: logs } = useSuspenseQuery(convexQuery(api.uae_engine.getManualTaskLogs, {}));
   const generateTask = useMutation(api.uae_engine.generateAdminManualTask);
 
+  // Poll for task completion
+  useEffect(() => {
+    if (!currentTaskId) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_CONVEX_URL.replace('.cloud', '.site')}/api/admin/task-status?taskId=${currentTaskId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === "completed" && !cancelled) {
+            setTaskOutput({ output: data.output, status: "completed" });
+            setIsGenerating(false);
+            setCurrentTaskId(null);
+          } else if (data.status === "failed" && !cancelled) {
+            setTaskOutput({ output: data.output || "Task failed", status: "failed" });
+            setIsGenerating(false);
+            setCurrentTaskId(null);
+          }
+        }
+      } catch {}
+    };
+    const interval = setInterval(poll, 2000);
+    poll();
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [currentTaskId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt) return;
     setIsGenerating(true);
+    setTaskOutput(null);
     try {
       const result = await generateTask({ agentId, serviceId: serviceId || "General", prompt, userEmail });
-      setTaskOutput(result);
+      if (result?.taskId) {
+        setCurrentTaskId(result.taskId);
+      } else {
+        setTaskOutput({ output: result?.error || "Failed to start task", status: "failed" });
+        setIsGenerating(false);
+      }
     } catch (err: any) {
-      alert(err.message);
-    } finally {
+      setTaskOutput({ output: err.message, status: "failed" });
       setIsGenerating(false);
     }
   };
@@ -394,9 +426,31 @@ function ManualAgentTaskPanel() {
               disabled={isGenerating || !prompt}
               className="w-full py-5 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-orange-600/20 disabled:opacity-50"
             >
-              {isGenerating ? "Executing UAE Command..." : `Generate Task — ${selectedAgent?.name || 'Agent'}`}
+              {isGenerating ? "Executing Agent..." : `Generate Task — ${selectedAgent?.name || 'Agent'}`}
             </button>
           </form>
+
+          {/* Live Task Output */}
+          {isGenerating && (
+            <div className="mt-6 p-6 bg-orange-500/10 border border-orange-500/20 rounded-2xl text-center">
+              <div className="text-2xl mb-2 animate-pulse">⚡</div>
+              <p className="text-sm font-black text-orange-500 uppercase tracking-widest">Generating with {selectedAgent?.name} AI...</p>
+              <p className="text-[10px] text-slate-500 mt-1">The real agent is processing your request. This may take 10-30 seconds.</p>
+            </div>
+          )}
+          {taskOutput && (
+            <div className="mt-6 p-6 bg-slate-950 border border-white/5 rounded-2xl space-y-3">
+              <div className="flex justify-between items-center">
+                <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Agent Output — {selectedAgent?.name}</p>
+                <span className={`px-2 py-1 rounded text-[8px] font-black uppercase ${taskOutput.status === "completed" ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"}`}>
+                  {taskOutput.status}
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-300 font-medium whitespace-pre-wrap leading-relaxed max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                {taskOutput.output}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">

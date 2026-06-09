@@ -49,7 +49,26 @@ export const getSystemStatus = query({
 
 /**
  * ADMIN MANUAL TASK OVERRIDE
+ * Maps agent IDs to their real chat modules for actual AI generation.
  */
+
+const AGENT_CHAT_MAP: Record<string, string> = {
+  A1: "academic_chat",
+  A2: "business_chat",
+  A3: "content_chat",
+  A4: "career_chat",
+  A5: "shopping_chat",
+  A6: "exam_career_chat",
+  A7: "finance_chat",
+  A8: "video_chat",
+  A9: "wellness_chat",
+  A10: "home_chat",
+  A11: "language_chat",
+  A12: "travel_chat",
+  A13: "certification_chat",
+  A14: "translation_chat",
+  A15: "event_chat",
+};
 
 export const generateAdminManualTask = mutation({
   args: {
@@ -60,7 +79,7 @@ export const generateAdminManualTask = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    // 1. Verify Admin - check the actual caller is an admin
+    // 1. Verify Admin
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Unauthorized: not authenticated");
     const caller = await ctx.db.get(identity.subject as any);
@@ -77,21 +96,74 @@ export const generateAdminManualTask = mutation({
       timestamp: Date.now(),
     });
 
-    // 3. Trigger Agent (Mock for now, should call relevant agent action)
-    await ctx.scheduler.runAfter(0, internal.uae_engine.processManualTask, { taskId, prompt: args.prompt });
+    // 3. Trigger real agent via scheduler
+    const chatModule = AGENT_CHAT_MAP[args.agentId];
+    if (!chatModule) {
+      await ctx.db.patch("admin_task_log", taskId, { status: "failed", output: `Unknown agent: ${args.agentId}` });
+      return { taskId, error: `Unknown agent: ${args.agentId}` };
+    }
+
+    await ctx.scheduler.runAfter(0, internal.uae_engine.processManualTask, {
+      taskId,
+      prompt: args.prompt,
+      agentId: args.agentId,
+      chatModule,
+    });
 
     return { taskId };
   },
 });
 
 export const processManualTask = internalAction({
-  args: { taskId: v.id("admin_task_log"), prompt: v.string() },
+  args: {
+    taskId: v.id("admin_task_log"),
+    prompt: v.string(),
+    agentId: v.string(),
+    chatModule: v.string(),
+  },
   returns: v.null(),
-  handler: async (ctx, { taskId, prompt }) => {
-    // Simulate generation
-    const output = `[ADMIN OVERRIDE OUTPUT] for prompt: "${prompt}"\n\nTask completed successfully by UAE Engine.`;
-    
-    await ctx.runMutation(internal.uae_engine.completeManualTask, { taskId, output });
+  handler: async (ctx, { taskId, prompt, agentId, chatModule }) => {
+    try {
+      // Build enhanced prompt with service context
+      const enhancedPrompt = `[ADMIN OVERRIDE — ${agentId}] ${prompt}\n\nProvide a complete, professional, well-formatted response. Use proper headings, bullet points, and structured formatting. The output should be clean, polished, and ready for immediate use.`;
+
+      // Call the real agent's generateSimpleResponse via ctx.runAction
+      const actionMap: Record<string, any> = {
+        academic_chat: internal.academic_chat.generateSimpleResponse,
+        business_chat: internal.business_chat.generateSimpleResponse,
+        content_chat: internal.content_chat.generateSimpleResponse,
+        career_chat: internal.career_chat.generateSimpleResponse,
+        shopping_chat: internal.shopping_chat.generateSimpleResponse,
+        exam_career_chat: internal.exam_career_chat.generateSimpleResponse,
+        finance_chat: internal.finance_chat.generateSimpleResponse,
+        video_chat: internal.video_chat.generateSimpleResponse,
+        wellness_chat: internal.wellness_chat.generateSimpleResponse,
+        home_chat: internal.home_chat.generateSimpleResponse,
+        language_chat: internal.language_chat.generateSimpleResponse,
+        travel_chat: internal.travel_chat.generateSimpleResponse,
+        certification_chat: internal.certification_chat.generateSimpleResponse,
+        translation_chat: internal.translation_chat.generateSimpleResponse,
+        event_chat: internal.event_chat.generateSimpleResponse,
+      };
+
+      const actionRef = actionMap[chatModule];
+      if (!actionRef) {
+        throw new Error(`Agent module ${chatModule} not found`);
+      }
+
+      const output = await ctx.runAction(actionRef, { prompt: enhancedPrompt });
+
+      // Save completed output
+      await ctx.runMutation(internal.uae_engine.completeManualTask, {
+        taskId,
+        output: output || "No response generated",
+      });
+    } catch (error: any) {
+      await ctx.runMutation(internal.uae_engine.completeManualTask, {
+        taskId,
+        output: `Error: ${error.message}`,
+      });
+    }
   },
 });
 
@@ -111,6 +183,16 @@ export const getManualTaskLogs = query({
   returns: v.any(),
   handler: async (ctx) => {
     return await ctx.db.query("admin_task_log").order("desc").take(20);
+  },
+});
+
+export const getTaskStatus = query({
+  args: { taskId: v.id("admin_task_log") },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) return null;
+    return { status: task.status, output: task.output || null };
   },
 });
 

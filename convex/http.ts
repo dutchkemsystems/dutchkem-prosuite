@@ -568,4 +568,24 @@ http.route({
   }),
 });
 
+// ========== TASK STATUS ENDPOINT (polls for admin manual task completion) ==========
+http.route({
+  path: "/api/admin/task-status",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const url = new URL(req.url);
+    const taskId = url.searchParams.get("taskId");
+    if (!taskId) return new Response(JSON.stringify({ error: "taskId required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+
+    const logs = await ctx.runQuery(api.uae_engine.getManualTaskLogs, {});
+    const task = logs.find((t: any) => t._id === taskId);
+    if (!task) return new Response(JSON.stringify({ error: "Task not found" }), { status: 404, headers: { "Content-Type": "application/json" } });
+
+    return new Response(JSON.stringify({ status: task.status, output: task.output || null }), {
+      status: 200,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    });
+  }),
+});
+
 export default http;
