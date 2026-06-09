@@ -121,15 +121,15 @@ describe("getOAuthProviderStatus", () => {
     expect(Array.isArray(status.composioPlatforms)).toBe(true);
     // 6 platforms verified to exist in Composio (telegram excluded)
     // Updated 2026-06-04 to match what actually exists in Composio's catalog
-    expect(status.composioPlatforms).toHaveLength(6);
+    expect(status.composioPlatforms).toHaveLength(7);
     expect(status.composioPlatforms).toContain("x");
     expect(status.composioPlatforms).toContain("linkedin");
     expect(status.composioPlatforms).toContain("facebook");
+    expect(status.composioPlatforms).toContain("instagram");
     expect(status.composioPlatforms).toContain("youtube");
     expect(status.composioPlatforms).toContain("reddit");
     expect(status.composioPlatforms).toContain("discord");
-    // Not in Composio (use direct OAuth)
-    expect(status.composioPlatforms).not.toContain("instagram");
+    
     expect(status.composioPlatforms).not.toContain("tiktok");
     expect(status.composioPlatforms).not.toContain("pinterest");
     expect(status.composioPlatforms).not.toContain("threads");

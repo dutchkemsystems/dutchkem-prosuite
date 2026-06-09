@@ -295,7 +295,7 @@ const TOOLKIT_DETAILS: ToolkitDetail[] = [
     name: "X (Twitter)",
     icon: "🐦",
     category: "social",
-    description: "Post tweets, reply, like, and follow on X.",
+    description: "Post tweets, reply, like, upload media, and search on X.",
     tools: [
       { name: "post_tweet", description: "Post a new tweet", category: "write", parameters: [
         { name: "text", type: "string", required: true, description: "Tweet text (≤280 chars)" },
@@ -305,6 +305,11 @@ const TOOLKIT_DETAILS: ToolkitDetail[] = [
         { name: "tweet_id", type: "string", required: true, description: "Tweet ID to reply to" },
         { name: "text", type: "string", required: true, description: "Reply text" },
       ]},
+      { name: "upload_media", description: "Upload media (image/video) as base64", category: "write", parameters: [
+        { name: "media_data", type: "string", required: true, description: "Base64-encoded media data" },
+        { name: "media_type", type: "string", required: false, description: "MIME type (image/jpeg, video/mp4)" },
+      ]},
+      { name: "get_user_info", description: "Get authenticated user's profile info", category: "read", parameters: [] },
       { name: "search_tweets", description: "Search recent tweets", category: "search", parameters: [
         { name: "query", type: "string", required: true, description: "Search query" },
         { name: "max_results", type: "number", required: false, description: "Max tweets" },
@@ -319,7 +324,7 @@ const TOOLKIT_DETAILS: ToolkitDetail[] = [
     name: "LinkedIn",
     icon: "💼",
     category: "social",
-    description: "Post updates, share articles, and manage your professional network.",
+    description: "Post updates, share articles, get profile info, and manage your professional network.",
     tools: [
       { name: "post_update", description: "Post an update to your feed", category: "write", parameters: [
         { name: "text", type: "string", required: true, description: "Post text" },
@@ -330,6 +335,7 @@ const TOOLKIT_DETAILS: ToolkitDetail[] = [
         { name: "commentary", type: "string", required: false, description: "Your comment" },
       ]},
       { name: "get_profile", description: "Get your LinkedIn profile info", category: "read", parameters: [] },
+      { name: "get_organizations", description: "Get your LinkedIn organization pages", category: "read", parameters: [] },
     ],
   },
   {
@@ -337,12 +343,27 @@ const TOOLKIT_DETAILS: ToolkitDetail[] = [
     name: "Facebook",
     icon: "📘",
     category: "social",
-    description: "Post to pages, manage ads, and engage with your audience.",
+    description: "Post to pages, upload media, manage comments, and engage with your audience.",
     tools: [
       { name: "post_to_page", description: "Post to a Facebook page", category: "write", parameters: [
         { name: "page_id", type: "string", required: true, description: "Page ID" },
         { name: "message", type: "string", required: true, description: "Post text" },
         { name: "link", type: "string", required: false, description: "Link to share" },
+      ]},
+      { name: "upload_media", description: "Upload photo/video to page", category: "write", parameters: [
+        { name: "page_id", type: "string", required: true, description: "Page ID" },
+        { name: "image_url", type: "string", required: true, description: "Media URL" },
+        { name: "message", type: "string", required: false, description: "Post message" },
+      ]},
+      { name: "get_comments", description: "Get comments on a post", category: "read", parameters: [
+        { name: "post_id", type: "string", required: true, description: "Post ID" },
+      ]},
+      { name: "reply_to_comment", description: "Reply to a comment", category: "write", parameters: [
+        { name: "comment_id", type: "string", required: true, description: "Comment ID" },
+        { name: "message", type: "string", required: true, description: "Reply text" },
+      ]},
+      { name: "delete_post", description: "Delete a post", category: "execute", parameters: [
+        { name: "post_id", type: "string", required: true, description: "Post ID" },
       ]},
       { name: "create_ad", description: "Create a Facebook ad campaign", category: "write", parameters: [
         { name: "name", type: "string", required: true, description: "Campaign name" },
@@ -356,18 +377,29 @@ const TOOLKIT_DETAILS: ToolkitDetail[] = [
     name: "Instagram",
     icon: "📸",
     category: "social",
-    description: "Post photos, reels, and stories to Instagram Business accounts.",
+    description: "Post photos, reels, carousels, get analytics, manage comments, and send DMs.",
     tools: [
       { name: "post_photo", description: "Post a photo", category: "write", parameters: [
         { name: "image_url", type: "string", required: true, description: "Image URL" },
         { name: "caption", type: "string", required: true, description: "Caption" },
       ]},
-      { name: "post_reel", description: "Post a reel", category: "write", parameters: [
+      { name: "post_reel", description: "Post a reel/video", category: "write", parameters: [
         { name: "video_url", type: "string", required: true, description: "Video URL" },
         { name: "caption", type: "string", required: false, description: "Caption" },
       ]},
-      { name: "get_insights", description: "Get account insights", category: "read", parameters: [
-        { name: "metric", type: "string", required: true, description: "impressions, reach, profile_views" },
+      { name: "publish_carousel", description: "Publish a multi-image carousel post", category: "write", parameters: [
+        { name: "image_urls", type: "string[]", required: true, description: "Array of image URLs (2-10)" },
+        { name: "caption", type: "string", required: true, description: "Caption" },
+      ]},
+      { name: "get_insights", description: "Get media insights (impressions, reach, engagement)", category: "read", parameters: [
+        { name: "media_id", type: "string", required: true, description: "Media ID" },
+      ]},
+      { name: "get_comments", description: "Get comments on a media post", category: "read", parameters: [
+        { name: "media_id", type: "string", required: true, description: "Media ID" },
+      ]},
+      { name: "send_dm", description: "Send a direct message", category: "write", parameters: [
+        { name: "recipient_id", type: "string", required: true, description: "Recipient user ID" },
+        { name: "text", type: "string", required: true, description: "Message text" },
       ]},
     ],
   },
@@ -376,7 +408,7 @@ const TOOLKIT_DETAILS: ToolkitDetail[] = [
     name: "YouTube",
     icon: "📺",
     category: "social",
-    description: "Upload videos, manage playlists, and check analytics.",
+    description: "Upload videos, manage playlists, check analytics, and track performance.",
     tools: [
       { name: "upload_video", description: "Upload a video", category: "write", parameters: [
         { name: "title", type: "string", required: true, description: "Video title" },
@@ -389,6 +421,10 @@ const TOOLKIT_DETAILS: ToolkitDetail[] = [
       ]},
       { name: "get_video_analytics", description: "Get analytics for a video", category: "read", parameters: [
         { name: "video_id", type: "string", required: true, description: "Video ID" },
+      ]},
+      { name: "get_channel_info", description: "Get channel info and statistics", category: "read", parameters: [] },
+      { name: "track_performance", description: "Track performance of multiple videos", category: "read", parameters: [
+        { name: "video_ids", type: "string[]", required: true, description: "Array of video IDs" },
       ]},
     ],
   },
@@ -432,6 +468,38 @@ const TOOLKIT_DETAILS: ToolkitDetail[] = [
       { name: "get_updates", description: "Get recent bot updates", category: "read", parameters: [
         { name: "limit", type: "number", required: false, description: "Max updates" },
       ]},
+    ],
+  },
+  {
+    toolkit: "reddit",
+    name: "Reddit",
+    icon: "🤖",
+    category: "social",
+    description: "Create posts, specify subreddits, and engage with Reddit communities.",
+    tools: [
+      { name: "create_post", description: "Create a post in a subreddit", category: "write", parameters: [
+        { name: "subreddit", type: "string", required: true, description: "Subreddit name (e.g. programming)" },
+        { name: "title", type: "string", required: true, description: "Post title" },
+        { name: "text", type: "string", required: true, description: "Post text (self post)" },
+        { name: "flair_id", type: "string", required: false, description: "Flair ID" },
+      ]},
+      { name: "get_subreddit_info", description: "Get subreddit info and rules", category: "read", parameters: [
+        { name: "subreddit", type: "string", required: true, description: "Subreddit name" },
+      ]},
+    ],
+  },
+  {
+    toolkit: "canva",
+    name: "Canva",
+    icon: "🎨",
+    category: "design",
+    description: "Design graphics, use templates, and publish visual content.",
+    tools: [
+      { name: "design_publish", description: "Create and publish a design from template", category: "write", parameters: [
+        { name: "template_id", type: "string", required: true, description: "Canva template ID" },
+        { name: "title", type: "string", required: true, description: "Design title" },
+      ]},
+      { name: "list_templates", description: "List available design templates", category: "read", parameters: [] },
     ],
   },
   {

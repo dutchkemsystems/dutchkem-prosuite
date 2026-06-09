@@ -115,10 +115,10 @@ export const COMPOSIO_APP_MAP: Record<string, string | undefined> = {
   x: "x",
   linkedin: "linkedin",
   facebook: "facebook",
+  instagram: "instagram",
   youtube: "youtube",
   reddit: "reddit",
   discord: "discord",
-  instagram: undefined,
   tiktok: undefined,
   pinterest: undefined,
   threads: undefined,
@@ -1050,7 +1050,7 @@ async function fetchUserInfo(
 
 async function postToPlatformApi(
   platform: string, accessToken: string, content: string,
-  _mediaUrls?: Array<string>, _anonymous?: boolean
+  mediaUrls?: Array<string>, _anonymous?: boolean
 ): Promise<{ success: boolean; postId?: string; error?: string }> {
   const config = PLATFORM_CONFIGS[platform];
   if (!config) return { success: false, error: "Unknown platform" };
@@ -1058,33 +1058,86 @@ async function postToPlatformApi(
   try {
     switch (platform) {
       case "x": {
+        let mediaIds: string[] = [];
+        if (mediaUrls && mediaUrls.length > 0) {
+          for (const url of mediaUrls) {
+            const imgRes = await fetch(url);
+            if (imgRes.ok) {
+              const blob = await imgRes.blob();
+              const initRes = await fetch("https://upload.twitter.com/1.1/media/upload.json", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${accessToken}` },
+                body: (() => { const fd = new FormData(); fd.append("command", "INIT"); fd.append("total_bytes", String(blob.size)); fd.append("media_type", blob.type || "image/jpeg"); return fd; })(),
+              });
+              const initData = await initRes.json();
+              if (initRes.ok && initData.media_id_string) {
+                const appendRes = await fetch("https://upload.twitter.com/1.1/media/upload.json", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${accessToken}` },
+                  body: (() => { const fd = new FormData(); fd.append("command", "APPEND"); fd.append("media_id", initData.media_id_string); fd.append("segment_index", "0"); fd.append("media_data", url); return fd; })(),
+                });
+                if (appendRes.ok) {
+                  await fetch("https://upload.twitter.com/1.1/media/upload.json", {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                    body: (() => { const fd = new FormData(); fd.append("command", "FINALIZE"); fd.append("media_id", initData.media_id_string); return fd; })(),
+                  });
+                  mediaIds.push(initData.media_id_string);
+                }
+              }
+            }
+          }
+        }
+        const tweetBody: any = { text: content };
+        if (mediaIds.length > 0) tweetBody.media = { media_ids: mediaIds };
         const res = await fetch("https://api.twitter.com/2/tweets", {
           method: "POST",
           headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ text: content }),
+          body: JSON.stringify(tweetBody),
         });
         const data = await res.json();
         return res.ok
           ? { success: true, postId: data.data?.id }
-          : { success: false, error: data.detail || "Post failed" };
+          : { success: false, error: data.detail || data.errors?.[0]?.message || "Tweet failed" };
       }
       case "linkedin": {
+        let shareMediaCategory = "NONE";
+        let mediaUrn = "";
+        if (mediaUrls && mediaUrls.length > 0) {
+          shareMediaCategory = "IMAGE";
+          mediaUrn = mediaUrls[0];
+        }
+        const ugcPost: any = {
+          author: "urn:li:person:me",
+          lifecycleState: "PUBLISHED",
+          specificContent: {
+            "com.linkedin.ugc.ShareContent": {
+              shareCommentary: { text: content },
+              shareMediaCategory,
+              ...(mediaUrn ? { media: { status: "READY", originalUrl: mediaUrn } } : {}),
+            },
+          },
+          visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
+        };
         const res = await fetch("https://api.linkedin.com/v2/ugcPosts", {
           method: "POST",
           headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            author: "urn:li:person:me", lifecycleState: "PUBLISHED",
-            specificContent: {
-              "com.linkedin.ugc.ShareContent": {
-                shareCommentary: { text: content }, shareMediaCategory: "NONE",
-              },
-            },
-            visibility: { "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC" },
-          }),
+          body: JSON.stringify(ugcPost),
         });
         return res.ok ? { success: true, postId: "linkedin_post" } : { success: false, error: "LinkedIn post failed" };
       }
       case "facebook": {
+        if (mediaUrls && mediaUrls.length > 0) {
+          const imgUrl = mediaUrls[0];
+          const res = await fetch(
+            `https://graph.facebook.com/v19.0/me/photos?url=${encodeURIComponent(imgUrl)}&message=${encodeURIComponent(content)}&access_token=${accessToken}`,
+            { method: "POST" }
+          );
+          const data = await res.json();
+          return res.ok
+            ? { success: true, postId: data.id }
+            : { success: false, error: data.error?.message || "Facebook media post failed" };
+        }
         const res = await fetch(
           `https://graph.facebook.com/v19.0/me/feed?message=${encodeURIComponent(content)}&access_token=${accessToken}`,
           { method: "POST" }
@@ -1093,6 +1146,76 @@ async function postToPlatformApi(
         return res.ok
           ? { success: true, postId: data.id }
           : { success: false, error: data.error?.message || "Facebook post failed" };
+      }
+      case "instagram": {
+        if (mediaUrls && mediaUrls.length > 1) {
+          const children: string[] = [];
+          for (const url of mediaUrls) {
+            const containerRes = await fetch(
+              `https://graph.facebook.com/v19.0/me/media?image_url=${encodeURIComponent(url)}&access_token=${accessToken}`,
+              { method: "POST" }
+            );
+            const containerData = await containerRes.json();
+            if (containerRes.ok && containerData.id) children.push(containerData.id);
+          }
+          if (children.length === 0) return { success: false, error: "Failed to create carousel containers" };
+          const carouselRes = await fetch(
+            `https://graph.facebook.com/v19.0/me/media?children=${children.join(",")}&caption=${encodeURIComponent(content)}&access_token=${accessToken}`,
+            { method: "POST" }
+          );
+          const carouselData = await carouselRes.json();
+          if (!carouselRes.ok || !carouselData.id) return { success: false, error: "Failed to create carousel" };
+          const publishRes = await fetch(
+            `https://graph.facebook.com/v19.0/me/media_publish?creation_id=${carouselData.id}&access_token=${accessToken}`,
+            { method: "POST" }
+          );
+          const publishData = await publishRes.json();
+          return publishRes.ok
+            ? { success: true, postId: publishData.id }
+            : { success: false, error: "Instagram carousel publish failed" };
+        }
+        if (mediaUrls && mediaUrls.length === 1) {
+          const containerRes = await fetch(
+            `https://graph.facebook.com/v19.0/me/media?image_url=${encodeURIComponent(mediaUrls[0])}&caption=${encodeURIComponent(content)}&access_token=${accessToken}`,
+            { method: "POST" }
+          );
+          const containerData = await containerRes.json();
+          if (!containerRes.ok || !containerData.id) return { success: false, error: "Instagram container creation failed" };
+          const publishRes = await fetch(
+            `https://graph.facebook.com/v19.0/me/media_publish?creation_id=${containerData.id}&access_token=${accessToken}`,
+            { method: "POST" }
+          );
+          const publishData = await publishRes.json();
+          return publishRes.ok
+            ? { success: true, postId: publishData.id }
+            : { success: false, error: "Instagram photo publish failed" };
+        }
+        return { success: false, error: "Instagram requires at least one image URL" };
+      }
+      case "youtube": {
+        if (!mediaUrls || mediaUrls.length === 0) return { success: false, error: "YouTube requires a video URL" };
+        const videoUrl = mediaUrls[0];
+        const videoRes = await fetch(videoUrl);
+        if (!videoRes.ok) return { success: false, error: "Failed to fetch video from URL" };
+        const videoBlob = await videoRes.blob();
+        const metadata = { snippet: { title: content.substring(0, 100), description: content, tags: ["dutchkem"], categoryId: "22" }, status: { privacyStatus: "public" } };
+        const initRes = await fetch("https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json", "X-Upload-Content-Type": videoBlob.type || "video/mp4", "X-Upload-Content-Length": String(videoBlob.size) },
+          body: JSON.stringify(metadata),
+        });
+        if (!initRes.ok) { const err = await initRes.json(); return { success: false, error: err.error?.message || "YouTube init failed" }; }
+        const uploadUrl = initRes.headers.get("Location");
+        if (!uploadUrl) return { success: false, error: "No upload URL returned" };
+        const uploadRes = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": videoBlob.type || "video/mp4", "Content-Length": String(videoBlob.size) },
+          body: videoBlob,
+        });
+        const uploadData = await uploadRes.json();
+        return uploadRes.ok
+          ? { success: true, postId: uploadData.id }
+          : { success: false, error: uploadData.error?.message || "YouTube upload failed" };
       }
       case "reddit": {
         const res = await fetch("https://oauth.reddit.com/api/submit", {
@@ -1122,6 +1245,461 @@ async function postToPlatformApi(
     return { success: false, error: error.message };
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// PLATFORM-SPECIFIC ACTIONS (Facebook, Instagram, X, LinkedIn, YouTube, Reddit, Canva)
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── FACEBOOK: Upload media to page ───
+export const facebookUploadMedia = action({
+  args: { accessToken: v.string(), pageId: v.string(), imageUrl: v.string(), message: v.optional(v.string()) },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/${args.pageId}/photos?url=${encodeURIComponent(args.imageUrl)}&message=${encodeURIComponent(args.message || "")}&access_token=${args.accessToken}`,
+        { method: "POST" }
+      );
+      const data = await res.json();
+      return res.ok ? { success: true, postId: data.id } : { success: false, error: data.error?.message || "Facebook media upload failed" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── FACEBOOK: Get comments on a post ───
+export const facebookGetComments = action({
+  args: { accessToken: v.string(), postId: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/${args.postId}/comments?access_token=${args.accessToken}&fields=id,message,from,created_time,like_count`,
+        { method: "GET" }
+      );
+      const data = await res.json();
+      return res.ok ? { success: true, comments: data.data || [] } : { success: false, error: data.error?.message || "Failed to get comments" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── FACEBOOK: Reply to a comment ───
+export const facebookReplyToComment = action({
+  args: { accessToken: v.string(), commentId: v.string(), message: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/${args.commentId}/comments?message=${encodeURIComponent(args.message)}&access_token=${args.accessToken}`,
+        { method: "POST" }
+      );
+      const data = await res.json();
+      return res.ok ? { success: true, replyId: data.id } : { success: false, error: data.error?.message || "Reply failed" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── FACEBOOK: Delete a post ───
+export const facebookDeletePost = action({
+  args: { accessToken: v.string(), postId: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/${args.postId}?access_token=${args.accessToken}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json();
+      return res.ok ? { success: true } : { success: false, error: data.error?.message || "Delete failed" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── INSTAGRAM: Publish photo ───
+export const instagramPublishPhoto = action({
+  args: { accessToken: v.string(), imageUrl: v.string(), caption: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const containerRes = await fetch(
+        `https://graph.facebook.com/v19.0/me/media?image_url=${encodeURIComponent(args.imageUrl)}&caption=${encodeURIComponent(args.caption)}&access_token=${args.accessToken}`,
+        { method: "POST" }
+      );
+      const containerData = await containerRes.json();
+      if (!containerRes.ok || !containerData.id) return { success: false, error: containerData.error?.message || "Container creation failed" };
+      const publishRes = await fetch(
+        `https://graph.facebook.com/v19.0/me/media_publish?creation_id=${containerData.id}&access_token=${args.accessToken}`,
+        { method: "POST" }
+      );
+      const publishData = await publishRes.json();
+      return publishRes.ok ? { success: true, mediaId: publishData.id } : { success: false, error: publishData.error?.message || "Publish failed" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── INSTAGRAM: Publish video/reel ───
+export const instagramPublishVideo = action({
+  args: { accessToken: v.string(), videoUrl: v.string(), caption: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const containerRes = await fetch(
+        `https://graph.facebook.com/v19.0/me/media?media_type=REELS&video_url=${encodeURIComponent(args.videoUrl)}&caption=${encodeURIComponent(args.caption)}&access_token=${args.accessToken}`,
+        { method: "POST" }
+      );
+      const containerData = await containerRes.json();
+      if (!containerRes.ok || !containerData.id) return { success: false, error: containerData.error?.message || "Reel container creation failed" };
+      const publishRes = await fetch(
+        `https://graph.facebook.com/v19.0/me/media_publish?creation_id=${containerData.id}&access_token=${args.accessToken}`,
+        { method: "POST" }
+      );
+      const publishData = await publishRes.json();
+      return publishRes.ok ? { success: true, mediaId: publishData.id } : { success: false, error: publishData.error?.message || "Reel publish failed" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── INSTAGRAM: Publish carousel ───
+export const instagramPublishCarousel = action({
+  args: { accessToken: v.string(), imageUrls: v.array(v.string()), caption: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const children: string[] = [];
+      for (const url of args.imageUrls) {
+        const res = await fetch(
+          `https://graph.facebook.com/v19.0/me/media?image_url=${encodeURIComponent(url)}&access_token=${args.accessToken}`,
+          { method: "POST" }
+        );
+        const data = await res.json();
+        if (res.ok && data.id) children.push(data.id);
+      }
+      if (children.length === 0) return { success: false, error: "No carousel containers created" };
+      const carouselRes = await fetch(
+        `https://graph.facebook.com/v19.0/me/media?children=${children.join(",")}&caption=${encodeURIComponent(args.caption)}&access_token=${args.accessToken}`,
+        { method: "POST" }
+      );
+      const carouselData = await carouselRes.json();
+      if (!carouselRes.ok || !carouselData.id) return { success: false, error: "Carousel creation failed" };
+      const publishRes = await fetch(
+        `https://graph.facebook.com/v19.0/me/media_publish?creation_id=${carouselData.id}&access_token=${args.accessToken}`,
+        { method: "POST" }
+      );
+      const publishData = await publishRes.json();
+      return publishRes.ok ? { success: true, mediaId: publishData.id } : { success: false, error: "Carousel publish failed" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── INSTAGRAM: Get insights/analytics ───
+export const instagramGetInsights = action({
+  args: { accessToken: v.string(), mediaId: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/${args.mediaId}/insights?metric=impressions,reach,engagement,video_views&access_token=${args.accessToken}`,
+        { method: "GET" }
+      );
+      const data = await res.json();
+      return res.ok ? { success: true, insights: data.data || [] } : { success: false, error: data.error?.message || "Insights failed" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── INSTAGRAM: Get comments ───
+export const instagramGetComments = action({
+  args: { accessToken: v.string(), mediaId: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/${args.mediaId}/comments?access_token=${args.accessToken}&fields=id,text,timestamp,username`,
+        { method: "GET" }
+      );
+      const data = await res.json();
+      return res.ok ? { success: true, comments: data.data || [] } : { success: false, error: data.error?.message || "Get comments failed" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── INSTAGRAM: Send DM ───
+export const instagramSendDM = action({
+  args: { accessToken: v.string(), recipientId: v.string(), text: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/me/messages?recipient=${encodeURIComponent(JSON.stringify({ id: args.recipientId }))}&message=${encodeURIComponent(JSON.stringify({ text: args.text }))}&access_token=${args.accessToken}`,
+        { method: "POST" }
+      );
+      const data = await res.json();
+      return res.ok ? { success: true, messageId: data.message_id } : { success: false, error: data.error?.message || "DM failed" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── X/TWITTER: Upload media (base64) ───
+export const twitterUploadMedia = action({
+  args: { accessToken: v.string(), mediaData: v.string(), mediaType: v.optional(v.string()) },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const initRes = await fetch("https://upload.twitter.com/1.1/media/upload.json", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${args.accessToken}` },
+        body: (() => { const fd = new FormData(); fd.append("command", "INIT"); fd.append("total_bytes", String(atob(args.mediaData).length)); fd.append("media_type", args.mediaType || "image/jpeg"); return fd; })(),
+      });
+      const initData = await initRes.json();
+      if (!initRes.ok || !initData.media_id_string) return { success: false, error: initData.errors?.[0]?.message || "Twitter media init failed" };
+      const mediaId = initData.media_id_string;
+      await fetch("https://upload.twitter.com/1.1/media/upload.json", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${args.accessToken}` },
+        body: (() => { const fd = new FormData(); fd.append("command", "APPEND"); fd.append("media_id", mediaId); fd.append("segment_index", "0"); fd.append("media_data", args.mediaData); return fd; })(),
+      });
+      const finalizeRes = await fetch("https://upload.twitter.com/1.1/media/upload.json", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${args.accessToken}` },
+        body: (() => { const fd = new FormData(); fd.append("command", "FINALIZE"); fd.append("media_id", mediaId); return fd; })(),
+      });
+      const finalizeData = await finalizeRes.json();
+      return finalizeRes.ok ? { success: true, mediaId } : { success: false, error: "Twitter media finalize failed" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── X/TWITTER: Get user info ───
+export const twitterGetUserInfo = action({
+  args: { accessToken: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch("https://api.twitter.com/2/users/me?user.fields=id,name,username,profile_image_url,public_metrics,description,created_at", {
+        headers: { Authorization: `Bearer ${args.accessToken}` },
+      });
+      const data = await res.json();
+      return res.ok ? { success: true, user: data.data } : { success: false, error: data.detail || "Failed to get user info" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── X/TWITTER: Like a tweet ───
+export const twitterLikeTweet = action({
+  args: { accessToken: v.string(), userId: v.string(), tweetId: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch(`https://api.twitter.com/2/users/${args.userId}/likes`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${args.accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ tweet_id: args.tweetId }),
+      });
+      const data = await res.json();
+      return res.ok ? { success: true } : { success: false, error: data.detail || "Like failed" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── X/TWITTER: Reply to tweet ───
+export const twitterReplyToTweet = action({
+  args: { accessToken: v.string(), tweetId: v.string(), text: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch("https://api.twitter.com/2/tweets", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${args.accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ text: args.text, reply: { in_reply_to_tweet_id: args.tweetId } }),
+      });
+      const data = await res.json();
+      return res.ok ? { success: true, postId: data.data?.id } : { success: false, error: data.detail || "Reply failed" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── X/TWITTER: Search tweets ───
+export const twitterSearchTweets = action({
+  args: { accessToken: v.string(), query: v.string(), maxResults: v.optional(v.number()) },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch(
+        `https://api.twitter.com/2/tweets/search/recent?query=${encodeURIComponent(args.query)}&max_results=${args.maxResults || 10}&tweet.fields=created_at,public_metrics,author_id`,
+        { headers: { Authorization: `Bearer ${args.accessToken}` } }
+      );
+      const data = await res.json();
+      return res.ok ? { success: true, tweets: data.data || [] } : { success: false, error: data.detail || "Search failed" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── LINKEDIN: Get user profile ───
+export const linkedinGetProfile = action({
+  args: { accessToken: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch("https://api.linkedin.com/v2/me?projection=(id,firstName,lastName,profilePicture(displayImage~digitalmediaStream:playableStreams),headline,industry,summary)", {
+        headers: { Authorization: `Bearer ${args.accessToken}` },
+      });
+      const data = await res.json();
+      return res.ok ? { success: true, profile: data } : { success: false, error: "Failed to get LinkedIn profile" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── LINKEDIN: Get organization pages ───
+export const linkedinGetOrganizations = action({
+  args: { accessToken: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch("https://api.linkedin.com/v2/organizationalContactRoleProjection~projection=(elements*(organizationalTarget~(id,name,vanityName)))", {
+        headers: { Authorization: `Bearer ${args.accessToken}` },
+      });
+      const data = await res.json();
+      return res.ok ? { success: true, organizations: data.elements || [] } : { success: false, error: "Failed to get organizations" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── YOUTUBE: Get channel info ───
+export const youtubeGetChannelInfo = action({
+  args: { accessToken: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch(
+        "https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&mine=true",
+        { headers: { Authorization: `Bearer ${args.accessToken}` } }
+      );
+      const data = await res.json();
+      return res.ok && data.items?.length > 0 ? { success: true, channel: data.items[0] } : { success: false, error: "No channel found" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── YOUTUBE: List recent videos ───
+export const youtubeListVideos = action({
+  args: { accessToken: v.string(), maxResults: v.optional(v.number()) },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const channelRes = await fetch(
+        "https://www.googleapis.com/youtube/v3/channels?part=contentDetails&mine=true",
+        { headers: { Authorization: `Bearer ${args.accessToken}` } }
+      );
+      const channelData = await channelRes.json();
+      if (!channelData.items?.length) return { success: false, error: "No channel found" };
+      const uploadsPlaylist = channelData.items[0].contentDetails.relatedPlaylists.uploads;
+      const res = await fetch(
+        `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylist}&maxResults=${args.maxResults || 10}`,
+        { headers: { Authorization: `Bearer ${args.accessToken}` } }
+      );
+      const data = await res.json();
+      return res.ok ? { success: true, videos: data.items || [] } : { success: false, error: "Failed to list videos" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── YOUTUBE: Get video analytics ───
+export const youtubeGetAnalytics = action({
+  args: { accessToken: v.string(), videoId: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${args.videoId}`,
+        { headers: { Authorization: `Bearer ${args.accessToken}` } }
+      );
+      const data = await res.json();
+      return res.ok && data.items?.length > 0 ? { success: true, analytics: data.items[0].statistics, snippet: data.items[0].snippet } : { success: false, error: "No video data" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── YOUTUBE: Track video performance ───
+export const youtubeTrackPerformance = action({
+  args: { accessToken: v.string(), videoIds: v.array(v.string()) },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${args.videoIds.join(",")}`,
+        { headers: { Authorization: `Bearer ${args.accessToken}` } }
+      );
+      const data = await res.json();
+      return res.ok ? { success: true, videos: (data.items || []).map((v: any) => ({ id: v.id, title: v.snippet?.title, stats: v.statistics })) } : { success: false, error: "Tracking failed" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── REDDIT: Create post with subreddit ───
+export const redditCreatePost = action({
+  args: { accessToken: v.string(), subreddit: v.string(), title: v.string(), text: v.string(), flairId: v.optional(v.string()) },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const body: any = { sr: args.subreddit, kind: "self", title: args.title, text: args.text };
+      if (args.flairId) body.flair_id = args.flairId;
+      const res = await fetch("https://oauth.reddit.com/api/submit", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${args.accessToken}`, "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams(body).toString(),
+      });
+      const data = await res.json();
+      return res.ok ? { success: true, postId: data.jquery?.[0]?.[3] || "reddit_post" } : { success: false, error: data.error || "Reddit post failed" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── REDDIT: Get subreddit info ───
+export const redditGetSubredditInfo = action({
+  args: { accessToken: v.string(), subreddit: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch(
+        `https://oauth.reddit.com/r/${args.subreddit}/about`,
+        { headers: { Authorization: `Bearer ${args.accessToken}` } }
+      );
+      const data = await res.json();
+      return res.ok ? { success: true, subreddit: data.data } : { success: false, error: "Failed to get subreddit info" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── CANVA: Generate design via Composio ───
+export const canvaDesignPublish = action({
+  args: { accessToken: v.string(), templateId: v.string(), title: v.string(), elements: v.optional(v.any()) },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch("https://api.canva.com/v1/designs", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${args.accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ design_type: "template", template_id: args.templateId, title: args.title, ...(args.elements ? { elements: args.elements } : {}) }),
+      });
+      const data = await res.json();
+      return res.ok ? { success: true, design: data } : { success: false, error: data.message || "Canva design failed" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
+
+// ─── CANVA: List available templates ───
+export const canvaListTemplates = action({
+  args: { accessToken: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch("https://api.canva.com/v1/designs?query=template", {
+        headers: { Authorization: `Bearer ${args.accessToken}` },
+      });
+      const data = await res.json();
+      return res.ok ? { success: true, templates: data.items || [] } : { success: false, error: "Failed to list templates" };
+    } catch (e: any) { return { success: false, error: e.message }; }
+  },
+});
 
 // ═══════════════════════════════════════════════════════════════════
 // CRYPTO HELPERS

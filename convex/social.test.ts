@@ -166,10 +166,10 @@ test("getOAuthProviderStatus returns direct always enabled", async () => {
   // Updated 2026-06-04 to match verified Composio catalog
   expect(status.composioPlatforms).toContain("x");
   expect(status.composioPlatforms).toContain("linkedin");
+  expect(status.composioPlatforms).toContain("instagram");
   expect(status.composioPlatforms).toContain("discord");
-  // bluesky, instagram, tiktok, pinterest, threads are NOT in Composio (direct OAuth only)
+  // bluesky, tiktok, pinterest, threads are NOT in Composio (direct OAuth only)
   expect(status.composioPlatforms).not.toContain("bluesky");
-  expect(status.composioPlatforms).not.toContain("instagram");
   expect(status.composioPlatforms).not.toContain("tiktok");
   expect(status.composioPlatforms).not.toContain("pinterest");
   expect(status.composioPlatforms).not.toContain("threads");
