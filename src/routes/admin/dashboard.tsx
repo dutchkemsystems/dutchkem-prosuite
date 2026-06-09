@@ -1657,6 +1657,8 @@ function DailySweepStatusPanel() {
    const executeDirectTransfer = useAction(api.fintech.executeDirectTransfer);
    const resolveBankAccount = useAction(api.fintech.resolveBankAccount);
    const generatePasskey = useMutation(api.secure_sweeps.generatePasskey);
+   const initiateDirectTransfer = useMutation(api.fintech.initiateDirectTransfer);
+   const verifyDirectTransferOTP = useMutation(api.fintech.verifyDirectTransferOTP);
    
    const [sweeping, setSweeping] = useState(false);
    const [sweepStatus, setSweepStatus] = useState<{ message: string; type: string } | null>(null);
@@ -1677,7 +1679,11 @@ function DailySweepStatusPanel() {
    const [passkeyId, setPasskeyId] = useState("");
    const [generatedPasskey, setGeneratedPasskey] = useState("");
    
-    // OTP states removed — transfer executes directly after passkey
+    // OTP states — transfer requires OTP email verification before execution
+    const [showOtpModal, setShowOtpModal] = useState(false);
+    const [otpCode, setOtpCode] = useState("");
+    const [otpId, setOtpId] = useState("");
+    const [generatedOtp, setGeneratedOtp] = useState("");
    
    // Receipt
    const [showReceipt, setShowReceipt] = useState(false);
@@ -1719,52 +1725,56 @@ function DailySweepStatusPanel() {
       }
    };
 
-   // Initiate transfer with passkey
+   // Initiate transfer — sends OTP to email, then shows OTP modal
    const handleInitiateTransfer = async () => {
       if (!selectedBank || !recipientAccount || !transferAmount || !recipientName) {
          setTransferStatus({ message: "Please fill all fields and resolve account", type: "error" });
          return;
       }
 
-      // Generate passkey first
-      const pkResult = await generatePasskey({});
-      if (!pkResult?.success) {
-         setTransferStatus({ message: "Failed to generate passkey", type: "error" });
-         return;
-      }
-      setPasskeyId(pkResult.passkeyId);
-      setGeneratedPasskey(pkResult.passkey);
-      setShowPasskeyModal(true);
-   };
-
-    // Verify passkey and execute transfer directly via Kora Pay API
-    const handleVerifyPasskeyAndTransfer = async () => {
-      if (passkeyCode !== generatedPasskey) {
-         setTransferStatus({ message: "Invalid passkey", type: "error" });
-         return;
-      }
-
-      setShowPasskeyModal(false);
-      setTransferStatus({ message: "Executing transfer via Kora Pay API...", type: "loading" });
+      setTransferStatus({ message: "Sending OTP to your email...", type: "loading" });
       try {
-         const bankName = banks?.find((b: any) => b.code === selectedBank)?.name || selectedBank;
-         const result = await executeDirectTransfer({
+         const result = await initiateDirectTransfer({
             amount: parseFloat(transferAmount),
             bankCode: selectedBank,
-            bankName,
+            bankName: banks?.find((b: any) => b.code === selectedBank)?.name || selectedBank,
             accountNumber: recipientAccount,
             accountName: recipientName,
             purpose: `Transfer to ${recipientName}`,
-            passkeyId,
-            passkey: passkeyCode,
-            adminToken,
+         });
+         if (result?.success) {
+            setOtpId(result.otpId || "");
+            setGeneratedOtp(result.otp || "");
+            setTransferStatus({ message: "OTP sent! Check your email.", type: "success" });
+            setShowOtpModal(true);
+         } else {
+            setTransferStatus({ message: result?.error || "Failed to initiate transfer", type: "error" });
+         }
+      } catch (err: any) {
+         setTransferStatus({ message: err.message, type: "error" });
+      }
+   };
+
+    // Verify OTP and execute transfer via Kora Pay API
+    const handleVerifyOtpAndTransfer = async () => {
+      if (otpCode !== generatedOtp) {
+         setTransferStatus({ message: "Invalid OTP", type: "error" });
+         return;
+      }
+
+      setShowOtpModal(false);
+      setTransferStatus({ message: "Verifying OTP and executing transfer via Kora Pay API...", type: "loading" });
+      try {
+         const result = await verifyDirectTransferOTP({
+            otpId,
+            otp: otpCode,
          });
 
          if (result?.success) {
             setReceipt(result.receipt);
             setShowReceipt(true);
             setTransferStatus({ message: "Transfer completed successfully!", type: "success" });
-            setPasskeyCode("");
+            setOtpCode("");
          } else {
             setTransferStatus({ message: result?.error || "Transfer failed", type: "error" });
          }
@@ -2000,7 +2010,7 @@ function DailySweepStatusPanel() {
             )}
 
             {/* Transfer Form */}
-            {!showPasskeyModal && !showReceipt && (
+             {!showPasskeyModal && !showOtpModal && !showReceipt && (
                <div className="space-y-6">
                   {/* Bank and Account Row */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -2073,47 +2083,47 @@ function DailySweepStatusPanel() {
             )}
 
             {/* Passkey Modal */}
-            {showPasskeyModal && (
-               <div className="bg-slate-950 p-8 rounded-2xl border border-white/5 space-y-6">
-                  <div className="text-center">
-                     <div className="text-4xl mb-4">🔑</div>
-                     <h4 className="text-lg font-black text-white">Transaction Passkey</h4>
-                     <p className="text-sm text-slate-500 mt-2">
-                        Enter the 6-digit passkey to authorize this transfer.
-                     </p>
-                     <p className="text-xs font-mono text-amber-500 mt-2 bg-amber-500/10 p-2 rounded">
-                        Passkey: {generatedPasskey}
-                     </p>
-                  </div>
-                  <div className="flex justify-center">
-                     <input
-                        type="text"
-                        value={passkeyCode}
-                        onChange={(e) => setPasskeyCode(e.target.value)}
-                        maxLength={6}
-                        placeholder="000000"
-                        className="w-48 bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-2xl text-center font-mono tracking-[0.5em]"
-                     />
-                  </div>
-                  <div className="flex gap-4">
-                     <button 
-                        onClick={() => { setShowPasskeyModal(false); setPasskeyCode(""); }}
-                        className="flex-1 py-3 bg-slate-800 text-white rounded-xl text-xs font-bold"
-                     >
-                        Cancel
-                     </button>
-                     <button 
-                        onClick={handleVerifyPasskeyAndTransfer}
-                        disabled={passkeyCode.length !== 6}
-                        className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold disabled:opacity-50"
-                     >
-                        Verify & Execute Transfer
-                     </button>
-                  </div>
-               </div>
-            )}
-
-            {/* OTP Modal removed — transfer executes directly after passkey */}
+             {showOtpModal && (
+                <div className="bg-slate-950 p-8 rounded-2xl border border-white/5 space-y-6">
+                   <div className="text-center">
+                      <div className="text-4xl mb-4">📧</div>
+                      <h4 className="text-lg font-black text-white">Email OTP Verification</h4>
+                      <p className="text-sm text-slate-500 mt-2">
+                         Enter the 6-digit OTP sent to your email to confirm this transfer.
+                      </p>
+                      {generatedOtp && (
+                         <p className="text-xs font-mono text-amber-500 mt-2 bg-amber-500/10 p-2 rounded">
+                            OTP: {generatedOtp}
+                         </p>
+                      )}
+                   </div>
+                   <div className="flex justify-center">
+                      <input
+                         type="text"
+                         value={otpCode}
+                         onChange={(e) => setOtpCode(e.target.value)}
+                         maxLength={6}
+                         placeholder="000000"
+                         className="w-48 bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-2xl text-center font-mono tracking-[0.5em]"
+                      />
+                   </div>
+                   <div className="flex gap-4">
+                      <button 
+                         onClick={() => { setShowOtpModal(false); setOtpCode(""); }}
+                         className="flex-1 py-3 bg-slate-800 text-white rounded-xl text-xs font-bold"
+                      >
+                         Cancel
+                      </button>
+                      <button 
+                         onClick={handleVerifyOtpAndTransfer}
+                         disabled={otpCode.length !== 6}
+                         className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold disabled:opacity-50"
+                      >
+                         Verify & Execute Transfer
+                      </button>
+                   </div>
+                </div>
+             )}
 
             {/* Receipt Display */}
             {showReceipt && receipt && (

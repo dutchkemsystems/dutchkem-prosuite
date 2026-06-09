@@ -541,10 +541,14 @@ export const verifyDirectTransferOTP = mutation({
       // Call Kora Pay API for real transfer
       const koraSecret = process.env.KORA_SECRET_KEY;
       if (!koraSecret) {
-        return { success: false, error: "Kora API key not configured" };
+        console.error("[OTP VERIFY] KORA_SECRET_KEY not set in Convex env");
+        return { success: false, error: "KORA_SECRET_KEY not configured in Convex dashboard. Go to Convex Settings → Environment Variables and add your Kora Pay secret key." };
       }
+      console.log(`[OTP VERIFY] KORA_SECRET_KEY present (${koraSecret.substring(0, 8)}...)`);
 
       const reference = `KNP_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+      console.log(`[OTP VERIFY] Calling Kora disburse: amount=₦${otpData.amount}, bank=${otpData.bankCode}, account=${otpData.accountNumber}`);
 
       const response = await fetch("https://api.korapay.com/merchant/api/v1/transactions/disburse", {
         method: "POST",
@@ -572,13 +576,21 @@ export const verifyDirectTransferOTP = mutation({
       });
 
       const result = await response.json();
+      console.log(`[OTP VERIFY] Kora response: HTTP ${response.status}, status=${result.status}, message=${result.message}`);
 
       if (!response.ok || !result.status) {
+        const errMsg = result.message || result.error || `Transfer failed (HTTP ${response.status})`;
+        if (/not authorized|unauthorized|forbidden/i.test(errMsg)) {
+          return {
+            success: false,
+            error: `Kora API authorization failed (HTTP ${response.status}): ${errMsg}. Check that your KORA_SECRET_KEY has Payout/Disbursement permissions enabled in your Kora Pay dashboard.`,
+            reference,
+          };
+        }
         return {
           success: false,
-          error: result.message || result.error || "Transfer failed. Please check account details and try again.",
+          error: errMsg,
           reference,
-          koraError: result,
         };
       }
 
