@@ -1650,6 +1650,8 @@ function DailySweepStatusPanel() {
    const { data: earnings } = useSuspenseQuery(convexQuery(api.admin.getEarningsSummary, {})) as { data: any };
    const { data: banks } = useSuspenseQuery(convexQuery(api.fintech.getAvailableBanks, {})) as { data: any };
    
+   const adminToken = typeof window !== "undefined" ? localStorage.getItem("admin_session_token") || "" : "";
+   
    const updateSettings = useMutation(api.secure_sweeps.updateSettings);
    const performSweep = useMutation(api.secure_sweeps.performSweep);
    const executeDirectTransfer = useAction(api.fintech.executeDirectTransfer);
@@ -1755,6 +1757,7 @@ function DailySweepStatusPanel() {
             purpose: `Transfer to ${recipientName}`,
             passkeyId,
             passkey: passkeyCode,
+            adminToken,
          });
 
          if (result?.success) {

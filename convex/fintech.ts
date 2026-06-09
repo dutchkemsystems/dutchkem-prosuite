@@ -1,6 +1,7 @@
 ﻿import { v } from "convex/values";
 import { action, internalAction, internalMutation, mutation, query } from "./_generated/server";
 import { api, internal } from "./_generated/api";
+import { tryGetAdminSessionInAction } from "./auth_helpers";
 
 /**
  * FINTECH INTEGRATION - Kora Pay + Nigerian Banks
@@ -674,10 +675,15 @@ export const executeDirectTransfer = action({
     purpose: v.optional(v.string()),
     passkeyId: v.string(),
     passkey: v.string(),
+    adminToken: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args): Promise<any> => {
     try {
+      // Verify admin auth
+      const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
+      if (!identity) return { success: false, error: "Unauthorized: admin access required" };
+
       // 1. Verify passkey and check balance via internal mutation
       const prepResult: any = await ctx.runMutation(internal.fintech.prepareDirectTransfer, {
         passkeyId: args.passkeyId,
