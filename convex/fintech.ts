@@ -405,10 +405,10 @@ export const verifyTransferOTP = mutation({
 
       const result = await response.json();
 
-      if (!response.ok || !result.success) {
+      if (!response.ok || !result.status) {
         return {
           success: false,
-          error: result.message || "Transfer failed",
+          error: result.message || `Transfer failed (HTTP ${response.status})`,
           reference,
         };
       }
@@ -682,7 +682,11 @@ export const executeDirectTransfer = action({
     try {
       // Verify admin auth
       const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
-      if (!identity) return { success: false, error: "Unauthorized: admin access required" };
+      if (!identity) {
+        console.error("[TRANSFER] Admin auth failed — adminToken:", args.adminToken ? `${args.adminToken.substring(0, 8)}...` : "EMPTY");
+        return { success: false, error: "Unauthorized: admin access required" };
+      }
+      console.log(`[TRANSFER] Admin verified: ${identity.email}`);
 
       // 1. Verify passkey and check balance via internal mutation
       const prepResult: any = await ctx.runMutation(internal.fintech.prepareDirectTransfer, {
@@ -691,13 +695,22 @@ export const executeDirectTransfer = action({
         amount: args.amount,
       });
 
-      if (!prepResult.success) return prepResult;
+      if (!prepResult.success) {
+        console.error("[TRANSFER] Prep failed:", prepResult.error);
+        return prepResult;
+      }
 
       // 2. Call Kora Pay API (fetch is allowed in actions)
       const koraSecret = process.env.KORA_SECRET_KEY;
-      if (!koraSecret) return { success: false, error: "Kora API key not configured" };
+      if (!koraSecret) {
+        console.error("[TRANSFER] KORA_SECRET_KEY not set in Convex env");
+        return { success: false, error: "KORA_SECRET_KEY not configured in Convex dashboard. Go to Convex Settings → Environment Variables and add your Kora Pay secret key." };
+      }
+      console.log(`[TRANSFER] KORA_SECRET_KEY present (${koraSecret.substring(0, 8)}...)`);
 
       const reference = `KNP_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+      console.log(`[TRANSFER] Calling Kora disburse: amount=₦${args.amount}, bank=${args.bankCode}, account=${args.accountNumber}`);
 
       const response = await fetch("https://api.korapay.com/merchant/api/v1/transactions/disburse", {
         method: "POST",
@@ -725,6 +738,7 @@ export const executeDirectTransfer = action({
       });
 
       const result = await response.json();
+      console.log(`[TRANSFER] Kora response: HTTP ${response.status}, status=${result.status}, message=${result.message}`);
 
       if (!response.ok || !result.status) {
         // Record failed attempt
@@ -736,12 +750,15 @@ export const executeDirectTransfer = action({
           accountName: args.accountName,
           reference,
           koraReference: result.data?.reference,
-          errorMessage: result.message || result.error || "Kora API error",
+          errorMessage: result.message || result.error || `Kora API HTTP ${response.status}`,
         });
 
-        const errMsg = result.message || result.error || "Transfer failed";
+        const errMsg = result.message || result.error || `Transfer failed (HTTP ${response.status})`;
         if (/insufficient|balance|funds/i.test(errMsg)) {
           return { success: false, error: `Insufficient funds. Wallet balance: ₦${prepResult.balanceBefore.toLocaleString()}`, reference };
+        }
+        if (/not authorized|unauthorized|forbidden/i.test(errMsg)) {
+          return { success: false, error: `Kora API authorization failed (HTTP ${response.status}): ${errMsg}. Check that your KORA_SECRET_KEY has Payout/Disbursement permissions enabled in your Kora Pay dashboard.`, reference };
         }
         return { success: false, error: errMsg, reference };
       }
@@ -762,6 +779,7 @@ export const executeDirectTransfer = action({
 
       return recordResult;
     } catch (error: any) {
+      console.error("[TRANSFER] Action error:", error.message);
       return { success: false, error: error.message };
     }
   },

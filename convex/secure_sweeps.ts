@@ -287,8 +287,9 @@ export const performSweep = mutation({
 
         const result = await response.json();
 
-        if (!response.ok || !result.success) {
+        if (!response.ok || !result.status) {
           // Log failed attempt
+          console.error(`[SWEEP] Kora API error: HTTP ${response.status}, message=${result.message}`);
           await ctx.db.insert("daily_sweeps", {
             sweep_id: sweepId,
             date: new Date().toISOString().split("T")[0],
@@ -298,12 +299,12 @@ export const performSweep = mutation({
             status: "failed",
             kora_reference: reference,
             timestamp: Date.now(),
-            notes: `Transfer failed: ${result.message || "Kora API error"}`,
+            notes: `Transfer failed: ${result.message || `Kora API HTTP ${response.status}`}`,
           });
 
           return {
             success: false,
-            error: result.message || "Transfer failed",
+            error: result.message || `Transfer failed (HTTP ${response.status})`,
             reference,
           };
         }
