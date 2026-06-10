@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
-import { tryGetAdminSessionInAction } from "./auth_helpers";
+import { tryGetAdminSession } from "./auth_helpers";
 
 /** List all 15 agents */
 export const listAgents = query({
@@ -32,8 +32,8 @@ export const getHubStats = query({
 export const initializeMarketplace = internalMutation({
   args: { adminToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await ctx.runQuery(internal.admin_enterprise_hub.listTemplates, {});
-    return { success: true };
+    const templates = await ctx.db.query("admin_workflow_templates").collect();
+    return { success: true, existingCount: templates.length };
   },
 });
 
@@ -41,7 +41,6 @@ export const initializeMarketplace = internalMutation({
 export const storeDefaultTemplates = internalMutation({
   args: { adminToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await ctx.runQuery(internal.admin_enterprise_hub.listTemplates, {});
     for (const template of INDUSTRY_TEMPLATES) {
       const existing = await ctx.db.query("admin_workflow_templates")
         .withIndex("by_category", (q: any) => q.eq("category", template.name))
@@ -73,9 +72,6 @@ export const listTemplates = query({
   args: { category: v.optional(v.string()), publishedOnly: v.optional(v.boolean()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
-
     let q: any = ctx.db.query("admin_workflow_templates");
     if (args.category && args.category !== "all") {
       q = q.withIndex("by_category", (q2: any) => q2.eq("category", args.category));
