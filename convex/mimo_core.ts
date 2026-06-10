@@ -878,9 +878,54 @@ export const listAgents = query({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
 
-    return await ctx.db.query("mimo_agent_registry")
-      .withIndex("by_status", (q) => q.neq("status", "deleted"))
-      .collect();
+    const all = await ctx.db.query("mimo_agent_registry").take(50);
+    // Filter deleted in-memory (withIndex only supports eq, not neq)
+    return all.filter((a) => a.status !== "deleted");
+  },
+});
+
+/** Get dashboard stats */
+export const getDashboardStats = query({
+  args: { adminToken: v.optional(v.string()) },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
+
+    const coreState = await ctx.db.query("mimo_core_state")
+      .withIndex("by_singleton", (q) => q.eq("singleton", "mimo_core"))
+      .first();
+
+    const agents = await ctx.db.query("mimo_agent_registry").take(20);
+    const activeAgents = agents.filter((a) => a.status === "active");
+
+    const healthLogs = await ctx.db.query("mimo_health_logs")
+      .withIndex("by_timestamp", (q) => q.gt("timestamp", Date.now() - 86400000))
+      .take(100);
+
+    const securityEvents = await ctx.db.query("mimo_security_events")
+      .withIndex("by_timestamp", (q) => q.gt("timestamp", Date.now() - 86400000))
+      .take(100);
+
+    const commands = await ctx.db.query("mimo_command_history")
+      .withIndex("by_started", (q) => q.gt("startedAt", Date.now() - 86400000))
+      .take(100);
+
+    const deployments = await ctx.db.query("mimo_deployment_records")
+      .withIndex("by_started", (q) => q.gt("startedAt", Date.now() - 86400000))
+      .take(20);
+
+    return {
+      coreState,
+      agentCount: activeAgents.length,
+      totalAgents: agents.length,
+      healthLogs24h: healthLogs.length,
+      securityEvents24h: securityEvents.length,
+      commands24h: commands.length,
+      deployments24h: deployments.length,
+      healthyComponents: healthLogs.filter((h) => h.status === "healthy").length,
+      criticalEvents: securityEvents.filter((e) => e.severity === "critical").length,
+    };
   },
 });
 
@@ -962,51 +1007,6 @@ export const listAuditLogs = query({
       .withIndex("by_timestamp", (q) => q.gt("timestamp", 0))
       .order("desc")
       .take(args.limit || 50);
-  },
-});
-
-/** Get dashboard stats */
-export const getDashboardStats = query({
-  args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
-  handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
-
-    const coreState = await ctx.db.query("mimo_core_state")
-      .withIndex("by_singleton", (q) => q.eq("singleton", "mimo_core"))
-      .first();
-
-    const agents = await ctx.db.query("mimo_agent_registry").take(20);
-    const activeAgents = agents.filter((a) => a.status === "active");
-
-    const healthLogs = await ctx.db.query("mimo_health_logs")
-      .withIndex("by_timestamp", (q) => q.gt("timestamp", Date.now() - 86400000))
-      .take(100);
-
-    const securityEvents = await ctx.db.query("mimo_security_events")
-      .withIndex("by_timestamp", (q) => q.gt("timestamp", Date.now() - 86400000))
-      .take(100);
-
-    const commands = await ctx.db.query("mimo_command_history")
-      .withIndex("by_started", (q) => q.gt("startedAt", Date.now() - 86400000))
-      .take(100);
-
-    const deployments = await ctx.db.query("mimo_deployment_records")
-      .withIndex("by_started", (q) => q.gt("startedAt", Date.now() - 86400000))
-      .take(20);
-
-    return {
-      coreState,
-      agentCount: activeAgents.length,
-      totalAgents: agents.length,
-      healthLogs24h: healthLogs.length,
-      securityEvents24h: securityEvents.length,
-      commands24h: commands.length,
-      deployments24h: deployments.length,
-      healthyComponents: healthLogs.filter((h) => h.status === "healthy").length,
-      criticalEvents: securityEvents.filter((e) => e.severity === "critical").length,
-    };
   },
 });
 
