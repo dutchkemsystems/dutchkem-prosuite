@@ -14,9 +14,9 @@ export function AdminKnowledgeGraph({ adminToken, organizations }: { adminToken:
   const [selectedOrg, setSelectedOrg] = useState(organizations[0]?._id || '')
   const [searchQuery, setSearchQuery] = useState('')
 
-  const entries = useQuery(api.enterprise_knowledge.listEntries, { orgId: selectedOrg as any, adminToken }, { enabled: !!selectedOrg })
-  const stats = useQuery(api.enterprise_knowledge.getStats, { orgId: selectedOrg as any, adminToken }, { enabled: !!selectedOrg })
-  const searchResults = useQuery(api.enterprise_knowledge.searchEntries, { orgId: selectedOrg as any, query: searchQuery, adminToken }, { enabled: !!selectedOrg && searchQuery.length > 0 })
+  const entries = useQuery(api.enterprise_knowledge.listEntries, selectedOrg ? { orgId: selectedOrg as any, adminToken } : "skip")
+  const stats = useQuery(api.enterprise_knowledge.getStats, selectedOrg ? { orgId: selectedOrg as any, adminToken } : "skip")
+  const searchResults = useQuery(api.enterprise_knowledge.searchEntries, selectedOrg && searchQuery.length > 0 ? { orgId: selectedOrg as any, query: searchQuery, adminToken } : "skip")
 
   const displayEntries = searchQuery.length > 0 ? (searchResults || []) : (entries || [])
 

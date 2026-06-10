@@ -4,11 +4,11 @@ import { api } from '../../../../convex/_generated/api'
 
 export function AdminMarketplace({ adminToken, organizations }: { adminToken: string, agents: any[], organizations: any[] }) {
   const [filter, setFilter] = useState('all')
-  const [selectedOrg, setSelectedOrg] = useState('')
+  const [selectedOrg, setSelectedOrg] = useState(organizations[0]?._id || '')
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const marketplaceAgents = useQuery(api.enterprise_marketplace.listAgents, { category: filter !== 'all' ? filter : undefined })
-  const installedAgents = useQuery(api.enterprise_marketplace.getInstalledAgents, { orgId: selectedOrg as any, adminToken }, { enabled: !!selectedOrg })
+  const installedAgents = useQuery(api.enterprise_marketplace.getInstalledAgents, selectedOrg ? { orgId: selectedOrg as any, adminToken } : "skip")
   const installAgent = useMutation(api.enterprise_marketplace.installAgent)
   const uninstallAgent = useMutation(api.enterprise_marketplace.uninstallAgent)
 

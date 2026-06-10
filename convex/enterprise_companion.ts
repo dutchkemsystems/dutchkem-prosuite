@@ -22,6 +22,7 @@ export const startSession = mutation({
       channel: args.channel,
       status: "active",
       startedAt: now,
+      guidanceCount: 0,
     });
 
     await ctx.db.insert("enterprise_audit_logs", {

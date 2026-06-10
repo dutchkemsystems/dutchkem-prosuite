@@ -15,8 +15,8 @@ export function AdminEmotionalAI({ adminToken, organizations }: { adminToken: st
   const [filter, setFilter] = useState('all')
   const [selectedOrg, setSelectedOrg] = useState(organizations[0]?._id || '')
 
-  const profiles = useQuery(api.enterprise_emotional.listProfiles, { orgId: selectedOrg as any, adminToken }, { enabled: !!selectedOrg })
-  const stats = useQuery(api.enterprise_emotional.getStats, { orgId: selectedOrg as any, adminToken }, { enabled: !!selectedOrg })
+  const profiles = useQuery(api.enterprise_emotional.listProfiles, selectedOrg ? { orgId: selectedOrg as any, adminToken } : "skip")
+  const stats = useQuery(api.enterprise_emotional.getStats, selectedOrg ? { orgId: selectedOrg as any, adminToken } : "skip")
 
   const profileList = profiles || []
   const filtered = filter === 'all' ? profileList : profileList.filter((p: any) => p.personality?.dominantEmotion === filter)

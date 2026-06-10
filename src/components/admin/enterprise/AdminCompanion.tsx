@@ -15,8 +15,8 @@ export function AdminCompanion({ adminToken, organizations }: { adminToken: stri
   const [selectedOrg, setSelectedOrg] = useState(organizations[0]?._id || '')
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
-  const sessions = useQuery(api.enterprise_companion.listSessions, { orgId: selectedOrg as any, adminToken }, { enabled: !!selectedOrg })
-  const stats = useQuery(api.enterprise_companion.getStats, { orgId: selectedOrg as any, adminToken }, { enabled: !!selectedOrg })
+  const sessions = useQuery(api.enterprise_companion.listSessions, selectedOrg ? { orgId: selectedOrg as any, adminToken } : "skip")
+  const stats = useQuery(api.enterprise_companion.getStats, selectedOrg ? { orgId: selectedOrg as any, adminToken } : "skip")
   const endSession = useMutation(api.enterprise_companion.endSession)
 
   const sessionList = sessions || []

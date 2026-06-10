@@ -36,8 +36,8 @@ export const createOrganization = mutation({
       size: args.size,
       phone: args.phone,
       website: args.website,
-      status: "pending",
-      plan: "free",
+      status: "trial",
+      plan: "trial",
       trialEndsAt: now + (14 * 24 * 60 * 60 * 1000),
       subscriptionEndsAt: undefined,
       spendingLimit: 0,
@@ -63,7 +63,7 @@ export const createOrganization = mutation({
 
     await ctx.db.insert("enterprise_sessions", {
       orgId,
-      token: generateToken(),
+      token: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2),
       isCurrent: true,
       expiresAt: now + (7 * 24 * 60 * 60 * 1000),
       createdAt: now,
@@ -117,7 +117,7 @@ export const createOrgAdminUser = mutation({
 
     await ctx.db.insert("enterprise_sessions", {
       orgId: args.orgId,
-      token: generateToken(),
+      token: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2),
       isCurrent: true,
       expiresAt: now + (7 * 24 * 60 * 60 * 1000),
       createdAt: now,
@@ -184,7 +184,7 @@ export const toggleOrgUserStatus = mutation({
   args: {
     orgId: v.id("enterprise_organizations"),
     userId: v.id("enterprise_org_users"),
-    status: v.union(v.literal("active"), v.literal("inactive"), v.literal("suspended")),
+    status: v.union(v.literal("active"), v.literal("suspended")),
     adminToken: v.optional(v.string()),
   },
   returns: v.any(),

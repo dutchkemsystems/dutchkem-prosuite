@@ -2639,8 +2639,11 @@ export default defineSchema({
     orgId: v.id("enterprise_organizations"),
     templateId: v.string(),
     templateName: v.string(),
-    status: v.union(v.literal("installed"), v.literal("uninstalled")),
+    status: v.union(v.literal("active"), v.literal("paused"), v.literal("uninstalled")),
+    customConfig: v.optional(v.any()),
     installedAt: v.number(),
+    createdAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_org", ["orgId"]),
 
@@ -2664,6 +2667,7 @@ export default defineSchema({
     startedAt: v.number(),
     endedAt: v.optional(v.number()),
     guidanceCount: v.number(),
+    lastInteraction: v.optional(v.number()),
   })
     .index("by_org", ["orgId"]),
 

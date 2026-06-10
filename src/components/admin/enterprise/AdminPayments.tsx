@@ -16,9 +16,9 @@ export function AdminPayments({ adminToken, organizations }: { adminToken: strin
   const [simAmount, setSimAmount] = useState('5000')
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
-  const transactions = useQuery(api.enterprise_payments.listTransactions, { orgId: selectedOrg as any, adminToken }, { enabled: !!selectedOrg })
-  const stats = useQuery(api.enterprise_payments.getStats, { orgId: selectedOrg as any, adminToken }, { enabled: !!selectedOrg })
-  const spendingLimit = useQuery(api.enterprise_payments.getSpendingLimit, { orgId: selectedOrg as any, adminToken }, { enabled: !!selectedOrg })
+  const transactions = useQuery(api.enterprise_payments.listTransactions, selectedOrg ? { orgId: selectedOrg as any, adminToken } : "skip")
+  const stats = useQuery(api.enterprise_payments.getStats, selectedOrg ? { orgId: selectedOrg as any, adminToken } : "skip")
+  const spendingLimit = useQuery(api.enterprise_payments.getSpendingLimit, selectedOrg ? { orgId: selectedOrg as any, adminToken } : "skip")
   const simulatePayment = useMutation(api.enterprise_payments.simulatePayment)
 
   const txnList = transactions || []
