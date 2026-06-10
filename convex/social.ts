@@ -524,6 +524,37 @@ export const disconnectPlatform = mutation({
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// MUTATION: Disconnect all platforms at once
+// ═══════════════════════════════════════════════════════════════════
+export const disconnectAllPlatforms = mutation({
+  args: {
+    adminToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
+    const conns = await ctx.db
+      .query("platform_connections")
+      .withIndex("by_admin_platform", (q) => q.eq("adminId", identity._id))
+      .collect();
+    for (const conn of conns) {
+      if (conn.isConnected) {
+        await ctx.db.patch(conn._id, {
+          isConnected: false, accessToken: "", refreshToken: "", updatedAt: Date.now(),
+        });
+        await ctx.runMutation(internal.composioHub.syncPlatformFromSocial, {
+          adminId: identity._id,
+          platform: conn.platformId,
+          isConnected: false,
+          enabled: false,
+          postingMode: "paused",
+        });
+      }
+    }
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
 // MUTATION: Update posting settings
 // INTEGRATION: also updates composio_settings.postingMode
 // ═══════════════════════════════════════════════════════════════════
@@ -662,35 +693,47 @@ async function composioFetch(apiKey: string, path: string, init?: RequestInit): 
 }
 
 async function getOrCreateAuthConfigId(apiKey: string, toolkit: string): Promise<string> {
-  // Try the primary toolkit slug first, then alternate slugs
-  const toolkitVariants = toolkit === "twitter" ? ["twitter", "x"] : [toolkit];
+  // Cross-check: for "x" try both "x" and "twitter"; for "twitter" try both
+  const toolkitVariants = toolkit === "x" || toolkit === "twitter"
+    ? ["x", "twitter"]
+    : [toolkit];
+
   for (const slug of toolkitVariants) {
     const list: any = await composioFetch(
       apiKey,
-      `/auth_configs?toolkit_slug=${encodeURIComponent(slug)}&is_composio_managed=true&limit=1`
+      `/auth_configs?toolkit_slug=${encodeURIComponent(slug)}&is_composio_managed=true&limit=5`
     );
     const listItems = list?.items || list?.data?.items || [];
-    if (listItems.length > 0) {
-      return (listItems[0].id || listItems[0].auth_config?.id) as string;
+    // Filter to only auth configs whose toolkit actually matches the requested slug
+    // (Composio may return configs for other toolkits in the same query)
+    const matching = listItems.filter((item: any) => {
+      const itemSlug = item?.toolkit?.slug || item?.toolkit_slug || "";
+      return itemSlug === slug;
+    });
+    if (matching.length > 0) {
+      return (matching[0].id || matching[0].auth_config?.id) as string;
     }
   }
-  // Try creating with the primary toolkit slug
+
+  // No existing auth config found — create one with the primary slug
+  const primarySlug = toolkitVariants[0];
   const created: any = await composioFetch(apiKey, "/auth_configs", {
     method: "POST",
-    body: JSON.stringify({ toolkit: { slug: toolkit }, type: "use_composio_managed_auth" }),
+    body: JSON.stringify({ toolkit: { slug: primarySlug }, type: "use_composio_managed_auth" }),
   });
   const newId = created?.auth_config?.id || created?.id;
   if (newId) return newId as string;
-  // If primary slug failed, try alternate for twitter
-  if (toolkit === "twitter") {
+
+  // If primary slug failed, try alternate
+  if (toolkitVariants.length > 1) {
     const createdAlt: any = await composioFetch(apiKey, "/auth_configs", {
       method: "POST",
-      body: JSON.stringify({ toolkit: { slug: "x" }, type: "use_composio_managed_auth" }),
+      body: JSON.stringify({ toolkit: { slug: toolkitVariants[1] }, type: "use_composio_managed_auth" }),
     });
     const altId = createdAlt?.auth_config?.id || createdAlt?.id;
     if (altId) return altId as string;
     throw new Error(
-      `Composio: failed to create auth config for ${toolkit}/x — response: ${JSON.stringify(created).slice(0, 200)}`
+      `Composio: failed to create auth config for ${toolkitVariants.join("/")} — response: ${JSON.stringify(created).slice(0, 200)}`
     );
   }
   throw new Error(
@@ -947,7 +990,7 @@ function getPlatformClientSecret(platform: string): string {
 }
 
 function getRedirectUri(platform: string): string {
-  const baseUrl = process.env.APP_URL || "https://prosuite.dutchkemventures.com";
+  const baseUrl = process.env.APP_URL || "https://dutchkem-prosuite-app.vercel.app";
   return `${baseUrl}/api/social/callback/${platform}`;
 }
 

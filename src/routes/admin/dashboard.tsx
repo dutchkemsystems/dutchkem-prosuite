@@ -545,6 +545,7 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
   // Now using useQuery (which goes to /api/query) so the value actually loads.
   const providerStatus = useQuery(api.social.getOAuthProviderStatus, {});
   const disconnectPlatform = useMutation(api.social.disconnectPlatform);
+  const disconnectAllPlatforms = useMutation(api.social.disconnectAllPlatforms);
   const updatePostingSettings = useMutation(api.social.updatePostingSettings);
   const manualPost = useAction(api.social.postToPlatform);
 
@@ -589,6 +590,21 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
 
   useEffect(() => {
     fetchPlatforms();
+  }, [fetchPlatforms]);
+
+  // Handle popup redirect: when OAuth callback redirects to ?connected=platform,
+  // read the param and notify the user
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connectedPlatform = params.get("connected");
+    if (connectedPlatform) {
+      const platformName = connectedPlatform.charAt(0).toUpperCase() + connectedPlatform.slice(1);
+      setToast({ message: `✅ Connected to ${platformName}!`, type: "success" });
+      setConnecting(null);
+      fetchPlatforms();
+      // Clean URL without reload
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, [fetchPlatforms]);
 
   useEffect(() => {
@@ -656,6 +672,35 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
     window.addEventListener("message", handleComposioMessage);
     return () => window.removeEventListener("message", handleComposioMessage);
   }, []);
+
+  // Pick up composio pending connections from handleConnectAll (stored in localStorage)
+  useEffect(() => {
+    const checkPending = () => {
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key?.startsWith("composio_pending_")) {
+            const platformId = key.replace("composio_pending_", "");
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const data = JSON.parse(raw);
+              localStorage.removeItem(key);
+              if (data?.connectionId && !composioPoll) {
+                setComposioPoll({
+                  connectionId: data.connectionId,
+                  platformId,
+                  startedAt: data.startedAt || Date.now(),
+                });
+              }
+            }
+          }
+        }
+      } catch {}
+    };
+    const interval = setInterval(checkPending, 2000);
+    checkPending();
+    return () => clearInterval(interval);
+  }, [composioPoll]);
 
   // Composio poll: keep asking the backend to extract tokens until ACTIVE
   // (or 90s timeout)
@@ -841,16 +886,17 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
 
     for (const p of unconnected) {
       try {
-        // Try Composio first (PRIMARY), fall back to direct OAuth.
-        // Note: generateOAuthUrl only accepts { platform }, not redirectUri —
-        // the redirect URI is read from APP_URL on the backend.
         let authUrl: string | null = null;
+        let composioConnectionId: string | undefined = undefined;
         const composioAvailable =
           providerStatus?.composioEnabled === true &&
           providerStatus?.composioPlatforms?.includes(p.id);
         if (composioAvailable) {
           const cr = await startComposioOAuth({ platform: p.id, adminToken });
-          if (cr?.success && cr?.redirectUrl) authUrl = cr.redirectUrl;
+          if (cr?.success && cr?.redirectUrl) {
+            authUrl = cr.redirectUrl;
+            composioConnectionId = cr.connectionId;
+          }
         }
         if (!authUrl) {
           const dr = await generateOAuthUrl({ platform: p.id, adminToken });
@@ -870,6 +916,13 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
             `connect-${p.id}`,
             `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
           );
+          // If Composio, store the connection ID so the dashboard can poll
+          if (composioConnectionId) {
+            localStorage.setItem(`composio_pending_${p.id}`, JSON.stringify({
+              connectionId: composioConnectionId,
+              startedAt: Date.now(),
+            }));
+          }
           openedCount++;
           await new Promise((r) => setTimeout(r, 1500));
         }
@@ -882,7 +935,19 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
 
   // handleDisconnectAll removed — disconnectAllPlatforms not in current social engine
   const handleDisconnectAll = async () => {
-    showToast("Disconnect All not available in this version", "error");
+    const connectedCount = platforms.filter((p) => p.isConnected).length;
+    if (connectedCount === 0) {
+      showToast("No platforms are connected!", "error");
+      return;
+    }
+    if (!confirm(`Disconnect ALL ${connectedCount} connected platforms? Auto-posting will stop everywhere.`)) return;
+    try {
+      await disconnectAllPlatforms({ adminToken });
+      showToast(`Disconnected all ${connectedCount} platforms`, "success");
+      fetchPlatforms();
+    } catch {
+      showToast("Failed to disconnect platforms", "error");
+    }
   };
 
   const handleModeChange = async (platformId: string, mode: "auto" | "manual" | "paused") => {
@@ -903,7 +968,7 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
       return;
     }
     setPostingStatus({ platformId, status: "posting" });
-    const result = await manualPost({ platform: platformId, content: manualPostContent });
+    const result = await manualPost({ platform: platformId, content: manualPostContent, adminToken });
     if (result?.success) {
       setPostingStatus({ platformId, status: "success" });
       setManualPostContent("");
@@ -973,10 +1038,11 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
                 ⛓️‍💥 Disconnect All
               </button>
               <button
-                onClick={() => fetchPlatforms()}
+                onClick={() => { fetchPlatforms(); showToast("Refreshing platforms...", "success"); }}
                 disabled={platformsLoading}
-                className="px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-orange-600/20 disabled:opacity-50"
+                className="px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-orange-600/20 disabled:opacity-50 flex items-center gap-2"
               >
+                {platformsLoading ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : "🔄"}
                 {platformsLoading ? "Refreshing..." : "Refresh Platforms"}
               </button>
             </div>
