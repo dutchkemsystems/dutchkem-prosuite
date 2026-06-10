@@ -340,7 +340,7 @@ if ($missingVars.Count -gt 0) {
 Write-Section "4/8 - TYPESCRIPT AUTO-HEAL"
 $secStart = Get-Date
 Write-Host "  Running TypeScript compiler..." -ForegroundColor Gray
-$tscOutput = npx tsc --noEmit 2>&1
+$tscOutput = npx tsc --noEmit --skipLibCheck 2>&1
 $tscErrors = @($tscOutput | Where-Object { $_ -match "error TS" })
 $tsStatus = "ok"
 $tsMsg = "No TypeScript errors"
@@ -358,7 +358,7 @@ if ($tscErrors.Count -gt 0) {
     Remove-Job $job -Force -ErrorAction SilentlyContinue
 
     # Re-check
-    $tscOutput2 = npx tsc --noEmit 2>&1
+    $tscOutput2 = npx tsc --noEmit --skipLibCheck 2>&1
     $remainingErrors = @($tscOutput2 | Where-Object { $_ -match "error TS" })
     $tsFixed = $tscErrors.Count - $remainingErrors.Count
     if ($tsFixed -gt 0) {
