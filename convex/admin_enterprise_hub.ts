@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { tryGetAdminSessionInAction } from "./auth_helpers";
 
 /** List all 15 agents */
