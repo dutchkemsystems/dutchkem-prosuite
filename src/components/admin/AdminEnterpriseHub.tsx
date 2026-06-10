@@ -41,15 +41,15 @@ export function AdminEnterpriseHub({ adminToken }: { adminToken: string }) {
       case 'workflows':
         return <AdminWorkflowBuilder adminToken={adminToken} />
       case 'marketplace':
-        return <AdminMarketplace agents={agents} organizations={organizations} />
+        return <AdminMarketplace adminToken={adminToken} agents={agents} organizations={organizations} />
       case 'knowledge':
-        return <AdminKnowledgeGraph agents={agents} organizations={organizations} />
+        return <AdminKnowledgeGraph adminToken={adminToken} agents={agents} organizations={organizations} />
       case 'companion':
-        return <AdminCompanion agents={agents} organizations={organizations} />
+        return <AdminCompanion adminToken={adminToken} agents={agents} organizations={organizations} />
       case 'payments':
-        return <AdminPayments agents={agents} organizations={organizations} />
+        return <AdminPayments adminToken={adminToken} agents={agents} organizations={organizations} />
       case 'emotional':
-        return <AdminEmotionalAI agents={agents} organizations={organizations} />
+        return <AdminEmotionalAI adminToken={adminToken} agents={agents} organizations={organizations} />
       default:
         return null
     }

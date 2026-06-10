@@ -123,13 +123,7 @@ export const generateGuidance = mutation({
     if (!session) return { error: "Session not found" };
 
     const now = Date.now();
-    const guidanceId = await ctx.db.insert("enterprise_companion_sessions", {
-      orgId: session.orgId,
-      userId: args.userId,
-      channel: session.channel,
-      status: session.status,
-      startedAt: session.startedAt,
-      endedAt: session.endedAt,
+    await ctx.db.patch(args.sessionId, {
       guidanceCount: (session.guidanceCount || 0) + 1,
       lastInteraction: now,
     });
@@ -138,11 +132,11 @@ export const generateGuidance = mutation({
       eventType: "COMPANION_GUIDANCE_GENERATED",
       actor: identity._id,
       action: "generate_guidance",
-      target: guidanceId,
+      target: args.sessionId,
       details: { question: args.question, sessionId: args.sessionId },
       createdAt: now,
     });
 
-    return { success: true, sessionId: guidanceId };
+    return { success: true, guidanceCount: (session.guidanceCount || 0) + 1 };
   },
 });

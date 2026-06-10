@@ -6,7 +6,7 @@ import { tryGetAdminSession } from "./auth_helpers";
 export const upsertProfile = mutation({
   args: {
     orgId: v.id("enterprise_organizations"),
-    userId: v.id("users"),
+    userId: v.string(),
     personality: v.optional(v.any()),
     memories: v.optional(v.array(v.any())),
     adminToken: v.optional(v.string()),
@@ -17,7 +17,8 @@ export const upsertProfile = mutation({
     if (!identity) throw new Error("Not authenticated");
 
     const existing = await ctx.db.query("enterprise_emotional_profiles")
-      .withIndex("by_org_user", (q) => q.eq("orgId", args.orgId).eq("userId", args.userId))
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .filter((q) => q.eq(q.field("userId"), args.userId))
       .first();
 
     const now = Date.now();

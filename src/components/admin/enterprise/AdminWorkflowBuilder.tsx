@@ -20,14 +20,31 @@ const AGENTS = [
   { id: 'A15', name: 'Event Planner', icon: '🎉', services: ['Wedding Planning', 'Corporate Events', 'Birthday Parties'] },
 ]
 
-const CATEGORIES = ['general', 'banking', 'insurance', 'healthcare', 'education', 'retail', 'manufacturing']
-const INDUSTRIES = ['general', 'private', 'public', 'military']
+const CATEGORIES = ['all', 'general', 'banking', 'insurance', 'oil_gas', 'real_estate', 'aviation', 'manufacturing', 'healthcare', 'telecom', 'government', 'military', 'education', 'retail', 'customer_support', 'sales', 'compliance', 'inventory']
+const INDUSTRIES = ['all', 'banking', 'insurance', 'oil_gas', 'real_estate', 'aviation', 'manufacturing', 'healthcare', 'telecom', 'government', 'military', 'education', 'retail', 'financial', 'legal']
 
 const NODE_COLORS: Record<string, string> = {
+  trigger: '#10B981',
   agent: '#FF6B35',
   condition: '#6B7280',
-  email: '#3B82F6',
+  action: '#3B82F6',
+  integration: '#8B5CF6',
   payment: '#f59e0b',
+  email: '#3B82F6',
+  notification: '#EC4899',
+  delay: '#6366F1',
+  loop: '#14B8A6',
+  parallel: '#F97316',
+  database: '#06B6D4',
+  api: '#84CC16',
+  webhook: '#A855F7',
+}
+
+const NODE_ICONS: Record<string, string> = {
+  trigger: '⚡', agent: '🤖', condition: '🔀', action: '🎯',
+  integration: '🔗', payment: '💰', email: '📧', notification: '🔔',
+  delay: '⏳', loop: '🔄', parallel: '⚡', database: '🗄️',
+  api: '🌐', webhook: '🪝',
 }
 
 interface CanvasNode {
@@ -103,20 +120,26 @@ export function AdminWorkflowBuilder({ adminToken }: { adminToken: string }) {
 
   const addNode = (type: string) => {
     const labels: Record<string, string> = {
+      trigger: 'Trigger',
+      agent: 'Agent',
       condition: 'Condition',
-      email: 'Send Email',
+      action: 'Action',
+      integration: 'Integration',
       payment: 'Payment',
-    }
-    const icons: Record<string, string> = {
-      condition: '🔀',
-      email: '📧',
-      payment: '💰',
+      email: 'Send Email',
+      notification: 'Notification',
+      delay: 'Delay',
+      loop: 'Loop',
+      parallel: 'Parallel',
+      database: 'Database',
+      api: 'API Call',
+      webhook: 'Webhook',
     }
     const newNode: CanvasNode = {
       id: `node_${Date.now()}`,
       type,
       label: labels[type] || type,
-      icon: icons[type] || '📦',
+      icon: NODE_ICONS[type] || '📦',
       x: 200 + Math.random() * 200,
       y: 100 + Math.random() * 200,
     }
@@ -217,6 +240,9 @@ export function AdminWorkflowBuilder({ adminToken }: { adminToken: string }) {
   const templateList = templates || []
   const orgList = orgs?.data || []
 
+  const nodeTypeRow1 = ['trigger', 'condition', 'action', 'email', 'notification', 'payment', 'delay']
+  const nodeTypeRow2 = ['loop', 'parallel', 'database', 'api', 'webhook', 'integration']
+
   return (
     <div className="space-y-4 animate-in fade-in duration-500">
       {toast && (
@@ -247,20 +273,30 @@ export function AdminWorkflowBuilder({ adminToken }: { adminToken: string }) {
         </div>
 
         <div className="col-span-6 bg-white/5 border border-white/10 rounded-2xl flex flex-col">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
-            <h3 className="text-sm font-black text-slate-300">Canvas</h3>
-            <div className="flex gap-1">
-              {Object.entries(NODE_COLORS).map(([type, color]) => (
-                type !== 'agent' && (
-                  <button
-                    key={type}
-                    onClick={() => addNode(type)}
-                    className="px-2 py-1 rounded-lg text-[10px] font-bold text-white transition-all duration-200 hover:opacity-80"
-                    style={{ backgroundColor: color }}
-                  >
-                    + {type}
-                  </button>
-                )
+          <div className="px-4 py-2 border-b border-white/10">
+            <h3 className="text-sm font-black text-slate-300 mb-2">Canvas</h3>
+            <div className="flex flex-wrap gap-1">
+              {nodeTypeRow1.map((type) => (
+                <button
+                  key={type}
+                  onClick={() => addNode(type)}
+                  className="px-2 py-1 rounded-lg text-[10px] font-bold text-white transition-all duration-200 hover:opacity-80"
+                  style={{ backgroundColor: NODE_COLORS[type] }}
+                >
+                  {NODE_ICONS[type]} +{type}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {nodeTypeRow2.map((type) => (
+                <button
+                  key={type}
+                  onClick={() => addNode(type)}
+                  className="px-2 py-1 rounded-lg text-[10px] font-bold text-white transition-all duration-200 hover:opacity-80"
+                  style={{ backgroundColor: NODE_COLORS[type] }}
+                >
+                  {NODE_ICONS[type]} +{type}
+                </button>
               ))}
             </div>
           </div>
