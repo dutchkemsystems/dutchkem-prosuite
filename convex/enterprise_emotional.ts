@@ -1,145 +1,125 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { tryGetAdminSession } from "./auth_helpers";
 
-async function getOrgFromToken(ctx: any, token: string) {
-  const session = await ctx.db.query("enterprise_sessions")
-    .withIndex("by_token", (q: any) => q.eq("token", token))
-    .first();
-  if (!session || !session.isCurrent || session.expiresAt < Date.now()) return null;
-  return session.orgId;
-}
-
-/** Create or update an emotional profile */
+/** Upsert profile */
 export const upsertProfile = mutation({
   args: {
-    token: v.string(),
-    userId: v.string(),
+    orgId: v.id("enterprise_organizations"),
+    userId: v.id("users"),
     personality: v.optional(v.any()),
-    memory: v.optional(v.string()),
-    sentiment: v.optional(v.string()),
+    memories: v.optional(v.array(v.any())),
+    adminToken: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return { error: "Invalid session" };
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
 
-    const now = Date.now();
     const existing = await ctx.db.query("enterprise_emotional_profiles")
-      .withIndex("by_user", (q: any) => q.eq("userId", args.userId))
+      .withIndex("by_org_user", (q) => q.eq("orgId", args.orgId).eq("userId", args.userId))
       .first();
 
-    if (existing && existing.orgId === orgId) {
-      const patch: any = { updatedAt: now, lastInteraction: now };
-      if (args.personality) patch.personality = args.personality;
-      if (args.memory) {
-        patch.memories = [...existing.memories, { text: args.memory, createdAt: now }];
-      }
-      if (args.sentiment) {
-        patch.sentimentHistory = [...existing.sentimentHistory, { sentiment: args.sentiment, createdAt: now }];
-      }
-      await ctx.db.patch(existing._id, patch);
-      return { success: true, profileId: existing._id, isNew: false };
-    }
-
-    const profileId = await ctx.db.insert("enterprise_emotional_profiles", {
-      orgId,
+    const now = Date.now();
+    const profileId = existing?._id || await ctx.db.insert("enterprise_emotional_profiles", {
+      orgId: args.orgId,
       userId: args.userId,
-      personality: args.personality || {},
-      memories: args.memory ? [{ text: args.memory, createdAt: now }] : [],
-      sentimentHistory: args.sentiment ? [{ sentiment: args.sentiment, createdAt: now }] : [],
-      retentionScore: 80,
+      personality: args.personality || { traits: {}, preferences: {}, goals: {} },
+      memories: args.memories || [],
+      sentimentHistory: [],
+      retentionScore: 50,
       lastInteraction: now,
       createdAt: now,
       updatedAt: now,
     });
 
-    return { success: true, profileId, isNew: true };
+    await ctx.db.patch(profileId, {
+      personality: args.personality || { traits: {}, preferences: {}, goals: {} },
+      memories: args.memories || [],
+      lastInteraction: now,
+      updatedAt: now,
+    });
+
+    return { success: true, profileId };
   },
 });
 
-/** List all emotional profiles for an org */
+/** List profiles */
 export const listProfiles = query({
-  args: { token: v.string() },
+  args: { orgId: v.id("enterprise_organizations"), adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return [];
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
 
-    const profiles = await ctx.db.query("enterprise_emotional_profiles")
-      .withIndex("by_org", (q: any) => q.eq("orgId", orgId))
+    return await ctx.db.query("enterprise_emotional_profiles")
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
       .collect();
-
-    return profiles.map((p: any) => ({
-      _id: p._id,
-      userId: p.userId,
-      sentiment: p.sentimentHistory.length > 0 ? p.sentimentHistory[p.sentimentHistory.length - 1].sentiment : "neutral",
-      retentionScore: p.retentionScore,
-      lastInteraction: p.lastInteraction,
-      memoryCount: p.memories.length,
-      personality: p.personality,
-    }));
   },
 });
 
-/** Get detailed profile */
+/** Get profile */
 export const getProfile = query({
-  args: { token: v.string(), profileId: v.id("enterprise_emotional_profiles") },
+  args: { profileId: v.id("enterprise_emotional_profiles"), adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return null;
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
 
-    const profile = await ctx.db.get("enterprise_emotional_profiles", args.profileId);
-    if (!profile || profile.orgId !== orgId) return null;
-    return profile;
+    return await ctx.db.get("enterprise_emotional_profiles", args.profileId);
   },
 });
 
-/** Get emotional AI stats */
+/** Get stats */
 export const getStats = query({
-  args: { token: v.string() },
+  args: { orgId: v.id("enterprise_organizations"), adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return { totalProfiles: 0, avgRetention: 0, totalMemories: 0 };
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
 
     const profiles = await ctx.db.query("enterprise_emotional_profiles")
-      .withIndex("by_org", (q: any) => q.eq("orgId", orgId))
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
       .collect();
-
-    const totalMemories = profiles.reduce((sum: number, p: any) => sum + p.memories.length, 0);
-    const avgRetention = profiles.length > 0
-      ? profiles.reduce((sum: number, p: any) => sum + p.retentionScore, 0) / profiles.length
-      : 0;
 
     return {
       totalProfiles: profiles.length,
-      avgRetention: Math.round(avgRetention),
-      totalMemories,
+      avgRetentionScore: profiles.reduce((sum: number, p: any) => sum + p.retentionScore, 0) / (profiles.length || 1),
+      totalMemories: profiles.reduce((sum: number, p: any) => sum + (p.memories?.length || 0), 0),
     };
   },
 });
 
-/** Add a memory to a profile */
+/** Add memory */
 export const addMemory = mutation({
   args: {
-    token: v.string(),
     profileId: v.id("enterprise_emotional_profiles"),
-    memoryText: v.string(),
+    memory: v.string(),
+    sentiment: v.union(v.literal("positive"), v.literal("neutral"), v.literal("negative")),
+    adminToken: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return { error: "Invalid session" };
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
 
     const profile = await ctx.db.get("enterprise_emotional_profiles", args.profileId);
-    if (!profile || profile.orgId !== orgId) return { error: "Not found" };
+    if (!profile) return { error: "Profile not found" };
 
     const now = Date.now();
+    const memory = {
+      text: args.memory,
+      sentiment: args.sentiment,
+      timestamp: now,
+      source: "user_input",
+    };
+
     await ctx.db.patch(args.profileId, {
-      memories: [...profile.memories, { text: args.memoryText, createdAt: now }],
-      updatedAt: now,
+      memories: [...(profile.memories || []), memory],
+      sentimentHistory: [...(profile.sentimentHistory || []), { sentiment: args.sentiment, timestamp: now }],
+      retentionScore: Math.min(100, (profile.retentionScore || 50) + (args.sentiment === "positive" ? 10 : args.sentiment === "negative" ? -5 : 0)),
       lastInteraction: now,
+      updatedAt: now,
     });
 
     return { success: true };

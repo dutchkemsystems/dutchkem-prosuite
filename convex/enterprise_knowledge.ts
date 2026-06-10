@@ -1,123 +1,115 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { tryGetAdminSession } from "./auth_helpers";
 
-async function getOrgFromToken(ctx: any, token: string) {
-  const session = await ctx.db.query("enterprise_sessions")
-    .withIndex("by_token", (q: any) => q.eq("token", token))
-    .first();
-  if (!session || !session.isCurrent || session.expiresAt < Date.now()) return null;
-  return session.orgId;
-}
-
-/** Add a knowledge entry */
+/** Add an entry */
 export const addEntry = mutation({
   args: {
-    token: v.string(),
+    orgId: v.id("enterprise_organizations"),
     source: v.string(),
     entity: v.string(),
     relationship: v.string(),
     confidence: v.number(),
     metadata: v.optional(v.any()),
+    adminToken: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return { error: "Invalid session" };
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
 
-    const id = await ctx.db.insert("enterprise_knowledge_entries", {
-      orgId,
+    const now = Date.now();
+    const entryId = await ctx.db.insert("enterprise_knowledge_entries", {
+      orgId: args.orgId,
       source: args.source,
       entity: args.entity,
       relationship: args.relationship,
       confidence: args.confidence,
       metadata: args.metadata,
-      createdAt: Date.now(),
+      createdAt: now,
     });
 
-    return { success: true, entryId: id };
+    await ctx.db.insert("enterprise_audit_logs", {
+      eventType: "KNOWLEDGE_ENTRY_ADDED",
+      actor: identity._id,
+      action: "add_entry",
+      target: entryId,
+      details: { source: args.source, entity: args.entity, relationship: args.relationship },
+      createdAt: now,
+    });
+
+    return { success: true, entryId };
   },
 });
 
-/** List knowledge entries for an org */
+/** List entries */
 export const listEntries = query({
-  args: { token: v.string() },
+  args: { orgId: v.id("enterprise_organizations"), adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return [];
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
 
-    const entries = await ctx.db.query("enterprise_knowledge_entries")
-      .withIndex("by_org", (q: any) => q.eq("orgId", orgId))
+    return await ctx.db.query("enterprise_knowledge_entries")
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
       .collect();
-
-    return entries;
   },
 });
 
-/** Search knowledge entries by entity or source */
+/** Search entries */
 export const searchEntries = query({
-  args: { token: v.string(), query: v.string() },
+  args: { orgId: v.id("enterprise_organizations"), query: v.string(), adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return [];
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
 
     const entries = await ctx.db.query("enterprise_knowledge_entries")
-      .withIndex("by_org", (q: any) => q.eq("orgId", orgId))
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
       .collect();
 
-    const q = args.query.toLowerCase();
     return entries.filter((e: any) =>
-      e.entity.toLowerCase().includes(q) ||
-      e.source.toLowerCase().includes(q) ||
-      e.relationship.toLowerCase().includes(q)
+      e.source.toLowerCase().includes(args.query.toLowerCase()) ||
+      e.entity.toLowerCase().includes(args.query.toLowerCase()) ||
+      e.relationship.toLowerCase().includes(args.query.toLowerCase())
     );
   },
 });
 
-/** Delete a knowledge entry */
+/** Delete an entry */
 export const deleteEntry = mutation({
-  args: { token: v.string(), entryId: v.id("enterprise_knowledge_entries") },
+  args: { entryId: v.id("enterprise_knowledge_entries"), adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return { error: "Invalid session" };
-
-    const entry = await ctx.db.get("enterprise_knowledge_entries", args.entryId);
-    if (!entry || entry.orgId !== orgId) return { error: "Not found" };
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
 
     await ctx.db.delete(args.entryId);
     return { success: true };
   },
 });
 
-/** Get knowledge stats */
+/** Get stats */
 export const getStats = query({
-  args: { token: v.string() },
+  args: { orgId: v.id("enterprise_organizations"), adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return { totalEntries: 0, entities: [], sources: [], avgConfidence: 0 };
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
 
     const entries = await ctx.db.query("enterprise_knowledge_entries")
-      .withIndex("by_org", (q: any) => q.eq("orgId", orgId))
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
       .collect();
 
-    const entityMap = new Map<string, number>();
-    const sourceMap = new Map<string, number>();
-    let totalConfidence = 0;
-
-    for (const e of entries) {
-      entityMap.set(e.entity, (entityMap.get(e.entity) || 0) + 1);
-      sourceMap.set(e.source, (sourceMap.get(e.source) || 0) + 1);
-      totalConfidence += e.confidence;
-    }
+    const sourceCounts: Record<string, number> = {};
+    entries.forEach((e: any) => {
+      sourceCounts[e.source] = (sourceCounts[e.source] || 0) + 1;
+    });
 
     return {
       totalEntries: entries.length,
-      entities: Array.from(entityMap.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
-      sources: Array.from(sourceMap.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
-      avgConfidence: entries.length > 0 ? totalConfidence / entries.length : 0,
+      sourceBreakdown: sourceCounts,
+      avgConfidence: entries.reduce((sum: number, e: any) => sum + e.confidence, 0) / (entries.length || 1),
     };
   },
 });

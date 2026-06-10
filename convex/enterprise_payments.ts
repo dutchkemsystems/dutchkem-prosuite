@@ -1,288 +1,277 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { tryGetAdminSession } from "./auth_helpers";
 
-async function getOrgFromToken(ctx: any, token: string) {
-  const session = await ctx.db.query("enterprise_sessions")
-    .withIndex("by_token", (q: any) => q.eq("token", token))
-    .first();
-  if (!session || !session.isCurrent || session.expiresAt < Date.now()) return null;
-  return session.orgId;
-}
-
-function generateRef(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let ref = "REF-";
-  for (let i = 0; i < 8; i++) ref += chars[Math.floor(Math.random() * chars.length)];
-  return ref;
-}
-
-/** Create an agent-to-agent transaction */
+/** Create a transaction */
 export const createTransaction = mutation({
   args: {
-    token: v.string(),
-    fromAgent: v.string(),
-    toAgent: v.string(),
+    orgId: v.id("enterprise_organizations"),
+    fromAgent: v.id("agents"),
+    toAgent: v.id("agents"),
     amount: v.number(),
-    currency: v.optional(v.string()),
+    currency: v.string(),
+    status: v.union(v.literal("pending"), v.literal("completed"), v.literal("failed")),
+    reference: v.optional(v.string()),
     metadata: v.optional(v.any()),
+    adminToken: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return { error: "Invalid session" };
-
-    const org = await ctx.db.get("enterprise_organizations", orgId);
-    if (org?.spendingLimit && args.amount > org.spendingLimit) {
-      return { error: `Amount exceeds your spending limit of ₦${org.spendingLimit.toLocaleString()}` };
-    }
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
 
     const now = Date.now();
-    const ref = generateRef();
-    const txnId = await ctx.db.insert("enterprise_transactions", {
-      orgId,
+    const transactionId = await ctx.db.insert("enterprise_transactions", {
+      orgId: args.orgId,
       fromAgent: args.fromAgent,
       toAgent: args.toAgent,
       amount: args.amount,
-      currency: args.currency || "NGN",
-      status: "completed",
-      reference: ref,
+      currency: args.currency,
+      status: args.status,
+      reference: args.reference || `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       metadata: args.metadata,
       createdAt: now,
     });
 
-    return { success: true, transactionId: txnId, reference: ref };
-  },
-});
+    // Enforce spending limit
+    const org = await ctx.db.get("enterprise_organizations", args.orgId);
+    if (org?.spendingLimit && args.amount > org.spendingLimit) {
+      throw new Error(`Transaction exceeds spending limit of ${org.spendingLimit} ${args.currency}`);
+    }
 
-/** List transactions for an org */
-export const listTransactions = query({
-  args: { token: v.string() },
-  returns: v.any(),
-  handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return [];
-
-    const txns = await ctx.db.query("enterprise_transactions")
-      .withIndex("by_org", (q: any) => q.eq("orgId", orgId))
-      .collect();
-
-    return txns.sort((a: any, b: any) => b.createdAt - a.createdAt);
-  },
-});
-
-/** Get payment stats */
-export const getStats = query({
-  args: { token: v.string() },
-  returns: v.any(),
-  handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return { totalVolume: 0, transactionCount: 0, completedCount: 0, pendingCount: 0, avgAmount: 0 };
-
-    const txns = await ctx.db.query("enterprise_transactions")
-      .withIndex("by_org", (q: any) => q.eq("orgId", orgId))
-      .collect();
-
-    const completed = txns.filter((t: any) => t.status === "completed");
-    const pending = txns.filter((t: any) => t.status === "pending");
-    const totalVolume = completed.reduce((sum: number, t: any) => sum + t.amount, 0);
-
-    return {
-      totalVolume,
-      transactionCount: txns.length,
-      completedCount: completed.length,
-      pendingCount: pending.length,
-      avgAmount: completed.length > 0 ? totalVolume / completed.length : 0,
-    };
-  },
-});
-
-/** Simulate running a payment between agents */
-export const simulatePayment = mutation({
-  args: {
-    token: v.string(),
-    fromAgent: v.string(),
-    toAgent: v.string(),
-    amount: v.number(),
-  },
-  returns: v.any(),
-  handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return { error: "Invalid session" };
-
-    const now = Date.now();
-    const ref = generateRef();
-    const txnId = await ctx.db.insert("enterprise_transactions", {
-      orgId,
-      fromAgent: args.fromAgent,
-      toAgent: args.toAgent,
-      amount: args.amount,
-      currency: "NGN",
-      status: "completed",
-      reference: ref,
-      createdAt: now,
-    });
-
-    await ctx.db.insert("enterprise_audit_logs", {
-      eventType: "PAYMENT_SIMULATED",
-      actor: orgId,
-      action: "simulate_payment",
-      target: txnId,
-      details: { from: args.fromAgent, to: args.toAgent, amount: args.amount },
-      createdAt: now,
-    });
-
-    return { success: true, transactionId: txnId, reference: ref };
-  },
-});
-
-/** Get spending limit for an org */
-export const getSpendingLimit = query({
-  args: { token: v.string() },
-  returns: v.any(),
-  handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return { limit: 500000 };
-    const org = await ctx.db.get("enterprise_organizations", orgId);
-    return { limit: org?.spendingLimit || 500000 };
-  },
-});
-
-/** Set spending limit for an org */
-export const setSpendingLimit = mutation({
-  args: { token: v.string(), limit: v.number() },
-  returns: v.any(),
-  handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return { error: "Invalid session" };
-    if (args.limit < 1000) return { error: "Minimum limit is ₦1,000" };
-
-    await ctx.db.patch(orgId, { spendingLimit: args.limit, updatedAt: Date.now() });
-
-    await ctx.db.insert("enterprise_audit_logs", {
-      eventType: "SPENDING_LIMIT_UPDATED",
-      actor: orgId,
-      action: "set_spending_limit",
-      target: orgId,
-      details: { limit: args.limit },
-      createdAt: Date.now(),
-    });
-
-    return { success: true, limit: args.limit };
-  },
-});
-
-/** Generate passkey for subscription payment (6-digit, 10-min expiry) */
-export const initiateSubscriptionPayment = mutation({
-  args: {
-    token: v.string(),
-    planId: v.union(v.literal("growth"), v.literal("enterprise"), v.literal("scale")),
-    amount: v.number(),
-  },
-  returns: v.any(),
-  handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return { error: "Invalid session" };
-
-    const org = await ctx.db.get("enterprise_organizations", orgId);
-    if (!org) return { error: "Organization not found" };
-
-    const now = Date.now();
-    const ref = generateRef();
-    const passkey = String(Math.floor(100000 + Math.random() * 900000));
-    const passkeyExpiresAt = now + (10 * 60 * 1000);
-
-    const txnId = await ctx.db.insert("enterprise_transactions", {
-      orgId,
-      fromAgent: org.name,
-      toAgent: "Dutchkem Ventures",
-      amount: args.amount,
-      currency: "NGN",
-      status: "pending",
-      reference: ref,
-      metadata: { type: "subscription", planId: args.planId, passkey, passkeyExpiresAt },
-      createdAt: now,
-    });
-
-    await ctx.db.insert("enterprise_audit_logs", {
-      eventType: "SUBSCRIPTION_PAYMENT_INITIATED",
-      actor: orgId,
-      action: "initiate_subscription_payment",
-      target: txnId,
-      details: { planId: args.planId, amount: args.amount, reference: ref },
-      createdAt: now,
-    });
-
-    return { success: true, reference: ref, passkey, passkeyExpiresAt, transactionId: txnId };
-  },
-});
-
-/** Verify passkey and complete subscription payment */
-export const verifySubscriptionPayment = mutation({
-  args: {
-    token: v.string(),
-    reference: v.string(),
-    passkey: v.string(),
-  },
-  returns: v.any(),
-  handler: async (ctx, args) => {
-    const orgId = await getOrgFromToken(ctx, args.token);
-    if (!orgId) return { error: "Invalid session" };
-
-    const txn = await ctx.db.query("enterprise_transactions")
-      .withIndex("by_org", (q: any) => q.eq("orgId", orgId))
-      .collect();
-    const pending = txn.find((t: any) => t.reference === args.reference && t.status === "pending");
-    if (!pending) return { error: "Transaction not found or already processed" };
-
-    const meta = pending.metadata as any;
-    if (!meta?.passkey || !meta?.passkeyExpiresAt) return { error: "Invalid transaction metadata" };
-    if (meta.passkey !== args.passkey) return { error: "Invalid passkey" };
-    if (Date.now() > meta.passkeyExpiresAt) return { error: "Passkey expired. Please initiate a new payment." };
-
-    const now = Date.now();
-
-    await ctx.db.patch(pending._id, { status: "completed" });
-
-    const PLAN_DURATIONS: Record<string, number> = {
-      growth: 30 * 24 * 60 * 60 * 1000,
-      enterprise: 30 * 24 * 60 * 60 * 1000,
-      scale: 30 * 24 * 60 * 60 * 1000,
-    };
-    const planDuration = PLAN_DURATIONS[meta.planId] || 30 * 24 * 60 * 60 * 1000;
-    const subscriptionEndsAt = now + planDuration;
-
-    await ctx.db.patch(orgId, {
-      status: "active",
-      plan: meta.planId,
-      trialEndsAt: undefined,
-      subscriptionEndsAt,
-      updatedAt: now,
-    });
-
-    const systemWallet = await ctx.db.query("system_wallets")
-      .withIndex("by_type", (q: any) => q.eq("type", "main"))
-      .first();
-    if (systemWallet) {
-      await ctx.db.patch(systemWallet._id, {
-        balance: systemWallet.balance + pending.amount,
-        lastUpdated: now,
-      });
+    // If Kora Pay integration is active, create Kora transfer
+    if (process.env.KORA_WEBHOOK_SECRET) {
+      try {
+        await ctx.runAction(internal.kora_pay.createTransfer, {
+          amount: args.amount,
+          currency: args.currency,
+          reference: args.reference,
+          destination: args.toAgent,
+        });
+        await ctx.db.patch(transactionId, { status: "completed", completedAt: now });
+      } catch (error: any) {
+        await ctx.db.patch(transactionId, { status: "failed", error: error.message, completedAt: now });
+        throw error;
+      }
+    } else {
+      await ctx.db.patch(transactionId, { status: "completed", completedAt: now });
     }
 
     await ctx.db.insert("enterprise_audit_logs", {
-      eventType: "SUBSCRIPTION_PAYMENT_COMPLETED",
-      actor: orgId,
-      action: "verify_subscription_payment",
-      target: pending._id,
-      details: {
-        planId: meta.planId,
-        amount: pending.amount,
-        reference: args.reference,
-        subscriptionEndsAt,
-      },
+      eventType: "TRANSACTION_CREATED",
+      actor: identity._id,
+      action: "create_transaction",
+      target: transactionId,
+      details: { amount: args.amount, currency: args.currency, fromAgent: args.fromAgent, toAgent: args.toAgent },
       createdAt: now,
     });
 
-    return { success: true, plan: meta.planId, subscriptionEndsAt };
+    return { success: true, transactionId };
+  },
+});
+
+/** List transactions */
+export const listTransactions = query({
+  args: { orgId: v.id("enterprise_organizations"), adminToken: v.optional(v.string()) },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
+
+    return await ctx.db.query("enterprise_transactions")
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .collect();
+  },
+});
+
+/** Get stats */
+export const getStats = query({
+  args: { orgId: v.id("enterprise_organizations"), adminToken: v.optional(v.string()) },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
+
+    const transactions = await ctx.db.query("enterprise_transactions")
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .collect();
+
+    return {
+      totalTransactions: transactions.length,
+      totalVolume: transactions.reduce((sum: number, t: any) => t.status === "completed" ? sum + t.amount : sum, 0),
+      pendingTransactions: transactions.filter((t: any) => t.status === "pending").length,
+      failedTransactions: transactions.filter((t: any) => t.status === "failed").length,
+      avgTransactionAmount: transactions.reduce((sum: number, t: any) => sum + t.amount, 0) / (transactions.length || 1),
+    };
+  },
+});
+
+/** Simulate payment */
+export const simulatePayment = mutation({
+  args: {
+    fromAgent: v.id("agents"),
+    toAgent: v.id("agents"),
+    amount: v.number(),
+    currency: v.string(),
+    reference: v.optional(v.string()),
+    adminToken: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
+
+    const now = Date.now();
+    const transactionId = await ctx.db.insert("enterprise_transactions", {
+      orgId: identity._id,
+      fromAgent: args.fromAgent,
+      toAgent: args.toAgent,
+      amount: args.amount,
+      currency: args.currency,
+      status: "completed",
+      reference: args.reference,
+      metadata: { simulated: true },
+      createdAt: now,
+      completedAt: now,
+    });
+
+    return { success: true, transactionId, simulated: true };
+  },
+});
+
+/** Get spending limit */
+export const getSpendingLimit = query({
+  args: { orgId: v.id("enterprise_organizations"), adminToken: v.optional(v.string()) },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
+
+    const org = await ctx.db.get("enterprise_organizations", args.orgId);
+    return {
+      spendingLimit: org?.spendingLimit || 0,
+      subscriptionEndsAt: org?.subscriptionEndsAt || null,
+      plan: org?.plan || "free",
+    };
+  },
+});
+
+/** Set spending limit */
+export const setSpendingLimit = mutation({
+  args: {
+    orgId: v.id("enterprise_organizations"),
+    limit: v.number({ min: 1000 }),
+    adminToken: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
+
+    await ctx.db.patch(args.orgId, { spendingLimit: args.limit, updatedAt: Date.now() });
+    return { success: true };
+  },
+});
+
+/** Initiate subscription payment */
+export const initiateSubscriptionPayment = mutation({
+  args: {
+    orgId: v.id("enterprise_organizations"),
+    plan: v.union(v.literal("free"), v.literal("growth"), v.literal("professional"), v.literal("enterprise")),
+    paymentMethod: v.string(),
+    adminToken: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
+
+    const org = await ctx.db.get("enterprise_organizations", args.orgId);
+    if (!org) return { error: "Organization not found" };
+
+    const now = Date.now();
+    const reference = `SUB_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Generate 6-digit passkey for payment verification
+    const passkey = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Create transaction record
+    const transactionId = await ctx.db.insert("enterprise_transactions", {
+      orgId: args.orgId,
+      fromAgent: "admin",
+      toAgent: "system_wallets.main",
+      amount: args.plan === "free" ? 0 : (args.plan === "growth" ? 5000 : args.plan === "professional" ? 15000 : 50000),
+      currency: "NGN",
+      status: args.plan === "free" ? "completed" : "pending",
+      reference,
+      metadata: {
+        plan: args.plan,
+        paymentMethod: args.paymentMethod,
+        passkey,
+        passkeyExpiry: now + (10 * 60 * 1000), // 10 minutes
+      },
+      createdAt: now,
+      completedAt: args.plan === "free" ? now : undefined,
+    });
+
+    // Send passkey via OTP/email if not free
+    if (args.plan !== "free") {
+      await ctx.runAction(internal.otp_email.sendPasskey, {
+        email: org.email,
+        passkey,
+        reference,
+      });
+    }
+
+    return { success: true, reference, passkey, transactionId };
+  },
+});
+
+/** Verify subscription payment */
+export const verifySubscriptionPayment = mutation({
+  args: {
+    reference: v.string(),
+    passkey: v.string(),
+    adminToken: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
+
+    const transaction = await ctx.db.query("enterprise_transactions")
+      .withIndex("by_org", (q) => q.eq("orgId", identity._id))
+      .filter((q) => q.eq(q.field("reference"), args.reference))
+      .first();
+
+    if (!transaction) return { error: "Transaction not found" };
+    if (transaction.status !== "pending") return { error: "Transaction already processed" };
+
+    const metadata = transaction.metadata as any;
+    if (!metadata?.passkey || !metadata?.passkeyExpiry) return { error: "Passkey not found" };
+    if (Date.now() > metadata.passkeyExpiry) return { error: "Passkey expired" };
+    if (metadata.passkey !== args.passkey) return { error: "Invalid passkey" };
+
+    const now = Date.now();
+    await ctx.db.patch(transaction._id, {
+      status: "completed",
+      completedAt: now,
+    });
+
+    // Update organization subscription
+    await ctx.db.patch(transaction.orgId, {
+      plan: metadata.plan,
+      subscriptionEndsAt: now + (30 * 24 * 60 * 60 * 1000), // 30 days
+      updatedAt: now,
+    });
+
+    // Update wallet balance
+    await ctx.runMutation(internal.system_wallets.updateBalance, {
+      walletId: "main",
+      amount: transaction.amount,
+      type: "credit",
+    });
+
+    return { success: true, plan: metadata.plan, expiresAt: now + (30 * 24 * 60 * 60 * 1000) };
   },
 });
