@@ -7,6 +7,7 @@
 import { v } from "convex/values";
 import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 
 // ═══════════════════════════════════════════════════════════════════
 // ENGINE STATUS (singleton row, id="global")
@@ -40,9 +41,9 @@ export const getAdEngineStatus = query({
 });
 
 export const toggleAdEngine = mutation({
-  args: { enabled: v.boolean() },
+  args: { enabled: v.boolean(), adminToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
 
     const existing = await ctx.db
@@ -68,9 +69,9 @@ export const toggleAdEngine = mutation({
 });
 
 export const toggleAutoPost = mutation({
-  args: { enabled: v.boolean() },
+  args: { enabled: v.boolean(), adminToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
 
     const existing = await ctx.db
@@ -110,9 +111,10 @@ export const createCampaign = mutation({
     endDate: v.optional(v.number()),
     goals: v.optional(v.string()),
     targetAudience: v.optional(v.string()),
+    adminToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
 
     const campaignId = await ctx.db.insert("ad_campaigns", {
@@ -127,7 +129,7 @@ export const createCampaign = mutation({
       endDate: args.endDate,
       goals: args.goals,
       targetAudience: args.targetAudience,
-      createdBy: identity.subject,
+      createdBy: identity._id,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -185,9 +187,10 @@ export const updateCampaign = mutation({
     endDate: v.optional(v.number()),
     goals: v.optional(v.string()),
     targetAudience: v.optional(v.string()),
+    adminToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
 
     const patch: any = { updatedAt: Date.now() };
@@ -206,9 +209,9 @@ export const updateCampaign = mutation({
 });
 
 export const deleteCampaign = mutation({
-  args: { campaignId: v.id("ad_campaigns") },
+  args: { campaignId: v.id("ad_campaigns"), adminToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
 
     // Delete all ads in the campaign
@@ -255,9 +258,10 @@ export const createAd = mutation({
     imageUrl: v.optional(v.string()),
     flyerId: v.optional(v.id("ad_flyers")),
     scheduledFor: v.optional(v.number()),
+    adminToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
 
     const campaign = await ctx.db.get("ad_campaigns", args.campaignId);
@@ -313,9 +317,9 @@ export const getAds = query({
 });
 
 export const deleteAd = mutation({
-  args: { adId: v.id("ad_ads") },
+  args: { adId: v.id("ad_ads"), adminToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
     await ctx.db.delete("ad_ads", args.adId);
     return { success: true };
@@ -331,9 +335,10 @@ export const generateFlyer = action({
     prompt: v.string(),
     style: v.optional(v.string()),
     colorScheme: v.optional(v.string()),
+    adminToken: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ flyerId: any; headline: string; body: string; cta: string; colorScheme: string }> => {
-    const identity = await ctx.auth.getUserIdentity();
+    const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
 
     // Generate copy based on prompt (deterministic, no external API call needed)
@@ -398,9 +403,9 @@ export const getFlyers = query({
 // ═══════════════════════════════════════════════════════════════════
 
 export const executeAdPost = action({
-  args: { adId: v.id("ad_ads") },
+  args: { adId: v.id("ad_ads"), adminToken: v.optional(v.string()) },
   handler: async (ctx, args): Promise<{ success: boolean; error?: string; postId?: string }> => {
-    const identity = await ctx.auth.getUserIdentity();
+    const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!identity) return { success: false, error: "Not authenticated" };
 
     const ad: any = await ctx.runQuery(internal.adEngine.getAdById, { adId: args.adId });

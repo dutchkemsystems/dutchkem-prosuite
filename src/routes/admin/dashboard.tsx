@@ -3987,6 +3987,8 @@ function AdEnginePanel() {
   const { data: analytics } = useSuspenseQuery(convexQuery(api.adEngine.getAdAnalytics, {})) as { data: any };
   const { data: agents } = useSuspenseQuery(convexQuery(api.synthetic_intelligence.getAgentsWithStatus, {})) as { data: any };
 
+  const adAdminToken = typeof window !== "undefined" ? localStorage.getItem("admin_session_token") || "" : "";
+
   const toggleEngine = useMutation(api.adEngine.toggleAdEngine);
   const toggleAutoPost = useMutation(api.adEngine.toggleAutoPost);
   const createCampaign = useMutation(api.adEngine.createCampaign);
@@ -4012,7 +4014,7 @@ function AdEnginePanel() {
 
   const handleToggleEngine = async (enabled: boolean) => {
     try {
-      await toggleEngine({ enabled });
+      await toggleEngine({ enabled, adminToken: adAdminToken });
       setStatus({ message: `Ad engine ${enabled ? "enabled" : "disabled"}`, type: "success" });
     } catch (err: any) {
       setStatus({ message: err?.message || "Failed to toggle engine", type: "error" });
@@ -4021,7 +4023,7 @@ function AdEnginePanel() {
 
   const handleToggleAutoPost = async (enabled: boolean) => {
     try {
-      await toggleAutoPost({ enabled });
+      await toggleAutoPost({ enabled, adminToken: adAdminToken });
       setStatus({ message: `Auto-posting ${enabled ? "enabled" : "disabled"}`, type: "success" });
     } catch (err: any) {
       setStatus({ message: err?.message || "Failed to toggle auto-post", type: "error" });
@@ -4042,6 +4044,7 @@ function AdEnginePanel() {
         dailyBudget: newCampaign.dailyBudget || undefined,
         startDate: Date.now(),
         goals: newCampaign.goals || undefined,
+        adminToken: adAdminToken,
       });
       setStatus({ message: `Campaign created successfully`, type: "success" });
       setShowCreateForm(false);
@@ -4054,7 +4057,7 @@ function AdEnginePanel() {
   const handleDeleteCampaign = async (campaignId: string) => {
     if (!confirm("Delete this campaign and all its ads?")) return;
     try {
-      await deleteCampaign({ campaignId: campaignId as any });
+      await deleteCampaign({ campaignId: campaignId as any, adminToken: adAdminToken });
       setStatus({ message: "Campaign deleted", type: "success" });
     } catch (err: any) {
       setStatus({ message: err?.message || "Failed to delete", type: "error" });
@@ -4067,7 +4070,7 @@ function AdEnginePanel() {
       return;
     }
     try {
-      const result: any = await generateFlyer({ prompt: flyerPrompt });
+      const result: any = await generateFlyer({ prompt: flyerPrompt, adminToken: adAdminToken });
       setAdContent(`${result.headline}\n\n${result.body}\n\n${result.cta}`);
       setStatus({ message: `Flyer generated: "${result.headline}"`, type: "success" });
     } catch (err: any) {
@@ -4085,9 +4088,10 @@ function AdEnginePanel() {
         campaignId: campaignId as any,
         title: `${platform} ad - ${new Date().toLocaleDateString()}`,
         content: adContent,
+        adminToken: adAdminToken,
       });
       if (adResult?.adId) {
-        const result: any = await executeAdPost({ adId: adResult.adId });
+        const result: any = await executeAdPost({ adId: adResult.adId, adminToken: adAdminToken });
         if (result.success) {
           setStatus({ message: `✅ Posted to ${platform} successfully`, type: "success" });
           setAdContent("");
