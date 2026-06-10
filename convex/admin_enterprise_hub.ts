@@ -19,8 +19,8 @@ export const getHubStats = query({
     const orgs = await ctx.db.query("enterprise_organizations").collect();
 
     return {
-      templateCount: templates.length,
-      publishedCount: templates.filter((t: any) => t.isPublished).length,
+      templateCount: templates.length + INDUSTRY_TEMPLATES.length,
+      publishedCount: templates.filter((t: any) => t.isPublished).length + INDUSTRY_TEMPLATES.length,
       assignmentCount: assignments.length,
       orgCount: orgs.length,
       agentCount: ALL_AGENTS.length,
@@ -67,7 +67,7 @@ export const storeDefaultTemplates = internalMutation({
   },
 });
 
-/** List all workflow templates */
+/** List all workflow templates — merges DB templates with built-in industry templates */
 export const listTemplates = query({
   args: { category: v.optional(v.string()), publishedOnly: v.optional(v.boolean()) },
   returns: v.any(),
@@ -76,9 +76,26 @@ export const listTemplates = query({
     if (args.category && args.category !== "all") {
       q = q.withIndex("by_category", (q2: any) => q2.eq("category", args.category));
     }
-    const templates = await q.collect();
-    if (args.publishedOnly) return templates.filter((t: any) => t.isPublished);
-    return templates.sort((a: any, b: any) => b.createdAt - a.createdAt);
+    const dbTemplates = await q.collect();
+
+    const builtIn = INDUSTRY_TEMPLATES.map((t, i) => ({
+      _id: `builtin_${i}`,
+      ...t,
+      isPublished: true,
+      publishedToOrgs: [],
+      createdBy: "system",
+      version: 1,
+      createdAt: Date.now() - (INDUSTRY_TEMPLATES.length - i) * 86400000,
+      updatedAt: Date.now(),
+      isBuiltin: true,
+    }));
+
+    let all = [...builtIn, ...dbTemplates];
+    if (args.category && args.category !== "all") {
+      all = all.filter((t: any) => t.category === args.category);
+    }
+    if (args.publishedOnly) all = all.filter((t: any) => t.isPublished);
+    return all.sort((a: any, b: any) => b.createdAt - a.createdAt);
   },
 });
 

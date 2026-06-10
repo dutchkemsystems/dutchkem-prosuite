@@ -27,7 +27,7 @@ export function AdminEnterpriseHub({ adminToken }: { adminToken: string }) {
   const orgList = useQuery(api.admin_enterprise.listOrganizations, { adminToken })
 
   const agents = agentList || []
-  const organizations = orgList?.data || []
+  const organizations = orgList || []
 
   const statCards = [
     { label: 'Templates', value: stats?.templateCount ?? 0, icon: '📋', color: 'from-orange-500/20 to-orange-600/10' },
