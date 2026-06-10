@@ -22,6 +22,7 @@ import { TaxCompliancePanel } from "~/components/TaxCompliancePanel";
 import { EnterpriseHub } from "~/components/EnterpriseHub";
 import { EnterprisePortalAdmin } from "~/components/enterprise/EnterprisePortalAdmin";
 import { AdminEnterpriseHub } from "~/components/admin/AdminEnterpriseHub";
+import { MimoControlPanel } from "~/components/admin/MimoControlPanel";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -160,8 +161,9 @@ function AdminDashboardPage() {
               <AdminTab active={activeTab === "renewals-tithe"} onClick={() => setActiveTab("renewals-tithe")} icon="🔄" label="Renewals & Tithe" />
                <AdminTab active={activeTab === "composio-enhance"} onClick={() => setActiveTab("composio-enhance")} icon="🔧" label="Composio Enhance" />
                <AdminTab active={activeTab === "tax-compliance"} onClick={() => setActiveTab("tax-compliance")} icon="📋" label="Tax Compliance" />
-                <AdminTab active={activeTab === "enterprise"} onClick={() => setActiveTab("enterprise")} icon="🏢" label="Enterprise Hub" />
-                <AdminTab active={activeTab === "enterprise-portal"} onClick={() => setActiveTab("enterprise-portal")} icon="🌐" label="Enterprise Portal" />
+                 <AdminTab active={activeTab === "enterprise"} onClick={() => setActiveTab("enterprise")} icon="🏢" label="Enterprise Hub" />
+                 <AdminTab active={activeTab === "enterprise-portal"} onClick={() => setActiveTab("enterprise-portal")} icon="🌐" label="Enterprise Portal" />
+                 <AdminTab active={activeTab === "mimo"} onClick={() => setActiveTab("mimo")} icon="🧠" label="Mimo V.2.5" />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -211,6 +213,7 @@ function AdminDashboardPage() {
                {activeTab === "tax-compliance" && <TaxCompliancePanel adminToken={adminToken} />}
                  {activeTab === "enterprise" && <AdminEnterpriseHub adminToken={adminToken} />}
                 {activeTab === "enterprise-portal" && <EnterprisePortalAdmin adminToken={adminToken} />}
+                 {activeTab === "mimo" && <MimoControlPanel adminToken={adminToken} />}
            </AdminSuspense>
         </div>
         <Footer />

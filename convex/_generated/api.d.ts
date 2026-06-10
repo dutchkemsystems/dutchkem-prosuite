@@ -107,6 +107,7 @@ import type * as leaderboard from "../leaderboard.js";
 import type * as live_chats from "../live_chats.js";
 import type * as live_feeds from "../live_feeds.js";
 import type * as marketplace from "../marketplace.js";
+import type * as mimo_core from "../mimo_core.js";
 import type * as model_recovery from "../model_recovery.js";
 import type * as orchestration from "../orchestration.js";
 import type * as otp_email from "../otp_email.js";
@@ -266,6 +267,7 @@ declare const fullApi: ApiFromModules<{
   live_chats: typeof live_chats;
   live_feeds: typeof live_feeds;
   marketplace: typeof marketplace;
+  mimo_core: typeof mimo_core;
   model_recovery: typeof model_recovery;
   orchestration: typeof orchestration;
   otp_email: typeof otp_email;
