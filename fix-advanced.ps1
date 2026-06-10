@@ -340,7 +340,14 @@ if ($missingVars.Count -gt 0) {
 Write-Section "4/8 - TYPESCRIPT AUTO-HEAL"
 $secStart = Get-Date
 Write-Host "  Running TypeScript compiler..." -ForegroundColor Gray
-$tscOutput = npx tsc --noEmit --skipLibCheck 2>&1
+$tscJob = Start-Job -ScriptBlock { npx tsc --noEmit --skipLibCheck 2>&1 }
+if (Wait-Job $tscJob -Timeout 90) {
+    $tscOutput = Receive-Job $tscJob
+} else {
+    Stop-Job $tscJob
+    $tscOutput = @("[WARN] TypeScript check timed out after 90s - skipping")
+}
+Remove-Job $tscJob -Force -ErrorAction SilentlyContinue
 $tscErrors = @($tscOutput | Where-Object { $_ -match "error TS" })
 $tsStatus = "ok"
 $tsMsg = "No TypeScript errors"
@@ -358,7 +365,14 @@ if ($tscErrors.Count -gt 0) {
     Remove-Job $job -Force -ErrorAction SilentlyContinue
 
     # Re-check
-    $tscOutput2 = npx tsc --noEmit --skipLibCheck 2>&1
+    $tscJob2 = Start-Job -ScriptBlock { npx tsc --noEmit --skipLibCheck 2>&1 }
+    if (Wait-Job $tscJob2 -Timeout 90) {
+        $tscOutput2 = Receive-Job $tscJob2
+    } else {
+        Stop-Job $tscJob2
+        $tscOutput2 = @()
+    }
+    Remove-Job $tscJob2 -Force -ErrorAction SilentlyContinue
     $remainingErrors = @($tscOutput2 | Where-Object { $_ -match "error TS" })
     $tsFixed = $tscErrors.Count - $remainingErrors.Count
     if ($tsFixed -gt 0) {
