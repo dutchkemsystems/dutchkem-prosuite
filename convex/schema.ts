@@ -2927,4 +2927,13 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_platform", ["platformId"])
     .index("by_created", ["createdAt"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // POSTING MODE — Admin controls for Composio vs RapidAPI
+  // ═══════════════════════════════════════════════════════════════
+  posting_config: defineTable({
+    key: v.string(),     // "posting_mode", "auto_post_enabled", etc.
+    value: v.any(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 });

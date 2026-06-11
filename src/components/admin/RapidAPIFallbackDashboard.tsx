@@ -1,13 +1,16 @@
 import { useState } from "react";
-import { useQuery, useAction } from "convex/react";
+import { useQuery, useAction, useMutation } from "convex/react";
 import { api } from '../../../convex/_generated/api';
 
 export function RapidAPIFallbackDashboard({ adminToken }: { adminToken: string }) {
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const data = useQuery(api.rapidapi.getRapidAPIStatus, { adminToken });
+  const postingConfig = useQuery(api.rapidapi.getPostingConfig, { adminToken });
   const testConn = useAction(api.rapidapi.testConnection);
+  const postToAll = useAction(api.rapidapi.postToAllPlatforms);
+  const setConfig = useMutation(api.rapidapi.setPostingConfig);
 
-  if (!data) {
+  if (!data || !postingConfig) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
@@ -21,6 +24,7 @@ export function RapidAPIFallbackDashboard({ adminToken }: { adminToken: string }
   }
 
   const { platforms, stats, recentLogs, recentFailures } = data;
+  const { postingMode, autoPostEnabled, autoPostPlatforms } = postingConfig;
 
   const handleTest = async (platformId: string) => {
     try {
@@ -31,6 +35,41 @@ export function RapidAPIFallbackDashboard({ adminToken }: { adminToken: string }
       setToast({ msg: e?.message || "Test failed", type: "error" });
       setTimeout(() => setToast(null), 3000);
     }
+  };
+
+  const handlePostNow = async () => {
+    try {
+      const result = await postToAll({ content: "Dutchkem Ventures Prosuite NG+ — Your autonomous business platform. #Prosuite #BusinessGrowth", adminToken });
+      const successCount = result.results.filter((r: any) => r.success).length;
+      const failCount = result.results.filter((r: any) => !r.success).length;
+      setToast({
+        msg: `Posted to ${successCount} platforms${failCount > 0 ? `, ${failCount} failed` : ""}`,
+        type: successCount > 0 ? "success" : "error",
+      });
+      setTimeout(() => setToast(null), 5000);
+    } catch (e: any) {
+      setToast({ msg: e?.message || "Post failed", type: "error" });
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
+
+  const handleSetMode = async (mode: string) => {
+    await setConfig({ key: "posting_mode", value: mode, adminToken });
+    setToast({ msg: `Posting mode set to ${mode}`, type: "success" });
+    setTimeout(() => setToast(null), 2000);
+  };
+
+  const handleToggleAutoPost = async () => {
+    await setConfig({ key: "auto_post_enabled", value: !autoPostEnabled, adminToken });
+    setToast({ msg: autoPostEnabled ? "Auto-post disabled" : "Auto-post enabled", type: "success" });
+    setTimeout(() => setToast(null), 2000);
+  };
+
+  const handleTogglePlatform = async (platformId: string) => {
+    const newPlatforms = autoPostPlatforms.includes(platformId)
+      ? autoPostPlatforms.filter((p: string) => p !== platformId)
+      : [...autoPostPlatforms, platformId];
+    await setConfig({ key: "auto_post_platforms", value: newPlatforms, adminToken });
   };
 
   const compFallbacks = platforms.filter((p: any) => p.type === "composio_fallback");
@@ -44,6 +83,71 @@ export function RapidAPIFallbackDashboard({ adminToken }: { adminToken: string }
         <p className="text-gray-400 text-sm">Backup social posting when Composio fails + Additional platforms not in Composio</p>
         <div className="mt-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 text-yellow-400 text-xs font-bold">
           ⚠️ RapidAPI acts as FALLBACK only. Composio remains the primary engine.
+        </div>
+      </div>
+
+      {/* Posting Mode Controls */}
+      <div className="bg-gray-900/50 border border-gray-700/50 rounded-2xl p-6">
+        <h3 className="text-white font-black text-sm uppercase tracking-widest mb-4">🎯 Posting Mode</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          {[
+            { id: "composio", label: "Composio Only", desc: "Primary engine only", icon: "🔗" },
+            { id: "rapidapi", label: "RapidAPI Only", desc: "Fallback engine only", icon: "⚡" },
+            { id: "both", label: "Both (Recommended)", desc: "Composio first, RapidAPI fallback", icon: "🔄" },
+          ].map((mode) => (
+            <button
+              key={mode.id}
+              onClick={() => handleSetMode(mode.id)}
+              className={`p-4 rounded-xl border-2 text-left transition-all ${
+                postingMode === mode.id
+                  ? "border-orange-500 bg-orange-500/10"
+                  : "border-gray-700/50 bg-gray-800/50 hover:border-gray-600"
+              }`}
+            >
+              <div className="text-lg mb-1">{mode.icon}</div>
+              <div className="text-white font-bold text-sm">{mode.label}</div>
+              <div className="text-gray-400 text-xs">{mode.desc}</div>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-4 mt-4">
+          <button
+            onClick={handleToggleAutoPost}
+            className={`px-6 py-3 rounded-xl font-bold text-sm transition-all ${
+              autoPostEnabled
+                ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+            }`}
+          >
+            {autoPostEnabled ? "🟢 Auto-Post ON" : "🔴 Auto-Post OFF"}
+          </button>
+          <button
+            onClick={handlePostNow}
+            className="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold text-sm transition-all"
+          >
+            🚀 Post Now (All Platforms)
+          </button>
+        </div>
+
+        {/* Platform Selection for Auto-Post */}
+        <div className="mt-4">
+          <div className="text-gray-400 text-xs uppercase tracking-wider mb-2">Auto-Post Platforms:</div>
+          <div className="flex flex-wrap gap-2">
+            {platforms.map((p: any) => (
+              <button
+                key={p.id}
+                onClick={() => handleTogglePlatform(p.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  autoPostPlatforms.includes(p.id)
+                    ? "bg-orange-600 text-white"
+                    : "bg-gray-800 text-gray-500 hover:bg-gray-700"
+                }`}
+              >
+                {p.icon} {p.name}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

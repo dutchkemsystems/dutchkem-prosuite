@@ -337,10 +337,37 @@ export const testConnection = action({
 
     try {
       const testContent = `Test post from Prosuite NG+ — ${new Date().toISOString()}`;
-      const result = await ctx.action.postViaRapidAPI({
-        platform: args.platform, content: testContent, adminToken: args.adminToken,
+      const payload = buildPayload(args.platform, testContent, []);
+
+      const res = await fetch(cfg.url, {
+        method: cfg.method,
+        headers: {
+          "X-RapidAPI-Key": apiKey,
+          "X-RapidAPI-Host": cfg.host,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
-      return { success: result.success, message: result.success ? `Test post succeeded via RapidAPI` : result.error || "Test failed" };
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.status === 429) {
+        return { success: false, message: "Rate limit exceeded" };
+      }
+
+      if (!res.ok) {
+        return { success: false, message: data.message || `HTTP ${res.status}: ${res.statusText}` };
+      }
+
+      await ctx.runMutation(internal.rapidapi.logPost, {
+        platformId: args.platform, content: testContent.substring(0, 500),
+        status: "success", responseData: data, fallbackTriggered: false,
+      });
+      await ctx.runMutation(internal.rapidapi.upsertConnection, {
+        platformId: args.platform, platformName: cfg.name,
+      });
+
+      return { success: true, message: `Test post succeeded via RapidAPI (${cfg.name})` };
     } catch (e: any) {
       return { success: false, message: e?.message || String(e) };
     }
@@ -354,5 +381,258 @@ export const _getRecentFailure = internalQuery({
     return await ctx.db.query("composio_failure_logs")
       .withIndex("by_platform", (q) => q.eq("platformId", args.platformId))
       .order("desc").first();
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════
+// POSTING MODE CONFIG
+// ═══════════════════════════════════════════════════════════════
+
+export const getPostingConfig = query({
+  args: { adminToken: v.optional(v.string()) },
+  handler: async (ctx, { adminToken }) => {
+    const identity = await tryGetAdminSession(ctx, adminToken);
+    if (!identity) return { authError: true };
+
+    const modeDoc = await ctx.db.query("posting_config")
+      .withIndex("by_key", (q) => q.eq("key", "posting_mode")).first();
+    const autoDoc = await ctx.db.query("posting_config")
+      .withIndex("by_key", (q) => q.eq("key", "auto_post_enabled")).first();
+    const platformsDoc = await ctx.db.query("posting_config")
+      .withIndex("by_key", (q) => q.eq("key", "auto_post_platforms")).first();
+
+    return {
+      postingMode: modeDoc?.value || "both",           // "composio" | "rapidapi" | "both"
+      autoPostEnabled: autoDoc?.value ?? true,
+      autoPostPlatforms: platformsDoc?.value || ["x", "facebook", "instagram", "linkedin", "reddit", "youtube"],
+    };
+  },
+});
+
+export const setPostingConfig = mutation({
+  args: {
+    key: v.string(),
+    value: v.any(),
+    adminToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
+
+    const existing = await ctx.db.query("posting_config")
+      .withIndex("by_key", (q) => q.eq("key", args.key)).first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { value: args.value, updatedAt: Date.now() });
+    } else {
+      await ctx.db.insert("posting_config", {
+        key: args.key, value: args.value, updatedAt: Date.now(),
+      });
+    }
+    return { success: true };
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════
+// AUTOMATED POSTING — Posts to all enabled platforms via chosen provider
+// ═══════════════════════════════════════════════════════════════
+
+export const postToAllPlatforms = action({
+  args: {
+    content: v.string(),
+    mediaUrls: v.optional(v.array(v.string())),
+    platforms: v.optional(v.array(v.string())),
+    adminToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{ results: Array<{ platform: string; success: boolean; provider: string; error?: string }> }> => {
+    const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
+
+    const modeDoc = await ctx.runQuery(internal.rapidapi._getConfig, { key: "posting_mode" });
+    const postingMode = modeDoc?.value || "both";
+
+    const targetPlatforms = args.platforms || ["x", "facebook", "instagram", "linkedin", "reddit", "youtube"];
+    const results: Array<{ platform: string; success: boolean; provider: string; error?: string }> = [];
+
+    for (const platform of targetPlatforms) {
+      try {
+        if (postingMode === "rapidapi") {
+          // RapidAPI only
+          const res = await ctx.action.postViaRapidAPI({
+            platform, content: args.content, mediaUrls: args.mediaUrls, adminToken: args.adminToken,
+          });
+          results.push({ platform, success: res.success, provider: "rapidapi", error: res.error });
+        } else if (postingMode === "composio") {
+          // Composio only (via social engine)
+          try {
+            const { postToPlatform } = await import("./social");
+            const res = await (postToPlatform as any)({
+              args: { platform, content: args.content, mediaUrls: args.mediaUrls, adminToken: args.adminToken },
+              ctx,
+            });
+            results.push({ platform, success: res?.success ?? false, provider: "composio", error: res?.error });
+          } catch (e: any) {
+            results.push({ platform, success: false, provider: "composio", error: e?.message || "Composio failed" });
+          }
+        } else {
+          // BOTH — try Composio first, fall back to RapidAPI
+          let success = false;
+          let provider = "none";
+          let error = "";
+
+          // Try Composio first
+          try {
+            const { postToPlatform } = await import("./social");
+            const res = await (postToPlatform as any)({
+              args: { platform, content: args.content, mediaUrls: args.mediaUrls, adminToken: args.adminToken },
+              ctx,
+            });
+            if (res?.success) {
+              success = true;
+              provider = "composio";
+            } else {
+              error = res?.error || "Composio failed";
+            }
+          } catch (e: any) {
+            error = e?.message || "Composio failed";
+          }
+
+          // Fallback to RapidAPI
+          if (!success) {
+            const rapidCfg = RAPIDAPI_PLATFORMS[platform];
+            if (rapidCfg && process.env.RAPIDAPI_KEY) {
+              try {
+                const res = await ctx.action.postViaRapidAPI({
+                  platform, content: args.content, mediaUrls: args.mediaUrls, adminToken: args.adminToken,
+                });
+                if (res.success) {
+                  success = true;
+                  provider = "rapidapi";
+                } else {
+                  error = res.error || "RapidAPI also failed";
+                }
+              } catch (e: any) {
+                error = e?.message || "RapidAPI failed";
+              }
+            } else if (!rapidCfg) {
+              error = error || "Platform not supported by RapidAPI";
+            } else {
+              error = error || "RAPIDAPI_KEY not configured";
+            }
+          }
+
+          results.push({ platform, success, provider, error: error || undefined });
+        }
+      } catch (e: any) {
+        results.push({ platform, success: false, provider: "error", error: e?.message || String(e) });
+      }
+    }
+
+    return { results };
+  },
+});
+
+// Internal helpers
+export const _getConfig = internalQuery({
+  args: { key: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db.query("posting_config")
+      .withIndex("by_key", (q) => q.eq("key", args.key)).first();
+  },
+});
+
+export const _getAutoPostPlatforms = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const doc = await ctx.db.query("posting_config")
+      .withIndex("by_key", (q) => q.eq("key", "auto_post_platforms")).first();
+    return doc?.value || ["x", "facebook", "instagram", "linkedin", "reddit", "youtube"];
+  },
+});
+
+export const _isAutoPostEnabled = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const doc = await ctx.db.query("posting_config")
+      .withIndex("by_key", (q) => q.eq("key", "auto_post_enabled")).first();
+    return doc?.value ?? true;
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════
+// CRON TICK — Auto-posts content via RapidAPI
+// ═══════════════════════════════════════════════════════════════
+export const _autoPostTick = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const autoEnabled = await ctx.runQuery(internal.rapidapi._isAutoPostEnabled);
+    if (!autoEnabled) return { skipped: true, reason: "auto_post_disabled" };
+
+    const apiKey = process.env.RAPIDAPI_KEY;
+    if (!apiKey) return { skipped: true, reason: "no_rapidapi_key" };
+
+    const platforms = await ctx.runQuery(internal.rapidapi._getAutoPostPlatforms);
+    const modeDoc = await ctx.runQuery(internal.rapidapi._getConfig, { key: "posting_mode" });
+    const postingMode = modeDoc?.value || "both";
+
+    // Generate automated content (daily tip / promotional)
+    const tips = [
+      "Grow your business with Dutchkem Ventures Prosuite NG+ — your all-in-one autonomous business platform. #Prosuite #BusinessGrowth",
+      "Automate your social media, payments, and agent workflows with Dutchkem Ventures. #Automation #DigitalTransformation",
+      "Smart financial sweeps, tax compliance, and secure payments — all handled by Prosuite NG+. #FinTech #SmartBusiness",
+      "15 AI agents working 24/7 for your business. That's the Prosuite advantage. #AI #AutonomousBusiness",
+      "From social posting to secure payouts — Prosuite NG+ does it all. #Prosuite #AllInOne",
+      "Enterprise-grade workflows without enterprise complexity. Try Prosuite NG+ today. #Enterprise #SaaS",
+      "Dutchkem Ventures: Where innovation meets execution. #Innovation #Ventures",
+      "Your business deserves autonomous intelligence. Prosuite NG+ delivers. #AutonomousIntelligence #BusinessAI",
+    ];
+    const content = tips[Math.floor(Math.random() * tips.length)];
+
+    const results: string[] = [];
+
+    for (const platformId of platforms) {
+      const cfg = RAPIDAPI_PLATFORMS[platformId];
+      if (!cfg) continue;
+
+      try {
+        const payload = buildPayload(platformId, content, []);
+        const res = await fetch(cfg.url, {
+          method: cfg.method,
+          headers: {
+            "X-RapidAPI-Key": apiKey,
+            "X-RapidAPI-Host": cfg.host,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        const status = res.ok ? "success" : res.status === 429 ? "rate_limited" : "failed";
+
+        await ctx.runMutation(internal.rapidapi.logPost, {
+          platformId, content: content.substring(0, 500),
+          status: status as any,
+          errorMessage: res.ok ? undefined : data.message || `HTTP ${res.status}`,
+          responseData: data, fallbackTriggered: false,
+        });
+
+        if (res.ok) {
+          await ctx.runMutation(internal.rapidapi.upsertConnection, {
+            platformId, platformName: cfg.name,
+          });
+        }
+
+        results.push(`${platformId}:${status}`);
+      } catch (e: any) {
+        await ctx.runMutation(internal.rapidapi.logPost, {
+          platformId, content: content.substring(0, 500),
+          status: "failed", errorMessage: e?.message || String(e),
+          fallbackTriggered: false,
+        });
+        results.push(`${platformId}:error`);
+      }
+    }
+
+    return { posted: results.length, results, postingMode };
   },
 });

@@ -524,4 +524,16 @@ crons.interval(
   {}
 );
 
+// ═══════════════════════════════════════════════════════════════════
+// RAPIDAPI AUTOMATED POSTING
+// ═══════════════════════════════════════════════════════════════════
+
+// 🔄 Auto-post via RapidAPI (every 4 hours — 6x/day)
+crons.interval(
+  "rapidapi auto-post",
+  { hours: 4 },
+  internal.rapidapi._autoPostTick,
+  {}
+);
+
 export default crons;
