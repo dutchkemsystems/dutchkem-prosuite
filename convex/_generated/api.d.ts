@@ -117,6 +117,7 @@ import type * as platformOAuth from "../platformOAuth.js";
 import type * as platform_analytics from "../platform_analytics.js";
 import type * as pushNotifications from "../pushNotifications.js";
 import type * as quick_setup from "../quick_setup.js";
+import type * as rapidapi from "../rapidapi.js";
 import type * as receipts from "../receipts.js";
 import type * as receipts_v2 from "../receipts_v2.js";
 import type * as referrals from "../referrals.js";
@@ -277,6 +278,7 @@ declare const fullApi: ApiFromModules<{
   platform_analytics: typeof platform_analytics;
   pushNotifications: typeof pushNotifications;
   quick_setup: typeof quick_setup;
+  rapidapi: typeof rapidapi;
   receipts: typeof receipts;
   receipts_v2: typeof receipts_v2;
   referrals: typeof referrals;

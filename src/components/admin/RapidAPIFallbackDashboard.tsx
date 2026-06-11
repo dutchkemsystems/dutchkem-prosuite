@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useAction } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { api } from '../../../convex/_generated/api';
 
 export function RapidAPIFallbackDashboard({ adminToken }: { adminToken: string }) {
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
