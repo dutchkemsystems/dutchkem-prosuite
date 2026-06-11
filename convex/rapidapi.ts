@@ -2,7 +2,7 @@
 // RapidAPI Fallback — Backup posting when Composio fails + additional platforms
 
 import { v } from "convex/values";
-import { action, internalMutation, internalQuery, query } from "./_generated/server";
+import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 
