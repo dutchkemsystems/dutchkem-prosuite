@@ -14,16 +14,18 @@ import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 // Telegram and WhatsApp use direct APIs in social.ts (no RapidAPI subscription needed)
 export const RAPIDAPI_PLATFORMS: Record<string, {
   name: string; icon: string; host: string; url: string; method: string;
-  rateLimit: number; type: "exclusive";
+  rateLimit: number; type: "exclusive"; postingSupport: "full" | "read_only" | "webhook";
+  notes?: string;
 }> = {
-  // === RAPIDAPI EXCLUSIVE (need marketplace subscription) ===
-  tumblr: { name: "Tumblr", icon: "📝", host: "tumblr-api1.p.rapidapi.com", url: "https://tumblr-api1.p.rapidapi.com/v2/blog", method: "POST", rateLimit: 5000, type: "exclusive" },
-  pinterest: { name: "Pinterest", icon: "📌", host: "pinterest-api1.p.rapidapi.com", url: "https://pinterest-api1.p.rapidapi.com/pins", method: "POST", rateLimit: 100, type: "exclusive" },
-  medium: { name: "Medium", icon: "📰", host: "medium2.p.rapidapi.com", url: "https://medium2.p.rapidapi.com/posts", method: "POST", rateLimit: 500, type: "exclusive" },
-  snapchat: { name: "Snapchat", icon: "👻", host: "snapchat-stories.p.rapidapi.com", url: "https://snapchat-stories.p.rapidapi.com/stories", method: "POST", rateLimit: 100, type: "exclusive" },
-  twitch: { name: "Twitch", icon: "🎮", host: "twitch-api7.p.rapidapi.com", url: "https://twitch-api7.p.rapidapi.com/channels", method: "PUT", rateLimit: 500, type: "exclusive" },
-  spotify: { name: "Spotify", icon: "🎵", host: "spotify23.p.rapidapi.com", url: "https://spotify23.p.rapidapi.com/playlists", method: "POST", rateLimit: 1000, type: "exclusive" },
-  substack: { name: "Substack", icon: "📬", host: "substack-scraper.p.rapidapi.com", url: "https://substack-scraper.p.rapidapi.com/newsletters", method: "POST", rateLimit: 200, type: "exclusive" },
+  // === RAPIDAPI EXCLUSIVE — POSTING SUPPORTED (need marketplace subscription) ===
+  pinterest: { name: "Pinterest", icon: "📌", host: "pinterest-api1.p.rapidapi.com", url: "https://pinterest-api1.p.rapidapi.com/pins", method: "POST", rateLimit: 100, type: "exclusive", postingSupport: "full" },
+  medium: { name: "Medium", icon: "📰", host: "medium2.p.rapidapi.com", url: "https://medium2.p.rapidapi.com/posts", method: "POST", rateLimit: 500, type: "exclusive", postingSupport: "full" },
+  twitch: { name: "Twitch", icon: "🎮", host: "twitch-api7.p.rapidapi.com", url: "https://twitch-api7.p.rapidapi.com/channels", method: "PUT", rateLimit: 500, type: "exclusive", postingSupport: "full" },
+  // === RAPIDAPI EXCLUSIVE — READ-ONLY / LIMITED (posting via direct API needed) ===
+  tumblr: { name: "Tumblr", icon: "📝", host: "api.tumblr.com", url: "https://api.tumblr.com/v2/blog", method: "POST", rateLimit: 1000, type: "exclusive", postingSupport: "read_only", notes: "Use official Tumblr API with OAuth — no RapidAPI posting wrapper available" },
+  spotify: { name: "Spotify", icon: "🎵", host: "spotify81.p.rapidapi.com", url: "https://spotify81.p.rapidapi.com", method: "GET", rateLimit: 1000, type: "exclusive", postingSupport: "read_only", notes: "Read-only data API — posting requires official Spotify Web API with OAuth" },
+  substack: { name: "Substack", icon: "📬", host: "substack-live.rapidapi.com", url: "https://substack-live.rapidapi.com", method: "GET", rateLimit: 200, type: "exclusive", postingSupport: "read_only", notes: "Read-only scraper — posting requires direct Substack API (no public posting API exists)" },
+  snapchat: { name: "Snapchat", icon: "👻", host: "snapchat-stories.p.rapidapi.com", url: "https://snapchat-stories.p.rapidapi.com/stories", method: "POST", rateLimit: 100, type: "exclusive", postingSupport: "webhook", notes: "Stories API only — use official Snapchat Marketing API for full posting" },
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -47,6 +49,7 @@ export const getRapidAPIStatus = query({
         const conn = connections.find((c) => c.platformId === id);
         return {
           id, name: cfg.name, icon: cfg.icon, type: cfg.type,
+          postingSupport: cfg.postingSupport, notes: cfg.notes,
           rateLimit: cfg.rateLimit, isActive: conn?.isActive ?? false,
           usageCount: conn?.usageCount ?? 0, errorCount: conn?.errorCount ?? 0,
           lastUsed: conn?.lastUsed,
@@ -54,7 +57,8 @@ export const getRapidAPIStatus = query({
       }),
       stats: {
         totalPlatforms: Object.keys(RAPIDAPI_PLATFORMS).length,
-        composioFallback: Object.values(RAPIDAPI_PLATFORMS).filter((p) => p.type === "composio_fallback").length,
+        postingSupported: Object.values(RAPIDAPI_PLATFORMS).filter((p) => p.postingSupport === "full").length,
+        readOnly: Object.values(RAPIDAPI_PLATFORMS).filter((p) => p.postingSupport === "read_only").length,
         exclusive: Object.values(RAPIDAPI_PLATFORMS).filter((p) => p.type === "exclusive").length,
         fallbackTriggered: fallbackCount,
         fallbackSuccessRate: fallbackCount > 0 ? Math.round((fallbackSuccess / fallbackCount) * 100) : 0,

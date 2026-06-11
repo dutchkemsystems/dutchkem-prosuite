@@ -155,10 +155,10 @@ export function RapidAPIFallbackDashboard({ adminToken }: { adminToken: string }
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
           { label: "Total Platforms", value: stats.totalPlatforms, color: "text-blue-400" },
-          { label: "Composio Fallback", value: stats.composioFallback, color: "text-emerald-400" },
-          { label: "RapidAPI Exclusive", value: stats.exclusive, color: "text-purple-400" },
+          { label: "Full Posting", value: stats.postingSupported || 0, color: "text-green-400" },
+          { label: "Read-Only", value: stats.readOnly || 0, color: "text-yellow-400" },
           { label: "Fallback Used", value: stats.fallbackTriggered, color: "text-orange-400" },
-          { label: "Success Rate", value: `${stats.fallbackSuccessRate}%`, color: "text-green-400" },
+          { label: "Success Rate", value: `${stats.fallbackSuccessRate}%`, color: "text-purple-400" },
         ].map((s, i) => (
           <div key={i} className="bg-gray-900/50 border border-gray-700/50 rounded-xl p-4 text-center">
             <div className={`text-2xl font-black ${s.color}`}>{s.value}</div>
@@ -193,23 +193,32 @@ export function RapidAPIFallbackDashboard({ adminToken }: { adminToken: string }
       {/* RapidAPI Exclusive Platforms */}
       <div>
         <h3 className="text-white font-black text-sm uppercase tracking-widest mb-4">✨ Exclusive Platforms (RapidAPI Only)</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {exclusives.map((p: any) => (
-            <div key={p.id} className="bg-gray-900/50 border border-purple-500/20 rounded-xl p-4 flex items-center gap-4">
-              <div className="text-3xl">{p.icon}</div>
-              <div className="flex-1">
-                <div className="text-white font-bold text-sm">{p.name}</div>
-                <div className="text-purple-400 text-xs">🟢 Exclusive to RapidAPI</div>
-                <div className="text-gray-500 text-xs">{p.usageCount} posts • {p.errorCount} errors</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {exclusives.map((p: any) => {
+            const supportColor = p.postingSupport === "full" ? "text-green-400" : p.postingSupport === "read_only" ? "text-yellow-400" : "text-gray-400";
+            const supportLabel = p.postingSupport === "full" ? "✅ Full Posting" : p.postingSupport === "read_only" ? "👁️ Read-Only" : "🔗 Webhook/Hook";
+            return (
+              <div key={p.id} className="bg-gray-900/50 border border-purple-500/20 rounded-xl p-4">
+                <div className="flex items-center gap-4 mb-2">
+                  <div className="text-3xl">{p.icon}</div>
+                  <div className="flex-1">
+                    <div className="text-white font-bold text-sm">{p.name}</div>
+                    <div className={`${supportColor} text-xs font-bold`}>{supportLabel}</div>
+                    <div className="text-gray-500 text-xs">{p.usageCount} posts • {p.errorCount} errors</div>
+                  </div>
+                  <button
+                    onClick={() => handleTest(p.id)}
+                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-bold transition-all"
+                  >
+                    Test
+                  </button>
+                </div>
+                {p.notes && (
+                  <div className="text-gray-500 text-[10px] mt-1 border-t border-gray-800 pt-2">{p.notes}</div>
+                )}
               </div>
-              <button
-                onClick={() => handleTest(p.id)}
-                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-bold transition-all"
-              >
-                Test
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

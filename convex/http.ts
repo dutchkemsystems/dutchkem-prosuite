@@ -167,6 +167,16 @@ http.route({
           });
         } catch (e: any) { console.error("[Webhook] KDP subscription activation failed:", e.message); }
       }
+      // 4. Activate enterprise subscription if metadata indicates enterprise
+      if (body.metadata?.type === "enterprise_subscription" && body.metadata?.orgId) {
+        try {
+          await ctx.runMutation(internal.enterprise_payments.confirmEnterprisePayment, {
+            reference: body.reference,
+            amount: body.amount,
+            koraReference: body.data?.reference || body.reference,
+          });
+        } catch (e: any) { console.error("[Webhook] Enterprise payment activation failed:", e.message); }
+      }
     }
     return new Response(JSON.stringify({ webhookStatus: "processed", ...verification }), { status: 200, headers: { "Content-Type": "application/json" } });
   }),
