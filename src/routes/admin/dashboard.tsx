@@ -540,6 +540,8 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
   const handleComposioCallback = useAction(api.social.handleComposioCallback);
   const connectTelegramBot = useAction(api.social.connectTelegramBot);
   const connectBluesky = useAction(api.social.connectBluesky);
+  const startTryPostOAuth = useAction(api.social.startTryPostOAuth);
+  const syncFromTryPost = useAction(api.social.syncFromTryPost);
   // FIX: getOAuthProviderStatus is a QUERY on the backend, NOT an action.
   // Using useAction here was the actual root cause of the [CONVEX M(...)] errors —
   // the dashboard was calling a query via /api/action, which always failed,
@@ -787,15 +789,18 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
         return;
       }
 
-      // Provider selection: Composio is PRIMARY when enabled and supported.
-      // Direct OAuth is FALLBACK. This is deterministic — no parallel calls.
+      // Provider selection: Composio → TryPost → Direct OAuth
       let authUrl: string | null = null;
-      let usingProvider: "composio" | "direct" = "direct";
+      let usingProvider: "composio" | "trypost" | "direct" = "direct";
       let composioConnectionId: string | undefined = undefined;
 
       const composioAvailable =
         providerStatus?.composioEnabled === true &&
         providerStatus?.composioPlatforms?.includes(platformId);
+
+      const trypostAvailable =
+        providerStatus?.trypostEnabled === true &&
+        providerStatus?.trypostPlatforms?.includes(platformId);
 
       if (composioAvailable) {
         // PRIMARY: Use Composio for managed OAuth
@@ -805,8 +810,18 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
           usingProvider = "composio";
           composioConnectionId = composioResult.connectionId;
         } else if (composioResult?.error) {
-          // Composio failed — fall back to direct
-          console.warn("Composio failed, falling back to direct OAuth:", composioResult.error);
+          console.warn("Composio failed, trying TryPost:", composioResult.error);
+        }
+      }
+
+      if (!authUrl && trypostAvailable) {
+        // SECONDARY: Use TryPost's Socialite OAuth
+        const trypostResult = await startTryPostOAuth({ platform: platformId, adminToken });
+        if (trypostResult?.success && trypostResult.redirectUrl) {
+          authUrl = trypostResult.redirectUrl;
+          usingProvider = "trypost";
+        } else if (trypostResult?.error) {
+          console.warn("TryPost failed, falling back to direct OAuth:", trypostResult.error);
         }
       }
 
@@ -814,12 +829,22 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
         // FALLBACK: Use direct platform OAuth
         const directResult = await generateOAuthUrl({ platform: platformId, adminToken });
         if (directResult?.error) {
-          showToast(directResult.error, "error");
-          setConnecting(null);
-          return;
+          // If the error indicates TryPost is available, redirect there
+          if (directResult.error.startsWith("TRYPST:")) {
+            const tpPlatform = directResult.error.replace("TRYPST:", "");
+            if (directResult.authUrl) {
+              authUrl = directResult.authUrl;
+              usingProvider = "trypost";
+            }
+          } else {
+            showToast(directResult.error, "error");
+            setConnecting(null);
+            return;
+          }
+        } else {
+          authUrl = directResult.authUrl || null;
+          usingProvider = "direct";
         }
-        authUrl = directResult.authUrl || null;
-        usingProvider = "direct";
       }
 
       if (authUrl) {
@@ -844,14 +869,24 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
           if (popup.closed) {
             clearInterval(popupCheck);
             setConnecting(null);
-            // If we used Composio and got back a connectionId, start polling
-            // so the dashboard picks up the ACTIVE tokens once the user
-            // finishes in the popup.
             if (usingProvider === "composio" && composioConnectionId) {
               setComposioPoll({
                 connectionId: composioConnectionId,
                 platformId,
                 startedAt: Date.now(),
+              });
+            } else if (usingProvider === "trypost") {
+              // Sync from TryPost after popup closes
+              syncFromTryPost({ platform: platformId, adminToken }).then((result) => {
+                if (result?.synced && result.synced > 0) {
+                  showToast(`Connected via TryPost (${result.synced} account synced)`, "success");
+                } else {
+                  showToast("Connected in TryPost. Click 'Sync from TryPost' if accounts don't appear.", "info");
+                }
+                fetchPlatforms();
+              }).catch(() => {
+                showToast("Connected in TryPost. Click 'Sync from TryPost' if accounts don't appear.", "info");
+                fetchPlatforms();
               });
             } else {
               fetchPlatforms();
@@ -1048,6 +1083,22 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
                 {platformsLoading ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" /> : "🔄"}
                 {platformsLoading ? "Refreshing..." : "Refresh Platforms"}
               </button>
+              {providerStatus?.trypostEnabled && (
+                <button
+                  onClick={async () => {
+                    const result = await syncFromTryPost({ adminToken });
+                    if (result?.synced && result.synced > 0) {
+                      showToast(`Synced ${result.synced} accounts from TryPost`, "success");
+                    } else {
+                      showToast(result?.error || "No new accounts found in TryPost", "info");
+                    }
+                    fetchPlatforms();
+                  }}
+                  className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-purple-600/20"
+                >
+                  🔄 Sync from TryPost
+                </button>
+              )}
             </div>
           </div>
 

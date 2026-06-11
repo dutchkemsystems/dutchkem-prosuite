@@ -126,6 +126,20 @@ export const COMPOSIO_APP_MAP: Record<string, string | undefined> = {
   telegram: undefined,
 };
 
+// Platforms that can be connected via TryPost's Socialite OAuth
+export const TRYPOST_PLATFORMS: Record<string, string> = {
+  pinterest: "pinterest",
+  tiktok: "tiktok",
+  threads: "threads",
+  facebook: "facebook",
+  instagram: "instagram",
+  youtube: "youtube",
+  reddit: "reddit",
+  discord: "discord",
+  linkedin: "linkedin",
+  x: "x",
+};
+
 // ═══════════════════════════════════════════════════════════════════
 // OAUTH STATE MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════
@@ -203,6 +217,14 @@ export const generateOAuthUrl = action({
       const clientId = getPlatformClientId(args.platform);
       const redirectUri = getRedirectUri(args.platform);
       const scopes = config.scopes.join(" ");
+
+      if (!clientId) {
+        const trypostUrl = process.env.TRYPOST_URL;
+        if (trypostUrl && TRYPOST_PLATFORMS[args.platform]) {
+          return { success: false, error: `TRYPST:${args.platform}`, authUrl: `${trypostUrl}/connect/${args.platform}` };
+        }
+        return { success: false, error: `${config.name} client ID not configured. Set ${args.platform.toUpperCase()}_CLIENT_ID (or APP_ID/CLIENT_KEY) in Convex env vars, or configure TRYPOST_URL for TryPost OAuth.` };
+      }
 
       let authUrl = "";
       switch (args.platform) {
@@ -863,7 +885,103 @@ export const getOAuthProviderStatus = query({
     const composioPlatforms = Object.entries(COMPOSIO_APP_MAP)
       .filter(([, slug]) => slug)
       .map(([id]) => id);
-    return { directEnabled: true, composioEnabled: composioKeySet, composioPlatforms };
+    const trypostUrl = process.env.TRYPOST_URL || "";
+    const trypostPlatforms = trypostUrl ? Object.keys(TRYPOST_PLATFORMS) : [];
+    return { directEnabled: true, composioEnabled: composioKeySet, composioPlatforms, trypostEnabled: !!trypostUrl, trypostPlatforms, trypostUrl };
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// ACTION: Start TryPost OAuth for unsupported platforms
+// ═══════════════════════════════════════════════════════════════════
+export const startTryPostOAuth = action({
+  args: {
+    platform: v.string(),
+    adminToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{
+    success: boolean; redirectUrl?: string; error?: string;
+  }> => {
+    try {
+      const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
+      if (!identity) return { success: false, error: "Not authenticated" };
+
+      const trypostUrl = process.env.TRYPOST_URL;
+      if (!trypostUrl) return { success: false, error: "TryPost URL not configured" };
+
+      const trypostPlatform = TRYPOST_PLATFORMS[args.platform];
+      if (!trypostPlatform) return { success: false, error: `${args.platform} not supported via TryPost` };
+
+      const state = uuidV4();
+      await ctx.runMutation(internal.social.storeOAuthState, {
+        state,
+        platform: `trypost_${args.platform}`,
+        adminId: identity._id,
+      });
+
+      const redirectUrl = `${trypostUrl}/connect/${trypostPlatform}`;
+      return { success: true, redirectUrl };
+    } catch (error: any) {
+      return { success: false, error: error?.message || String(error) };
+    }
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// ACTION: Sync connected accounts from TryPost API
+// ═══════════════════════════════════════════════════════════════════
+export const syncFromTryPost = action({
+  args: {
+    platform: v.optional(v.string()),
+    adminToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{
+    success: boolean; synced?: number; error?: string;
+  }> => {
+    try {
+      const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
+      if (!identity) return { success: false, error: "Not authenticated" };
+
+      const trypostUrl = process.env.TRYPOST_URL;
+      const trypostApiKey = process.env.TRYPOST_API_KEY;
+      if (!trypostUrl) return { success: false, error: "TRYPOST_URL not configured" };
+      if (!trypostApiKey) return { success: false, error: "TRYPOST_API_KEY not configured" };
+
+      const res = await fetch(`${trypostUrl}/api/social-accounts`, {
+        headers: { "Authorization": `Bearer ${trypostApiKey}`, "Accept": "application/json" },
+      });
+      if (!res.ok) return { success: false, error: `TryPost API ${res.status}` };
+
+      const data = await res.json();
+      const accounts = data?.data || data || [];
+      let synced = 0;
+
+      for (const account of accounts) {
+        if (args.platform && account.platform !== args.platform) continue;
+        if (!account.access_token || !account.is_active) continue;
+
+        const platformName = account.platform?.charAt(0).toUpperCase() + account.platform?.slice(1) || account.platform;
+
+        await ctx.runMutation(internal.social.savePlatformConnection, {
+          adminId: identity._id,
+          platform: account.platform,
+          platformName,
+          accessToken: account.access_token,
+          refreshToken: account.refresh_token || "",
+          platformUserId: account.platform_user_id || "",
+          platformUsername: account.username || account.display_name || "",
+          expiresAt: account.token_expires_at ? new Date(account.token_expires_at).getTime() : undefined,
+          scopes: account.scopes || "",
+          anonymousByDefault: true,
+          integrationId: "trypost",
+        });
+        synced++;
+      }
+
+      return { success: true, synced };
+    } catch (error: any) {
+      return { success: false, error: error?.message || String(error) };
+    }
   },
 });
 
@@ -990,7 +1108,7 @@ function getPlatformClientSecret(platform: string): string {
 }
 
 function getRedirectUri(platform: string): string {
-  const baseUrl = process.env.APP_URL || "https://dutchkem-prosuite-app.vercel.app";
+  const baseUrl = process.env.CONVEX_SITE_URL || "https://warmhearted-aardvark-280.convex.site";
   return `${baseUrl}/api/social/callback/${platform}`;
 }
 

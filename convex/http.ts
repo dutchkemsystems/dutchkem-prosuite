@@ -223,8 +223,8 @@ http.route({
 
       const clientId = process.env[`${platform.toUpperCase()}_CLIENT_ID`] || process.env[`${platform.toUpperCase()}_APP_ID`] || process.env[`${platform.toUpperCase()}_CLIENT_KEY`] || "";
       const clientSecret = process.env[`${platform.toUpperCase()}_CLIENT_SECRET`] || process.env[`${platform.toUpperCase()}_APP_SECRET`] || "";
-      const appUrl = process.env.APP_URL || "https://dutchkem-prosuite-app.vercel.app";
-      const redirectUri = `${appUrl}/api/social/callback/${platform}`;
+      const siteUrl = process.env.CONVEX_SITE_URL || "https://warmhearted-aardvark-280.convex.site";
+      const redirectUri = `${siteUrl}/api/social/callback/${platform}`;
 
       let tokenData: any = {};
       let username = "";
