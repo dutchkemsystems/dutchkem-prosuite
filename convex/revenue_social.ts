@@ -133,11 +133,7 @@ export const createConversation = mutation({
       buyingIntentScore: args.buyingIntentScore,
       status: "open",
       convertedToSale: false,
-      saleAmount: 0,
-      commissionEarned: 0,
-      createdBy: identity._id,
       createdAt: now,
-      updatedAt: now,
     });
   },
 });
@@ -160,7 +156,7 @@ export const updateConversation = mutation({
     const existing = await ctx.db.get(args.conversationId);
     if (!existing) throw new Error("Conversation not found");
 
-    const patch: Record<string, unknown> = { updatedAt: Date.now() };
+    const patch: Record<string, unknown> = {};
     if (args.status !== undefined) patch.status = args.status;
     if (args.convertedToSale !== undefined) patch.convertedToSale = args.convertedToSale;
     if (args.saleAmount !== undefined) patch.saleAmount = args.saleAmount;
@@ -216,7 +212,6 @@ export const toggleDmRule = mutation({
 
     await ctx.db.patch(args.ruleId, {
       isActive: args.isActive,
-      updatedAt: Date.now(),
     });
     return null;
   },
@@ -266,7 +261,6 @@ export const logEngagement = mutation({
       autoReplied: args.autoReplied,
       replyText: args.replyText,
       converted: args.converted,
-      loggedBy: identity._id,
       createdAt: Date.now(),
     });
   },
@@ -295,7 +289,6 @@ export const convertToSale = mutation({
       saleAmount: args.amount,
       commissionEarned,
       convertedAt: Date.now(),
-      updatedAt: Date.now(),
     });
     return null;
   },

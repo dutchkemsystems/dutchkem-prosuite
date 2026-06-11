@@ -121,8 +121,8 @@ function OverviewTab({ adminToken }: { adminToken: string }) {
 
 function CreditsTab({ adminToken }: { adminToken: string }) {
   const stats = useQuery(api.revenue_credits.getCreditStats, adminToken ? { adminToken } : 'skip')
-  const plans = useQuery(api.revenue_credits.getCreditPlans, adminToken ? { adminToken } : 'skip')
-  const costs = useQuery(api.revenue_credits.getCreditCosts, adminToken ? { adminToken } : 'skip')
+  const plans = useQuery(api.revenue_credits.getCreditPlans)
+  const costs = useQuery(api.revenue_credits.getCreditCosts)
   const purchases = useQuery(api.revenue_credits.getAllPurchases, adminToken ? { adminToken } : 'skip')
 
   const planList = [

@@ -32,14 +32,14 @@ export const getOutcomeStats = query({
     await tryGetAdminSession(ctx, args.adminToken);
     const events = await ctx.db.query("outcome_events").collect();
     const totalEvents = events.length;
-    const totalRevenue = events.reduce((sum, e) => sum + (e.amountChargedNgN || 0), 0);
-    const pendingSettlements = events.filter((e) => !e.settled).length;
+    const totalRevenue = events.reduce((sum, e) => sum + (e.amountCharged || 0), 0);
+    const pendingSettlements = events.filter((e) => e.status === "pending").length;
 
     const typeMap: Record<string, { count: number; revenue: number }> = {};
     for (const e of events) {
       if (!typeMap[e.outcomeType]) typeMap[e.outcomeType] = { count: 0, revenue: 0 };
       typeMap[e.outcomeType].count++;
-      typeMap[e.outcomeType].revenue += e.amountChargedNgN || 0;
+      typeMap[e.outcomeType].revenue += e.amountCharged || 0;
     }
     const byType = Object.entries(typeMap).map(([type, data]) => ({ type, ...data }));
 
@@ -81,7 +81,6 @@ export const updateOutcomeRule = mutation({
     const patch: Record<string, unknown> = {};
     if (args.priceNgN !== undefined) patch.priceNgN = args.priceNgN;
     if (args.isActive !== undefined) patch.isActive = args.isActive;
-    patch.updatedAt = Date.now();
     await ctx.db.patch(args.ruleId, patch);
   },
 });
@@ -107,9 +106,9 @@ export const recordOutcome = mutation({
       userId: args.userId,
       outcomeType: args.outcomeType,
       outcomeValue: args.outcomeValue,
-      amountChargedNgN: charged,
-      commissionPercentage: rule.commissionPercentage,
-      settled: false,
+      amountCharged: charged,
+      status: "pending",
+      reference: `OUT_${Date.now()}_${args.userId}`,
       createdAt: Date.now(),
     });
     return { success: true, charged };
@@ -162,8 +161,10 @@ export const createWhiteLabelCustomer = mutation({
       secondaryColor: args.secondaryColor,
       setupFeePaid: args.setupFeePaid,
       monthlyFee: args.monthlyFee,
+      subscriptionEndDate: Date.now() + 365 * 24 * 60 * 60 * 1000,
       status: "active",
       createdAt: Date.now(),
+      updatedAt: Date.now(),
     });
     return id;
   },
@@ -292,7 +293,7 @@ export const recordAgentMetric = mutation({
       userSatisfaction: args.userSatisfaction,
       revenueGenerated: args.revenueGenerated,
       costSaved: args.costSaved,
-      updatedAt: Date.now(),
+      roiPercentage: 0,
     };
 
     if (existing) {
@@ -375,6 +376,7 @@ export const createApiKey = mutation({
       callsUsed: 0,
       isActive: true,
       createdAt: Date.now(),
+      expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000,
     });
 
     return { apiKey, apiSecret, tier: args.tier, monthlyCallLimit };
@@ -492,7 +494,6 @@ export const updateBookingStatus = mutation({
     await tryGetAdminSession(ctx, args.adminToken);
     const patch: Record<string, unknown> = { status: args.status };
     if (args.status === "completed") patch.completedDate = Date.now();
-    patch.updatedAt = Date.now();
     await ctx.db.patch(args.bookingId, patch);
   },
 });
