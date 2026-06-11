@@ -23,6 +23,7 @@ import { EnterpriseHub } from "~/components/EnterpriseHub";
 import { EnterprisePortalAdmin } from "~/components/enterprise/EnterprisePortalAdmin";
 import { AdminEnterpriseHub } from "~/components/admin/AdminEnterpriseHub";
 import { MimoControlPanel } from "~/components/admin/MimoControlPanel";
+import { RapidAPIFallbackDashboard } from "~/components/admin/RapidAPIFallbackDashboard";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -163,7 +164,8 @@ function AdminDashboardPage() {
                <AdminTab active={activeTab === "tax-compliance"} onClick={() => setActiveTab("tax-compliance")} icon="📋" label="Tax Compliance" />
                  <AdminTab active={activeTab === "enterprise"} onClick={() => setActiveTab("enterprise")} icon="🏢" label="Enterprise Hub" />
                  <AdminTab active={activeTab === "enterprise-portal"} onClick={() => setActiveTab("enterprise-portal")} icon="🌐" label="Enterprise Portal" />
-                 <AdminTab active={activeTab === "mimo"} onClick={() => setActiveTab("mimo")} icon="🧠" label="Mimo V.2.5" />
+                  <AdminTab active={activeTab === "mimo"} onClick={() => setActiveTab("mimo")} icon="🧠" label="Mimo V.2.5" />
+                  <AdminTab active={activeTab === "rapidapi"} onClick={() => setActiveTab("rapidapi")} icon="🔄" label="RapidAPI Fallback" />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -214,6 +216,7 @@ function AdminDashboardPage() {
                  {activeTab === "enterprise" && <AdminEnterpriseHub adminToken={adminToken} />}
                 {activeTab === "enterprise-portal" && <EnterprisePortalAdmin adminToken={adminToken} />}
                  {activeTab === "mimo" && <MimoControlPanel adminToken={adminToken} />}
+                 {activeTab === "rapidapi" && <RapidAPIFallbackDashboard adminToken={adminToken} />}
            </AdminSuspense>
         </div>
         <Footer />

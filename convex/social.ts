@@ -386,11 +386,36 @@ export async function postToPlatformHandler(ctx: any, args: any): Promise<any> {
   const config = PLATFORM_CONFIGS[args.platform];
   if (!config) throw new Error(`Unknown platform: ${args.platform}`);
 
-  const result = await postToPlatformApi(
+  let result = await postToPlatformApi(
     args.platform, connection.accessToken, args.content, args.mediaUrls, args.anonymous
   );
 
   const startedAt = Date.now();
+
+  // ═══ RAPIDAPI FALLBACK ═══ If primary posting fails, try RapidAPI
+  if (!result.success && process.env.RAPIDAPI_KEY) {
+    const { RAPIDAPI_PLATFORMS } = await import("./rapidapi");
+    const rapidCfg = RAPIDAPI_PLATFORMS[args.platform];
+    if (rapidCfg) {
+      try {
+        const fallbackResult = await postViaRapidAPIFallback(
+          ctx, args.platform, args.content, args.mediaUrls || []
+        );
+        if (fallbackResult.success) {
+          result = { success: true, postId: fallbackResult.postId };
+          await ctx.runMutation(internal.rapidapi.logComposioFailure, {
+            platformId: args.platform, errorMessage: result.error || "Primary posting failed",
+            fallbackUsed: true, fallbackSuccess: true,
+          });
+        } else {
+          await ctx.runMutation(internal.rapidapi.logComposioFailure, {
+            platformId: args.platform, errorMessage: result.error || "Primary posting failed",
+            fallbackUsed: true, fallbackSuccess: false,
+          });
+        }
+      } catch (_) { /* fallback also failed — keep original result */ }
+    }
+  }
 
   await ctx.runMutation(internal.social.logPost, {
     platformId: args.platform,
@@ -411,7 +436,7 @@ export async function postToPlatformHandler(ctx: any, args: any): Promise<any> {
     content: args.content,
     durationMs: Date.now() - startedAt,
     error: result.error,
-    metadata: { source: "social_engine", externalId: result.postId || "" },
+    metadata: { source: result.error ? "rapidapi_fallback" : "social_engine", externalId: result.postId || "" },
   });
 
   return result;
@@ -1404,6 +1429,76 @@ async function postToPlatformApi(
     }
   } catch (error: any) {
     return { success: false, error: error.message };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RAPIDAPI FALLBACK — Used when primary posting fails
+// ═══════════════════════════════════════════════════════════════════
+async function postViaRapidAPIFallback(
+  ctx: any, platformId: string, content: string, mediaUrls: string[]
+): Promise<{ success: boolean; postId?: string; error?: string }> {
+  const apiKey = process.env.RAPIDAPI_KEY;
+  if (!apiKey) return { success: false, error: "RAPIDAPI_KEY not configured" };
+
+  const { RAPIDAPI_PLATFORMS } = await import("./rapidapi");
+  const cfg = RAPIDAPI_PLATFORMS[platformId];
+  if (!cfg) return { success: false, error: `No RapidAPI config for ${platformId}` };
+
+  const payloads: Record<string, any> = {
+    x: { text: content.substring(0, 280) },
+    facebook: { message: content },
+    instagram: { caption: content, image_url: mediaUrls[0] },
+    tumblr: { type: "text", body: content, title: content.substring(0, 100) },
+    pinterest: { title: content.substring(0, 100), description: content, image_url: mediaUrls[0] },
+    telegram: { chat_id: process.env.TELEGRAM_CHAT_ID || "", text: content },
+    discord: { content },
+    whatsapp: { to: process.env.WHATSAPP_NUMBER || "", text: { body: content } },
+    medium: { title: content.substring(0, 100), content, contentFormat: "html" },
+    snapchat: { caption: content, media_url: mediaUrls[0] },
+    twitch: { title: content.substring(0, 140) },
+    spotify: { name: content.substring(0, 100), description: content },
+    substack: { title: content.substring(0, 100), body: content },
+  };
+
+  try {
+    const res = await fetch(cfg.url, {
+      method: cfg.method,
+      headers: {
+        "X-RapidAPI-Key": apiKey,
+        "X-RapidAPI-Host": cfg.host,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payloads[platformId] || { text: content }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (res.status === 429) {
+      await ctx.runMutation(internal.rapidapi.logPost, {
+        platformId, content: content.substring(0, 500),
+        status: "rate_limited", errorMessage: "Rate limit exceeded",
+        fallbackTriggered: true,
+      });
+      return { success: false, error: "RapidAPI rate limit exceeded" };
+    }
+
+    if (!res.ok) {
+      await ctx.runMutation(internal.rapidapi.logPost, {
+        platformId, content: content.substring(0, 500),
+        status: "failed", errorMessage: data.message || `HTTP ${res.status}`,
+        responseData: data, fallbackTriggered: true,
+      });
+      return { success: false, error: data.message || `RapidAPI ${res.status}` };
+    }
+
+    await ctx.runMutation(internal.rapidapi.logPost, {
+      platformId, content: content.substring(0, 500),
+      status: "success", responseData: data, fallbackTriggered: true,
+    });
+    return { success: true, postId: data.id || data.post_id || "rapidapi_fallback" };
+  } catch (error: any) {
+    return { success: false, error: error?.message || String(error) };
   }
 }
 

@@ -2891,4 +2891,40 @@ export default defineSchema({
     timestamp: v.number(),
   }).index("by_action", ["action"])
     .index("by_timestamp", ["timestamp"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // RAPIDAPI FALLBACK — Backup posting + additional platforms
+  // ═══════════════════════════════════════════════════════════════
+  rapidapi_connections: defineTable({
+    platformId: v.string(),
+    platformName: v.string(),
+    isActive: v.boolean(),
+    usageCount: v.number(),
+    errorCount: v.number(),
+    lastUsed: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_platform", ["platformId"]),
+
+  rapidapi_post_logs: defineTable({
+    platformId: v.string(),
+    content: v.string(),
+    status: v.union(v.literal("success"), v.literal("failed"), v.literal("rate_limited")),
+    errorMessage: v.optional(v.string()),
+    responseData: v.optional(v.any()),
+    fallbackTriggered: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_platform", ["platformId"])
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
+
+  composio_failure_logs: defineTable({
+    platformId: v.string(),
+    errorMessage: v.string(),
+    errorCode: v.optional(v.string()),
+    fallbackUsed: v.boolean(),
+    fallbackSuccess: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_platform", ["platformId"])
+    .index("by_created", ["createdAt"]),
 });
