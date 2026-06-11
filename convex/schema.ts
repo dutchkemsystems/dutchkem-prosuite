@@ -2936,4 +2936,242 @@ export default defineSchema({
     value: v.any(),
     updatedAt: v.number(),
   }).index("by_key", ["key"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE FEATURE 1: CREDIT-BASED BILLING SYSTEM
+  // ═══════════════════════════════════════════════════════════════
+  user_credits: defineTable({
+    userId: v.string(),
+    balance: v.number(),
+    lifetimePurchased: v.number(),
+    lifetimeUsed: v.number(),
+    autoRechargeEnabled: v.boolean(),
+    autoRechargeThreshold: v.number(),
+    autoRechargeAmount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  credit_purchases: defineTable({
+    userId: v.string(),
+    amount: v.number(),
+    priceNgN: v.number(),
+    bonusCredits: v.number(),
+    paymentReference: v.string(),
+    status: v.union(v.literal("pending"), v.literal("completed"), v.literal("failed")),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  }).index("by_user", ["userId"])
+    .index("by_reference", ["paymentReference"])
+    .index("by_status", ["status"]),
+
+  credit_transactions: defineTable({
+    userId: v.string(),
+    amount: v.number(),
+    transactionType: v.string(),
+    description: v.string(),
+    reference: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_type", ["transactionType"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE FEATURE 2: SOCIAL COMMERCE (DM-to-Sale)
+  // ═══════════════════════════════════════════════════════════════
+  social_commerce_conversations: defineTable({
+    platform: v.string(),
+    customerHandle: v.string(),
+    conversationData: v.any(),
+    buyingIntentScore: v.number(),
+    status: v.union(v.literal("open"), v.literal("engaged"), v.literal("converted"), v.literal("closed")),
+    leadId: v.optional(v.string()),
+    convertedToSale: v.boolean(),
+    saleAmount: v.optional(v.number()),
+    commissionEarned: v.optional(v.number()),
+    createdAt: v.number(),
+    convertedAt: v.optional(v.number()),
+  }).index("by_platform", ["platform"])
+    .index("by_status", ["status"])
+    .index("by_intent", ["buyingIntentScore"]),
+
+  dm_automation_rules: defineTable({
+    triggerKeywords: v.array(v.string()),
+    responseTemplate: v.string(),
+    productRecommendation: v.optional(v.string()),
+    discountCode: v.optional(v.string()),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_active", ["isActive"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE FEATURE 3: AI AGENT MARKETPLACE
+  // ═══════════════════════════════════════════════════════════════
+  marketplace_listings: defineTable({
+    agentId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    category: v.string(),
+    industry: v.optional(v.string()),
+    pricingModel: v.union(v.literal("free"), v.literal("one_time"), v.literal("subscription")),
+    priceNgN: v.number(),
+    subscriptionPriceNgN: v.optional(v.number()),
+    revenueSharePercentage: v.number(),
+    downloadsCount: v.number(),
+    rating: v.number(),
+    developerId: v.string(),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_agent", ["agentId"])
+    .index("by_developer", ["developerId"])
+    .index("by_category", ["category"])
+    .index("by_active", ["isActive"]),
+
+  marketplace_purchases: defineTable({
+    listingId: v.id("marketplace_listings"),
+    buyerId: v.string(),
+    purchaseType: v.union(v.literal("one_time"), v.literal("subscription")),
+    amountPaid: v.number(),
+    platformFee: v.number(),
+    developerEarnings: v.number(),
+    subscriptionEndDate: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_listing", ["listingId"])
+    .index("by_buyer", ["buyerId"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE FEATURE 4: OUTCOME-BASED PRICING
+  // ═══════════════════════════════════════════════════════════════
+  outcome_events: defineTable({
+    userId: v.string(),
+    outcomeType: v.string(),
+    outcomeValue: v.any(),
+    amountCharged: v.number(),
+    status: v.union(v.literal("pending"), v.literal("completed"), v.literal("failed")),
+    reference: v.string(),
+    createdAt: v.number(),
+    settledAt: v.optional(v.number()),
+  }).index("by_user", ["userId"])
+    .index("by_type", ["outcomeType"])
+    .index("by_status", ["status"]),
+
+  outcome_pricing_rules: defineTable({
+    outcomeType: v.string(),
+    description: v.string(),
+    priceNgN: v.number(),
+    commissionPercentage: v.optional(v.number()),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_type", ["outcomeType"])
+    .index("by_active", ["isActive"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE FEATURE 5: WHITE-LABEL ENTERPRISE PLATFORM
+  // ═══════════════════════════════════════════════════════════════
+  white_label_customers: defineTable({
+    companyName: v.string(),
+    customDomain: v.optional(v.string()),
+    customLogo: v.optional(v.string()),
+    primaryColor: v.string(),
+    secondaryColor: v.string(),
+    customAgents: v.optional(v.any()),
+    setupFeePaid: v.number(),
+    monthlyFee: v.number(),
+    subscriptionEndDate: v.number(),
+    status: v.union(v.literal("active"), v.literal("suspended"), v.literal("cancelled")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_status", ["status"])
+    .index("by_domain", ["customDomain"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE FEATURE 6: AGENT PERFORMANCE ANALYTICS
+  // ═══════════════════════════════════════════════════════════════
+  agent_performance_metrics: defineTable({
+    agentId: v.string(),
+    date: v.string(),
+    totalQueries: v.number(),
+    successfulResolutions: v.number(),
+    avgResponseTimeMs: v.number(),
+    userSatisfaction: v.number(),
+    revenueGenerated: v.number(),
+    costSaved: v.number(),
+    roiPercentage: v.number(),
+    createdAt: v.number(),
+  }).index("by_agent", ["agentId"])
+    .index("by_agent_date", ["agentId", "date"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE FEATURE 7: CONVERSATIONAL COMMERCE ORCHESTRATION
+  // ═══════════════════════════════════════════════════════════════
+  commerce_conversations: defineTable({
+    userId: v.string(),
+    platform: v.string(),
+    channel: v.string(),
+    status: v.union(v.literal("active"), v.literal("paused"), v.literal("completed")),
+    intent: v.string(),
+    messages: v.array(v.any()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_status", ["status"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE FEATURE 8: AGENT TRAINING & CONSULTING
+  // ═══════════════════════════════════════════════════════════════
+  consulting_bookings: defineTable({
+    clientId: v.string(),
+    serviceType: v.string(),
+    description: v.string(),
+    priceNgN: v.number(),
+    status: v.union(v.literal("pending"), v.literal("confirmed"), v.literal("in_progress"), v.literal("completed"), v.literal("cancelled")),
+    scheduledDate: v.number(),
+    completedDate: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_client", ["clientId"])
+    .index("by_status", ["status"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE FEATURE 9: API ACCESS FOR DEVELOPERS
+  // ═══════════════════════════════════════════════════════════════
+  developer_api_keys: defineTable({
+    userId: v.string(),
+    apiKey: v.string(),
+    apiSecret: v.string(),
+    tier: v.union(v.literal("developer"), v.literal("professional"), v.literal("business"), v.literal("enterprise")),
+    monthlyCallLimit: v.number(),
+    callsUsed: v.number(),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    lastUsedAt: v.optional(v.number()),
+  }).index("by_user", ["userId"])
+    .index("by_key", ["apiKey"])
+    .index("by_active", ["isActive"]),
+
+  developer_api_usage_logs: defineTable({
+    apiKeyId: v.id("developer_api_keys"),
+    endpoint: v.string(),
+    method: v.string(),
+    responseTimeMs: v.number(),
+    statusCode: v.number(),
+    createdAt: v.number(),
+  }).index("by_key", ["apiKeyId"])
+    .index("by_created", ["createdAt"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE FEATURE 10: SOCIAL COMMERCE AGENT (Auto-Engagement)
+  // ═══════════════════════════════════════════════════════════════
+  social_engagement_logs: defineTable({
+    platform: v.string(),
+    postId: v.string(),
+    commentText: v.string(),
+    buyingIntent: v.boolean(),
+    autoReplied: v.boolean(),
+    replyText: v.optional(v.string()),
+    converted: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_platform", ["platform"])
+    .index("by_intent", ["buyingIntent"])
+    .index("by_created", ["createdAt"]),
 });
