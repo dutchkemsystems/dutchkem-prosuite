@@ -9,25 +9,21 @@ import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 // ═══════════════════════════════════════════════════════════════
 // PLATFORM CONFIGS — RapidAPI endpoints for each platform
 // ═══════════════════════════════════════════════════════════════
+// RapidAPI platforms — ONLY exclusive platforms not covered by Composio or social.ts direct APIs
+// Platforms x, facebook, instagram, linkedin, youtube, reddit, discord are already handled by social.ts via Composio
+// Telegram and WhatsApp use direct APIs in social.ts (no RapidAPI subscription needed)
 export const RAPIDAPI_PLATFORMS: Record<string, {
   name: string; icon: string; host: string; url: string; method: string;
-  rateLimit: number; type: "composio_fallback" | "exclusive";
+  rateLimit: number; type: "exclusive";
 }> = {
-  // === COMPOSIO FALLBACK (retry when Composio fails) ===
-  x: { name: "X (Twitter)", icon: "🐦", host: "twitter-api45.p.rapidapi.com", url: "https://twitter-api45.p.rapidapi.com/tweets", method: "POST", rateLimit: 500, type: "composio_fallback" },
-  facebook: { name: "Facebook", icon: "📘", host: "facebook-pages-api.p.rapidapi.com", url: "https://facebook-pages-api.p.rapidapi.com/posts", method: "POST", rateLimit: 200, type: "composio_fallback" },
-  instagram: { name: "Instagram", icon: "📸", host: "instagram-social-api.p.rapidapi.com", url: "https://instagram-social-api.p.rapidapi.com/media", method: "POST", rateLimit: 500, type: "composio_fallback" },
-  // === RAPIDAPI EXCLUSIVE (not in Composio) ===
-  tumblr: { name: "Tumblr", icon: "📝", host: "tumblr-api.p.rapidapi.com", url: "https://tumblr-api.p.rapidapi.com/post", method: "POST", rateLimit: 5000, type: "exclusive" },
-  pinterest: { name: "Pinterest", icon: "📌", host: "pinterest-api.p.rapidapi.com", url: "https://pinterest-api.p.rapidapi.com/pins", method: "POST", rateLimit: 100, type: "exclusive" },
-  telegram: { name: "Telegram", icon: "✈️", host: "telegram-bot-api.p.rapidapi.com", url: "https://telegram-bot-api.p.rapidapi.com/sendMessage", method: "POST", rateLimit: 10000, type: "exclusive" },
-  discord: { name: "Discord", icon: "💬", host: "discord-webhook-api.p.rapidapi.com", url: "https://discord-webhook-api.p.rapidapi.com/webhooks", method: "POST", rateLimit: 10000, type: "exclusive" },
-  whatsapp: { name: "WhatsApp Business", icon: "📱", host: "whatsapp-business-api.p.rapidapi.com", url: "https://whatsapp-business-api.p.rapidapi.com/messages", method: "POST", rateLimit: 1000, type: "exclusive" },
-  medium: { name: "Medium", icon: "📰", host: "medium-api.p.rapidapi.com", url: "https://medium-api.p.rapidapi.com/posts", method: "POST", rateLimit: 500, type: "exclusive" },
-  snapchat: { name: "Snapchat", icon: "👻", host: "snapchat-api.p.rapidapi.com", url: "https://snapchat-api.p.rapidapi.com/stories", method: "POST", rateLimit: 100, type: "exclusive" },
-  twitch: { name: "Twitch", icon: "🎮", host: "twitch-api.p.rapidapi.com", url: "https://twitch-api.p.rapidapi.com/channels", method: "PUT", rateLimit: 500, type: "exclusive" },
-  spotify: { name: "Spotify", icon: "🎵", host: "spotify-api.p.rapidapi.com", url: "https://spotify-api.p.rapidapi.com/playlists", method: "POST", rateLimit: 1000, type: "exclusive" },
-  substack: { name: "Substack", icon: "📬", host: "substack-api.p.rapidapi.com", url: "https://substack-api.p.rapidapi.com/newsletters", method: "POST", rateLimit: 200, type: "exclusive" },
+  // === RAPIDAPI EXCLUSIVE (need marketplace subscription) ===
+  tumblr: { name: "Tumblr", icon: "📝", host: "tumblr-api1.p.rapidapi.com", url: "https://tumblr-api1.p.rapidapi.com/v2/blog", method: "POST", rateLimit: 5000, type: "exclusive" },
+  pinterest: { name: "Pinterest", icon: "📌", host: "pinterest-api1.p.rapidapi.com", url: "https://pinterest-api1.p.rapidapi.com/pins", method: "POST", rateLimit: 100, type: "exclusive" },
+  medium: { name: "Medium", icon: "📰", host: "medium2.p.rapidapi.com", url: "https://medium2.p.rapidapi.com/posts", method: "POST", rateLimit: 500, type: "exclusive" },
+  snapchat: { name: "Snapchat", icon: "👻", host: "snapchat-stories.p.rapidapi.com", url: "https://snapchat-stories.p.rapidapi.com/stories", method: "POST", rateLimit: 100, type: "exclusive" },
+  twitch: { name: "Twitch", icon: "🎮", host: "twitch-api7.p.rapidapi.com", url: "https://twitch-api7.p.rapidapi.com/channels", method: "PUT", rateLimit: 500, type: "exclusive" },
+  spotify: { name: "Spotify", icon: "🎵", host: "spotify23.p.rapidapi.com", url: "https://spotify23.p.rapidapi.com/playlists", method: "POST", rateLimit: 1000, type: "exclusive" },
+  substack: { name: "Substack", icon: "📬", host: "substack-scraper.p.rapidapi.com", url: "https://substack-scraper.p.rapidapi.com/newsletters", method: "POST", rateLimit: 200, type: "exclusive" },
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -352,11 +348,25 @@ export const testConnection = action({
       const data = await res.json().catch(() => ({}));
 
       if (res.status === 429) {
-        return { success: false, message: "Rate limit exceeded" };
+        return { success: false, message: "Rate limit exceeded — wait before retrying" };
+      }
+
+      if (res.status === 403) {
+        return {
+          success: false,
+          message: `RapidAPI subscription required — subscribe to "${cfg.name}" on RapidAPI Marketplace (rapidapi.com/marketplace)`,
+        };
       }
 
       if (!res.ok) {
-        return { success: false, message: data.message || `HTTP ${res.status}: ${res.statusText}` };
+        const msg = data.message || data.error || `HTTP ${res.status}: ${res.statusText}`;
+        if (msg.toLowerCase().includes("not subscribed")) {
+          return {
+            success: false,
+            message: `Not subscribed — go to RapidAPI Marketplace and subscribe to "${cfg.name}" endpoint first`,
+          };
+        }
+        return { success: false, message: msg };
       }
 
       await ctx.runMutation(internal.rapidapi.logPost, {
