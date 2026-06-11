@@ -536,4 +536,12 @@ crons.interval(
   {}
 );
 
+// 🎨 Auto Flyer Posting Engine (every 4 hours — 6x/day)
+crons.interval(
+  "flyer auto-post tick",
+  { hours: 4 },
+  internal.flyer_posting.autoPostTick,
+  {}
+);
+
 export default crons;

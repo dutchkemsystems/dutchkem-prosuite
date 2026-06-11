@@ -25,6 +25,7 @@ import { AdminEnterpriseHub } from "~/components/admin/AdminEnterpriseHub";
 import { MimoControlPanel } from "~/components/admin/MimoControlPanel";
 import { RapidAPIFallbackDashboard } from "~/components/admin/RapidAPIFallbackDashboard";
 import { RevenueHub } from "~/components/admin/RevenueHub";
+import AutoFlyerDashboard from "~/components/admin/AutoFlyerDashboard";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -167,7 +168,8 @@ function AdminDashboardPage() {
                  <AdminTab active={activeTab === "enterprise-portal"} onClick={() => setActiveTab("enterprise-portal")} icon="🌐" label="Enterprise Portal" />
                   <AdminTab active={activeTab === "mimo"} onClick={() => setActiveTab("mimo")} icon="🧠" label="Mimo V.2.5" />
                    <AdminTab active={activeTab === "rapidapi"} onClick={() => setActiveTab("rapidapi")} icon="🔄" label="RapidAPI Fallback" />
-                   <AdminTab active={activeTab === "revenue"} onClick={() => setActiveTab("revenue")} icon="💰" label="Revenue Hub" />
+                    <AdminTab active={activeTab === "revenue"} onClick={() => setActiveTab("revenue")} icon="💰" label="Revenue Hub" />
+                    <AdminTab active={activeTab === "auto-flyer"} onClick={() => setActiveTab("auto-flyer")} icon="🎨" label="Auto Flyer" />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -219,7 +221,8 @@ function AdminDashboardPage() {
                 {activeTab === "enterprise-portal" && <EnterprisePortalAdmin adminToken={adminToken} />}
                  {activeTab === "mimo" && <MimoControlPanel adminToken={adminToken} />}
                   {activeTab === "rapidapi" && <RapidAPIFallbackDashboard adminToken={adminToken} />}
-                  {activeTab === "revenue" && <RevenueHub adminToken={adminToken} />}
+                   {activeTab === "revenue" && <RevenueHub adminToken={adminToken} />}
+                   {activeTab === "auto-flyer" && <AutoFlyerDashboard />}
            </AdminSuspense>
         </div>
         <Footer />
