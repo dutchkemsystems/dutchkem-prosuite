@@ -543,7 +543,7 @@ export const verifyDirectTransferOTP = mutation({
         console.error("[OTP VERIFY] KORA_SECRET_KEY not set in Convex env");
         return { success: false, error: "KORA_SECRET_KEY not configured in Convex dashboard. Go to Convex Settings → Environment Variables and add your Kora Pay secret key." };
       }
-      console.log(`[OTP VERIFY] KORA_SECRET_KEY present (${koraSecret.substring(0, 8)}...)`);
+      console.log(`[OTP VERIFY] KORA_SECRET_KEY configured`);
 
       const reference = `KNP_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
