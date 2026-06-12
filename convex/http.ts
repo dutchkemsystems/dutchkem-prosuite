@@ -76,23 +76,9 @@ http.route({
         return new Response(JSON.stringify({ success: false, message: `Too many OTP requests. Please try again in ${rateCheck.retryAfter} minutes.` }), { status: 429, headers: { "Content-Type": "application/json" } });
       }
 
-      const IS_DEVELOPMENT = process.env.NODE_ENV !== 'production';
       const accessKey = process.env.AWS_ACCESS_KEY_ID;
       const secretKey = process.env.AWS_SECRET_ACCESS_KEY;
 
-      if (IS_DEVELOPMENT && !accessKey) {
-        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const requestId = await ctx.runMutation(internal.aws_otp.storeOtpRequest, {
-          identifier: phone,
-          otpHash: otpCode,
-          purpose: "login",
-          expiresAt: Date.now() + 10 * 60 * 1000,
-          deliveryMethod: "demo",
-          fraudScore: 0,
-          riskLevel: "low",
-        });
-        return new Response(JSON.stringify({ success: true, pinId: requestId, channel: 'demo', message: 'Demo OTP sent. Use any 6-digit code to verify.' }), { status: 200, headers: { "Content-Type": "application/json" } });
-      }
       if (!accessKey || !secretKey) {
         return new Response(JSON.stringify({ success: false, message: 'AWS SMS service not configured' }), { status: 503, headers: { "Content-Type": "application/json" } });
       }
@@ -161,13 +147,7 @@ http.route({
       const { pinId, pin } = await req.json();
       if (!pinId || !pin) return new Response(JSON.stringify({ success: false, verified: false, message: 'Pin ID and PIN are required' }), { status: 400, headers: { "Content-Type": "application/json" } });
 
-      // Demo mode: accept any 6-digit code
-      if (pinId.startsWith('demo_') || pinId.startsWith('req_')) {
-        const isValid = /^\d{6}$/.test(pin);
-        return new Response(JSON.stringify({ success: true, verified: isValid, message: isValid ? 'Phone verified successfully' : 'Invalid OTP' }), { status: 200, headers: { "Content-Type": "application/json" } });
-      }
-
-      // AWS mode: look up OTP from DB using requestId
+      // Look up OTP from DB using requestId
       const otpRequest = await ctx.runQuery(internal.aws_otp.findValidOtp, {
         identifier: pinId,
         otpHash: pin,
