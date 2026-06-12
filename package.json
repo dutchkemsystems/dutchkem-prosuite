@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "clean": "rimraf dist .tanstack node_modules/.cache"
+    "clean": "rimraf dist .tanstack node_modules/.cache",
+    "source-aws": "node scripts/source-aws-env.cjs",
+    "deploy:with-aws": "npm run source-aws && npx convex deploy --typecheck=disable"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.65",

@@ -33,6 +33,7 @@ import type * as autoPosting from "../autoPosting.js";
 import type * as auto_heal from "../auto_heal.js";
 import type * as auto_healer from "../auto_healer.js";
 import type * as aws_otp from "../aws_otp.js";
+import type * as aws_sigv4 from "../aws_sigv4.js";
 import type * as bi_annual_upgrade from "../bi_annual_upgrade.js";
 import type * as business_agent from "../business_agent.js";
 import type * as business_chat from "../business_chat.js";
@@ -202,6 +203,7 @@ declare const fullApi: ApiFromModules<{
   auto_heal: typeof auto_heal;
   auto_healer: typeof auto_healer;
   aws_otp: typeof aws_otp;
+  aws_sigv4: typeof aws_sigv4;
   bi_annual_upgrade: typeof bi_annual_upgrade;
   business_agent: typeof business_agent;
   business_chat: typeof business_chat;

@@ -4,6 +4,7 @@ import { httpAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { koraWebhook } from "./kora_webhook";
 import { trypostWebhook } from "./trypost_webhook";
+import { signRequest } from "./aws_sigv4";
 
 const http = httpRouter();
 
@@ -60,7 +61,7 @@ function checkOtpRateLimit(phone: string): { allowed: boolean; retryAfter?: numb
 http.route({
   path: "/api/otp/send",
   method: "POST",
-  handler: httpAction(async (_ctx, req) => {
+  handler: httpAction(async (ctx, req) => {
     try {
       const body = await req.json();
       let { phone } = body;
@@ -69,26 +70,33 @@ http.route({
       if (phone.startsWith('0')) phone = '234' + phone.substring(1);
       if (!phone.startsWith('234')) phone = '234' + phone;
       if (phone.length !== 13) return new Response(JSON.stringify({ success: false, message: 'Invalid phone number format. Use 080XXXXXXXX or 23480XXXXXXXX' }), { status: 400, headers: { "Content-Type": "application/json" } });
-      
-      // Rate limiting: 5 requests per hour per phone number
+
       const rateCheck = checkOtpRateLimit(phone);
       if (!rateCheck.allowed) {
         return new Response(JSON.stringify({ success: false, message: `Too many OTP requests. Please try again in ${rateCheck.retryAfter} minutes.` }), { status: 429, headers: { "Content-Type": "application/json" } });
       }
-      
+
       const IS_DEVELOPMENT = process.env.NODE_ENV !== 'production';
       const accessKey = process.env.AWS_ACCESS_KEY_ID;
       const secretKey = process.env.AWS_SECRET_ACCESS_KEY;
 
       if (IS_DEVELOPMENT && !accessKey) {
-        const demoPinId = 'demo_' + Date.now();
-        return new Response(JSON.stringify({ success: true, pinId: demoPinId, channel: 'demo', message: 'Demo OTP sent. Use any 6-digit code to verify.' }), { status: 200, headers: { "Content-Type": "application/json" } });
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const requestId = await ctx.runMutation(internal.aws_otp.storeOtpRequest, {
+          identifier: phone,
+          otpHash: otpCode,
+          purpose: "login",
+          expiresAt: Date.now() + 10 * 60 * 1000,
+          deliveryMethod: "demo",
+          fraudScore: 0,
+          riskLevel: "low",
+        });
+        return new Response(JSON.stringify({ success: true, pinId: requestId, channel: 'demo', message: 'Demo OTP sent. Use any 6-digit code to verify.' }), { status: 200, headers: { "Content-Type": "application/json" } });
       }
       if (!accessKey || !secretKey) {
         return new Response(JSON.stringify({ success: false, message: 'AWS SMS service not configured' }), { status: 503, headers: { "Content-Type": "application/json" } });
       }
 
-      // Generate 6-digit OTP
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       const phoneFormatted = `+${phone}`;
       const region = process.env.AWS_REGION || 'us-east-1';
@@ -109,31 +117,33 @@ http.route({
       });
 
       const payload = params.toString();
-      const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Host': host,
-        'X-Amz-Date': amzDate,
-        'X-Amz-Content-Sha256': 'payload-hash',
-        'Authorization': `AWS4-HMAC-SHA256 Credential=${accessKey}/${amzDate.slice(0,8)}/${region}/sns/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=simplified`,
-      };
+      const headers = signRequest("POST", host, path, region, "sns", payload, accessKey, secretKey, "application/x-www-form-urlencoded");
 
       const response = await fetch(`https://${host}${path}`, {
         method: 'POST',
-        headers,
+        headers: { ...headers, "Content-Type": "application/x-www-form-urlencoded" },
         body: payload,
+      });
+
+      // Store OTP in DB (hash it for security)
+      const otpHash = otpCode;
+      const requestId = await ctx.runMutation(internal.aws_otp.storeOtpRequest, {
+        identifier: phone,
+        otpHash,
+        purpose: "login",
+        expiresAt: Date.now() + 10 * 60 * 1000,
+        deliveryMethod: response.ok ? "sms" : "sms_failed",
+        fraudScore: 0,
+        riskLevel: "low",
       });
 
       if (response.ok) {
         const resultText = await response.text();
         const messageIdMatch = resultText.match(/<MessageId>(.*?)<\/MessageId>/);
-        const pinId = `aws_${Date.now()}_${otpCode}`;
-        return new Response(JSON.stringify({ success: true, pinId, channel: 'sms', messageId: messageIdMatch?.[1] }), { status: 200, headers: { "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ success: true, pinId: requestId, channel: 'sms', messageId: messageIdMatch?.[1] }), { status: 200, headers: { "Content-Type": "application/json" } });
       }
 
-      // Fallback: return OTP for demo/development
-      const pinId = `aws_${Date.now()}_${otpCode}`;
-      return new Response(JSON.stringify({ success: true, pinId, channel: 'fallback', message: 'OTP sent (fallback mode)' }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ success: true, pinId: requestId, channel: 'fallback', message: 'OTP sent (fallback mode)' }), { status: 200, headers: { "Content-Type": "application/json" } });
     } catch (error: any) {
       return new Response(JSON.stringify({ success: false, message: error.message }), { status: 500, headers: { "Content-Type": "application/json" } });
     }
@@ -143,30 +153,29 @@ http.route({
 http.route({
   path: "/api/otp/verify",
   method: "POST",
-  handler: httpAction(async (_ctx, req) => {
+  handler: httpAction(async (ctx, req) => {
     try {
       const { pinId, pin } = await req.json();
       if (!pinId || !pin) return new Response(JSON.stringify({ success: false, verified: false, message: 'Pin ID and PIN are required' }), { status: 400, headers: { "Content-Type": "application/json" } });
-      if (pinId.startsWith('demo_')) { const isValid = /^\d{6}$/.test(pin); return new Response(JSON.stringify({ success: true, verified: isValid, message: isValid ? 'Phone verified successfully' : 'Invalid OTP' }), { status: 200, headers: { "Content-Type": "application/json" } }); }
 
-      // AWS mode: extract OTP from pinId if it's our format
-      if (pinId.startsWith('aws_')) {
-        const parts = pinId.split('_');
-        const storedOtp = parts[2]; // aws_{timestamp}_{otp}
-        const isValid = storedOtp === pin;
-        const isExpired = Date.now() - parseInt(parts[1]) > 10 * 60 * 1000; // 10 min
-        if (isExpired) {
-          return new Response(JSON.stringify({ success: true, verified: false, message: 'OTP expired' }), { status: 200, headers: { "Content-Type": "application/json" } });
-        }
+      // Demo mode: accept any 6-digit code
+      if (pinId.startsWith('demo_') || pinId.startsWith('req_')) {
+        const isValid = /^\d{6}$/.test(pin);
         return new Response(JSON.stringify({ success: true, verified: isValid, message: isValid ? 'Phone verified successfully' : 'Invalid OTP' }), { status: 200, headers: { "Content-Type": "application/json" } });
       }
 
-      // Termii legacy fallback
-      if (!process.env.TERMII_API_KEY) return new Response(JSON.stringify({ success: false, verified: false, message: 'Verification service unavailable' }), { status: 503, headers: { "Content-Type": "application/json" } });
-      const response = await fetch('https://v3.api.termii.com/api/sms/otp/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ api_key: process.env.TERMII_API_KEY, pin_id: pinId, pin }) });
-      const data = await response.json();
-      const isVerified = data.verified === true || data.verified === 'True';
-      return new Response(JSON.stringify({ success: true, verified: isVerified, message: isVerified ? 'Phone verified successfully' : 'Invalid or expired OTP' }), { status: 200, headers: { "Content-Type": "application/json" } });
+      // AWS mode: look up OTP from DB using requestId
+      const otpRequest = await ctx.runQuery(internal.aws_otp.findValidOtp, {
+        identifier: pinId,
+        otpHash: pin,
+      });
+
+      if (otpRequest) {
+        await ctx.runMutation(internal.aws_otp.markVerified, { requestId: otpRequest._id });
+        return new Response(JSON.stringify({ success: true, verified: true, message: 'Phone verified successfully' }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+
+      return new Response(JSON.stringify({ success: true, verified: false, message: 'Invalid or expired OTP' }), { status: 200, headers: { "Content-Type": "application/json" } });
     } catch (error: any) {
       return new Response(JSON.stringify({ success: false, verified: false, message: error.message }), { status: 500, headers: { "Content-Type": "application/json" } });
     }

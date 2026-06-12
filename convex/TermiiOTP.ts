@@ -1,4 +1,5 @@
 import { Phone } from "@convex-dev/auth/providers/Phone";
+import { signRequest } from "./aws_sigv4";
 
 // ═══════════════════════════════════════════════════════════════════
 // AWS SNS OTP PROVIDER — Replaces Termii
@@ -8,7 +9,6 @@ import { Phone } from "@convex-dev/auth/providers/Phone";
 
 const OTP_EXPIRY_MINUTES = 10;
 
-// Normalize Nigerian phone numbers to international format
 function normalizePhone(phone: string): string {
   let normalized = phone.replace(/\D/g, "");
   if (normalized.startsWith("0")) {
@@ -18,63 +18,6 @@ function normalizePhone(phone: string): string {
     normalized = "234" + normalized;
   }
   return normalized;
-}
-
-// Minimal AWS SigV4 signing for SNS
-function signSNSRequest(
-  method: string,
-  host: string,
-  path: string,
-  region: string,
-  payload: string,
-  accessKey: string,
-  secretKey: string,
-): Record<string, string> {
-  const now = new Date();
-  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
-  const dateStamp = amzDate.slice(0, 8);
-
-  // Simplified HMAC-SHA256 (Convex-compatible, no crypto.subtle)
-  function hmac(key: string, msg: string): number {
-    let h = 0;
-    for (let i = 0; i < msg.length; i++) {
-      h = ((h << 5) - h + msg.charCodeAt(i) ^ (key.charCodeAt(i % key.length))) & 0xffffffff;
-    }
-    return h;
-  }
-
-  function sha256(data: string): string {
-    let h = 0x811c9dc5;
-    for (let i = 0; i < data.length; i++) {
-      h ^= data.charCodeAt(i);
-      h = (h * 0x01000193) & 0xffffffff;
-    }
-    return h.toString(16).padStart(8, "0");
-  }
-
-  const canonicalHeaders = `content-type:application/x-www-form-urlencoded\nhost:${host}\nx-amz-date:${amzDate}\n`;
-  const signedHeaders = "content-type;host;x-amz-date";
-  const payloadHash = sha256(payload);
-
-  const canonicalRequest = `POST\n${path}\n\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
-  const canonicalRequestHash = sha256(canonicalRequest);
-
-  const credentialScope = `${dateStamp}/${region}/sns/aws4_request`;
-  const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${canonicalRequestHash}`;
-
-  const kDate = hmac("AWS4" + secretKey, dateStamp);
-  const kRegion = hmac(String(kDate), region);
-  const kService = hmac(String(kRegion), "sns");
-  const kSigning = hmac(String(kService), "aws4_request");
-  const signature = hmac(String(kSigning), stringToSign).toString(16).padStart(8, "0");
-
-  return {
-    "Content-Type": "application/x-www-form-urlencoded",
-    "Host": host,
-    "X-Amz-Date": amzDate,
-    "X-Amz-Content-Sha256": payloadHash,
-    "Authorization": `AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
-  };
 }
 
 export const TermiiOTP = Phone({
@@ -96,11 +39,11 @@ export const TermiiOTP = Phone({
       throw new Error(`Invalid phone number format. Please use 080XXXXXXXX or 23480XXXXXXXX`);
     }
 
-    // Try AWS SNS first
     const accessKey = process.env.AWS_ACCESS_KEY_ID;
     const secretKey = process.env.AWS_SECRET_ACCESS_KEY;
     const region = process.env.AWS_REGION || "us-east-1";
 
+    // Try AWS SNS first
     if (accessKey && secretKey) {
       try {
         const phoneFormatted = `+${phone}`;
@@ -122,7 +65,7 @@ export const TermiiOTP = Phone({
         });
 
         const payload = params.toString();
-        const headers = signSNSRequest("POST", host, path, region, payload, accessKey, secretKey);
+        const headers = signRequest("POST", host, path, region, "sns", payload, accessKey, secretKey, "application/x-www-form-urlencoded");
 
         const response = await fetch(`https://${host}${path}`, {
           method: "POST",
@@ -161,9 +104,20 @@ export const TermiiOTP = Phone({
           },
         });
 
-        // SES email fallback requires the user to have an email address
-        // For now, just log and simulate
-        console.log(`[AWS OTP] Would send email to ${phone}@sms.email.aws with code ${token}`);
+        const sesHeaders = signRequest("POST", sesHost, "/", region, "ses", sesPayload, accessKey, secretKey, "application/json");
+
+        const sesResponse = await fetch(`https://${sesHost}/`, {
+          method: "POST",
+          headers: sesHeaders,
+          body: sesPayload,
+        });
+
+        if (sesResponse.ok) {
+          console.log(`[AWS OTP] SES email fallback sent to ${phone}@sms.email.aws`);
+          return;
+        }
+
+        console.warn(`[AWS OTP] SES fallback failed: ${sesResponse.status}`);
       } catch (err: any) {
         console.error(`[AWS OTP] SES fallback error: ${err.message}`);
       }

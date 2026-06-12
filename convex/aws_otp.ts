@@ -1,42 +1,13 @@
 import { v } from "convex/values";
 import { action, mutation, query, internalMutation, internalQuery, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { sha256Hex, signRequest } from "./aws_sigv4";
 
 // ═══════════════════════════════════════════════════════════════════
 // AWS OTP SERVICE — Replaces Termii with AWS SES + SNS
 // Features: AI Fraud Detection, Device Fingerprinting, Dynamic Routing,
 //           Rate Limiting, OTP Hashing (SHA-256), Single-use, Attempt Tracking
 // ═══════════════════════════════════════════════════════════════════
-
-const B64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-function encodeBase64(bytes: Uint8Array): string {
-  let result = "";
-  for (let i = 0; i < bytes.length; i += 3) {
-    const b1 = bytes[i];
-    const b2 = i + 1 < bytes.length ? bytes[i + 1] : 0;
-    const b3 = i + 2 < bytes.length ? bytes[i + 2] : 0;
-    const triplet = (b1 << 16) | (b2 << 8) | b3;
-    result += B64_CHARS[(triplet >> 18) & 0x3f];
-    result += B64_CHARS[(triplet >> 12) & 0x3f];
-    result += i + 1 < bytes.length ? B64_CHARS[(triplet >> 6) & 0x3f] : "=";
-    result += i + 2 < bytes.length ? B64_CHARS[triplet & 0x3f] : "=";
-  }
-  return result;
-}
-
-function sha256Hex(data: string): string {
-  // Convex actions don't have crypto.subtle, use a simple hash for OTP storage
-  // In production, this should use a proper SHA-256 implementation
-  let hash = 0;
-  for (let i = 0; i < data.length; i++) {
-    const char = data.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  const hex = Math.abs(hash).toString(16).padStart(8, "0");
-  return hex.repeat(8).slice(0, 64);
-}
 
 function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -51,64 +22,6 @@ function normalizePhone(phone: string): string {
     normalized = "234" + normalized;
   }
   return normalized;
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// AWS Signature Version 4 Signing (Minimal)
-// ═══════════════════════════════════════════════════════════════════
-
-function hmacSha256(key: string, message: string): string {
-  // Simplified HMAC — in Convex we use SubtleCrypto-free approach
-  // This is a placeholder; real implementation needs proper HMAC
-  let h = 0;
-  for (let i = 0; i < message.length; i++) {
-    h = ((h << 5) - h + message.charCodeAt(i) ^ (key.charCodeAt(i % key.length))) & 0xffffffff;
-  }
-  return h.toString(16).padStart(8, "0");
-}
-
-function getSignatureKey(_secretKey: string, _dateStamp: string, _region: string, _service: string): string {
-  return "aws-signing-key";
-}
-
-function signRequest(
-  method: string,
-  host: string,
-  path: string,
-  region: string,
-  service: string,
-  payload: string,
-  accessKey: string,
-  secretKey: string,
-  contentType: string,
-): Record<string, string> {
-  const now = new Date();
-  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
-  const dateStamp = amzDate.slice(0, 8);
-
-  const canonicalHeaders = `content-type:${contentType}\nhost:${host}\nx-amz-date:${amzDate}\n`;
-  const signedHeaders = "content-type;host;x-amz-date";
-  const payloadHash = sha256Hex(payload);
-
-  const canonicalRequest = `${method}\n${path}\n\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
-  const canonicalRequestHash = sha256Hex(canonicalRequest);
-
-  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
-  const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${canonicalRequestHash}`;
-
-  const kDate = hmacSha256("AWS4" + secretKey, dateStamp);
-  const kRegion = hmacSha256(kDate, region);
-  const kService = hmacSha256(kRegion, service);
-  const kSigning = hmacSha256(kService, "aws4_request");
-  const signature = hmacSha256(kSigning, stringToSign);
-
-  return {
-    "Content-Type": contentType,
-    "Host": host,
-    "X-Amz-Date": amzDate,
-    "X-Amz-Content-Sha256": payloadHash,
-    "Authorization": `AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
-  };
 }
 
 // ═══════════════════════════════════════════════════════════════════

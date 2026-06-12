@@ -1,10 +1,13 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
+import { signRequest } from "./aws_sigv4";
 
-/**
- * Send OTP via AWS SES Email — Replaces Termii Email OTP
- * Falls back to returning OTP on screen if email fails
- */
+// ═══════════════════════════════════════════════════════════════════
+// AWS SES OTP Email — Replaces Termii Email OTP
+// Sends verification codes via AWS SES with proper SigV4 signing
+// Falls back to returning OTP on screen if SES fails
+// ═══════════════════════════════════════════════════════════════════
+
 export const sendOtpEmail = action({
   args: {
     otp: v.string(),
@@ -13,13 +16,12 @@ export const sendOtpEmail = action({
     amount: v.optional(v.number()),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args) => {
     const accessKey = process.env.AWS_ACCESS_KEY_ID;
     const secretKey = process.env.AWS_SECRET_ACCESS_KEY;
     const region = process.env.AWS_REGION || "us-east-1";
     const fromEmail = process.env.AWS_SES_FROM_EMAIL || "noreply@dutchkem.com";
 
-    // Try AWS SES if credentials are available
     if (accessKey && secretKey) {
       try {
         const host = `email.${region}.amazonaws.com`;
@@ -40,20 +42,11 @@ export const sendOtpEmail = action({
           },
         });
 
-        // Minimal SigV4 signing
-        const now = new Date();
-        const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
-        const dateStamp = amzDate.slice(0, 8);
+        const headers = signRequest("POST", host, path, region, "ses", payload, accessKey, secretKey, "application/json");
 
         const response = await fetch(`https://${host}${path}`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Host": host,
-            "X-Amz-Date": amzDate,
-            "X-Amz-Content-Sha256": "payload-hash",
-            "Authorization": `AWS4-HMAC-SHA256 Credential=${accessKey}/${dateStamp}/${region}/ses/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=simplified`,
-          },
+          headers,
           body: payload,
         });
 
