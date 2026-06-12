@@ -136,7 +136,7 @@ export function EnterprisePricing() {
                     ))}
                   </div>
 
-                  <Link to="/auth" className={`block w-full py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] text-center transition-all shadow-lg ${
+                  <Link to="/enterprise/login" className={`block w-full py-5 rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] text-center transition-all shadow-lg ${
                     plan.featured
                       ? 'bg-slate-950 text-white hover:bg-black active:scale-95'
                       : 'bg-slate-100 text-slate-950 hover:bg-slate-200'

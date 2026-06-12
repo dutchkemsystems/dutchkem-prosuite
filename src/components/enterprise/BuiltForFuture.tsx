@@ -48,8 +48,8 @@ const content = {
       ],
     },
     roiText: 'Developers on our platform earn an average of ₦250,000 - ₦2,500,000 monthly from template sales.',
-    ctaText: 'Become a Publisher →',
-    ctaLink: '/auth',
+    ctaText: 'Get Started → Enterprise Login',
+    ctaLink: '/enterprise/login',
   },
   knowledge: {
     headline: 'Explainable, Traceable AI Decisions',
@@ -75,8 +75,8 @@ const content = {
       }],
     },
     roiText: 'Enterprises using Knowledge Graph report 85% faster audit completion and 40% higher client trust scores.',
-    ctaText: 'Request Audit Trail Demo →',
-    ctaLink: '/auth',
+    ctaText: 'Get Started → Enterprise Login',
+    ctaLink: '/enterprise/login',
   },
   companion: {
     headline: 'AI That Works Alongside Your Team',
@@ -96,8 +96,8 @@ const content = {
       ],
     },
     roiText: 'One contact center reduced operational costs by ₦12.5M annually after deploying Companion Agent.',
-    ctaText: 'Calculate Your Savings →',
-    ctaLink: '/auth',
+    ctaText: 'Get Started → Enterprise Login',
+    ctaLink: '/enterprise/login',
   },
   payments: {
     headline: 'Autonomous Agent-to-Agent Commerce',
@@ -123,8 +123,8 @@ const content = {
       }],
     },
     roiText: 'Companies using agentic payments have reduced manual reconciliation costs by 90% and accelerated workflows by 300%.',
-    ctaText: 'Explore Use Cases →',
-    ctaLink: '/auth',
+    ctaText: 'Get Started → Enterprise Login',
+    ctaLink: '/enterprise/login',
   },
   orchestration: {
     headline: 'Coordinate Multiple AI Agents as One Team',
@@ -144,8 +144,8 @@ const content = {
       ],
     },
     roiText: 'One marketing agency reduced project delivery time from 5 days to 6 hours using multi-agent orchestration.',
-    ctaText: 'Build Your First Workflow →',
-    ctaLink: '/auth',
+    ctaText: 'Get Started → Enterprise Login',
+    ctaLink: '/enterprise/login',
   },
   emotional: {
     headline: 'AI That Remembers, Feels, and Grows',
@@ -165,8 +165,8 @@ const content = {
       ],
     },
     roiText: 'Apps using Emotional AI report 3x higher user retention and 2x customer lifetime value.',
-    ctaText: 'Try Emotional AI Demo →',
-    ctaLink: '/auth',
+    ctaText: 'Get Started → Enterprise Login',
+    ctaLink: '/enterprise/login',
   },
 }
 
