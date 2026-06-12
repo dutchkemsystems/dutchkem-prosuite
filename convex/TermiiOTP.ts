@@ -123,8 +123,7 @@ export const TermiiOTP = Phone({
       }
     }
 
-    // Development mode: simulate
-    console.warn("[AWS OTP] No AWS credentials — simulating OTP send.");
-    console.log(`[AWS OTP SIMULATION] Phone: ${phone} | Code: ${token}`);
+    // No credentials available — throw error
+    throw new Error("AWS credentials not configured. Cannot send OTP.");
   },
 });

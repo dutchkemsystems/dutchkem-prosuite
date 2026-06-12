@@ -63,8 +63,8 @@ export const sendOtpEmail = action({
       }
     }
 
-    // Always return OTP for display on screen
-    console.log(`[OTP] For ${args.email}: ${args.otp}`);
-    return { success: true, sent: false, otp: args.otp, message: "OTP ready - check screen" };
+    // AWS failed — return error (no fallback to screen display)
+    console.error("[AWS SES] Failed to send OTP email");
+    return { success: false, sent: false, error: "Failed to send OTP email via AWS SES" };
   },
 });

@@ -205,7 +205,7 @@ export const initiateDirectTransfer = mutation({
         updatedAt: Date.now(),
       });
 
-      console.log(`[OTP] Direct transfer OTP for â‚¦${args.amount}: ${otp}`);
+      console.log(`[OTP] Direct transfer OTP generated`);
 
       // Send OTP via email using AWS SES
       try {
@@ -289,9 +289,8 @@ export const initiateTransfer = mutation({
         updatedAt: Date.now(),
       });
 
-      // In production, send OTP via AWS SES email API
-      console.log(`[OTP] Transfer OTP for â‚¦${args.amount}: ${otp}`);
-      console.log(`[OTP] Expires at: ${new Date(otpExpiry).toISOString()}`);
+      // Send OTP via email using AWS SES
+      console.log(`[OTP] Transfer OTP generated for ₦${args.amount}`);
 
       return {
         success: true,

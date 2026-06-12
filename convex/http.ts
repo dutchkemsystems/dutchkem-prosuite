@@ -143,7 +143,10 @@ http.route({
         return new Response(JSON.stringify({ success: true, pinId: requestId, channel: 'sms', messageId: messageIdMatch?.[1] }), { status: 200, headers: { "Content-Type": "application/json" } });
       }
 
-      return new Response(JSON.stringify({ success: true, pinId: requestId, channel: 'fallback', message: 'OTP sent (fallback mode)' }), { status: 200, headers: { "Content-Type": "application/json" } });
+      // SNS returned error — return failure
+      const errorText = await response.text();
+      console.error(`[AWS SNS] Send failed: ${response.status} ${errorText}`);
+      return new Response(JSON.stringify({ success: false, message: 'Failed to send OTP via SMS' }), { status: 500, headers: { "Content-Type": "application/json" } });
     } catch (error: any) {
       return new Response(JSON.stringify({ success: false, message: error.message }), { status: 500, headers: { "Content-Type": "application/json" } });
     }

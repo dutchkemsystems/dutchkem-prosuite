@@ -246,9 +246,8 @@ export const sendViaSES = internalAction({
     const fromEmail = process.env.AWS_SES_FROM_EMAIL || "noreply@dutchkem.com";
 
     if (!accessKey || !secretKey) {
-      console.warn("[AWS SES] Credentials not configured — simulating email send");
-      console.log(`[AWS SES SIMULATION] To: ${args.email} | OTP: ${args.otpCode} | Purpose: ${args.purpose}`);
-      return { success: true, messageId: `sim_${Date.now()}` };
+      console.error("[AWS SES] Credentials not configured — cannot send email");
+      return { success: false, error: "AWS SES credentials not configured" };
     }
 
     const host = `email.${region}.amazonaws.com`;
@@ -311,9 +310,8 @@ export const sendViaSNS = internalAction({
     const region = process.env.AWS_REGION || "us-east-1";
 
     if (!accessKey || !secretKey) {
-      console.warn("[AWS SNS] Credentials not configured — simulating SMS send");
-      console.log(`[AWS SNS SIMULATION] To: ${args.phone} | OTP: ${args.otpCode}`);
-      return { success: true, messageId: `sim_${Date.now()}` };
+      console.error("[AWS SNS] Credentials not configured — cannot send SMS");
+      return { success: false, error: "AWS SNS credentials not configured" };
     }
 
     const phone = normalizePhone(args.phone);
