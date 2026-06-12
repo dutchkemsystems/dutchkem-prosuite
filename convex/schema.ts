@@ -3230,7 +3230,8 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_engine", ["engineId"])
     .index("by_status", ["status"])
-    .index("by_platform", ["platform"]),
+    .index("by_platform", ["platform"])
+    .index("by_created", ["createdAt"]),
 
   flyer_posting_queue: defineTable({
     flyerId: v.id("generated_flyers"),

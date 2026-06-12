@@ -1,7 +1,6 @@
 import { v } from "convex/values";
-import { query, mutation, action, internalMutation, internalQuery } from "./_generated/server";
+import { query, mutation, action, internalMutation, internalQuery, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { tryGetAdminSessionInAction } from "./auth_helpers";
 
 const HEADLINES = [
   "Scale Your Business With AI",
@@ -250,6 +249,68 @@ export const generateFlyer = action({
       });
 
       imageUrl = bgUrl;
+    } else {
+      imageUrl = await ctx.runAction(internal.flyer_templates.generateFlyerSvgOnly, {
+        headline,
+        subheadline,
+        cta,
+        platform: args.platform,
+      });
+    }
+
+    const flyerId = await ctx.runMutation(internal.flyer_engine.saveGeneratedFlyer, {
+      engineId: engine?._id,
+      generationMode: currentMode,
+      headline,
+      subheadline,
+      cta,
+      platform: args.platform,
+      imageUrl,
+    });
+
+    if (engine) {
+      await ctx.runMutation(internal.flyer_engine.incrementEngineCounters, {
+        engineId: engine._id,
+        modeIndex: engine.currentModeIndex,
+      });
+    }
+
+    return { flyerId, mode: currentMode, headline, subheadline, cta };
+  },
+});
+
+export const generateFlyerInternal = internalAction({
+  args: {
+    headline: v.optional(v.string()),
+    subheadline: v.optional(v.string()),
+    cta: v.optional(v.string()),
+    platform: v.string(),
+    forceMode: v.optional(v.union(v.literal("full_ai"), v.literal("ai_bg_svg_text"), v.literal("svg_only"))),
+  },
+  handler: async (ctx, args) => {
+    const engine = await ctx.runQuery(internal.flyer_engine.getEngineStatusInternal);
+    const currentMode = args.forceMode || cycleMode(engine?.currentModeIndex || 0);
+
+    const headline = args.headline || pickRandom(HEADLINES);
+    const subheadline = args.subheadline || pickRandom(SUBHEADLINES);
+    const cta = args.cta || pickRandom(CTAS);
+
+    let imageUrl: string;
+
+    if (currentMode === "full_ai") {
+      imageUrl = await ctx.runAction(internal.flyer_templates.generateFullAiFlyer, {
+        headline,
+        subheadline,
+        cta,
+        platform: args.platform,
+      });
+    } else if (currentMode === "ai_bg_svg_text") {
+      imageUrl = await ctx.runAction(internal.flyer_templates.generateAiBackgroundWithSvgOverlay, {
+        headline,
+        subheadline,
+        cta,
+        platform: args.platform,
+      });
     } else {
       imageUrl = await ctx.runAction(internal.flyer_templates.generateFlyerSvgOnly, {
         headline,

@@ -1,9 +1,26 @@
 import { v } from "convex/values";
 import { query, mutation, action } from "./_generated/server";
-import { internal } from "./_generated/api";
 
 const FLYER_WIDTH = 500;
 const FLYER_HEIGHT = 700;
+
+const B64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+function encodeBase64(str: string): string {
+  const bytes = new TextEncoder().encode(str);
+  let result = "";
+  for (let i = 0; i < bytes.length; i += 3) {
+    const b1 = bytes[i];
+    const b2 = i + 1 < bytes.length ? bytes[i + 1] : 0;
+    const b3 = i + 2 < bytes.length ? bytes[i + 2] : 0;
+    const triplet = (b1 << 16) | (b2 << 8) | b3;
+    result += B64_CHARS[(triplet >> 18) & 0x3f];
+    result += B64_CHARS[(triplet >> 12) & 0x3f];
+    result += i + 1 < bytes.length ? B64_CHARS[(triplet >> 6) & 0x3f] : "=";
+    result += i + 2 < bytes.length ? B64_CHARS[triplet & 0x3f] : "=";
+  }
+  return result;
+}
 
 const NVIDIA_MODELS = [
   { id: "qwen/qwen-image-2512", name: "Qwen Image 2512", supportsText: true },
@@ -318,7 +335,7 @@ export const generateFlyerSvgOnly = action({
     const styleIdx = args.styleIndex ?? 0;
     const style = DESIGN_PRESETS[styleIdx % DESIGN_PRESETS.length];
     const svg = generateFlyerSvg(args.headline, args.subheadline, args.cta, style, args.platform);
-    return `data:image/svg+xml;base64,${btoa(svg)}`;
+    return `data:image/svg+xml;base64,${encodeBase64(svg)}`;
   },
 });
 

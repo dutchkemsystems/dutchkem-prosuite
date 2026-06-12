@@ -8,10 +8,7 @@ export const autoPostTick = internalAction({
   args: {},
   handler: async (ctx) => {
     const engine = await ctx.runQuery(internal.flyer_engine.getEngineStatusInternal);
-    if (!engine || engine.status !== "stopped") {
-      if (engine && engine.status === "running") {
-        return { skipped: true, reason: "Engine is running (manual mode)" };
-      }
+    if (!engine || engine.status !== "running") {
       return { skipped: true, reason: "Engine not running" };
     }
 
@@ -28,15 +25,9 @@ export const autoPostTick = internalAction({
 
     for (const platform of enabledPlatforms.slice(0, 3)) {
       try {
-        const flyerResult = await ctx.runAction(internal.flyer_engine.generateFlyer, {
+        const flyerResult = await ctx.runAction(internal.flyer_engine.generateFlyerInternal, {
           platform,
           forceMode: undefined,
-        });
-
-        await ctx.runMutation(internal.flyer_engine.addToQueue, {
-          flyerId: flyerResult.flyerId,
-          platform,
-          scheduledFor: Date.now(),
         });
 
         const postResult = await ctx.runAction(internal.flyer_posting.postToPlatform, {
@@ -113,11 +104,6 @@ export const postToPlatform = internalAction({
           status: "success",
           postUrl: socialResult.postUrl,
           durationMs: duration,
-        });
-
-        await ctx.runMutation(internal.flyer_engine.updateQueueStatus, {
-          queueId: socialResult.queueId || args.flyerId,
-          status: "posted",
         });
 
         await ctx.runMutation(internal.flyer_posting.updateFlyerStatus, {
@@ -238,7 +224,7 @@ export const batchGenerate = action({
     for (let i = 0; i < Math.min(args.count, 10); i++) {
       for (const platform of args.platforms) {
         try {
-          const result = await ctx.runAction(internal.flyer_engine.generateFlyer, {
+          const result = await ctx.runAction(internal.flyer_engine.generateFlyerInternal, {
             platform,
           });
 
