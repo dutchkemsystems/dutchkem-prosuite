@@ -544,4 +544,12 @@ crons.interval(
   {}
 );
 
+// 🧠 Mimo V.2.5 Self-Update (every 24 hours — cleans data, auto-blocks IPs, optimizes)
+crons.interval(
+  "mimo self-update",
+  { hours: 24 },
+  internal.mimo_core.cronSelfUpdate,
+  {}
+);
+
 export default crons;
