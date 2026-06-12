@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { signRequest } from "./aws_sigv4";
 
 // Feature 5: 1-Click Communication Hub
 
@@ -54,19 +55,11 @@ export const sendSms = mutation({
       });
 
       const payload = params.toString();
-      const now = new Date();
-      const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
-      const dateStamp = amzDate.slice(0, 8);
+      const headers = signRequest("POST", host, path, region, "sns", payload, accessKey, secretKey, "application/x-www-form-urlencoded");
 
       const response = await fetch(`https://${host}${path}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Host": host,
-          "X-Amz-Date": amzDate,
-          "X-Amz-Content-Sha256": "payload-hash",
-          "Authorization": `AWS4-HMAC-SHA256 Credential=${accessKey}/${dateStamp}/${region}/sns/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=simplified`,
-        },
+        headers: { ...headers, "Content-Type": "application/x-www-form-urlencoded" },
         body: payload,
       });
 
