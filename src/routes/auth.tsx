@@ -24,7 +24,7 @@ function AuthPage() {
         </div>
 
         <Unauthenticated>
-          <PhoneAuthForm />
+          <EmailAuthForm />
         </Unauthenticated>
 
         <Authenticated>
@@ -57,44 +57,38 @@ function AuthenticatedRedirect() {
   );
 }
 
-function PhoneAuthForm() {
+function EmailAuthForm() {
   const { signIn } = useAuthActions();
-  const [step, setStep] = useState<"phone" | "otp">("phone");
-  const [phone, setPhone] = useState("");
+  const [step, setStep] = useState<"email" | "otp">("email");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handlePhoneSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
     
     const formData = new FormData(e.currentTarget);
-    const phoneValue = formData.get("phone") as string;
+    const emailValue = formData.get("email") as string;
     
-    // Simple validation
-    if (!phoneValue.match(/^\+?[0-9]{10,15}$/)) {
-      setError("Please enter a valid telephone number (e.g. +234...)");
+    // Email validation
+    if (!emailValue || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
+      setError("Please enter a valid email address");
       setIsLoading(false);
       return;
     }
 
-    setPhone(phoneValue);
+    setEmail(emailValue);
 
     try {
-      await signIn("termii-otp", formData);
+      await signIn("resend-otp", formData);
       setStep("otp");
     } catch (err: any) {
       const msg = err?.message || String(err || '');
       if (msg.includes('is not configured')) {
         console.error("[Auth] Provider not found:", err);
         setError("Authentication provider error. Please refresh and try again.");
-      } else if (msg.includes('insufficient balance') || msg.includes('SMS delivery failed')) {
-        setError("SMS service is temporarily out of credits. Please contact support or try again later.");
-      } else if (msg.includes('Country Inactive')) {
-        setError("SMS service not available for this region. Please contact support.");
-      } else if (msg.includes('TERMII') || msg.includes('termii') || msg.includes('API Key')) {
-        setError("SMS service temporarily unavailable. Please contact support or try again later.");
       } else if (msg.includes('network') || msg.includes('fetch')) {
         setError("Network error. Check your connection and try again.");
       } else {
@@ -113,7 +107,7 @@ function PhoneAuthForm() {
     const formData = new FormData(e.currentTarget);
     
     try {
-      await signIn("termii-otp", formData);
+      await signIn("resend-otp", formData);
       // Redirect happens automatically via Authenticated wrapper
     } catch (err: any) {
       setError("Invalid or expired code. Please check and try again.");
@@ -122,23 +116,20 @@ function PhoneAuthForm() {
     }
   };
 
-  if (step === "phone") {
+  if (step === "email") {
     return (
-      <form onSubmit={handlePhoneSubmit} className="bg-slate-900 border border-slate-800 p-10 rounded-[2.5rem] shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <form onSubmit={handleEmailSubmit} className="bg-slate-900 border border-slate-800 p-10 rounded-[2.5rem] shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="space-y-6">
           <div>
-            <label className="block text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] mb-2">Telephone Number</label>
-            <div className="relative">
-              <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">🇳🇬</span>
-              <input
-                name="phone"
-                type="tel"
-                placeholder="+234 812 345 6789"
-                required
-                autoFocus
-                className="w-full bg-slate-950 border border-slate-700 rounded-2xl px-12 py-5 text-white font-black text-lg focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all"
-              />
-            </div>
+            <label className="block text-[10px] uppercase font-black text-slate-500 tracking-[0.2em] mb-2">Email Address</label>
+            <input
+              name="email"
+              type="email"
+              placeholder="you@example.com"
+              required
+              autoFocus
+              className="w-full bg-slate-950 border border-slate-700 rounded-2xl px-5 py-5 text-white font-black text-lg focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all"
+            />
           </div>
           
           {error && (
@@ -162,7 +153,7 @@ function PhoneAuthForm() {
           </div>
           
           <p className="text-[9px] text-slate-500 text-center font-bold uppercase tracking-widest leading-relaxed">
-            By continuing, you agree to receive a one-time security code. Standard messaging rates apply.
+            By continuing, you agree to receive a one-time security code via email.
           </p>
         </div>
       </form>
@@ -173,13 +164,13 @@ function PhoneAuthForm() {
     <form onSubmit={handleOtpSubmit} className="bg-slate-900 border border-slate-800 p-10 rounded-[2.5rem] shadow-2xl animate-in fade-in zoom-in-95 duration-300">
       <div className="space-y-6">
         <div className="text-center">
-          <div className="text-4xl mb-4">📱</div>
-          <h2 className="text-xl font-black text-white uppercase tracking-tight mb-1">Verify Phone</h2>
-          <p className="text-slate-400 text-xs font-medium">Code sent to <span className="text-white font-bold">{phone}</span></p>
+          <div className="text-4xl mb-4">✉️</div>
+          <h2 className="text-xl font-black text-white uppercase tracking-tight mb-1">Verify Email</h2>
+          <p className="text-slate-400 text-xs font-medium">Code sent to <span className="text-white font-bold">{email}</span></p>
         </div>
         
         <div>
-          <input name="phone" value={phone} type="hidden" />
+          <input name="email" value={email} type="hidden" />
           <input
             name="code"
             placeholder="000000"
@@ -207,10 +198,10 @@ function PhoneAuthForm() {
         
         <button 
           type="button" 
-          onClick={() => setStep("phone")}
+          onClick={() => setStep("email")}
           className="w-full text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] hover:text-slate-300 transition-colors"
         >
-          Change Telephone Number
+          Change Email Address
         </button>
       </div>
     </form>
