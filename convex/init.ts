@@ -37,7 +37,6 @@ export const setupAdminAccount = mutation({
         console.log("=========================================");
         console.log("CRITICAL: ADMIN ACCOUNT CREATED");
         console.log("Email: " + adminEmail);
-        console.log("Password: " + password);
         console.log("Backup Codes: " + backupCodes.join(", "));
         console.log("STORE THESE IN A SECURE PASSWORD MANAGER");
         console.log("=========================================");

@@ -20,7 +20,9 @@ export const generateTransferPasskey = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const passkey = Math.floor(100000 + Math.random() * 900000).toString();
+    const pkArray = new Uint32Array(1);
+    crypto.getRandomValues(pkArray);
+    const passkey = (100000 + (pkArray[0] % 900000)).toString();
     const now = Date.now();
 
     const id = await ctx.db.insert("transfer_passkeys", {

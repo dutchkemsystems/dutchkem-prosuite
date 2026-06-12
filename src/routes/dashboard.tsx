@@ -325,7 +325,7 @@ function Header({ user, notifications }: { user: any, notifications: Array<any> 
              <div className="p-2 space-y-1">
                 <button className="w-full text-left px-4 py-3 text-xs font-bold text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition-colors">Profile Settings</button>
                 <button className="w-full text-left px-4 py-3 text-xs font-bold text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition-colors">Billing & Plans</button>
-                <button onClick={() => { localStorage.removeItem('admin_session_token'); window.location.href = '/'; }} className="w-full text-left px-4 py-3 text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl transition-colors">Sign Out</button>
+                <button onClick={async () => { try { await signOut(); } catch {} navigate({ to: '/auth' }); }} className="w-full text-left px-4 py-3 text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl transition-colors">Sign Out</button>
              </div>
           </div>
         </div>

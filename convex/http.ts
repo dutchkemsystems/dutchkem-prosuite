@@ -4,7 +4,7 @@ import { httpAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { koraWebhook } from "./kora_webhook";
 import { trypostWebhook } from "./trypost_webhook";
-import { signRequest } from "./aws_sigv4";
+import { signRequest, sha256Hex } from "./aws_sigv4";
 
 const http = httpRouter();
 
@@ -83,7 +83,9 @@ http.route({
         return new Response(JSON.stringify({ success: false, message: 'AWS SMS service not configured' }), { status: 503, headers: { "Content-Type": "application/json" } });
       }
 
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpArray = new Uint32Array(1);
+      crypto.getRandomValues(otpArray);
+      const otpCode = (100000 + (otpArray[0] % 900000)).toString();
       const phoneFormatted = `+${phone}`;
       const region = process.env.AWS_REGION || 'us-east-1';
       const host = `sns.${region}.amazonaws.com`;
@@ -112,7 +114,7 @@ http.route({
       });
 
       // Store OTP in DB (hash it for security)
-      const otpHash = otpCode;
+      const otpHash = sha256Hex(otpCode);
       const requestId = await ctx.runMutation(internal.aws_otp.storeOtpRequest, {
         identifier: phone,
         otpHash,
@@ -147,10 +149,10 @@ http.route({
       const { pinId, pin } = await req.json();
       if (!pinId || !pin) return new Response(JSON.stringify({ success: false, verified: false, message: 'Pin ID and PIN are required' }), { status: 400, headers: { "Content-Type": "application/json" } });
 
-      // Look up OTP from DB using requestId
+      // Look up OTP from DB using requestId (hash the incoming OTP for comparison)
       const otpRequest = await ctx.runQuery(internal.aws_otp.findValidOtp, {
         identifier: pinId,
-        otpHash: pin,
+        otpHash: sha256Hex(pin),
       });
 
       if (otpRequest) {
@@ -621,7 +623,12 @@ http.route({
   path: "/api/admin/earnings-live",
   method: "GET",
   handler: httpAction(async (ctx, req) => {
-    const earnings = await ctx.runQuery(api.admin.getEarningsSummary, {});
+    const url = new URL(req.url);
+    const adminToken = url.searchParams.get("token");
+    if (!adminToken) return new Response(JSON.stringify({ authError: true }), { status: 401, headers: { "Content-Type": "application/json" } });
+    const session: any = await ctx.runQuery(internal.auth_helpers.validateAdminSession, { adminToken });
+    if (!session) return new Response(JSON.stringify({ authError: true }), { status: 401, headers: { "Content-Type": "application/json" } });
+    const earnings = await ctx.runQuery(api.admin.getEarningsSummary, { adminToken });
     const txs = await ctx.runQuery(api.admin.getRecentTransactions, {});
     return new Response(JSON.stringify({ earnings, txs }), {
       status: 200,
@@ -640,6 +647,10 @@ http.route({
   method: "GET",
   handler: httpAction(async (ctx, req) => {
     const url = new URL(req.url);
+    const adminToken = url.searchParams.get("token");
+    if (!adminToken) return new Response(JSON.stringify({ authError: true }), { status: 401, headers: { "Content-Type": "application/json" } });
+    const session: any = await ctx.runQuery(internal.auth_helpers.validateAdminSession, { adminToken });
+    if (!session) return new Response(JSON.stringify({ authError: true }), { status: 401, headers: { "Content-Type": "application/json" } });
     const taskId = url.searchParams.get("taskId");
     if (!taskId) return new Response(JSON.stringify({ error: "taskId required" }), { status: 400, headers: { "Content-Type": "application/json" } });
 

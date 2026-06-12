@@ -180,8 +180,10 @@ export const initiateDirectTransfer = mutation({
         return { success: false, error: `Insufficient balance. Wallet: â‚¦${(mainWallet?.balance || 0).toLocaleString()}, Transfer: â‚¦${args.amount.toLocaleString()}` };
       }
 
-      // Generate OTP (6 digits)
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      // Generate OTP (6 digits) — cryptographically secure
+      const otpArray = new Uint32Array(1);
+      crypto.getRandomValues(otpArray);
+      const otp = (100000 + (otpArray[0] % 900000)).toString();
       const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
       // Store OTP with direct transfer details
@@ -222,8 +224,7 @@ export const initiateDirectTransfer = mutation({
       return {
         success: true,
         otpId: otpKey,
-        otp,
-        message: `OTP generated. Check your email or screen.`,
+        message: `OTP sent to your email. Check your inbox.`,
         expiresAt: otpExpiry,
       };
     } catch (error: any) {
@@ -265,8 +266,10 @@ export const initiateTransfer = mutation({
         return { success: false, error: "Insufficient balance" };
       }
 
-      // Generate OTP (6 digits)
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      // Generate OTP (6 digits) — cryptographically secure
+      const otpArray2 = new Uint32Array(1);
+      crypto.getRandomValues(otpArray2);
+      const otp = (100000 + (otpArray2[0] % 900000)).toString();
       const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
       // Store OTP in system_config temporarily

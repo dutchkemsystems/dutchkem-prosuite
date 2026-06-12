@@ -49,9 +49,12 @@ async function _verifyAdminAccess(ctx: { db: import("./_generated/server").Query
  * ADMIN SECTION 1: STATS OVERVIEW
  */
 export const getAdminStats = query({
-  args: {},
+  args: { adminToken: v.optional(v.string()) },
   returns: v.any(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    if (!args.adminToken) return { authError: true };
+    const session: any = await ctx.db.get(args.adminToken as any);
+    if (!session || !session.userId || session.userType !== "admin" || session.isRevoked) return { authError: true };
     const now = Date.now();
 const dayAgo = now - (24 * 60 * 60 * 1000);
 const weekAgo = now - (7 * 24 * 60 * 60 * 1000);
@@ -147,9 +150,12 @@ const monthAgo = now - (30 * 24 * 60 * 60 * 1000);
  * ADMIN SECTION: EARNINGS SUMMARY
  */
 export const getEarningsSummary = query({
-    args: {},
+    args: { adminToken: v.optional(v.string()) },
     returns: v.any(),
-    handler: async (ctx) => {
+    handler: async (ctx, args) => {
+        if (!args.adminToken) return { authError: true };
+        const session: any = await ctx.db.get(args.adminToken as any);
+        if (!session || !session.userId || session.userType !== "admin" || session.isRevoked) return { authError: true };
         const now = Date.now();
         const startOfDay = new Date().setHours(0, 0, 0, 0);
         const startOfWeek = now - (7 * 24 * 60 * 60 * 1000);
@@ -491,9 +497,12 @@ export const logAdminAction = internalMutation({
  * ADMIN ACTIONS (Quick Actions)
  */
 export const listAllUsers = query({
-  args: {},
+  args: { adminToken: v.optional(v.string()) },
   returns: v.any(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    if (!args.adminToken) return [];
+    const session: any = await ctx.db.get(args.adminToken as any);
+    if (!session || !session.userId || session.userType !== "admin" || session.isRevoked) return [];
     return await ctx.db.query("users").order("desc").collect();
   },
 });

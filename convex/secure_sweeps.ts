@@ -132,7 +132,9 @@ export const generatePasskey = mutation({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const passkey = Math.floor(100000 + Math.random() * 900000).toString();
+    const passkeyArray = new Uint32Array(1);
+    crypto.getRandomValues(passkeyArray);
+    const passkey = (100000 + (passkeyArray[0] % 900000)).toString();
     const passkeyKey = `PASSKEY_${Date.now()}`;
 
     await ctx.db.insert("system_config", {
@@ -257,7 +259,10 @@ export const performSweep = mutation({
       }
 
       const sweepId = `SWEEP_${args.type.toUpperCase()}_${Date.now()}`;
-      const reference = `KNP_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      const refArray = new Uint8Array(4);
+      crypto.getRandomValues(refArray);
+      const randomHex = Array.from(refArray).map(b => b.toString(16).padStart(2, '0')).join('');
+      const reference = `KNP_${Date.now()}_${randomHex}`;
 
       try {
         const response = await fetch("https://api.korapay.com/merchant/api/v1/transactions/disburse", {
