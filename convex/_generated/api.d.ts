@@ -8,7 +8,7 @@
  * @module
  */
 
-import type * as ResendOTP from "../ResendOTP.js";
+import type * as AwsEmailOTP from "../AwsEmailOTP.js";
 import type * as TermiiOTP from "../TermiiOTP.js";
 import type * as abandonedCheckouts from "../abandonedCheckouts.js";
 import type * as academic_agent from "../academic_agent.js";
@@ -178,7 +178,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  ResendOTP: typeof ResendOTP;
+  AwsEmailOTP: typeof AwsEmailOTP;
   TermiiOTP: typeof TermiiOTP;
   abandonedCheckouts: typeof abandonedCheckouts;
   academic_agent: typeof academic_agent;

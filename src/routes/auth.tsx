@@ -82,7 +82,7 @@ function EmailAuthForm() {
     setEmail(emailValue);
 
     try {
-      await signIn("resend-otp", formData);
+      await signIn("aws-email-otp", formData);
       setStep("otp");
     } catch (err: any) {
       const msg = err?.message || String(err || '');
@@ -107,7 +107,7 @@ function EmailAuthForm() {
     const formData = new FormData(e.currentTarget);
     
     try {
-      await signIn("resend-otp", formData);
+      await signIn("aws-email-otp", formData);
       // Redirect happens automatically via Authenticated wrapper
     } catch (err: any) {
       setError("Invalid or expired code. Please check and try again.");
