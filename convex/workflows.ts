@@ -255,7 +255,7 @@ export const executeSendSms = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const { phone, message } = args.config;
-    // Integration with Termii SMS
+    // Integration with AWS SNS SMS
     await ctx.runMutation(api.communication.sendSms, {
       to: phone || args.triggerEvent.phone,
       message: message || `New activity on your Dutchkem account!`,

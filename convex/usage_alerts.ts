@@ -13,7 +13,8 @@ const FREE_TIER_LIMITS: Record<string, { displayName: string; limit: number; uni
   deepgram: { displayName: "Deepgram STT/TTS", limit: 12000, unit: "minutes/year" }, // $200 free credit
   livekit: { displayName: "LiveKit Cloud", limit: 1000, unit: "minutes/month" },
   nvidia: { displayName: "NVIDIA NIM AI", limit: 1000, unit: "requests/month" },
-  termii: { displayName: "Termii OTP", limit: 100, unit: "SMS (test balance)" },
+  aws_ses: { displayName: "AWS SES Email", limit: 62000, unit: "emails/month" },
+  aws_sns: { displayName: "AWS SNS SMS", limit: 100, unit: "SMS/month (free tier)" },
   resend: { displayName: "Resend Email", limit: 3000, unit: "emails/month" },
   kora: { displayName: "Kora Pay", limit: 100, unit: "transactions/month" },
 };

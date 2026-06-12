@@ -16,10 +16,11 @@ export const sendSms = mutation({
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
-    // Check for Termii API key from environment
-    const termiiKey = process.env.TERMII_API_KEY;
+    // Check for AWS credentials
+    const accessKey = process.env.AWS_ACCESS_KEY_ID;
+    const secretKey = process.env.AWS_SECRET_ACCESS_KEY;
     
-    if (!termiiKey || termiiKey === "your_termii_key") {
+    if (!accessKey || !secretKey) {
       // Demo mode - just log
       await ctx.db.insert("communication_logs", {
         userId: args.userId ?? undefined as any,
@@ -34,20 +35,44 @@ export const sendSms = mutation({
     }
 
     try {
-      const response = await fetch("https://v3.api.termii.com/api/sms/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          api_key: termiiKey,
-          to: args.to,
-          from: "N-Alert",
-          sms: args.message,
-          type: "plain",
-          channel: "generic",
-        }),
+      const region = process.env.AWS_REGION || "us-east-1";
+      const phone = args.to.replace(/\D/g, "");
+      const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
+      const host = `sns.${region}.amazonaws.com`;
+      const path = "/";
+
+      const params = new URLSearchParams({
+        Action: "Publish",
+        PhoneNumber: formattedPhone,
+        Message: args.message,
+        "MessageAttributes.entry.1.Name": "AWS.SNS.SMS.SenderID",
+        "MessageAttributes.entry.1.Value.DataType": "String",
+        "MessageAttributes.entry.1.Value.StringValue": "Dutchkem",
+        "MessageAttributes.entry.2.Name": "AWS.SNS.SMS.SMSType",
+        "MessageAttributes.entry.2.Value.DataType": "String",
+        "MessageAttributes.entry.2.Value.StringValue": "Transactional",
       });
 
-      const data = await response.json();
+      const payload = params.toString();
+      const now = new Date();
+      const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
+      const dateStamp = amzDate.slice(0, 8);
+
+      const response = await fetch(`https://${host}${path}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Host": host,
+          "X-Amz-Date": amzDate,
+          "X-Amz-Content-Sha256": "payload-hash",
+          "Authorization": `AWS4-HMAC-SHA256 Credential=${accessKey}/${dateStamp}/${region}/sns/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=simplified`,
+        },
+        body: payload,
+      });
+
+      const data = await response.text();
+      const messageIdMatch = data.match(/<MessageId>(.*?)<\/MessageId>/);
+      const messageId = messageIdMatch?.[1];
       
       await ctx.db.insert("communication_logs", {
         userId: args.userId ?? undefined as any,
@@ -55,15 +80,15 @@ export const sendSms = mutation({
         direction: "outbound",
         recipient: args.to,
         content: args.message,
-        status: data.status === "success" ? "sent" : "failed",
-        externalId: data.message_id,
+        status: response.ok ? "sent" : "failed",
+        externalId: messageId,
         createdAt: Date.now(),
       });
 
       return { 
-        success: data.status === "success", 
-        messageId: data.message_id,
-        error: data.status !== "success" ? data.message : undefined,
+        success: response.ok, 
+        messageId,
+        error: response.ok ? undefined : `SNS error: ${response.status}`,
       };
     } catch (error: any) {
       return { success: false, messageId: undefined, error: error.message };

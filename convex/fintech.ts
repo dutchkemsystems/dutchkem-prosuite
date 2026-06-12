@@ -207,7 +207,7 @@ export const initiateDirectTransfer = mutation({
 
       console.log(`[OTP] Direct transfer OTP for â‚¦${args.amount}: ${otp}`);
 
-      // Send OTP via email using Termii
+      // Send OTP via email using AWS SES
       try {
         await ctx.scheduler.runAfter(0, api.otp_email.sendOtpEmail as any, {
           otp,
@@ -289,7 +289,7 @@ export const initiateTransfer = mutation({
         updatedAt: Date.now(),
       });
 
-      // In production, send OTP via Termii email API
+      // In production, send OTP via AWS SES email API
       console.log(`[OTP] Transfer OTP for â‚¦${args.amount}: ${otp}`);
       console.log(`[OTP] Expires at: ${new Date(otpExpiry).toISOString()}`);
 

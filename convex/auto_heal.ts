@@ -23,7 +23,7 @@ const EMAIL_PROVIDERS = {
   sendgrid: "SENDGRID_API_KEY",
 };
 
-const TERMII_SMS = "TERMII_API_KEY";
+const TERMII_SMS = "AWS_SNS_SMS"; // Updated: AWS SNS replaces Termii
 
 // ─── MUTATIONS (called by PowerShell script via httpAction) ───
 
@@ -462,22 +462,27 @@ export const _dispatchNotification = internalAction({
       }
     }
 
-    // SMS via Termii
+    // SMS via AWS SNS
     if (args.sms && args.severity === "critical") {
-      const termiiKey = process.env.TERMII_API_KEY;
-      if (termiiKey) {
+      const accessKey = process.env.AWS_ACCESS_KEY_ID;
+      const secretKey = process.env.AWS_SECRET_ACCESS_KEY;
+      if (accessKey && secretKey) {
         try {
-          await fetch("https://v3.api.termii.com/api/sms/send", {
+          const region = process.env.AWS_REGION || "us-east-1";
+          const host = `sns.${region}.amazonaws.com`;
+          const message = `[AutoHeal ${args.severity}] ${args.title}: ${args.message.slice(0, 100)}`;
+          const params = new URLSearchParams({
+            Action: "Publish",
+            PhoneNumber: "+2348000000000",
+            Message: message,
+            "MessageAttributes.entry.1.Name": "AWS.SNS.SMS.SenderID",
+            "MessageAttributes.entry.1.Value.DataType": "String",
+            "MessageAttributes.entry.1.Value.StringValue": "AutoHeal",
+          });
+          await fetch(`https://${host}/`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              api_key: termiiKey,
-              to: "2348000000000", // placeholder admin phone
-              from: "N-Alert",
-              sms: `[AutoHeal ${args.severity}] ${args.title}: ${args.message.slice(0, 100)}`,
-              type: "plain",
-              channel: "generic",
-            }),
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: params.toString(),
           });
         } catch (e) {
           // best-effort

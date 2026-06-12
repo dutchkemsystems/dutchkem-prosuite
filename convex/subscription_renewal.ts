@@ -99,7 +99,7 @@ export const updateConfig = mutation({
 });
 
 /**
- * Seed default subscription configs (Kora Pay, Termii, etc.)
+ * Seed default subscription configs (Kora Pay, AWS SES/SNS, etc.)
  */
 export const seedDefaultConfigs = internalMutation({
   args: {},
@@ -113,8 +113,7 @@ export const seedDefaultConfigs = internalMutation({
 
     const defaults = [
       { serviceName: "Kora Pay", plan: "monthly", amountNgn: 50000 },
-      { serviceName: "Termii", plan: "monthly", amountNgn: 30000 },
-      { serviceName: "Resend", plan: "monthly", amountNgn: 15000 },
+      { serviceName: "AWS SES/SNS", plan: "monthly", amountNgn: 15000 },
       { serviceName: "Deepgram", plan: "monthly", amountNgn: 25000 },
       { serviceName: "LiveKit", plan: "monthly", amountNgn: 20000 },
       { serviceName: "NVIDIA NIM", plan: "monthly", amountNgn: 40000 },
@@ -157,8 +156,7 @@ export const seedDefaultConfigsPublic = mutation({
 
     const defaults = [
       { serviceName: "Kora Pay", plan: "monthly", amountNgn: 50000 },
-      { serviceName: "Termii", plan: "monthly", amountNgn: 30000 },
-      { serviceName: "Resend", plan: "monthly", amountNgn: 15000 },
+      { serviceName: "AWS SES/SNS", plan: "monthly", amountNgn: 15000 },
       { serviceName: "Deepgram", plan: "monthly", amountNgn: 25000 },
       { serviceName: "LiveKit", plan: "monthly", amountNgn: 20000 },
       { serviceName: "NVIDIA NIM", plan: "monthly", amountNgn: 40000 },
