@@ -244,43 +244,68 @@ const TEMPLATES: Array<{
 
 /** Seed all 200+ marketplace templates — safe to call multiple times (skips existing) */
 export const seedAllTemplates = mutation({
-  args: { adminToken: v.string() },
+  args: { adminToken: v.string(), offset: v.optional(v.number()) },
   returns: v.any(),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return { authError: true };
 
+    const BATCH_SIZE = 25;
+    const startOffset = args.offset || 0;
+    const batch = TEMPLATES.slice(startOffset, startOffset + BATCH_SIZE);
     let inserted = 0;
     let skipped = 0;
+    let error: string | null = null;
 
-    for (const t of TEMPLATES) {
-      const existing = await ctx.db.query("agent_marketplace_templates")
-        .withIndex("by_template_id", (q) => q.eq("templateId", t.templateId))
-        .first();
-      if (existing) { skipped++; continue; }
+    for (const t of batch) {
+      try {
+        const existing = await ctx.db.query("agent_marketplace_templates")
+          .withIndex("by_template_id", (q) => q.eq("templateId", t.templateId))
+          .first();
+        if (existing) { skipped++; continue; }
 
-      await ctx.db.insert("agent_marketplace_templates", {
-        templateId: t.templateId,
-        name: t.name,
-        description: t.description,
-        category: t.category,
-        author: "Dutchkem AI",
-        version: "1.0.0",
-        priceNgn: t.priceNgn,
-        isFree: t.isFree,
-        config: { bestFor: t.bestFor, tags: t.tags, type: "template" },
-        tags: t.tags,
-        installCount: Math.floor(Math.random() * 500) + 50,
-        rating: Math.round((3.5 + Math.random() * 1.5) * 10) / 10,
-        reviewCount: Math.floor(Math.random() * 100) + 10,
-        isPublished: true,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-      inserted++;
+        await ctx.db.insert("agent_marketplace_templates", {
+          templateId: t.templateId,
+          name: t.name,
+          description: t.description,
+          category: t.category,
+          author: "Dutchkem AI",
+          version: "1.0.0",
+          priceNgn: t.priceNgn,
+          isFree: t.isFree,
+          config: { bestFor: t.bestFor, tags: t.tags, type: "template" },
+          tags: t.tags,
+          installCount: Math.floor(Math.random() * 500) + 50,
+          rating: Math.round((3.5 + Math.random() * 1.5) * 10) / 10,
+          reviewCount: Math.floor(Math.random() * 100) + 10,
+          isPublished: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        inserted++;
+      } catch (e: any) {
+        error = `Failed at ${t.templateId}: ${e.message}`;
+        break;
+      }
     }
 
-    return { success: true, inserted, skipped, total: TEMPLATES.length };
+    const nextOffset = startOffset + batch.length;
+    const hasMore = nextOffset < TEMPLATES.length;
+
+    return {
+      success: true,
+      inserted,
+      skipped,
+      error,
+      batchStart: startOffset,
+      batchEnd: nextOffset,
+      hasMore,
+      nextOffset: hasMore ? nextOffset : undefined,
+      total: TEMPLATES.length,
+      message: hasMore
+        ? `Batch ${Math.floor(startOffset / BATCH_SIZE) + 1}/${Math.ceil(TEMPLATES.length / BATCH_SIZE)} done. Call again with offset=${nextOffset}`
+        : `All ${TEMPLATES.length} templates loaded!`,
+    };
   },
 });
 

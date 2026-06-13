@@ -56,10 +56,23 @@ export function AdminMarketplace({ adminToken, organizations }: { adminToken: st
 
   const handleSeed = async () => {
     setSeeding(true)
+    let offset = 0
+    let totalInserted = 0
+    let batchNum = 0
     try {
-      const result: any = await seedTemplates({ adminToken })
-      if (result?.authError) { showToast('Unauthorized', 'error'); setSeeding(false); return }
-      showToast(`Loaded ${result?.inserted || 0} templates (${result?.skipped || 0} skipped)`, 'success')
+      while (true) {
+        batchNum++
+        const result: any = await seedTemplates({ adminToken, offset })
+        if (result?.authError) { showToast('Unauthorized', 'error'); break }
+        if (result?.error) { showToast(result.error, 'error'); break }
+        totalInserted += result?.inserted || 0
+        if (!result?.hasMore) {
+          showToast(`All done! ${totalInserted} templates loaded across ${batchNum} batches`, 'success')
+          break
+        }
+        offset = result.nextOffset
+        showToast(`Batch ${batchNum}: +${result.inserted} templates (${offset}/${result.total})...`, 'success')
+      }
     } catch (e: any) { showToast(e.message || 'Seed failed', 'error') }
     setSeeding(false)
   }
