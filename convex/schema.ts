@@ -543,6 +543,157 @@ export default defineSchema({
     .index("by_campaign", ["campaignId"])
     .index("by_date", ["date"]),
 
+  // ═══════════════════════════════════════════════════════════════════
+  // AD AUTOMATION — Enterprise-Grade Campaign Management
+  // ═══════════════════════════════════════════════════════════════════
+
+  ad_budget_rules: defineTable({
+    campaignId: v.id("ad_campaigns"),
+    platform: v.string(),
+    minDailyBudget: v.number(),
+    maxDailyBudget: v.number(),
+    currentDailyBudget: v.number(),
+    priority: v.number(), // 1=highest — budget shifts here first
+    autoOptimize: v.boolean(),
+    lastOptimizedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_campaign", ["campaignId"])
+    .index("by_platform", ["platform"]),
+
+  ad_ab_tests: defineTable({
+    campaignId: v.id("ad_campaigns"),
+    name: v.string(),
+    status: v.union(v.literal("running"), v.literal("paused"), v.literal("completed"), v.literal("archived")),
+    testType: v.union(v.literal("creative"), v.literal("headline"), v.literal("cta"), v.literal("audience"), v.literal("budget_split")),
+    winnerVariantId: v.optional(v.id("ad_ab_test_variants")),
+    confidenceLevel: v.number(), // 0-100%
+    startDate: v.number(),
+    endDate: v.optional(v.number()),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_campaign", ["campaignId"])
+    .index("by_status", ["status"]),
+
+  ad_ab_test_variants: defineTable({
+    testId: v.id("ad_ab_tests"),
+    campaignId: v.id("ad_campaigns"),
+    name: v.string(),
+    adCopy: v.string(),
+    headline: v.optional(v.string()),
+    cta: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    audienceTarget: v.optional(v.string()),
+    budgetPercent: v.number(), // % of test budget
+    impressions: v.number(),
+    clicks: v.number(),
+    conversions: v.number(),
+    spend: v.number(),
+    status: v.union(v.literal("active"), v.literal("paused"), v.literal("winner"), v.literal("loser")),
+    createdAt: v.number(),
+  }).index("by_test", ["testId"])
+    .index("by_campaign", ["campaignId"]),
+
+  ad_compliance_rules: defineTable({
+    platform: v.string(), // "all" or specific platform
+    ruleName: v.string(),
+    category: v.union(v.literal("prohibited_words"), v.literal("image_policy"), v.literal("content_length"), v.literal("hashtag_limit"), v.literal("url_policy"), v.literal("brand_safety")),
+    pattern: v.string(), // regex or keyword list (comma-separated)
+    severity: v.union(v.literal("block"), v.literal("warn"), v.literal("info")),
+    replacement: v.optional(v.string()),
+    enabled: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_platform", ["platform"])
+    .index("by_category", ["category"]),
+
+  ad_compliance_logs: defineTable({
+    adId: v.id("ad_ads"),
+    campaignId: v.id("ad_campaigns"),
+    platform: v.string(),
+    overallScore: v.number(), // 0-100
+    passed: v.boolean(),
+    violations: v.array(v.object({
+      ruleName: v.string(),
+      category: v.string(),
+      severity: v.string(),
+      message: v.string(),
+      suggestion: v.optional(v.string()),
+    })),
+    checkedAt: v.number(),
+  }).index("by_ad", ["adId"])
+    .index("by_campaign", ["campaignId"]),
+
+  ad_account_connections: defineTable({
+    platform: v.string(), // "meta", "google_ads", "tiktok_ads", "linkedin_ads", etc.
+    accountName: v.string(),
+    accountId: v.string(),
+    accessToken: v.optional(v.string()),
+    refreshToken: v.optional(v.string()),
+    status: v.union(v.literal("connected"), v.literal("disconnected"), v.literal("expired"), v.literal("pending")),
+    metadata: v.optional(v.any()), // platform-specific fields
+    createdBy: v.string(),
+    connectedAt: v.number(),
+    expiresAt: v.optional(v.number()),
+  }).index("by_platform", ["platform"])
+    .index("by_status", ["status"]),
+
+  ad_monetization_plans: defineTable({
+    name: v.string(), // "basic", "pro", "enterprise"
+    monthlyFeeNgn: v.number(),
+    successFeePercent: v.number(), // % of ad spend
+    maxPlatforms: v.number(),
+    features: v.array(v.string()),
+    enabled: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_name", ["name"]),
+
+  ad_monetization_invoices: defineTable({
+    companyId: v.string(),
+    planName: v.string(),
+    period: v.string(), // "YYYY-MM"
+    flatFeeNgn: v.number(),
+    adSpendTotalNgn: v.number(),
+    successFeeNgn: v.number(),
+    totalNgn: v.number(),
+    status: v.union(v.literal("pending"), v.literal("paid"), v.literal("overdue"), v.literal("cancelled")),
+    paidAt: v.optional(v.number()),
+    dueAt: v.number(),
+    createdAt: v.number(),
+  }).index("by_company", ["companyId"])
+    .index("by_status", ["status"])
+    .index("by_period", ["period"]),
+
+  ad_recommendations: defineTable({
+    campaignId: v.id("ad_campaigns"),
+    type: v.union(v.literal("budget"), v.literal("creative"), v.literal("audience"), v.literal("schedule"), v.literal("platform")),
+    title: v.string(),
+    description: v.string(),
+    impact: v.union(v.literal("high"), v.literal("medium"), v.literal("low")),
+    estimatedImprovement: v.optional(v.string()),
+    applied: v.boolean(),
+    appliedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_campaign", ["campaignId"])
+    .index("by_applied", ["applied"]),
+
+  ad_performance_snapshots: defineTable({
+    campaignId: v.id("ad_campaigns"),
+    date: v.string(), // YYYY-MM-DD
+    totalImpressions: v.number(),
+    totalClicks: v.number(),
+    totalEngagements: v.number(),
+    totalConversions: v.number(),
+    totalSpendNgn: v.number(),
+    roas: v.number(), // return on ad spend %
+    ctr: v.number(), // click-through rate %
+    cpc: v.number(), // cost per click
+    cpa: v.number(), // cost per acquisition
+    platformBreakdown: v.any(), // { linkedin: { impressions, clicks, spend }, ... }
+    createdAt: v.number(),
+  }).index("by_campaign", ["campaignId"])
+    .index("by_date", ["date"]),
+
   social_platforms: defineTable({
     userId: v.optional(v.id("users")), // Owner of this connection
     platform: v.string(), // "x", "linkedin", "facebook", "instagram", "threads", etc.

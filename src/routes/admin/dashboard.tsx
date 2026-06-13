@@ -26,6 +26,7 @@ import { MimoControlPanel } from "~/components/admin/MimoControlPanel";
 import { RapidAPIFallbackDashboard } from "~/components/admin/RapidAPIFallbackDashboard";
 import { RevenueHub } from "~/components/admin/RevenueHub";
 import AutoFlyerDashboard from "~/components/admin/AutoFlyerDashboard";
+import AdAutomationHub from "~/components/admin/enterprise/AdAutomationHub";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -156,7 +157,8 @@ function AdminDashboardPage() {
            <AdminTab active={activeTab === "api-costs"} onClick={() => setActiveTab("api-costs")} icon="🔌" label="API Costs" />
            <AdminTab active={activeTab === "platform-analytics"} onClick={() => setActiveTab("platform-analytics")} icon="📊" label="Platform Analytics" />
            <AdminTab active={activeTab === "synthetic"} onClick={() => setActiveTab("synthetic")} icon="🤖" label="Synthetic AI" />
-           <AdminTab active={activeTab === "ad-engine"} onClick={() => setActiveTab("ad-engine")} icon="📢" label="Ad Engine" />
+            <AdminTab active={activeTab === "ad-engine"} onClick={() => setActiveTab("ad-engine")} icon="📢" label="Ad Engine" />
+            <AdminTab active={activeTab === "ad-automation"} onClick={() => setActiveTab("ad-automation")} icon="🚀" label="Ad Automation" />
               <AdminTab active={activeTab === "composio-hub"} onClick={() => setActiveTab("composio-hub")} icon="🔗" label="Composio Hub" />
               <AdminTab active={activeTab === "composio-obs"} onClick={() => setActiveTab("composio-obs")} icon="🔌" label="Composio Max" />
               <AdminTab active={activeTab === "trypost"} onClick={() => setActiveTab("trypost")} icon="📅" label="TryPost" />
@@ -209,7 +211,8 @@ function AdminDashboardPage() {
             {activeTab === "api-costs" && <APICostsPanel />}
              {activeTab === "platform-analytics" && <PlatformAnalyticsPanel />}
              {activeTab === "synthetic" && <SyntheticIntelPanel />}
-             {activeTab === "ad-engine" && <AdEnginePanel />}
+              {activeTab === "ad-engine" && <AdEnginePanel />}
+              {activeTab === "ad-automation" && <AdAutomationHub adminToken={adminToken} />}
              {activeTab === "composio-hub" && <ComposioAdminHub adminToken={adminToken} />}
              {activeTab === "composio-obs" && <ComposioObservability adminToken={adminToken} />}
              {activeTab === "trypost" && <TryPostScheduler adminToken={adminToken} />}
