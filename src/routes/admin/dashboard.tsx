@@ -2784,12 +2784,19 @@ function ChangePasswordModal({ onClose, adminId, adminToken }: { onClose: () => 
 
 function Enable2FAModal({ onClose, adminId }: { onClose: () => void; adminId: string }) {
   const [code, setCode] = useState("");
-  const [secret] = useState(() => Array.from({ length: 32 }, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 62)]).join(""));
+  const [secret, setSecret] = useState("");
+  const [secretLoading, setSecretLoading] = useState(true);
   const [backupCodes, setBackupCodes] = useState<Array<string>>([]);
   const [enabled, setEnabled] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const generateSecret = useMutation(api.auth_helpers.generate2FASecret);
   const setup2FA = useMutation(api.auth_helpers.setupAdmin2FA);
+
+  // Generate secret server-side on mount
+  useEffect(() => {
+    generateSecret({}).then(({ secret }) => { setSecret(secret); setSecretLoading(false); }).catch(() => { setError("Failed to generate 2FA secret"); setSecretLoading(false); });
+  }, []);
 
   const handleEnable = async () => {
     if (code.length !== 6) { setError("Enter the 6-digit code from your authenticator"); return; }
@@ -2801,7 +2808,7 @@ function Enable2FAModal({ onClose, adminId }: { onClose: () => void; adminId: st
     setLoading(false);
   };
 
-  const qrUrl = `otpauth://totp/DutchkemProsuite:${adminId}?secret=${secret}&issuer=DutchkemProsuite`;
+  const qrUrl = secret ? `otpauth://totp/DutchkemProsuite:${adminId}?secret=${secret}&issuer=DutchkemProsuite` : "";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
@@ -2818,15 +2825,24 @@ function Enable2FAModal({ onClose, adminId }: { onClose: () => void; adminId: st
           </div>
         ) : (
           <div className="space-y-4">
-            <p className="text-slate-400 text-xs">Scan this QR code with Google Authenticator:</p>
-            <div className="bg-white p-4 rounded-xl text-center"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`} alt="2FA QR" className="mx-auto" /></div>
-            <div className="bg-slate-950 p-3 rounded-xl"><p className="text-[10px] text-slate-500 uppercase mb-1">Manual Secret</p><p className="text-xs font-mono text-white break-all">{secret}</p></div>
-            <input type="text" value={code} onChange={e => setCode(e.target.value)} placeholder="Enter 6-digit code" maxLength={6} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white font-bold text-sm text-center tracking-[0.5em]" />
-            {error && <p className="text-red-500 text-xs font-bold">{error}</p>}
-            <div className="flex gap-3">
-              <button type="button" onClick={onClose} className="flex-1 py-3 bg-slate-800 text-slate-400 rounded-xl font-bold text-sm">Cancel</button>
-              <button onClick={handleEnable} disabled={loading || code.length !== 6} className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold text-sm disabled:opacity-50">{loading ? "Enabling..." : "Enable 2FA"}</button>
-            </div>
+            {secretLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full mx-auto mb-4" />
+                <p className="text-slate-400 text-sm">Generating secure 2FA secret...</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-slate-400 text-xs">Scan this QR code with Google Authenticator:</p>
+                <div className="bg-white p-4 rounded-xl text-center"><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`} alt="2FA QR" className="mx-auto" /></div>
+                <div className="bg-slate-950 p-3 rounded-xl"><p className="text-[10px] text-slate-500 uppercase mb-1">Manual Secret</p><p className="text-xs font-mono text-white break-all">{secret}</p></div>
+                <input type="text" value={code} onChange={e => setCode(e.target.value)} placeholder="Enter 6-digit code" maxLength={6} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white font-bold text-sm text-center tracking-[0.5em]" />
+                {error && <p className="text-red-500 text-xs font-bold">{error}</p>}
+                <div className="flex gap-3">
+                  <button type="button" onClick={onClose} className="flex-1 py-3 bg-slate-800 text-slate-400 rounded-xl font-bold text-sm">Cancel</button>
+                  <button onClick={handleEnable} disabled={loading || code.length !== 6} className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold text-sm disabled:opacity-50">{loading ? "Enabling..." : "Enable 2FA"}</button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

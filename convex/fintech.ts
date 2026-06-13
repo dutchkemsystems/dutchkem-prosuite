@@ -1,7 +1,7 @@
 ﻿import { v } from "convex/values";
 import { action, internalAction, internalMutation, mutation, query } from "./_generated/server";
 import { api, internal } from "./_generated/api";
-import { tryGetAdminSessionInAction } from "./auth_helpers";
+import { tryGetAdminSessionInAction, tryGetAdminSession } from "./auth_helpers";
 
 /**
  * FINTECH INTEGRATION - Kora Pay + Nigerian Banks
@@ -120,11 +120,13 @@ export const connectBank = mutation({
     bankName: v.string(),
     accountNumber: v.string(),
     accountName: v.string(),
+    adminToken: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    const userId = identity?.subject || "system";
+    // Use custom admin auth — Convex Auth is never populated
+    const session = args.adminToken ? await tryGetAdminSession(ctx, args.adminToken) : null;
+    const userId = session?._id || "system";
 
     const existing = await ctx.db.query("beneficiaries")
       .filter(q => q.eq(q.field("bankCode"), args.bankCode))

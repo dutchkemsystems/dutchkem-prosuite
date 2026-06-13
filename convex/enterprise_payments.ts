@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action, mutation, query } from "./_generated/server";
+import { action, mutation, internalMutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 
@@ -348,7 +348,7 @@ export const _activateFreePlan = mutation({
  * INTERNAL MUTATION: Confirm enterprise payment from Kora webhook
  * Called when Kora sends charge.successful webhook for enterprise subscription
  */
-export const confirmEnterprisePayment = mutation({
+export const confirmEnterprisePayment = internalMutation({
   args: {
     reference: v.string(),
     amount: v.number(),

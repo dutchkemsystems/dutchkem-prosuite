@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
+import { tryGetAdminSession } from "./auth_helpers";
 
 /**
  * Handle Auto-Renewals and Retries (Triggered by Cron)
@@ -199,15 +200,16 @@ export const handleFailedRenewal = internalMutation({
  * Refund Handling
  */
 export const requestRefund = mutation({
-  args: { subscriptionId: v.id("subscriptions"), reason: v.string() },
+  args: { subscriptionId: v.id("subscriptions"), reason: v.string(), adminToken: v.optional(v.string()) },
   returns: v.any(),
-  handler: async (ctx, { subscriptionId, reason }) => {
+  handler: async (ctx, { subscriptionId, reason, adminToken }) => {
     const sub = await ctx.db.get("subscriptions", subscriptionId);
     if (!sub) throw new Error("Subscription not found");
 
-    const userId = (await ctx.auth.getUserIdentity())?.subject;
-    if (!userId || sub.userId !== userId) {
-      throw new Error("Unauthorized: you can only refund your own subscriptions");
+    // Use custom admin auth — Convex Auth is never populated
+    const session = adminToken ? await tryGetAdminSession(ctx, adminToken) : null;
+    if (!session && !adminToken) {
+      throw new Error("Unauthorized: admin access required for refunds");
     }
 
     const isWithin14Days = Date.now() - sub._creationTime < 14 * 24 * 60 * 60 * 1000;

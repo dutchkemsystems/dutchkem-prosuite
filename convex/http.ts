@@ -179,14 +179,14 @@ http.route({ path: "/api/agents/a2/generate", method: "POST", handler: agentHand
 http.route({ path: "/api/agents/a3/generate", method: "POST", handler: agentHandler(internal.content_chat.generateSimpleResponse) });
 http.route({ path: "/api/agents/a4/generate", method: "POST", handler: agentHandler(internal.career_chat.generateSimpleResponse) });
 http.route({ path: "/api/agents/a5/generate", method: "POST", handler: agentHandler(internal.shopping_chat.generateSimpleResponse) });
-http.route({ path: "/api/agents/a6/generate", method: "POST", handler: agentHandler(internal.certification_chat.generateSimpleResponse) });
+http.route({ path: "/api/agents/a6/generate", method: "POST", handler: agentHandler(internal.exam_career_chat.generateSimpleResponse) });
 http.route({ path: "/api/agents/a7/generate", method: "POST", handler: agentHandler(internal.finance_chat.generateSimpleResponse) });
 http.route({ path: "/api/agents/a8/generate", method: "POST", handler: agentHandler(internal.video_chat.generateSimpleResponse) });
 http.route({ path: "/api/agents/a9/generate", method: "POST", handler: agentHandler(internal.wellness_chat.generateSimpleResponse) });
 http.route({ path: "/api/agents/a10/generate", method: "POST", handler: agentHandler(internal.home_chat.generateSimpleResponse) });
 http.route({ path: "/api/agents/a11/generate", method: "POST", handler: agentHandler(internal.language_chat.generateSimpleResponse) });
 http.route({ path: "/api/agents/a12/generate", method: "POST", handler: agentHandler(internal.travel_chat.generateSimpleResponse) });
-http.route({ path: "/api/agents/a13/generate", method: "POST", handler: agentHandler(internal.exam_career_chat.generateSimpleResponse) });
+http.route({ path: "/api/agents/a13/generate", method: "POST", handler: agentHandler(internal.certification_chat.generateSimpleResponse) });
 http.route({ path: "/api/agents/a14/generate", method: "POST", handler: agentHandler(internal.translation_chat.generateSimpleResponse) });
 http.route({ path: "/api/agents/a15/generate", method: "POST", handler: agentHandler(internal.event_chat.generateSimpleResponse) });
 
@@ -256,7 +256,23 @@ async function verifyAdminToken(req: Request): Promise<string | null> {
   const authHeader = req.headers.get("authorization") || "";
   const token = authHeader.replace("Bearer ", "");
   if (!token) return null;
-  try { const payload = JSON.parse(atob(token.split(".")[1])); if (payload.role !== "admin") return null; return payload.sub || null; } catch { return null; }
+  // Validate against admin sessions table — no JWT decoding
+  try {
+    const url = process.env.CONVEX_SITE_URL || "https://warmhearted-aardvark-280.convex.site";
+    const res = await fetch(`${url}/api/query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: "auth_helpers:validateAdminSession",
+        args: { adminToken: token },
+      }),
+    });
+    const data = await res.json();
+    if (data.status === "success" && data.value) return data.value._id;
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 http.route({ path: "/api/admin/marketplace/escrow", method: "GET", handler: httpAction(async (ctx, req) => { const adminId = await verifyAdminToken(req); if (!adminId) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } }); const balance = await ctx.runQuery(api.marketplace.getEscrowBalance); return new Response(JSON.stringify(balance), { status: 200, headers: { "Content-Type": "application/json" } }); }) });
