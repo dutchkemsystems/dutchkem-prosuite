@@ -694,6 +694,124 @@ export default defineSchema({
   }).index("by_campaign", ["campaignId"])
     .index("by_date", ["date"]),
 
+  // ═══════════════════════════════════════════════════════════════════
+  // KYC VERIFICATION — Mandatory before any client payout
+  // ═══════════════════════════════════════════════════════════════════
+
+  client_kyc_submissions: defineTable({
+    userId: v.id("users"),
+    legalName: v.string(),
+    businessName: v.optional(v.string()),
+    registrationNumber: v.optional(v.string()),
+    countryOfIncorporation: v.optional(v.string()),
+    email: v.string(),
+    phoneNumber: v.optional(v.string()),
+    address: v.optional(v.string()),
+    city: v.optional(v.string()),
+    state: v.optional(v.string()),
+    postalCode: v.optional(v.string()),
+    country: v.optional(v.string()),
+    identityDocId: v.optional(v.id("_storage")),
+    proofOfAddressId: v.optional(v.id("_storage")),
+    certificateOfIncorporationId: v.optional(v.id("_storage")),
+    status: v.union(v.literal("not_submitted"), v.literal("pending"), v.literal("approved"), v.literal("rejected"), v.literal("expired")),
+    adminNotes: v.optional(v.string()),
+    reviewedBy: v.optional(v.string()),
+    reviewedAt: v.optional(v.number()),
+    rejectionReason: v.optional(v.string()),
+    version: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_status", ["status"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // CLIENT WALLETS — Tracks earnings from AI agent usage
+  // ═══════════════════════════════════════════════════════════════════
+
+  client_wallets: defineTable({
+    userId: v.id("users"),
+    balance: v.number(),
+    pendingWithdrawals: v.number(),
+    totalEarned: v.number(),
+    totalWithdrawn: v.number(),
+    lastUpdated: v.number(),
+  }).index("by_user", ["userId"]),
+
+  client_wallet_transactions: defineTable({
+    userId: v.id("users"),
+    type: v.union(v.literal("credit"), v.literal("debit"), v.literal("withdrawal"), v.literal("refund")),
+    amount: v.number(),
+    balanceBefore: v.number(),
+    balanceAfter: v.number(),
+    description: v.string(),
+    reference: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_type", ["type"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // CLIENT BANK ACCOUNTS — Verified bank details for payouts
+  // ═══════════════════════════════════════════════════════════════════
+
+  client_bank_accounts: defineTable({
+    userId: v.id("users"),
+    bankCode: v.string(),
+    bankName: v.string(),
+    accountNumber: v.string(),
+    accountName: v.string(),
+    isVerified: v.boolean(),
+    isDefault: v.boolean(),
+    verifiedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // CLIENT PAYOUT REQUESTS — Admin-only processing via Kora Pay
+  // ═══════════════════════════════════════════════════════════════════
+
+  client_payout_requests: defineTable({
+    userId: v.id("users"),
+    amount: v.number(),
+    currency: v.optional(v.string()),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("processing"), v.literal("completed"), v.literal("failed"), v.literal("rejected")),
+    bankCode: v.string(),
+    bankName: v.optional(v.string()),
+    accountNumber: v.string(),
+    accountName: v.string(),
+    adminNotes: v.optional(v.string()),
+    approvedBy: v.optional(v.string()),
+    approvedAt: v.optional(v.number()),
+    rejectedBy: v.optional(v.string()),
+    rejectedAt: v.optional(v.number()),
+    rejectionReason: v.optional(v.string()),
+    koraReference: v.optional(v.string()),
+    batchReference: v.optional(v.string()),
+    processedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    failureReason: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_status", ["status"])
+    .index("by_status_and_created", ["status", "createdAt"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // BULK PAYOUT BATCHES — Admin-initiated batch disbursements
+  // ═══════════════════════════════════════════════════════════════════
+
+  bulk_payout_batches: defineTable({
+    batchReference: v.string(),
+    totalAmount: v.number(),
+    totalPayouts: v.number(),
+    status: v.union(v.literal("pending"), v.literal("processing"), v.literal("completed"), v.literal("failed")),
+    koraResponse: v.optional(v.any()),
+    initiatedBy: v.string(),
+    processedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_reference", ["batchReference"])
+    .index("by_status", ["status"]),
+
   social_platforms: defineTable({
     userId: v.optional(v.id("users")), // Owner of this connection
     platform: v.string(), // "x", "linkedin", "facebook", "instagram", "threads", etc.

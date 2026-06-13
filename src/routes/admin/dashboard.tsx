@@ -27,6 +27,7 @@ import { RapidAPIFallbackDashboard } from "~/components/admin/RapidAPIFallbackDa
 import { RevenueHub } from "~/components/admin/RevenueHub";
 import AutoFlyerDashboard from "~/components/admin/AutoFlyerDashboard";
 import AdAutomationHub from "~/components/admin/enterprise/AdAutomationHub";
+import AdminPayoutDashboard from "~/components/admin/enterprise/AdminPayoutDashboard";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -159,6 +160,7 @@ function AdminDashboardPage() {
            <AdminTab active={activeTab === "synthetic"} onClick={() => setActiveTab("synthetic")} icon="🤖" label="Synthetic AI" />
             <AdminTab active={activeTab === "ad-engine"} onClick={() => setActiveTab("ad-engine")} icon="📢" label="Ad Engine" />
             <AdminTab active={activeTab === "ad-automation"} onClick={() => setActiveTab("ad-automation")} icon="🚀" label="Ad Automation" />
+            <AdminTab active={activeTab === "payouts"} onClick={() => setActiveTab("payouts")} icon="💸" label="KYC & Payouts" />
               <AdminTab active={activeTab === "composio-hub"} onClick={() => setActiveTab("composio-hub")} icon="🔗" label="Composio Hub" />
               <AdminTab active={activeTab === "composio-obs"} onClick={() => setActiveTab("composio-obs")} icon="🔌" label="Composio Max" />
               <AdminTab active={activeTab === "trypost"} onClick={() => setActiveTab("trypost")} icon="📅" label="TryPost" />
@@ -213,6 +215,7 @@ function AdminDashboardPage() {
              {activeTab === "synthetic" && <SyntheticIntelPanel />}
               {activeTab === "ad-engine" && <AdEnginePanel />}
               {activeTab === "ad-automation" && <AdAutomationHub adminToken={adminToken} />}
+              {activeTab === "payouts" && <AdminPayoutDashboard adminToken={adminToken} />}
              {activeTab === "composio-hub" && <ComposioAdminHub adminToken={adminToken} />}
              {activeTab === "composio-obs" && <ComposioObservability adminToken={adminToken} />}
              {activeTab === "trypost" && <TryPostScheduler adminToken={adminToken} />}

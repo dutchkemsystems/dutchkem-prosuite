@@ -9,6 +9,7 @@ import { KnowledgeGraphTab } from '~/components/enterprise/capabilities/Knowledg
 import { CompanionAgentTab } from '~/components/enterprise/capabilities/CompanionAgentTab'
 import { AgenticPaymentsTab } from '~/components/enterprise/capabilities/AgenticPaymentsTab'
 import { EmotionalAITab } from '~/components/enterprise/capabilities/EmotionalAITab'
+import ClientWalletDashboard from '~/components/admin/enterprise/ClientWalletDashboard'
 
 export const Route = createFileRoute('/enterprise/dashboard')({
   component: EnterpriseDashboard,
@@ -22,6 +23,7 @@ const tabs = [
   { id: 'companion', icon: '🤝', label: 'Companion Agent' },
   { id: 'payments', icon: '💳', label: 'Agentic Payments' },
   { id: 'emotional', icon: '💖', label: 'Emotional AI' },
+  { id: 'wallet', icon: '💰', label: 'My Wallet' },
 ]
 
 function EnterpriseDashboard() {
@@ -148,6 +150,7 @@ function EnterpriseDashboard() {
           {activeTab === 'companion' && <CompanionAgentTab token={token} />}
           {activeTab === 'payments' && <AgenticPaymentsTab token={token} />}
           {activeTab === 'emotional' && <EmotionalAITab token={token} />}
+          {activeTab === 'wallet' && <ClientWalletDashboard />}
         </div>
       </main>
     </div>
