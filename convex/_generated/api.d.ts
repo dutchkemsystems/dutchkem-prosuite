@@ -145,6 +145,7 @@ import type * as seed_admin from "../seed_admin.js";
 import type * as seed_automation from "../seed_automation.js";
 import type * as seed_financials from "../seed_financials.js";
 import type * as seed_kdp from "../seed_kdp.js";
+import type * as seed_marketplace_templates from "../seed_marketplace_templates.js";
 import type * as seed_migration from "../seed_migration.js";
 import type * as seoEngine from "../seoEngine.js";
 import type * as shopping_agent from "../shopping_agent.js";
@@ -322,6 +323,7 @@ declare const fullApi: ApiFromModules<{
   seed_automation: typeof seed_automation;
   seed_financials: typeof seed_financials;
   seed_kdp: typeof seed_kdp;
+  seed_marketplace_templates: typeof seed_marketplace_templates;
   seed_migration: typeof seed_migration;
   seoEngine: typeof seoEngine;
   shopping_agent: typeof shopping_agent;
