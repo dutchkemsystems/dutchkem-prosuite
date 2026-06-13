@@ -13,6 +13,16 @@ const COMPANY_TYPES = [
   { id: 'M3', name: 'Financial Services', size: 'enterprise' as const, employees: '500-10,000', price: 9999, subdomain: 'financial', agents: 12, description: 'Banking & Insurance', icon: '🏦', color: 'from-violet-500/20 to-violet-600/10', border: 'border-violet-500/30' },
   { id: 'M4', name: 'Logistics & Supply Chain', size: 'enterprise' as const, employees: '500-10,000', price: 7499, subdomain: 'logistics', agents: 10, description: 'Transport & Warehousing', icon: '🚚', color: 'from-teal-500/20 to-teal-600/10', border: 'border-teal-500/30' },
   { id: 'M5', name: 'Enterprise Tech', size: 'enterprise' as const, employees: '1,000-10,000', price: 14999, subdomain: 'enterprisetech', agents: 15, description: 'Enterprise Software & IT', icon: '🖥️', color: 'from-indigo-500/20 to-indigo-600/10', border: 'border-indigo-500/30' },
+  { id: 'H1', name: 'Global Banking & Finance', size: 'hyper-scale' as const, employees: '500,000+', price: 49999, subdomain: 'globalbanking', agents: 25, description: '50+ Countries · Fraud, KYC, Risk, Compliance', icon: '🏦', color: 'from-blue-500/20 to-blue-600/10', border: 'border-blue-500/30' },
+  { id: 'H2', name: 'International Manufacturing', size: 'hyper-scale' as const, employees: '1,000,000+', price: 59999, subdomain: 'globalmanufacturing', agents: 30, description: '40+ Countries · Supply Chain, Quality', icon: '🏭', color: 'from-orange-500/20 to-orange-600/10', border: 'border-orange-500/30' },
+  { id: 'H3', name: 'Worldwide E-commerce', size: 'hyper-scale' as const, employees: '800,000+', price: 69999, subdomain: 'globalecommerce', agents: 35, description: '60+ Countries · Personalization, Fraud, Logistics', icon: '🛒', color: 'from-emerald-500/20 to-emerald-600/10', border: 'border-emerald-500/30' },
+  { id: 'H4', name: 'Global Healthcare Network', size: 'hyper-scale' as const, employees: '600,000+', price: 79999, subdomain: 'globalhealthcare', agents: 28, description: '30+ Countries · Patient, Telemedicine, HIPAA', icon: '🏥', color: 'from-rose-500/20 to-rose-600/10', border: 'border-rose-500/30' },
+  { id: 'H5', name: 'Multi-National Telecom', size: 'hyper-scale' as const, employees: '700,000+', price: 89999, subdomain: 'globaltelecom', agents: 32, description: '45+ Countries · Network, Churn, Billing', icon: '📡', color: 'from-cyan-500/20 to-cyan-600/10', border: 'border-cyan-500/30' },
+  { id: 'H6', name: 'Global Logistics & Shipping', size: 'hyper-scale' as const, employees: '500,000+', price: 99999, subdomain: 'globallogistics', agents: 40, description: '80+ Countries · Route, Fleet, Warehouse', icon: '🚚', color: 'from-amber-500/20 to-amber-600/10', border: 'border-amber-500/30' },
+  { id: 'H7', name: 'International Energy Corp', size: 'hyper-scale' as const, employees: '400,000+', price: 119999, subdomain: 'globalenergy', agents: 38, description: '35+ Countries · Grid, Analytics, Safety', icon: '⚡', color: 'from-yellow-500/20 to-yellow-600/10', border: 'border-yellow-500/30' },
+  { id: 'H8', name: 'Worldwide Retail Chain', size: 'hyper-scale' as const, employees: '900,000+', price: 129999, subdomain: 'globalretail', agents: 45, description: '55+ Countries · Inventory, Price, Insights', icon: '🛍️', color: 'from-pink-500/20 to-pink-600/10', border: 'border-pink-500/30' },
+  { id: 'H9', name: 'Global Tech Conglomerate', size: 'hyper-scale' as const, employees: '1,500,000+', price: 149999, subdomain: 'globaltech', agents: 50, description: '70+ Countries · DevOps, Security, Product', icon: '🖥️', color: 'from-violet-500/20 to-violet-600/10', border: 'border-violet-500/30' },
+  { id: 'H10', name: 'Mega Government Agency', size: 'hyper-scale' as const, employees: '2,000,000+', price: 199999, subdomain: 'government', agents: 60, description: '100+ Countries · Citizen, Documents, Compliance', icon: '🏛️', color: 'from-indigo-500/20 to-indigo-600/10', border: 'border-indigo-500/30' },
 ]
 
 export function PortalCompanyManagement({ adminToken, organizations }: { adminToken: string, organizations: any[] }) {
@@ -81,7 +91,7 @@ export function PortalCompanyManagement({ adminToken, organizations }: { adminTo
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-black tracking-tight">Company Management</h2>
-          <p className="text-sm text-slate-400 mt-1">Create 10 company types — S1-S5 (Small) & M1-M5 (Enterprise)</p>
+          <p className="text-sm text-slate-400 mt-1">Create 20 company types — S1-S5 (Small), M1-M5 (Enterprise), H1-H10 (Hyper-Scale)</p>
         </div>
         <div className="flex items-center gap-3">
           <select value={selectedOrg} onChange={(e) => setSelectedOrg(e.target.value)} className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-[#FF6B35]/50">
@@ -94,7 +104,7 @@ export function PortalCompanyManagement({ adminToken, organizations }: { adminTo
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div className="bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-white/10 rounded-2xl p-4">
           <div className="text-2xl font-black">{companyList.length}</div>
           <div className="text-xs text-slate-400">Total Companies</div>
@@ -108,14 +118,18 @@ export function PortalCompanyManagement({ adminToken, organizations }: { adminTo
           <div className="text-xs text-slate-400">Small (S1-S5)</div>
         </div>
         <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-white/10 rounded-2xl p-4">
-          <div className="text-2xl font-black text-purple-400">${totalRevenue.toLocaleString()}/mo</div>
-          <div className="text-xs text-slate-400">Monthly Revenue</div>
+          <div className="text-2xl font-black text-purple-400">{companyList.filter((c: any) => c.size === 'enterprise').length}</div>
+          <div className="text-xs text-slate-400">Enterprise (M1-M5)</div>
+        </div>
+        <div className="bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-white/10 rounded-2xl p-4">
+          <div className="text-2xl font-black text-amber-400">{companyList.filter((c: any) => c.size === 'hyper-scale').length}</div>
+          <div className="text-xs text-slate-400">Hyper-Scale (H1-H10)</div>
         </div>
       </div>
 
       <div>
-        <h3 className="text-sm font-black text-slate-300 mb-3">Company Types</h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <h3 className="text-sm font-black text-slate-300 mb-3">Company Types (20 total)</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {COMPANY_TYPES.map((type) => {
             const count = companyList.filter((c: any) => c.companyType === type.id).length
             return (
@@ -126,7 +140,7 @@ export function PortalCompanyManagement({ adminToken, organizations }: { adminTo
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-2xl">{type.icon}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${type.size === 'small' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-purple-500/20 text-purple-400'}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${type.size === 'small' ? 'bg-emerald-500/20 text-emerald-400' : type.size === 'hyper-scale' ? 'bg-amber-500/20 text-amber-400' : 'bg-purple-500/20 text-purple-400'}`}>
                     {type.size.toUpperCase()}
                   </span>
                 </div>

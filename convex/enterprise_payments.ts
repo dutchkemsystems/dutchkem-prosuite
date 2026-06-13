@@ -170,7 +170,7 @@ export const initiateSubscriptionPayment = action({
     const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
 
-    const amounts: Record<string, number> = { free: 0, growth: 5000, professional: 15000, enterprise: 50000 };
+    const amounts: Record<string, number> = { free: 0, growth: 25000, professional: 75000, enterprise: 250000 };
     const amount = amounts[args.plan] || 0;
 
     if (args.plan === "free") {

@@ -9,18 +9,20 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 const PLANS = [
-  { id: 'free', name: 'Free', price: 0, desc: 'Basic access', color: 'from-gray-500/20 to-gray-600/10' },
-  { id: 'growth', name: 'Growth', price: 5000, desc: '15 agents + marketplace', color: 'from-emerald-500/20 to-emerald-600/10' },
-  { id: 'professional', name: 'Professional', price: 15000, desc: 'All features + analytics', color: 'from-blue-500/20 to-blue-600/10' },
-  { id: 'enterprise', name: 'Enterprise', price: 50000, desc: 'Unlimited + custom agents', color: 'from-purple-500/20 to-purple-600/10' },
+  { id: 'free', name: 'Free Trial', price: 0, desc: '7-day access · 3 agents · Basic features', color: 'from-gray-500/20 to-gray-600/10', badge: 'bg-gray-500/20 text-gray-400' },
+  { id: 'growth', name: 'Growth', price: 25000, desc: '15 agents · Marketplace · Analytics', color: 'from-emerald-500/20 to-emerald-600/10', badge: 'bg-emerald-500/20 text-emerald-400' },
+  { id: 'professional', name: 'Professional', price: 75000, desc: 'All features · Custom agents · Priority support', color: 'from-blue-500/20 to-blue-600/10', badge: 'bg-blue-500/20 text-blue-400' },
+  { id: 'enterprise', name: 'Enterprise', price: 250000, desc: 'Unlimited agents · White-label · SLA · Dedicated manager', color: 'from-purple-500/20 to-purple-600/10', badge: 'bg-purple-500/20 text-purple-400' },
 ]
 
 export function AdminPayments({ adminToken, organizations }: { adminToken: string, agents: any[], organizations: any[] }) {
   const [filter, setFilter] = useState('all')
   const [selectedOrg, setSelectedOrg] = useState(organizations[0]?._id || '')
   const [selectedPlan, setSelectedPlan] = useState('growth')
+  const [showPayModal, setShowPayModal] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [paying, setPaying] = useState(false)
+  const [paymentResult, setPaymentResult] = useState<any>(null)
 
   const transactions = useQuery(api.enterprise_payments.listTransactions, selectedOrg ? { orgId: selectedOrg as any, adminToken } : "skip")
   const stats = useQuery(api.enterprise_payments.getStats, selectedOrg ? { orgId: selectedOrg as any, adminToken } : "skip")
@@ -29,17 +31,19 @@ export function AdminPayments({ adminToken, organizations }: { adminToken: strin
 
   const txnList = transactions || []
   const filtered = filter === 'all' ? txnList : txnList.filter((t: any) => t.status === filter)
+  const plan = PLANS.find(p => p.id === selectedPlan)
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type })
     setTimeout(() => setToast(null), 5000)
   }
 
-  const handlePay = async () => {
+  const handlePayNow = async () => {
     if (!selectedOrg) { showToast('Select an organization first', 'error'); return }
     if (!selectedPlan) { showToast('Select a plan first', 'error'); return }
 
     setPaying(true)
+    setPaymentResult(null)
     try {
       const result: any = await initiatePayment({
         orgId: selectedOrg as any,
@@ -49,22 +53,25 @@ export function AdminPayments({ adminToken, organizations }: { adminToken: strin
       })
 
       if (result?.error) {
+        setPaymentResult({ error: result.error })
         showToast(result.error, 'error')
         setPaying(false)
         return
       }
 
-      if (result?.checkoutUrl) {
-        showToast('Redirecting to Kora Pay checkout...', 'success')
-        // Open Kora Pay checkout in new tab
-        window.open(result.checkoutUrl, '_blank')
-      } else if (result?.success && result?.plan === 'free') {
-        showToast('Free plan activated!', 'success')
-      }
+      setPaymentResult(result)
+      showToast('Payment initialized! Complete in the checkout window.', 'success')
     } catch (e: any) {
+      setPaymentResult({ error: e.message || 'Payment failed' })
       showToast(e.message || 'Payment failed', 'error')
     } finally {
       setPaying(false)
+    }
+  }
+
+  const openCheckout = () => {
+    if (paymentResult?.checkoutUrl) {
+      window.open(paymentResult.checkoutUrl, '_blank', 'width=600,height=800,scrollbars=yes')
     }
   }
 
@@ -121,40 +128,80 @@ export function AdminPayments({ adminToken, organizations }: { adminToken: strin
         </div>
       )}
 
-      {/* Plan Selection & Live Payment */}
+      {/* Plan Selection & Payment */}
       <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-        <h3 className="text-sm font-black text-slate-300 mb-4">💳 Pay via Kora Pay (Card or Transfer)</h3>
+        <h3 className="text-sm font-black text-slate-300 mb-4">Select Plan & Pay via Kora Pay</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          {PLANS.map((plan) => (
+          {PLANS.map((p) => (
             <button
-              key={plan.id}
-              onClick={() => setSelectedPlan(plan.id)}
+              key={p.id}
+              onClick={() => { setSelectedPlan(p.id); setPaymentResult(null) }}
               className={`p-4 rounded-xl border-2 text-left transition-all ${
-                selectedPlan === plan.id
+                selectedPlan === p.id
                   ? 'border-[#FF6B35] bg-[#FF6B35]/10'
                   : 'border-white/10 bg-white/5 hover:border-white/20'
               }`}
             >
-              <div className="text-white font-black text-sm">{plan.name}</div>
-              <div className="text-amber-400 font-black text-lg mt-1">
-                {plan.price === 0 ? 'Free' : `₦${plan.price.toLocaleString()}`}
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-white font-black text-sm">{p.name}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${p.badge}`}>
+                  {p.id === 'free' ? 'TRIAL' : p.id === 'enterprise' ? 'MAX' : p.id === 'professional' ? 'PRO' : 'POPULAR'}
+                </span>
               </div>
-              <div className="text-slate-500 text-xs mt-1">{plan.desc}</div>
+              <div className="text-amber-400 font-black text-xl mt-1">
+                {p.price === 0 ? 'Free' : `₦${p.price.toLocaleString()}`}
+              </div>
+              <div className="text-slate-500 text-[11px] mt-1">{p.desc}</div>
+              {selectedPlan === p.id && <div className="mt-2 text-[10px] text-[#FF6B35] font-black">✓ SELECTED</div>}
             </button>
           ))}
         </div>
+
+        {/* Pay Button */}
         <button
-          onClick={handlePay}
+          onClick={handlePayNow}
           disabled={paying || !selectedOrg || !selectedPlan}
-          className={`px-6 py-3 rounded-xl font-black text-sm transition-all ${
+          className={`w-full px-6 py-4 rounded-xl font-black text-sm transition-all ${
             paying
               ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-              : 'bg-[#FF6B35] hover:bg-[#FF8255] text-white'
+              : 'bg-[#FF6B35] hover:bg-[#FF8255] text-white shadow-lg shadow-[#FF6B35]/20'
           }`}
         >
-          {paying ? '⏳ Initializing...' : selectedPlan === 'free' ? '✅ Activate Free Plan' : '💳 Pay Now via Kora Pay'}
+          {paying ? '⏳ Initializing Kora Pay...' : selectedPlan === 'free' ? '✅ Activate Free Trial' : `💳 Pay ₦${(plan?.price || 0).toLocaleString()} via Kora Pay`}
         </button>
-        <div className="text-xs text-slate-500 mt-2">
+
+        {/* Payment Result — Kora Checkout Info */}
+        {paymentResult && !paymentResult.error && paymentResult.checkoutUrl && (
+          <div className="mt-4 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="text-sm font-black text-emerald-400">Kora Pay Checkout Ready</div>
+                <div className="text-[10px] text-slate-400 mt-1">Reference: {paymentResult.reference}</div>
+                <div className="text-[10px] text-slate-400">Amount: ₦{paymentResult.amount?.toLocaleString()}</div>
+                <div className="text-[10px] text-slate-400">Plan: {paymentResult.plan?.toUpperCase()}</div>
+              </div>
+              <button
+                onClick={openCheckout}
+                className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-sm transition-all shadow-lg shadow-emerald-500/20"
+              >
+                🔗 Open Kora Checkout
+              </button>
+            </div>
+            <div className="text-[10px] text-slate-500">
+              A new window will open with Kora Pay's secure checkout page. Complete payment with Card, Bank Transfer, or USSD.
+              After payment, the webhook will automatically confirm and activate your subscription.
+            </div>
+          </div>
+        )}
+
+        {paymentResult?.error && (
+          <div className="mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+            <div className="text-sm font-black text-red-400">Payment Error</div>
+            <div className="text-xs text-slate-400 mt-1">{paymentResult.error}</div>
+          </div>
+        )}
+
+        <div className="text-xs text-slate-500 mt-3">
           Payment goes to admin wallet → auto-sweep transfers to designated account at scheduled time
         </div>
       </div>
