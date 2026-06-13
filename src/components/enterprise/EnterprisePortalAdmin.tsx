@@ -1,8 +1,21 @@
 import { useQuery, useMutation } from 'convex/react'
 import { useState } from 'react'
 import { api } from '../../../convex/_generated/api'
+import { PortalCompanyManagement } from '~/components/admin/enterprise/PortalCompanyManagement'
+import { PortalSubAdminManagement } from '~/components/admin/enterprise/PortalSubAdminManagement'
+import { PortalClientManagement } from '~/components/admin/enterprise/PortalClientManagement'
+
+const PORTAL_TABS = [
+  { id: 'overview', label: 'Organizations', icon: '🏢' },
+  { id: 'companies', label: 'Company Types', icon: '🏭' },
+  { id: 'subadmins', label: 'Sub-Admins', icon: '👥' },
+  { id: 'clients', label: 'Clients', icon: '👤' },
+] as const
+
+type PortalTabId = typeof PORTAL_TABS[number]['id']
 
 export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
+  const [activeTab, setActiveTab] = useState<PortalTabId>('overview')
   const [filter, setFilter] = useState('all')
   const [showCreateOrg, setShowCreateOrg] = useState(false)
   const [showCreateAdmin, setShowCreateAdmin] = useState<string | null>(null)
@@ -36,12 +49,27 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
   const data = orgs.data || []
   const filtered = filter === 'all' ? data : data.filter((o: any) => o.status === filter)
 
+  const organizations = data
+
   const stats = {
     total: data.length,
     active: data.filter((o: any) => o.status === 'active').length,
     trial: data.filter((o: any) => o.status === 'trial').length,
     suspended: data.filter((o: any) => o.status === 'suspended').length,
     totalUsers: data.reduce((sum: number, o: any) => sum + (o.userCount || 0), 0),
+  }
+
+  const renderTab = () => {
+    switch (activeTab) {
+      case 'companies':
+        return <PortalCompanyManagement adminToken={adminToken} organizations={organizations} />
+      case 'subadmins':
+        return <PortalSubAdminManagement adminToken={adminToken} organizations={organizations} />
+      case 'clients':
+        return <PortalClientManagement adminToken={adminToken} organizations={organizations} />
+      default:
+        return null
+    }
   }
 
   const handleCreateOrg = async (e: React.FormEvent) => {
@@ -125,7 +153,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500">
       {toast && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-black ${toast.type === 'success' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
           {toast.message}
@@ -134,145 +162,168 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
 
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-black tracking-tight">Enterprise Portal Management</h2>
-          <p className="text-sm text-slate-400 mt-1">Manage enterprise organizations, trials, and subscriptions</p>
+          <h2 className="text-2xl font-black tracking-tight">Enterprise Portal</h2>
+          <p className="text-sm text-slate-400 mt-1">Manage organizations, companies, sub-admins, and clients</p>
         </div>
         <button onClick={() => setShowCreateOrg(true)} className="px-5 py-2.5 bg-orange-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-orange-700 transition-all">
           Create Organization
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="p-5 bg-white/5 border border-white/10 rounded-2xl text-center">
-          <p className="text-3xl font-black text-white">{stats.total}</p>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Total Orgs</p>
-        </div>
-        <div className="p-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-center">
-          <p className="text-3xl font-black text-emerald-400">{stats.active}</p>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Active</p>
-        </div>
-        <div className="p-5 bg-orange-500/10 border border-orange-500/20 rounded-2xl text-center">
-          <p className="text-3xl font-black text-orange-400">{stats.trial}</p>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Trial</p>
-        </div>
-        <div className="p-5 bg-red-500/10 border border-red-500/20 rounded-2xl text-center">
-          <p className="text-3xl font-black text-red-400">{stats.suspended}</p>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Suspended</p>
-        </div>
-        <div className="p-5 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-center">
-          <p className="text-3xl font-black text-blue-400">{stats.totalUsers}</p>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Total Users</p>
-        </div>
-      </div>
-
-      <div className="flex gap-2">
-        {['all', 'trial', 'active', 'suspended', 'expired'].map(f => (
-          <button key={f} onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${filter === f ? 'bg-orange-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
-            {f}
+      <div className="flex gap-1 bg-white/5 border border-white/10 rounded-2xl p-1 overflow-x-auto">
+        {PORTAL_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+              activeTab === tab.id
+                ? 'bg-[#FF6B35] text-white shadow-lg shadow-[#FF6B35]/20'
+                : 'text-slate-400 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <span>{tab.icon}</span>
+            <span>{tab.label}</span>
           </button>
         ))}
       </div>
 
-      <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-        <div className="grid grid-cols-9 gap-4 p-4 border-b border-white/5 text-[10px] font-black uppercase tracking-widest text-slate-500">
-          <div>Name</div>
-          <div>Email</div>
-          <div>Status</div>
-          <div>Plan</div>
-          <div>Users</div>
-          <div>Workflows</div>
-          <div>Transactions</div>
-          <div>Created</div>
-          <div>Actions</div>
-        </div>
-        {filtered.length === 0 ? (
-          <div className="p-12 text-center text-slate-500">No organizations found</div>
-        ) : (
-          filtered.map((org: any) => (
-            <div key={org._id}>
-              <div className="grid grid-cols-9 gap-4 p-4 border-b border-white/5 items-center hover:bg-white/5 transition-colors">
-                <div className="font-black text-sm">{org.name}</div>
-                <div className="text-sm text-slate-400">{org.email}</div>
-                <div>
-                  <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${org.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : org.status === 'trial' ? 'bg-orange-500/10 text-orange-400' : org.status === 'suspended' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'}`}>
-                    {org.status}
-                  </span>
-                </div>
-                <div className="text-sm font-bold capitalize">{org.plan}</div>
-                <div className="text-sm font-bold">{org.userCount || 0}</div>
-                <div className="text-sm font-bold">{org.workflowCount || 0}</div>
-                <div className="text-sm font-bold">{org.transactionCount || 0}</div>
-                <div className="text-xs text-slate-500">{new Date(org.createdAt).toLocaleDateString()}</div>
-                <div className="flex gap-1.5 flex-wrap">
-                  {org.status === 'trial' && (
-                    <button onClick={() => handleUpgrade(org._id)} className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-black hover:bg-emerald-700 transition-all">
-                      Upgrade
-                    </button>
-                  )}
-                  {org.status !== 'suspended' ? (
-                    <button onClick={() => handleSuspend(org._id)} className="px-2.5 py-1 bg-red-600/20 text-red-400 rounded-lg text-[10px] font-black hover:bg-red-600/30 transition-all">
-                      Suspend
-                    </button>
-                  ) : (
-                    <button onClick={() => handleReinstate(org._id)} className="px-2.5 py-1 bg-emerald-600/20 text-emerald-400 rounded-lg text-[10px] font-black hover:bg-emerald-600/30 transition-all">
-                      Reinstate
-                    </button>
-                  )}
-                  <button onClick={() => setExpandedOrg(expandedOrg === org._id ? null : org._id)} className="px-2.5 py-1 bg-blue-600/20 text-blue-400 rounded-lg text-[10px] font-black hover:bg-blue-600/30 transition-all">
-                    View Users
-                  </button>
-                  <button onClick={() => setShowCreateAdmin(org._id)} className="px-2.5 py-1 bg-purple-600/20 text-purple-400 rounded-lg text-[10px] font-black hover:bg-purple-600/30 transition-all">
-                    Create Admin
-                  </button>
-                  <button onClick={() => handleDelete(org._id)} className="px-2.5 py-1 bg-red-800/40 text-red-400 rounded-lg text-[10px] font-black hover:bg-red-800/60 transition-all">
-                    Delete
-                  </button>
-                </div>
-              </div>
-              {expandedOrg === org._id && (
-                <div className="bg-white/3 border-b border-white/5">
-                  <div className="grid grid-cols-6 gap-4 p-4 ml-8 text-[10px] font-black uppercase tracking-widest text-slate-600">
-                    <div>Name</div>
-                    <div>Email</div>
-                    <div>Role</div>
-                    <div>Status</div>
-                    <div>Must Change Pw</div>
-                    <div>Actions</div>
-                  </div>
-                  {!orgUsers ? (
-                    <div className="p-4 ml-8 text-slate-500 text-sm">Loading users...</div>
-                  ) : orgUsers.data?.length === 0 ? (
-                    <div className="p-4 ml-8 text-slate-500 text-sm">No users found</div>
-                  ) : (
-                    orgUsers.data?.map((user: any) => (
-                      <div key={user._id} className="grid grid-cols-6 gap-4 p-4 ml-8 border-t border-white/5 items-center hover:bg-white/3 transition-colors">
-                        <div className="text-sm">{user.name}</div>
-                        <div className="text-sm text-slate-400">{user.email}</div>
-                        <div className="text-sm font-bold capitalize">{user.role}</div>
-                        <div>
-                          <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${user.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                            {user.status}
-                          </span>
-                        </div>
-                        <div className="text-sm">{user.mustChangePassword ? 'Yes' : 'No'}</div>
-                        <div className="flex gap-1.5">
-                          <button onClick={() => handleResetPassword(user._id)} className="px-2.5 py-1 bg-amber-600/20 text-amber-400 rounded-lg text-[10px] font-black hover:bg-amber-600/30 transition-all">
-                            Reset Pw
-                          </button>
-                          <button onClick={() => handleToggleUserStatus(user._id, user.status)} className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all ${user.status === 'active' ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30' : 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30'}`}>
-                            {user.status === 'active' ? 'Suspend' : 'Activate'}
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
+      {activeTab === 'overview' && (
+        <div className="space-y-8">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="p-5 bg-white/5 border border-white/10 rounded-2xl text-center">
+              <p className="text-3xl font-black text-white">{stats.total}</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Total Orgs</p>
             </div>
-          ))
-        )}
-      </div>
+            <div className="p-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-center">
+              <p className="text-3xl font-black text-emerald-400">{stats.active}</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Active</p>
+            </div>
+            <div className="p-5 bg-orange-500/10 border border-orange-500/20 rounded-2xl text-center">
+              <p className="text-3xl font-black text-orange-400">{stats.trial}</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Trial</p>
+            </div>
+            <div className="p-5 bg-red-500/10 border border-red-500/20 rounded-2xl text-center">
+              <p className="text-3xl font-black text-red-400">{stats.suspended}</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Suspended</p>
+            </div>
+            <div className="p-5 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-center">
+              <p className="text-3xl font-black text-blue-400">{stats.totalUsers}</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Total Users</p>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            {['all', 'trial', 'active', 'suspended', 'expired'].map(f => (
+              <button key={f} onClick={() => setFilter(f)}
+                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${filter === f ? 'bg-orange-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
+                {f}
+              </button>
+            ))}
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+            <div className="grid grid-cols-9 gap-4 p-4 border-b border-white/5 text-[10px] font-black uppercase tracking-widest text-slate-500">
+              <div>Name</div>
+              <div>Email</div>
+              <div>Status</div>
+              <div>Plan</div>
+              <div>Users</div>
+              <div>Workflows</div>
+              <div>Transactions</div>
+              <div>Created</div>
+              <div>Actions</div>
+            </div>
+            {filtered.length === 0 ? (
+              <div className="p-12 text-center text-slate-500">No organizations found</div>
+            ) : (
+              filtered.map((org: any) => (
+                <div key={org._id}>
+                  <div className="grid grid-cols-9 gap-4 p-4 border-b border-white/5 items-center hover:bg-white/5 transition-colors">
+                    <div className="font-black text-sm">{org.name}</div>
+                    <div className="text-sm text-slate-400">{org.email}</div>
+                    <div>
+                      <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${org.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : org.status === 'trial' ? 'bg-orange-500/10 text-orange-400' : org.status === 'suspended' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                        {org.status}
+                      </span>
+                    </div>
+                    <div className="text-sm font-bold capitalize">{org.plan}</div>
+                    <div className="text-sm font-bold">{org.userCount || 0}</div>
+                    <div className="text-sm font-bold">{org.workflowCount || 0}</div>
+                    <div className="text-sm font-bold">{org.transactionCount || 0}</div>
+                    <div className="text-xs text-slate-500">{new Date(org.createdAt).toLocaleDateString()}</div>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {org.status === 'trial' && (
+                        <button onClick={() => handleUpgrade(org._id)} className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-black hover:bg-emerald-700 transition-all">
+                          Upgrade
+                        </button>
+                      )}
+                      {org.status !== 'suspended' ? (
+                        <button onClick={() => handleSuspend(org._id)} className="px-2.5 py-1 bg-red-600/20 text-red-400 rounded-lg text-[10px] font-black hover:bg-red-600/30 transition-all">
+                          Suspend
+                        </button>
+                      ) : (
+                        <button onClick={() => handleReinstate(org._id)} className="px-2.5 py-1 bg-emerald-600/20 text-emerald-400 rounded-lg text-[10px] font-black hover:bg-emerald-600/30 transition-all">
+                          Reinstate
+                        </button>
+                      )}
+                      <button onClick={() => setExpandedOrg(expandedOrg === org._id ? null : org._id)} className="px-2.5 py-1 bg-blue-600/20 text-blue-400 rounded-lg text-[10px] font-black hover:bg-blue-600/30 transition-all">
+                        View Users
+                      </button>
+                      <button onClick={() => setShowCreateAdmin(org._id)} className="px-2.5 py-1 bg-purple-600/20 text-purple-400 rounded-lg text-[10px] font-black hover:bg-purple-600/30 transition-all">
+                        Create Admin
+                      </button>
+                      <button onClick={() => handleDelete(org._id)} className="px-2.5 py-1 bg-red-800/40 text-red-400 rounded-lg text-[10px] font-black hover:bg-red-800/60 transition-all">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                  {expandedOrg === org._id && (
+                    <div className="bg-white/3 border-b border-white/5">
+                      <div className="grid grid-cols-6 gap-4 p-4 ml-8 text-[10px] font-black uppercase tracking-widest text-slate-600">
+                        <div>Name</div>
+                        <div>Email</div>
+                        <div>Role</div>
+                        <div>Status</div>
+                        <div>Must Change Pw</div>
+                        <div>Actions</div>
+                      </div>
+                      {!orgUsers ? (
+                        <div className="p-4 ml-8 text-slate-500 text-sm">Loading users...</div>
+                      ) : orgUsers.data?.length === 0 ? (
+                        <div className="p-4 ml-8 text-slate-500 text-sm">No users found</div>
+                      ) : (
+                        orgUsers.data?.map((user: any) => (
+                          <div key={user._id} className="grid grid-cols-6 gap-4 p-4 ml-8 border-t border-white/5 items-center hover:bg-white/3 transition-colors">
+                            <div className="text-sm">{user.name}</div>
+                            <div className="text-sm text-slate-400">{user.email}</div>
+                            <div className="text-sm font-bold capitalize">{user.role}</div>
+                            <div>
+                              <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${user.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                                {user.status}
+                              </span>
+                            </div>
+                            <div className="text-sm">{user.mustChangePassword ? 'Yes' : 'No'}</div>
+                            <div className="flex gap-1.5">
+                              <button onClick={() => handleResetPassword(user._id)} className="px-2.5 py-1 bg-amber-600/20 text-amber-400 rounded-lg text-[10px] font-black hover:bg-amber-600/30 transition-all">
+                                Reset Pw
+                              </button>
+                              <button onClick={() => handleToggleUserStatus(user._id, user.status)} className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all ${user.status === 'active' ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30' : 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30'}`}>
+                                {user.status === 'active' ? 'Suspend' : 'Activate'}
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab !== 'overview' && renderTab()}
 
       {showCreateOrg && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">

@@ -2715,6 +2715,116 @@ export default defineSchema({
     .index("by_status", ["status"]),
 
   // ═══════════════════════════════════════════════════════════════
+  // ENTERPRISE COMPANIES (10 types: S1-S5 small, M1-M5 enterprise)
+  // ═══════════════════════════════════════════════════════════════
+
+  enterprise_companies: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    companyId: v.string(),
+    companyType: v.string(),
+    typeName: v.string(),
+    size: v.union(v.literal("small"), v.literal("enterprise")),
+    employeeRange: v.string(),
+    monthlyPrice: v.number(),
+    subdomain: v.string(),
+    agentsCount: v.number(),
+    companyName: v.string(),
+    contactEmail: v.string(),
+    contactPhone: v.optional(v.string()),
+    address: v.optional(v.string()),
+    status: v.union(v.literal("active"), v.literal("suspended"), v.literal("pending")),
+    syncStatus: v.union(v.literal("synced"), v.literal("syncing"), v.literal("failed"), v.literal("pending")),
+    loginUrl: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_company_id", ["companyId"])
+    .index("by_type", ["companyType"])
+    .index("by_status", ["status"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // ENTERPRISE SUB-ADMINS (role-based access per company)
+  // ═══════════════════════════════════════════════════════════════
+
+  enterprise_subadmins: defineTable({
+    companyId: v.string(),
+    orgId: v.id("enterprise_organizations"),
+    name: v.string(),
+    email: v.string(),
+    passwordHash: v.string(),
+    role: v.union(v.literal("company_admin"), v.literal("department_manager"), v.literal("team_lead"), v.literal("viewer")),
+    department: v.optional(v.string()),
+    permissions: v.array(v.string()),
+    status: v.union(v.literal("active"), v.literal("suspended")),
+    lastLogin: v.optional(v.number()),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_company", ["companyId"])
+    .index("by_org", ["orgId"])
+    .index("by_email", ["email"])
+    .index("by_role", ["role"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // ENTERPRISE CLIENTS (end-users under companies)
+  // ═══════════════════════════════════════════════════════════════
+
+  enterprise_clients: defineTable({
+    companyId: v.string(),
+    orgId: v.id("enterprise_organizations"),
+    name: v.string(),
+    email: v.string(),
+    phone: v.optional(v.string()),
+    company: v.optional(v.string()),
+    status: v.union(v.literal("active"), v.literal("inactive"), v.literal("suspended")),
+    clientType: v.optional(v.string()),
+    assignedSubAdmin: v.optional(v.string()),
+    totalSpent: v.number(),
+    lastActivity: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_company", ["companyId"])
+    .index("by_org", ["orgId"])
+    .index("by_email", ["email"])
+    .index("by_status", ["status"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // ENTERPRISE SECURITY LOG (intruder detection, AES-256 audit)
+  // ═══════════════════════════════════════════════════════════════
+
+  enterprise_security_log: defineTable({
+    companyId: v.optional(v.string()),
+    orgId: v.optional(v.id("enterprise_organizations")),
+    eventType: v.union(
+      v.literal("login_attempt"),
+      v.literal("login_success"),
+      v.literal("login_failure"),
+      v.literal("intruder_detected"),
+      v.literal("ip_blocked"),
+      v.literal("password_change"),
+      v.literal("data_encrypted"),
+      v.literal("data_decrypted"),
+      v.literal("unauthorized_access"),
+      v.literal("rate_limit_hit")
+    ),
+    ip: v.string(),
+    email: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+    details: v.optional(v.any()),
+    severity: v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("critical")),
+    blocked: v.boolean(),
+    timestamp: v.number(),
+  })
+    .index("by_timestamp", ["timestamp"])
+    .index("by_event_type", ["eventType"])
+    .index("by_ip", ["ip"])
+    .index("by_severity", ["severity"])
+    .index("by_company", ["companyId"]),
+
+  // ═══════════════════════════════════════════════════════════════
   // ENTERPRISE ORG USERS (admin-created accounts)
   // ═══════════════════════════════════════════════════════════════
 
