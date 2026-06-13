@@ -220,6 +220,8 @@ if ($auditOutput -and $auditOutput.metadata) {
     if ($vulns.high -gt 0 -or $vulns.critical -gt 0) {
         Write-WARN "Security vulnerabilities found - auto-fixing..."
         npm audit fix --force 2>&1 | Out-Null
+        # Restore critical packages that audit fix may downgrade
+        npm install convex@1.40.0 convex-helpers@0.1.103 --legacy-peer-deps 2>&1 | Out-Null
         Write-FIX "npm audit fix applied"
         $FixedCount++
         $depStatus = "warn"
