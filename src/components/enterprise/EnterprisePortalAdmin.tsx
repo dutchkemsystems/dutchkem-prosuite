@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from 'convex/react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { api } from '../../../convex/_generated/api'
 import { PortalCompanyManagement } from '~/components/admin/enterprise/PortalCompanyManagement'
 import { PortalSubAdminManagement } from '~/components/admin/enterprise/PortalSubAdminManagement'
@@ -23,8 +23,11 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [orgForm, setOrgForm] = useState({ name: '', email: '', industry: '', size: '', phone: '', website: '', plan: 'trial' })
   const [adminForm, setAdminForm] = useState({ name: '', email: '' })
+  const [creating, setCreating] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
-  const orgs = useQuery(api.admin_enterprise.listOrganizations, { adminToken })
+  const effectiveToken = adminToken || ''
+  const orgs = useQuery(api.admin_enterprise.listOrganizations, effectiveToken ? { adminToken: effectiveToken } : 'skip')
   const createOrganization = useMutation(api.admin_enterprise.createOrganization)
   const createOrgAdminUser = useMutation(api.admin_enterprise.createOrgAdminUser)
   const resetOrgUserPassword = useMutation(api.admin_enterprise.resetOrgUserPassword)
@@ -34,19 +37,19 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
 
   const orgUsers = useQuery(
     api.admin_enterprise.listOrgUsers,
-    expandedOrg ? { adminToken, orgId: expandedOrg as any } : 'skip'
+    expandedOrg ? { adminToken: effectiveToken, orgId: expandedOrg as any } : 'skip'
   )
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type })
-    setTimeout(() => setToast(null), 3000)
+    setTimeout(() => setToast(null), 6000)
   }
 
-  if (!orgs) {
-    return <div className="p-12 text-center text-slate-500">Loading enterprise organizations...</div>
+  if (!effectiveToken) {
+    return <div className="p-12 text-center text-red-400">Admin session expired. Please refresh the page.</div>
   }
 
-  const data = Array.isArray(orgs) ? orgs : (orgs?.data || [])
+  const data = Array.isArray(orgs) ? orgs : []
   const filtered = filter === 'all' ? data : data.filter((o: any) => o.status === filter)
 
   const organizations = data
@@ -62,11 +65,11 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
   const renderTab = () => {
     switch (activeTab) {
       case 'companies':
-        return <PortalCompanyManagement adminToken={adminToken} organizations={organizations} />
+        return <PortalCompanyManagement adminToken={effectiveToken} organizations={organizations} />
       case 'subadmins':
-        return <PortalSubAdminManagement adminToken={adminToken} organizations={organizations} />
+        return <PortalSubAdminManagement adminToken={effectiveToken} organizations={organizations} />
       case 'clients':
-        return <PortalClientManagement adminToken={adminToken} organizations={organizations} />
+        return <PortalClientManagement adminToken={effectiveToken} organizations={organizations} />
       default:
         return null
     }
@@ -74,25 +77,44 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
 
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (creating) return
+    setCreating(true)
     try {
-      const result = await createOrganization({ adminToken, name: orgForm.name, email: orgForm.email, industry: orgForm.industry, size: orgForm.size, phone: orgForm.phone, website: orgForm.website, plan: orgForm.plan as any, adminName: orgForm.name, adminEmail: orgForm.email })
+      const result = await createOrganization({
+        adminToken: effectiveToken,
+        name: orgForm.name,
+        email: orgForm.email,
+        industry: orgForm.industry,
+        size: orgForm.size,
+        phone: orgForm.phone,
+        website: orgForm.website,
+        plan: orgForm.plan as any,
+        adminName: orgForm.name,
+        adminEmail: orgForm.email,
+      })
+      if (result?.error) {
+        showToast(result.error, 'error')
+        setCreating(false)
+        return
+      }
       setShowCreateOrg(false)
       setOrgForm({ name: '', email: '', industry: '', size: '', phone: '', website: '', plan: 'trial' })
-      if (result?.error) { showToast(result.error, 'error'); return }
       showToast(`Organization created! Admin: ${result.adminEmail} | Temp password: ${result.tempPassword}`, 'success')
+      setRefreshKey(k => k + 1)
     } catch (err: any) {
       showToast(err.message || 'Failed to create organization', 'error')
     }
+    setCreating(false)
   }
 
   const handleCreateAdmin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!showCreateAdmin) return
     try {
-      const result = await createOrgAdminUser({ adminToken, orgId: showCreateAdmin as any, name: adminForm.name, email: adminForm.email })
+      const result = await createOrgAdminUser({ adminToken: effectiveToken, orgId: showCreateAdmin as any, name: adminForm.name, email: adminForm.email })
+      if (result?.error) { showToast(result.error, 'error'); return }
       setShowCreateAdmin(null)
       setAdminForm({ name: '', email: '' })
-      if (result?.error) { showToast(result.error, 'error'); return }
       showToast(`Admin created! Temp password: ${result.tempPassword}`, 'success')
     } catch (err: any) {
       showToast(err.message || 'Failed to create admin user', 'error')
@@ -101,7 +123,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
 
   const handleUpgrade = async (orgId: string) => {
     try {
-      await adminUpdateOrg({ adminToken, orgId: orgId as any, status: 'active', plan: 'growth' })
+      await adminUpdateOrg({ adminToken: effectiveToken, orgId: orgId as any, status: 'active', plan: 'growth' })
       showToast('Organization upgraded', 'success')
     } catch (err: any) {
       showToast(err.message || 'Failed to upgrade', 'error')
@@ -110,7 +132,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
 
   const handleSuspend = async (orgId: string) => {
     try {
-      await adminUpdateOrg({ adminToken, orgId: orgId as any, status: 'suspended' })
+      await adminUpdateOrg({ adminToken: effectiveToken, orgId: orgId as any, status: 'suspended' })
       showToast('Organization suspended', 'success')
     } catch (err: any) {
       showToast(err.message || 'Failed to suspend', 'error')
@@ -119,7 +141,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
 
   const handleReinstate = async (orgId: string) => {
     try {
-      await adminUpdateOrg({ adminToken, orgId: orgId as any, status: 'active' })
+      await adminUpdateOrg({ adminToken: effectiveToken, orgId: orgId as any, status: 'active' })
       showToast('Organization reinstated', 'success')
     } catch (err: any) {
       showToast(err.message || 'Failed to reinstate', 'error')
@@ -129,7 +151,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
   const handleDelete = async (orgId: string) => {
     if (!confirm('Are you sure you want to delete this organization?')) return
     try {
-      await deleteOrganization({ adminToken, orgId: orgId as any })
+      await deleteOrganization({ adminToken: effectiveToken, orgId: orgId as any })
       showToast('Organization deleted', 'success')
     } catch (err: any) {
       showToast(err.message || 'Failed to delete', 'error')
@@ -138,7 +160,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
 
   const handleResetPassword = async (userId: string) => {
     try {
-      const result = await resetOrgUserPassword({ adminToken, userId: userId as any })
+      const result = await resetOrgUserPassword({ adminToken: effectiveToken, userId: userId as any })
       if (result?.error) { showToast(result.error, 'error'); return }
       showToast(`Password reset. New temp password: ${result.tempPassword}`, 'success')
     } catch (err: any) {
@@ -148,7 +170,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
 
   const handleToggleUserStatus = async (userId: string, currentStatus: string) => {
     try {
-      await toggleOrgUserStatus({ adminToken, userId: userId as any, status: currentStatus === 'active' ? 'suspended' : 'active' })
+      await toggleOrgUserStatus({ adminToken: effectiveToken, userId: userId as any, status: currentStatus === 'active' ? 'suspended' : 'active' })
       showToast('User status updated', 'success')
     } catch (err: any) {
       showToast(err.message || 'Failed to update user status', 'error')
@@ -158,7 +180,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-black ${toast.type === 'success' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-black max-w-md ${toast.type === 'success' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
           {toast.message}
         </div>
       )}
@@ -168,9 +190,14 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
           <h2 className="text-2xl font-black tracking-tight">Enterprise Portal</h2>
           <p className="text-sm text-slate-400 mt-1">Manage organizations, companies, sub-admins, and clients</p>
         </div>
-        <button onClick={() => setShowCreateOrg(true)} className="px-5 py-2.5 bg-orange-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-orange-700 transition-all">
-          Create Organization
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setRefreshKey(k => k + 1)} className="px-4 py-2 bg-white/5 border border-white/10 text-slate-400 rounded-xl text-xs font-black hover:bg-white/10 transition-all">
+            🔄 Refresh
+          </button>
+          <button onClick={() => setShowCreateOrg(true)} className="px-5 py-2.5 bg-orange-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-orange-700 transition-all">
+            Create Organization
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-1 bg-white/5 border border-white/10 rounded-2xl p-1 overflow-x-auto">
@@ -237,7 +264,14 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
               <div>Actions</div>
             </div>
             {filtered.length === 0 ? (
-              <div className="p-12 text-center text-slate-500">No organizations found</div>
+              <div className="p-12 text-center text-slate-500">
+                <div className="text-4xl mb-4">🏢</div>
+                <div className="text-lg font-black text-white mb-2">No organizations yet</div>
+                <div className="text-sm text-slate-400 mb-4">Click "Create Organization" to get started</div>
+                <button onClick={() => setShowCreateOrg(true)} className="px-6 py-3 bg-orange-600 text-white rounded-xl text-sm font-black hover:bg-orange-700 transition-all">
+                  Create First Organization
+                </button>
+              </div>
             ) : (
               filtered.map((org: any) => (
                 <div key={org._id}>
@@ -292,10 +326,10 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
                       </div>
                       {!orgUsers ? (
                         <div className="p-4 ml-8 text-slate-500 text-sm">Loading users...</div>
-                      ) : (Array.isArray(orgUsers) ? orgUsers : orgUsers?.data || []).length === 0 ? (
+                      ) : (Array.isArray(orgUsers) ? orgUsers : []).length === 0 ? (
                         <div className="p-4 ml-8 text-slate-500 text-sm">No users found</div>
                       ) : (
-                        (Array.isArray(orgUsers) ? orgUsers : orgUsers?.data || []).map((user: any) => (
+                        (Array.isArray(orgUsers) ? orgUsers : []).map((user: any) => (
                           <div key={user._id} className="grid grid-cols-6 gap-4 p-4 ml-8 border-t border-white/5 items-center hover:bg-white/3 transition-colors">
                             <div className="text-sm">{user.name}</div>
                             <div className="text-sm text-slate-400">{user.email}</div>
@@ -333,7 +367,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
           <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 w-full max-w-lg">
             <h3 className="text-lg font-black mb-6">Create Organization</h3>
             <form onSubmit={handleCreateOrg} className="space-y-4">
-              <input type="text" placeholder="Name" required value={orgForm.name} onChange={e => setOrgForm({ ...orgForm, name: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+              <input type="text" placeholder="Organization Name" required value={orgForm.name} onChange={e => setOrgForm({ ...orgForm, name: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
               <input type="email" placeholder="Email" required value={orgForm.email} onChange={e => setOrgForm({ ...orgForm, email: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
               <div className="grid grid-cols-2 gap-4">
                 <input type="text" placeholder="Industry" value={orgForm.industry} onChange={e => setOrgForm({ ...orgForm, industry: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
@@ -344,17 +378,20 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
                 <input type="text" placeholder="Website" value={orgForm.website} onChange={e => setOrgForm({ ...orgForm, website: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
               </div>
               <select value={orgForm.plan} onChange={e => setOrgForm({ ...orgForm, plan: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-orange-500">
-                <option value="trial">Trial</option>
+                <option value="trial">Trial (14 days free)</option>
                 <option value="growth">Growth</option>
                 <option value="enterprise">Enterprise</option>
                 <option value="scale">Scale</option>
               </select>
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-slate-400">
+                An admin account will be auto-created with the same email. A temporary password will be shown after creation.
+              </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowCreateOrg(false)} className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-black hover:bg-white/10 transition-all">
                   Cancel
                 </button>
-                <button type="submit" className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-xl text-sm font-black hover:bg-orange-700 transition-all">
-                  Create
+                <button type="submit" disabled={creating} className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-xl text-sm font-black hover:bg-orange-700 transition-all disabled:opacity-50">
+                  {creating ? 'Creating...' : 'Create'}
                 </button>
               </div>
             </form>

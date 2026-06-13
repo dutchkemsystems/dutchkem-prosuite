@@ -27,12 +27,12 @@ export const createOrganization = mutation({
   returns: v.any(),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
+    if (!identity) throw new Error("Not authenticated — please refresh the page");
 
     const existing = await ctx.db.query("enterprise_organizations")
       .withIndex("by_email", (q) => q.eq("email", args.email))
       .first();
-    if (existing) return { error: "Organization already registered" };
+    if (existing) return { error: "An organization with this email already exists" };
 
     const tempPassword = generateTempPassword();
     const orgPasswordHash = generateTempPassword();
@@ -138,29 +138,35 @@ export const createOrgAdminUser = mutation({
   },
 });
 
-/** List organizations */
+/** List organizations — returns empty array on auth failure instead of throwing */
 export const listOrganizations = query({
   args: { adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
-
-    return await ctx.db.query("enterprise_organizations").collect();
+    try {
+      const identity = await tryGetAdminSession(ctx, args.adminToken);
+      if (!identity) return [];
+      return await ctx.db.query("enterprise_organizations").collect();
+    } catch {
+      return [];
+    }
   },
 });
 
-/** List org users */
+/** List org users — returns empty array on auth failure instead of throwing */
 export const listOrgUsers = query({
   args: { orgId: v.id("enterprise_organizations"), adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
-
-    return await ctx.db.query("enterprise_org_users")
-      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
-      .collect();
+    try {
+      const identity = await tryGetAdminSession(ctx, args.adminToken);
+      if (!identity) return [];
+      return await ctx.db.query("enterprise_org_users")
+        .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+        .collect();
+    } catch {
+      return [];
+    }
   },
 });
 
