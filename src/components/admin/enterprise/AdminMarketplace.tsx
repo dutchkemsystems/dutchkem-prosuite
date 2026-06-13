@@ -6,6 +6,13 @@ const CATEGORY_ICONS: Record<string, string> = {
   'Customer Service': '💬', 'Sales & Marketing': '📈', 'Finance & Accounting': '💰',
   'Human Resources': '👥', 'Operations & Logistics': '🚚', 'Industry Specific': '🏭',
   'Compliance & Risk': '🛡️', 'Global & Multinational': '🌍', 'AI & Automation': '🤖',
+  'Oil & Gas': '⛽', 'Insurance': '🏥', 'Healthcare': '⚕️', 'Education': '🎓',
+  'Customs & Trade': '📦', 'Security & Defense': '🔒', 'Transportation': '🚛',
+  'Telecom': '📡', 'Government': '🏛️', 'Real Estate': '🏗️',
+  'Marketing & Advertising': '📢', 'E-commerce & Retail': '🛒',
+  'Banking & Finance': '🏦', 'Manufacturing': '🏭', 'Pharmaceutical': '💊',
+  'Logistics & Supply Chain': '🔗', 'Hospitality & Tourism': '🏨',
+  'Mining & Resources': '⛏️', 'Legal & Regulatory': '⚖️', 'Agriculture & Food': '🌾',
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -18,6 +25,26 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Compliance & Risk': 'from-red-500/20 to-red-600/10 border-red-500/30',
   'Global & Multinational': 'from-cyan-500/20 to-cyan-600/10 border-cyan-500/30',
   'AI & Automation': 'from-violet-500/20 to-violet-600/10 border-violet-500/30',
+  'Oil & Gas': 'from-yellow-500/20 to-yellow-600/10 border-yellow-500/30',
+  'Insurance': 'from-indigo-500/20 to-indigo-600/10 border-indigo-500/30',
+  'Healthcare': 'from-rose-500/20 to-rose-600/10 border-rose-500/30',
+  'Education': 'from-sky-500/20 to-sky-600/10 border-sky-500/30',
+  'Customs & Trade': 'from-lime-500/20 to-lime-600/10 border-lime-500/30',
+  'Security & Defense': 'from-slate-500/20 to-slate-600/10 border-slate-500/30',
+  'Transportation': 'from-orange-400/20 to-orange-500/10 border-orange-400/30',
+  'Telecom': 'from-blue-400/20 to-blue-500/10 border-blue-400/30',
+  'Government': 'from-stone-500/20 to-stone-600/10 border-stone-500/30',
+  'Real Estate': 'from-emerald-400/20 to-emerald-500/10 border-emerald-400/30',
+  'Marketing & Advertising': 'from-fuchsia-500/20 to-fuchsia-600/10 border-fuchsia-500/30',
+  'E-commerce & Retail': 'from-pink-500/20 to-pink-600/10 border-pink-500/30',
+  'Banking & Finance': 'from-green-500/20 to-green-600/10 border-green-500/30',
+  'Manufacturing': 'from-zinc-500/20 to-zinc-600/10 border-zinc-500/30',
+  'Pharmaceutical': 'from-cyan-400/20 to-cyan-500/10 border-cyan-400/30',
+  'Logistics & Supply Chain': 'from-amber-400/20 to-amber-500/10 border-amber-400/30',
+  'Hospitality & Tourism': 'from-violet-400/20 to-violet-500/10 border-violet-400/30',
+  'Mining & Resources': 'from-gray-500/20 to-gray-600/10 border-gray-500/30',
+  'Legal & Regulatory': 'from-red-400/20 to-red-500/10 border-red-400/30',
+  'Agriculture & Food': 'from-green-400/20 to-green-500/10 border-green-400/30',
 }
 
 export function AdminMarketplace({ adminToken, organizations }: { adminToken: string, agents: any[], organizations: any[] }) {
@@ -31,12 +58,13 @@ export function AdminMarketplace({ adminToken, organizations }: { adminToken: st
   const templates = useQuery(api.seed_marketplace_templates.listAllTemplates, {
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     search: search || undefined,
-    limit: 250,
+    limit: 500,
   })
   const installedAgents = useQuery(api.enterprise_marketplace.getInstalledAgents, selectedOrg ? { orgId: selectedOrg as any, adminToken } : "skip")
   const installAgent = useMutation(api.enterprise_marketplace.installAgent)
   const uninstallAgent = useMutation(api.enterprise_marketplace.uninstallAgent)
   const seedTemplates = useMutation(api.seed_marketplace_templates.seedAllTemplates)
+  const seedEnterpriseTemplates = useMutation(api.enterprise_marketplace_templates.seedEnterpriseTemplates)
   const testSeed = useMutation(api.seed_test.testSeedOne)
 
   const templateList = templates || []
@@ -86,6 +114,23 @@ export function AdminMarketplace({ adminToken, organizations }: { adminToken: st
     setSeeding(false)
   }
 
+  const handleSeedEnterprise = async () => {
+    setSeeding(true)
+    let offset = 0
+    let totalInserted = 0
+    try {
+      while (true) {
+        const result: any = await seedEnterpriseTemplates({ adminToken, offset })
+        if (result?.error) { showToast(`Error: ${result.error}`, 'error'); break }
+        if (result?.authError) { showToast(`Auth failed: ${result.message || 'invalid token'}`, 'error'); break }
+        totalInserted += result?.inserted || 0
+        if (!result?.hasMore) { showToast(`Done! ${totalInserted} enterprise templates loaded`, 'success'); break }
+        offset = result.nextOffset
+      }
+    } catch (e: any) { showToast(`Exception: ${e.message || e}`, 'error') }
+    setSeeding(false)
+  }
+
   const handleInstall = async (tpl: any) => {
     if (!selectedOrg) { showToast('Select an organization first', 'error'); return }
     try {
@@ -124,11 +169,14 @@ export function AdminMarketplace({ adminToken, organizations }: { adminToken: st
           <button onClick={handleSeed} disabled={seeding} className="px-4 py-2 bg-[#FF6B35] hover:bg-[#FF8255] text-white rounded-xl text-xs font-black transition-all disabled:opacity-50">
             {seeding ? '⏳ Loading...' : '🔄 Load 200+ Templates'}
           </button>
+          <button onClick={handleSeedEnterprise} disabled={seeding} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-black transition-all disabled:opacity-50">
+            {seeding ? '⏳ Loading...' : '🏭 Load 200 Enterprise Templates'}
+          </button>
         </div>
       </div>
 
       {/* Category Cards */}
-      <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2 max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
         {categories.map((cat) => (
           <button
             key={cat.key}

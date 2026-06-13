@@ -720,4 +720,25 @@ http.route({
   }),
 });
 
+// ========== ENTERPRISE MARKETPLACE TEMPLATE SEED (HTTP endpoint) ==========
+http.route({
+  path: "/api/marketplace/enterprise-seed",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const body = await req.json();
+      const { adminToken, offset = 0 } = body;
+      if (!adminToken) return new Response(JSON.stringify({ error: "adminToken required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+
+      const session: any = await ctx.runQuery(internal.auth_helpers.validateAdminSession, { adminToken });
+      if (!session) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+      const result = await ctx.runMutation(internal.enterprise_marketplace_templates.seedEnterpriseTemplates, { adminToken, offset });
+      return new Response(JSON.stringify(result), { status: 200, headers: { "Content-Type": "application/json" } });
+    } catch (e: any) {
+      return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+    }
+  }),
+});
+
 export default http;

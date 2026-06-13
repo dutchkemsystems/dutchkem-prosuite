@@ -83,6 +83,7 @@ import type * as enterprise_companion from "../enterprise_companion.js";
 import type * as enterprise_emotional from "../enterprise_emotional.js";
 import type * as enterprise_knowledge from "../enterprise_knowledge.js";
 import type * as enterprise_marketplace from "../enterprise_marketplace.js";
+import type * as enterprise_marketplace_templates from "../enterprise_marketplace_templates.js";
 import type * as enterprise_payments from "../enterprise_payments.js";
 import type * as enterprise_scaling from "../enterprise_scaling.js";
 import type * as enterprise_security from "../enterprise_security.js";
@@ -272,6 +273,7 @@ declare const fullApi: ApiFromModules<{
   enterprise_emotional: typeof enterprise_emotional;
   enterprise_knowledge: typeof enterprise_knowledge;
   enterprise_marketplace: typeof enterprise_marketplace;
+  enterprise_marketplace_templates: typeof enterprise_marketplace_templates;
   enterprise_payments: typeof enterprise_payments;
   enterprise_scaling: typeof enterprise_scaling;
   enterprise_security: typeof enterprise_security;
