@@ -46,7 +46,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
     return <div className="p-12 text-center text-slate-500">Loading enterprise organizations...</div>
   }
 
-  const data = orgs.data || []
+  const data = Array.isArray(orgs) ? orgs : (orgs?.data || [])
   const filtered = filter === 'all' ? data : data.filter((o: any) => o.status === filter)
 
   const organizations = data
@@ -75,10 +75,11 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      const result = await createOrganization({ adminToken, ...orgForm, plan: orgForm.plan as any })
+      const result = await createOrganization({ adminToken, name: orgForm.name, email: orgForm.email, industry: orgForm.industry, size: orgForm.size, phone: orgForm.phone, website: orgForm.website, plan: orgForm.plan as any, adminName: orgForm.name, adminEmail: orgForm.email })
       setShowCreateOrg(false)
       setOrgForm({ name: '', email: '', industry: '', size: '', phone: '', website: '', plan: 'trial' })
-      showToast(`Organization created. Temp password: ${result.tempPassword}`, 'success')
+      if (result?.error) { showToast(result.error, 'error'); return }
+      showToast(`Organization created! Admin: ${result.adminEmail} | Temp password: ${result.tempPassword}`, 'success')
     } catch (err: any) {
       showToast(err.message || 'Failed to create organization', 'error')
     }
@@ -88,10 +89,11 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
     e.preventDefault()
     if (!showCreateAdmin) return
     try {
-      const result = await createOrgAdminUser({ adminToken, orgId: showCreateAdmin as any, ...adminForm })
+      const result = await createOrgAdminUser({ adminToken, orgId: showCreateAdmin as any, name: adminForm.name, email: adminForm.email })
       setShowCreateAdmin(null)
       setAdminForm({ name: '', email: '' })
-      showToast(`Admin user created. Temp password: ${result.tempPassword}`, 'success')
+      if (result?.error) { showToast(result.error, 'error'); return }
+      showToast(`Admin created! Temp password: ${result.tempPassword}`, 'success')
     } catch (err: any) {
       showToast(err.message || 'Failed to create admin user', 'error')
     }
@@ -137,7 +139,8 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
   const handleResetPassword = async (userId: string) => {
     try {
       const result = await resetOrgUserPassword({ adminToken, userId: userId as any })
-      showToast(`Password reset. New password: ${result.tempPassword}`, 'success')
+      if (result?.error) { showToast(result.error, 'error'); return }
+      showToast(`Password reset. New temp password: ${result.tempPassword}`, 'success')
     } catch (err: any) {
       showToast(err.message || 'Failed to reset password', 'error')
     }
@@ -289,10 +292,10 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
                       </div>
                       {!orgUsers ? (
                         <div className="p-4 ml-8 text-slate-500 text-sm">Loading users...</div>
-                      ) : orgUsers.data?.length === 0 ? (
+                      ) : (Array.isArray(orgUsers) ? orgUsers : orgUsers?.data || []).length === 0 ? (
                         <div className="p-4 ml-8 text-slate-500 text-sm">No users found</div>
                       ) : (
-                        orgUsers.data?.map((user: any) => (
+                        (Array.isArray(orgUsers) ? orgUsers : orgUsers?.data || []).map((user: any) => (
                           <div key={user._id} className="grid grid-cols-6 gap-4 p-4 ml-8 border-t border-white/5 items-center hover:bg-white/3 transition-colors">
                             <div className="text-sm">{user.name}</div>
                             <div className="text-sm text-slate-400">{user.email}</div>

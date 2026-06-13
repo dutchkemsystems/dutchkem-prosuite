@@ -202,8 +202,8 @@ export const adminListOrganizations = query({
 export const adminUpdateOrg = mutation({
   args: {
     orgId: v.id("enterprise_organizations"),
-    status: v.optional(v.union(v.literal("pending"), v.literal("active"), v.literal("suspended"), v.literal("cancelled"))),
-    plan: v.optional(v.union(v.literal("free"), v.literal("growth"), v.literal("professional"), v.literal("enterprise"))),
+    status: v.optional(v.union(v.literal("trial"), v.literal("active"), v.literal("suspended"), v.literal("expired"))),
+    plan: v.optional(v.union(v.literal("trial"), v.literal("growth"), v.literal("enterprise"), v.literal("scale"))),
     spendingLimit: v.optional(v.number()),
     adminToken: v.optional(v.string()),
   },

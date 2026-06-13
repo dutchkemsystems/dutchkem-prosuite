@@ -2,19 +2,26 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { tryGetAdminSession } from "./auth_helpers";
 
+function generateTempPassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let pw = "Ent";
+  for (let i = 0; i < 10; i++) pw += chars[Math.floor(Math.random() * chars.length)];
+  pw += "!";
+  return pw;
+}
+
 /** Create an organization */
 export const createOrganization = mutation({
   args: {
     name: v.string(),
     email: v.string(),
-    passwordHash: v.string(),
-    industry: v.string(),
-    size: v.string(),
-    phone: v.string(),
-    website: v.string(),
-    adminName: v.string(),
-    adminEmail: v.string(),
-    adminPassword: v.string(),
+    industry: v.optional(v.string()),
+    size: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    website: v.optional(v.string()),
+    plan: v.optional(v.union(v.literal("trial"), v.literal("growth"), v.literal("enterprise"), v.literal("scale"))),
+    adminName: v.optional(v.string()),
+    adminEmail: v.optional(v.string()),
     adminToken: v.optional(v.string()),
   },
   returns: v.any(),
@@ -27,17 +34,19 @@ export const createOrganization = mutation({
       .first();
     if (existing) return { error: "Organization already registered" };
 
+    const tempPassword = generateTempPassword();
+    const orgPasswordHash = generateTempPassword();
     const now = Date.now();
     const orgId = await ctx.db.insert("enterprise_organizations", {
       name: args.name,
       email: args.email,
-      passwordHash: args.passwordHash,
-      industry: args.industry,
-      size: args.size,
-      phone: args.phone,
-      website: args.website,
-      status: "trial",
-      plan: "trial",
+      passwordHash: orgPasswordHash,
+      industry: args.industry || "",
+      size: args.size || "",
+      phone: args.phone || "",
+      website: args.website || "",
+      status: args.plan && args.plan !== "trial" ? "active" : "trial",
+      plan: args.plan || "trial",
       trialEndsAt: now + (14 * 24 * 60 * 60 * 1000),
       subscriptionEndsAt: undefined,
       spendingLimit: 0,
@@ -48,14 +57,16 @@ export const createOrganization = mutation({
       updatedAt: now,
     });
 
+    const adminUserEmail = args.adminEmail || args.email;
+    const adminUserName = args.adminName || args.name;
     const adminId = await ctx.db.insert("enterprise_org_users", {
       orgId,
-      name: args.adminName,
-      email: args.adminEmail,
-      passwordHash: args.adminPassword,
+      name: adminUserName,
+      email: adminUserEmail,
+      passwordHash: tempPassword,
       role: "org_admin",
       status: "active",
-      mustChangePassword: false,
+      mustChangePassword: true,
       createdBy: identity._id,
       createdAt: now,
       updatedAt: now,
@@ -74,11 +85,11 @@ export const createOrganization = mutation({
       actor: identity._id,
       action: "create_organization",
       target: orgId,
-      details: { name: args.name, email: args.email, adminName: args.adminName },
+      details: { name: args.name, email: args.email, adminName: adminUserName },
       createdAt: now,
     });
 
-    return { success: true, orgId, adminId };
+    return { success: true, orgId, adminId, tempPassword, adminEmail: adminUserEmail };
   },
 });
 
@@ -88,7 +99,6 @@ export const createOrgAdminUser = mutation({
     orgId: v.id("enterprise_organizations"),
     name: v.string(),
     email: v.string(),
-    password: v.string(),
     adminToken: v.optional(v.string()),
   },
   returns: v.any(),
@@ -101,15 +111,16 @@ export const createOrgAdminUser = mutation({
       .first();
     if (existing) return { error: "User already exists" };
 
+    const tempPassword = generateTempPassword();
     const now = Date.now();
     const userId = await ctx.db.insert("enterprise_org_users", {
       orgId: args.orgId,
       name: args.name,
       email: args.email,
-      passwordHash: args.password,
+      passwordHash: tempPassword,
       role: "org_admin",
       status: "active",
-      mustChangePassword: false,
+      mustChangePassword: true,
       createdBy: identity._id,
       createdAt: now,
       updatedAt: now,
@@ -123,7 +134,7 @@ export const createOrgAdminUser = mutation({
       createdAt: now,
     });
 
-    return { success: true, userId };
+    return { success: true, userId, tempPassword };
   },
 });
 
@@ -156,9 +167,7 @@ export const listOrgUsers = query({
 /** Reset org user password */
 export const resetOrgUserPassword = mutation({
   args: {
-    orgId: v.id("enterprise_organizations"),
     userId: v.id("enterprise_org_users"),
-    newPassword: v.string(),
     adminToken: v.optional(v.string()),
   },
   returns: v.any(),
@@ -167,22 +176,22 @@ export const resetOrgUserPassword = mutation({
     if (!identity) throw new Error("Not authenticated");
 
     const user = await ctx.db.get("enterprise_org_users", args.userId);
-    if (!user || user.orgId !== args.orgId) return { error: "User not found" };
+    if (!user) return { error: "User not found" };
 
+    const tempPassword = generateTempPassword();
     await ctx.db.patch(args.userId, {
-      passwordHash: args.newPassword,
-      mustChangePassword: false,
+      passwordHash: tempPassword,
+      mustChangePassword: true,
       updatedAt: Date.now(),
     });
 
-    return { success: true };
+    return { success: true, tempPassword };
   },
 });
 
 /** Toggle org user status */
 export const toggleOrgUserStatus = mutation({
   args: {
-    orgId: v.id("enterprise_organizations"),
     userId: v.id("enterprise_org_users"),
     status: v.union(v.literal("active"), v.literal("suspended")),
     adminToken: v.optional(v.string()),
@@ -193,7 +202,7 @@ export const toggleOrgUserStatus = mutation({
     if (!identity) throw new Error("Not authenticated");
 
     const user = await ctx.db.get("enterprise_org_users", args.userId);
-    if (!user || user.orgId !== args.orgId) return { error: "User not found" };
+    if (!user) return { error: "User not found" };
 
     await ctx.db.patch(args.userId, {
       status: args.status,
