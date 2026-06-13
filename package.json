@@ -30,7 +30,7 @@
     "ai": "^6.0.0",
     "chart.js": "^4.5.1",
     "convex": "^1.40.0",
-    "convex-helpers": "^0.1.118",
+    "convex-helpers": "^0.0.1",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "framer-motion": "^12.40.0",
@@ -50,7 +50,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@convex-dev/eslint-plugin": "^1.1.1",
+    "@convex-dev/eslint-plugin": "^1.0.0",
     "@edge-runtime/vm": "^5.0.0",
     "@tailwindcss/vite": "^4.3.0",
     "@tanstack/eslint-config": "^0.4.0",
