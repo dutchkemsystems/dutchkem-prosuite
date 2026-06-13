@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { tryGetAdminSession } from "./auth_helpers";
 
-/** 10 company type definitions */
+/** 20 company type definitions (S1-S5 small, M1-M5 enterprise, H1-H10 hyper-scale) */
 export const COMPANY_TYPES = [
   { id: "S1", name: "Local Service Business", size: "small" as const, employees: "5-20", price: 199, subdomain: "localservice", agents: 3, description: "Plumbing, Electrical, Cleaning", icon: "🔧" },
   { id: "S2", name: "E-commerce Store", size: "small" as const, employees: "5-30", price: 299, subdomain: "ecommercestore", agents: 5, description: "Online Retail / E-commerce", icon: "🛒" },
@@ -14,6 +14,16 @@ export const COMPANY_TYPES = [
   { id: "M3", name: "Financial Services", size: "enterprise" as const, employees: "500-10,000", price: 9999, subdomain: "financial", agents: 12, description: "Banking & Insurance", icon: "🏦" },
   { id: "M4", name: "Logistics & Supply Chain", size: "enterprise" as const, employees: "500-10,000", price: 7499, subdomain: "logistics", agents: 10, description: "Transport & Warehousing", icon: "🚚" },
   { id: "M5", name: "Enterprise Tech", size: "enterprise" as const, employees: "1,000-10,000", price: 14999, subdomain: "enterprisetech", agents: 15, description: "Enterprise Software & IT", icon: "🖥️" },
+  { id: "H1", name: "Global Banking & Finance", size: "hyper-scale" as const, employees: "500,000+", price: 49999, subdomain: "globalbanking", agents: 25, description: "50+ Countries · Fraud, KYC, Risk, Compliance, Trading", icon: "🏦", countries: "50+", features: ["Fraud Detection", "KYC Automation", "Risk Management", "Compliance Monitoring", "Trading Algorithms"] },
+  { id: "H2", name: "International Manufacturing", size: "hyper-scale" as const, employees: "1,000,000+", price: 59999, subdomain: "globalmanufacturing", agents: 30, description: "40+ Countries · Supply Chain, Predictive Maintenance, Quality", icon: "🏭", countries: "40+", features: ["Supply Chain Optimization", "Predictive Maintenance", "Quality Control", "Inventory Management"] },
+  { id: "H3", name: "Worldwide E-commerce", size: "hyper-scale" as const, employees: "800,000+", price: 69999, subdomain: "globalecommerce", agents: 35, description: "60+ Countries · Personalization, Fraud, Logistics, Customer AI", icon: "🛒", countries: "60+", features: ["Personalization Engine", "Fraud Detection", "Logistics Optimization", "Customer Service AI"] },
+  { id: "H4", name: "Global Healthcare Network", size: "hyper-scale" as const, employees: "600,000+", price: 79999, subdomain: "globalhealthcare", agents: 28, description: "30+ Countries · Patient Records, Telemedicine, Insurance, HIPAA", icon: "🏥", countries: "30+", features: ["Patient Records", "Telemedicine", "Insurance Processing", "Compliance (HIPAA)"] },
+  { id: "H5", name: "Multi-National Telecom", size: "hyper-scale" as const, employees: "700,000+", price: 89999, subdomain: "globaltelecom", agents: 32, description: "45+ Countries · Network, Churn Prediction, Billing, Infrastructure", icon: "📡", countries: "45+", features: ["Network Optimization", "Customer Churn Prediction", "Billing Automation", "Infrastructure Monitoring"] },
+  { id: "H6", name: "Global Logistics & Shipping", size: "hyper-scale" as const, employees: "500,000+", price: 99999, subdomain: "globallogistics", agents: 40, description: "80+ Countries · Route, Fleet, Warehouse, Real-time Tracking", icon: "🚚", countries: "80+", features: ["Route Optimization", "Fleet Management", "Warehouse Automation", "Real-time Tracking"] },
+  { id: "H7", name: "International Energy Corp", size: "hyper-scale" as const, employees: "400,000+", price: 119999, subdomain: "globalenergy", agents: 38, description: "35+ Countries · Grid, Predictive Analytics, Safety, Compliance", icon: "⚡", countries: "35+", features: ["Grid Management", "Predictive Analytics", "Safety Monitoring", "Compliance Reporting"] },
+  { id: "H8", name: "Worldwide Retail Chain", size: "hyper-scale" as const, employees: "900,000+", price: 129999, subdomain: "globalretail", agents: 45, description: "55+ Countries · Inventory, Price Optimization, Customer Insights", icon: "🛍️", countries: "55+", features: ["Inventory Optimization", "Price Optimization", "Customer Insights", "Store Operations"] },
+  { id: "H9", name: "Global Tech Conglomerate", size: "hyper-scale" as const, employees: "1,500,000+", price: 149999, subdomain: "globaltech", agents: 50, description: "70+ Countries · DevOps, Security, Collaboration, Product Dev", icon: "🖥️", countries: "70+", features: ["DevOps Automation", "Security Monitoring", "Employee Collaboration", "Product Development"] },
+  { id: "H10", name: "Mega Government Agency", size: "hyper-scale" as const, employees: "2,000,000+", price: 199999, subdomain: "government", agents: 60, description: "100+ Countries · Citizen Services, Documents, Compliance, Analytics", icon: "🏛️", countries: "100+", features: ["Citizen Services", "Document Processing", "Compliance Enforcement", "Data Analytics"] },
 ];
 
 /** List all company types */

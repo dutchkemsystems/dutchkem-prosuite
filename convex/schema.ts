@@ -2723,7 +2723,7 @@ export default defineSchema({
     companyId: v.string(),
     companyType: v.string(),
     typeName: v.string(),
-    size: v.union(v.literal("small"), v.literal("enterprise")),
+    size: v.union(v.literal("small"), v.literal("enterprise"), v.literal("hyper-scale")),
     employeeRange: v.string(),
     monthlyPrice: v.number(),
     subdomain: v.string(),
