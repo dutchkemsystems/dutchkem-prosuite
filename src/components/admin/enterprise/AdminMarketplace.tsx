@@ -37,6 +37,7 @@ export function AdminMarketplace({ adminToken, organizations }: { adminToken: st
   const installAgent = useMutation(api.enterprise_marketplace.installAgent)
   const uninstallAgent = useMutation(api.enterprise_marketplace.uninstallAgent)
   const seedTemplates = useMutation(api.seed_marketplace_templates.seedAllTemplates)
+  const testSeed = useMutation(api.seed_test.testSeedOne)
 
   const templateList = templates || []
   const installed = installedAgents || []
@@ -56,24 +57,38 @@ export function AdminMarketplace({ adminToken, organizations }: { adminToken: st
 
   const handleSeed = async () => {
     setSeeding(true)
+    // First test with a single insert
+    try {
+      const testResult: any = await testSeed({ adminToken })
+      if (testResult?.error) {
+        showToast(`TEST FAILED [${testResult.step}]: ${testResult.error}`, 'error')
+        setSeeding(false)
+        return
+      }
+      if (testResult?.authError) {
+        showToast(`AUTH FAILED: ${testResult.message || 'invalid token'}`, 'error')
+        setSeeding(false)
+        return
+      }
+      showToast(`Test passed (${testResult?.identity}). Starting batch seed...`, 'success')
+    } catch (e: any) {
+      showToast(`TEST EXCEPTION: ${e.message || e}`, 'error')
+      setSeeding(false)
+      return
+    }
+    // Now do the full batch seed
     let offset = 0
     let totalInserted = 0
-    let batchNum = 0
     try {
       while (true) {
-        batchNum++
         const result: any = await seedTemplates({ adminToken, offset })
-        if (result?.authError) { showToast('Unauthorized', 'error'); break }
-        if (result?.error) { showToast(result.error, 'error'); break }
+        if (result?.authError) { showToast(`Auth: ${result.message}`, 'error'); break }
+        if (result?.error) { showToast(`Error: ${result.error}`, 'error'); break }
         totalInserted += result?.inserted || 0
-        if (!result?.hasMore) {
-          showToast(`All done! ${totalInserted} templates loaded across ${batchNum} batches`, 'success')
-          break
-        }
+        if (!result?.hasMore) { showToast(`Done! ${totalInserted} templates loaded`, 'success'); break }
         offset = result.nextOffset
-        showToast(`Batch ${batchNum}: +${result.inserted} templates (${offset}/${result.total})...`, 'success')
       }
-    } catch (e: any) { showToast(e.message || 'Seed failed', 'error') }
+    } catch (e: any) { showToast(`Exception: ${e.message || e}`, 'error') }
     setSeeding(false)
   }
 
