@@ -160,7 +160,7 @@ function AdminDashboardPage() {
            <AdminTab active={activeTab === "synthetic"} onClick={() => setActiveTab("synthetic")} icon="🤖" label="Synthetic AI" />
             <AdminTab active={activeTab === "ad-engine"} onClick={() => setActiveTab("ad-engine")} icon="📢" label="Ad Engine" />
             <AdminTab active={activeTab === "ad-automation"} onClick={() => setActiveTab("ad-automation")} icon="🚀" label="Ad Automation" />
-            <AdminTab active={activeTab === "payouts"} onClick={() => setActiveTab("payouts")} icon="💸" label="KYC & Payouts" />
+            <AdminTab active={activeTab === "kyc-payouts"} onClick={() => setActiveTab("kyc-payouts")} icon="💸" label="KYC & Payouts" />
               <AdminTab active={activeTab === "composio-hub"} onClick={() => setActiveTab("composio-hub")} icon="🔗" label="Composio Hub" />
               <AdminTab active={activeTab === "composio-obs"} onClick={() => setActiveTab("composio-obs")} icon="🔌" label="Composio Max" />
               <AdminTab active={activeTab === "trypost"} onClick={() => setActiveTab("trypost")} icon="📅" label="TryPost" />
@@ -215,7 +215,7 @@ function AdminDashboardPage() {
              {activeTab === "synthetic" && <SyntheticIntelPanel />}
               {activeTab === "ad-engine" && <AdEnginePanel />}
               {activeTab === "ad-automation" && <AdAutomationHub adminToken={adminToken} />}
-              {activeTab === "payouts" && <AdminPayoutDashboard adminToken={adminToken} />}
+              {activeTab === "kyc-payouts" && <AdminPayoutDashboard adminToken={adminToken} />}
              {activeTab === "composio-hub" && <ComposioAdminHub adminToken={adminToken} />}
              {activeTab === "composio-obs" && <ComposioObservability adminToken={adminToken} />}
              {activeTab === "trypost" && <TryPostScheduler adminToken={adminToken} />}
