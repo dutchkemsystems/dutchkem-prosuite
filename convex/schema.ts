@@ -2700,6 +2700,21 @@ export default defineSchema({
     .index("by_user", ["userId"]),
 
   // ═══════════════════════════════════════════════════════════════
+  // ENTERPRISE AUTONOMOUS — Self-Healing Log
+  // ═══════════════════════════════════════════════════════════════
+
+  enterprise_healing_log: defineTable({
+    component: v.string(),
+    issue: v.string(),
+    status: v.union(v.literal("detected"), v.literal("in_progress"), v.literal("resolved"), v.literal("ignored")),
+    timestamp: v.number(),
+    healedBy: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+  })
+    .index("by_timestamp", ["timestamp"])
+    .index("by_status", ["status"]),
+
+  // ═══════════════════════════════════════════════════════════════
   // ENTERPRISE ORG USERS (admin-created accounts)
   // ═══════════════════════════════════════════════════════════════
 
