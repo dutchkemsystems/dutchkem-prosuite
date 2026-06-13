@@ -2825,6 +2825,200 @@ export default defineSchema({
     .index("by_company", ["companyId"]),
 
   // ═══════════════════════════════════════════════════════════════
+  // ENTERPRISE SCALING — Auto-Scaling, CDN, Redis, Monitoring
+  // ═══════════════════════════════════════════════════════════════
+
+  enterprise_scaling_config: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    companyId: v.optional(v.string()),
+    configType: v.union(
+      v.literal("auto_scaling"),
+      v.literal("cdn"),
+      v.literal("redis"),
+      v.literal("multi_region")
+    ),
+    settings: v.any(),
+    enabled: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_type", ["configType"]),
+
+  enterprise_scaling_logs: defineTable({
+    orgId: v.optional(v.id("enterprise_organizations")),
+    companyId: v.optional(v.string()),
+    action: v.string(),
+    instanceCount: v.optional(v.number()),
+    metrics: v.optional(v.any()),
+    reason: v.optional(v.string()),
+    timestamp: v.number(),
+  })
+    .index("by_timestamp", ["timestamp"])
+    .index("by_action", ["action"]),
+
+  enterprise_monitoring_metrics: defineTable({
+    orgId: v.optional(v.id("enterprise_organizations")),
+    companyId: v.optional(v.string()),
+    metricType: v.union(
+      v.literal("cpu"),
+      v.literal("memory"),
+      v.literal("requests"),
+      v.literal("latency"),
+      v.literal("errors"),
+      v.literal("uptime")
+    ),
+    value: v.number(),
+    unit: v.string(),
+    tags: v.optional(v.any()),
+    timestamp: v.number(),
+  })
+    .index("by_type", ["metricType"])
+    .index("by_timestamp", ["timestamp"])
+    .index("by_company", ["companyId"]),
+
+  enterprise_monitoring_alerts: defineTable({
+    orgId: v.optional(v.id("enterprise_organizations")),
+    companyId: v.optional(v.string()),
+    severity: v.union(v.literal("info"), v.literal("warning"), v.literal("critical")),
+    title: v.string(),
+    message: v.string(),
+    metric: v.optional(v.string()),
+    threshold: v.optional(v.number()),
+    currentValue: v.optional(v.number()),
+    status: v.union(v.literal("active"), v.literal("acknowledged"), v.literal("resolved")),
+    timestamp: v.number(),
+    resolvedAt: v.optional(v.number()),
+  })
+    .index("by_severity", ["severity"])
+    .index("by_status", ["status"])
+    .index("by_timestamp", ["timestamp"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // ENTERPRISE SLA — Agreements & Compliance
+  // ═══════════════════════════════════════════════════════════════
+
+  enterprise_sla_agreements: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    companyId: v.string(),
+    tier: v.union(v.literal("standard"), v.literal("premium"), v.literal("enterprise"), v.literal("global")),
+    uptimeGuarantee: v.number(),
+    creditPercentage: v.number(),
+    monthlyPrice: v.number(),
+    responseTimeMinutes: v.number(),
+    resolutionTimeHours: v.number(),
+    effectiveDate: v.number(),
+    expiryDate: v.optional(v.number()),
+    terms: v.array(v.string()),
+    exclusions: v.array(v.string()),
+    status: v.union(v.literal("active"), v.literal("expired"), v.literal("terminated")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_company", ["companyId"])
+    .index("by_tier", ["tier"])
+    .index("by_status", ["status"]),
+
+  enterprise_sla_incidents: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    companyId: v.string(),
+    slaId: v.id("enterprise_sla_agreements"),
+    title: v.string(),
+    description: v.string(),
+    severity: v.union(v.literal("minor"), v.literal("major"), v.literal("critical")),
+    startTime: v.number(),
+    endTime: v.optional(v.number()),
+    durationMinutes: v.number(),
+    affectedServices: v.array(v.string()),
+    status: v.union(v.literal("open"), v.literal("investigating"), v.literal("resolved"), v.literal("closed")),
+    rootCause: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_company", ["companyId"])
+    .index("by_sla", ["slaId"])
+    .index("by_status", ["status"])
+    .index("by_severity", ["severity"]),
+
+  enterprise_compliance_docs: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    companyId: v.string(),
+    standard: v.union(v.literal("GDPR"), v.literal("SOC2"), v.literal("ISO27001"), v.literal("HIPAA"), v.literal("PCI_DSS")),
+    status: v.union(v.literal("compliant"), v.literal("non_compliant"), v.literal("in_progress"), v.literal("expired")),
+    lastAuditDate: v.number(),
+    nextAuditDate: v.number(),
+    controls: v.any(),
+    certifications: v.array(v.string()),
+    documents: v.array(v.any()),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_company", ["companyId"])
+    .index("by_standard", ["standard"])
+    .index("by_status", ["status"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // ENTERPRISE SUPPORT — 24/7 Ticketing System
+  // ═══════════════════════════════════════════════════════════════
+
+  enterprise_support_tickets: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    companyId: v.string(),
+    ticketNumber: v.string(),
+    subject: v.string(),
+    description: v.string(),
+    priority: v.union(v.literal("low"), v.literal("normal"), v.literal("high"), v.literal("critical")),
+    category: v.union(v.literal("technical"), v.literal("billing"), v.literal("feature_request"), v.literal("security"), v.literal("compliance"), v.literal("general")),
+    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("waiting_customer"), v.literal("resolved"), v.literal("closed")),
+    assignedTo: v.optional(v.string()),
+    customerEmail: v.string(),
+    customerName: v.string(),
+    responses: v.array(v.any()),
+    attachments: v.optional(v.array(v.any())),
+    slaResponseTime: v.number(),
+    slaResolutionTime: v.number(),
+    firstResponseAt: v.optional(v.number()),
+    resolvedAt: v.optional(v.number()),
+    satisfactionScore: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_company", ["companyId"])
+    .index("by_status", ["status"])
+    .index("by_priority", ["priority"])
+    .index("by_ticket_number", ["ticketNumber"])
+    .index("by_created", ["createdAt"]),
+
+  enterprise_support_responses: defineTable({
+    ticketId: v.id("enterprise_support_tickets"),
+    responderId: v.string(),
+    responderName: v.string(),
+    responderType: v.union(v.literal("customer"), v.literal("agent"), v.literal("system")),
+    message: v.string(),
+    attachments: v.optional(v.array(v.any())),
+    isInternal: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_ticket", ["ticketId"]),
+
+  enterprise_cdn_assets: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    companyId: v.string(),
+    originalPath: v.string(),
+    cdnUrls: v.array(v.string()),
+    fileSize: v.number(),
+    contentType: v.string(),
+    edgeLocations: v.array(v.string()),
+    hitCount: v.number(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_company", ["companyId"])
+    .index("by_expires", ["expiresAt"]),
+
+  // ═══════════════════════════════════════════════════════════════
   // ENTERPRISE ORG USERS (admin-created accounts)
   // ═══════════════════════════════════════════════════════════════
 

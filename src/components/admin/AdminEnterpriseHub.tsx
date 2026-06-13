@@ -8,6 +8,9 @@ import { AdminCompanion } from '~/components/admin/enterprise/AdminCompanion'
 import { AdminPayments } from '~/components/admin/enterprise/AdminPayments'
 import { AdminEmotionalAI } from '~/components/admin/enterprise/AdminEmotionalAI'
 import { AutonomousOverview } from '~/components/admin/enterprise/AutonomousOverview'
+import { MonitoringDashboard } from '~/components/admin/enterprise/MonitoringDashboard'
+import { SLAComplianceDashboard } from '~/components/admin/enterprise/SLAComplianceDashboard'
+import { SupportTicketDashboard } from '~/components/admin/enterprise/SupportTicketDashboard'
 
 const TABS = [
   { id: 'autonomous', label: 'Autonomous', icon: '🧬' },
@@ -17,6 +20,9 @@ const TABS = [
   { id: 'companion', label: 'Companion Agent', icon: '🤖' },
   { id: 'payments', label: 'Agentic Payments', icon: '💳' },
   { id: 'emotional', label: 'Emotional AI', icon: '❤️' },
+  { id: 'monitoring', label: 'Monitoring', icon: '📊' },
+  { id: 'sla', label: 'SLA & Compliance', icon: '🛡️' },
+  { id: 'support', label: '24/7 Support', icon: '🎧' },
 ] as const
 
 type TabId = typeof TABS[number]['id']
@@ -56,6 +62,12 @@ export function AdminEnterpriseHub({ adminToken }: { adminToken: string }) {
         return <AdminPayments adminToken={adminToken} agents={agents} organizations={organizations} />
       case 'emotional':
         return <AdminEmotionalAI adminToken={adminToken} agents={agents} organizations={organizations} />
+      case 'monitoring':
+        return <MonitoringDashboard adminToken={adminToken} />
+      case 'sla':
+        return <SLAComplianceDashboard adminToken={adminToken} />
+      case 'support':
+        return <SupportTicketDashboard adminToken={adminToken} />
       default:
         return null
     }
