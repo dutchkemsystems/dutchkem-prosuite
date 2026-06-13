@@ -681,4 +681,43 @@ http.route({
   }),
 });
 
+// ========== MARKETPLACE TEMPLATE SEED (HTTP endpoint) ==========
+http.route({
+  path: "/api/marketplace/seed",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const body = await req.json();
+      const { adminToken, offset = 0 } = body;
+      if (!adminToken) return new Response(JSON.stringify({ error: "adminToken required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+
+      const session: any = await ctx.runQuery(internal.auth_helpers.validateAdminSession, { adminToken });
+      if (!session) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+      const result = await ctx.runMutation(internal.seed_marketplace_templates.seedAllTemplates, { adminToken, offset });
+      return new Response(JSON.stringify(result), { status: 200, headers: { "Content-Type": "application/json" } });
+    } catch (e: any) {
+      return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+    }
+  }),
+});
+
+// ========== MARKETPLACE TEMPLATE SEED VIA GET (for testing) ==========
+http.route({
+  path: "/api/marketplace/seed",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const url = new URL(req.url);
+    const adminToken = url.searchParams.get("token");
+    const offset = parseInt(url.searchParams.get("offset") || "0");
+    if (!adminToken) return new Response(JSON.stringify({ error: "token required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+
+    const session: any = await ctx.runQuery(internal.auth_helpers.validateAdminSession, { adminToken });
+    if (!session) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+
+    const result = await ctx.runMutation(internal.seed_marketplace_templates.seedAllTemplates, { adminToken, offset });
+    return new Response(JSON.stringify(result), { status: 200, headers: { "Content-Type": "application/json" } });
+  }),
+});
+
 export default http;

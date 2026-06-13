@@ -57,33 +57,27 @@ export function AdminMarketplace({ adminToken, organizations }: { adminToken: st
 
   const handleSeed = async () => {
     setSeeding(true)
-    // First test with a single insert
-    try {
-      const testResult: any = await testSeed({ adminToken })
-      if (testResult?.error) {
-        showToast(`TEST FAILED [${testResult.step}]: ${testResult.error}`, 'error')
-        setSeeding(false)
-        return
-      }
-      if (testResult?.authError) {
-        showToast(`AUTH FAILED: ${testResult.message || 'invalid token'}`, 'error')
-        setSeeding(false)
-        return
-      }
-      showToast(`Test passed (${testResult?.identity}). Starting batch seed...`, 'success')
-    } catch (e: any) {
-      showToast(`TEST EXCEPTION: ${e.message || e}`, 'error')
-      setSeeding(false)
-      return
-    }
-    // Now do the full batch seed
+    const siteUrl = "https://warmhearted-aardvark-280.convex.site"
     let offset = 0
     let totalInserted = 0
     try {
       while (true) {
-        const result: any = await seedTemplates({ adminToken, offset })
-        if (result?.authError) { showToast(`Auth: ${result.message}`, 'error'); break }
+        // Try HTTP endpoint first
+        let result: any = null
+        try {
+          const res = await fetch(`${siteUrl}/api/marketplace/seed`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ adminToken, offset }),
+          })
+          result = await res.json()
+        } catch {
+          // Fallback to mutation
+          result = await seedTemplates({ adminToken, offset })
+        }
+
         if (result?.error) { showToast(`Error: ${result.error}`, 'error'); break }
+        if (result?.authError) { showToast(`Auth failed: ${result.message || 'invalid token'}`, 'error'); break }
         totalInserted += result?.inserted || 0
         if (!result?.hasMore) { showToast(`Done! ${totalInserted} templates loaded`, 'success'); break }
         offset = result.nextOffset
