@@ -34,11 +34,13 @@ const router = routerWithQueryClient(
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
-    defaultErrorComponent: () => (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <p className="text-red-500 font-black text-xl">
-          An unexpected error occurred. Please try again.
-        </p>
+    defaultErrorComponent: ({ error, reset }) => (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4">
+        <div className="max-w-lg w-full bg-red-500/10 border border-red-500/20 rounded-2xl p-8 text-center">
+          <p className="text-red-400 font-black text-xl mb-4">An unexpected error occurred</p>
+          <p className="text-red-300 text-sm font-mono break-all mb-6">{String(error?.message || error)}</p>
+          <button onClick={reset} className="px-6 py-3 bg-white/10 rounded-xl text-white text-sm font-bold hover:bg-white/20 transition-colors">Try Again</button>
+        </div>
       </div>
     ),
     defaultNotFoundComponent: () => <p>not found</p>,

@@ -62,6 +62,18 @@ function AdminSuspense({ children }: { children: ReactNode }) {
 
 export const Route = createFileRoute('/admin/dashboard')({
   component: AdminDashboardPage,
+  errorComponent: ({ error }) => (
+    <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4">
+      <div className="max-w-lg w-full bg-red-500/10 border border-red-500/20 rounded-2xl p-8 text-center">
+        <p className="text-red-400 font-black text-xl mb-4">Dashboard Error</p>
+        <p className="text-red-300 text-sm font-mono break-all mb-4">{String(error?.message || error)}</p>
+        <div className="flex gap-3 justify-center">
+          <button onClick={() => window.location.reload()} className="px-6 py-3 bg-white/10 rounded-xl text-white text-sm font-bold hover:bg-white/20 transition-colors">Retry</button>
+          <a href="/admin/login" className="px-6 py-3 bg-red-600 rounded-xl text-white text-sm font-bold hover:bg-red-700 transition-colors">Re-login</a>
+        </div>
+      </div>
+    </div>
+  ),
 })
 
 function AdminDashboardPage() {

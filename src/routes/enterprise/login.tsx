@@ -6,6 +6,15 @@ import { CompanyLogo } from '~/components/CompanyLogo'
 
 export const Route = createFileRoute('/enterprise/login')({
   component: EnterpriseLogin,
+  errorComponent: ({ error }) => (
+    <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4">
+      <div className="max-w-md w-full bg-red-500/10 border border-red-500/20 rounded-2xl p-8 text-center">
+        <p className="text-red-400 font-black text-xl mb-4">Enterprise Login Error</p>
+        <p className="text-red-300 text-sm font-mono break-all">{String(error?.message || error)}</p>
+        <Link to="/" className="inline-block mt-6 px-6 py-3 bg-white/10 rounded-xl text-white text-sm font-bold hover:bg-white/20 transition-colors">← Back to Home</Link>
+      </div>
+    </div>
+  ),
 })
 
 function EnterpriseLogin() {
