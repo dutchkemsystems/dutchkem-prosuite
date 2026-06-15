@@ -25,6 +25,9 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
   const [adminForm, setAdminForm] = useState({ name: '', email: '' })
   const [creating, setCreating] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [showPasswords, setShowPasswords] = useState<string | null>(null)
+  const [showEditOrg, setShowEditOrg] = useState<string | null>(null)
+  const [editOrgForm, setEditOrgForm] = useState({ name: '', email: '', industry: '', size: '', phone: '', website: '' })
 
   const effectiveToken = adminToken || ''
   const orgs = useQuery(api.admin_enterprise.listOrganizations, effectiveToken ? { adminToken: effectiveToken } : 'skip')
@@ -34,6 +37,8 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
   const toggleOrgUserStatus = useMutation(api.admin_enterprise.toggleOrgUserStatus)
   const deleteOrganization = useMutation(api.admin_enterprise.deleteOrganization)
   const adminUpdateOrg = useMutation(api.enterprise_auth.adminUpdateOrg)
+  const getOrganizationPasswords = useQuery(api.enterprise_management.getOrganizationPasswords, showPasswords ? { orgId: showPasswords as any, adminToken: effectiveToken } : 'skip')
+  const updateCompanyInfo = useMutation(api.enterprise_management.updateCompanyInfo)
 
   const orgUsers = useQuery(
     api.admin_enterprise.listOrgUsers,
@@ -190,6 +195,38 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
     }
   }
 
+  const handleViewPasswords = (orgId: string) => {
+    setShowPasswords(orgId)
+  }
+
+  const handleEditOrg = (org: any) => {
+    setEditOrgForm({
+      name: org.name || '',
+      email: org.email || '',
+      industry: org.industry || '',
+      size: org.size || '',
+      phone: org.phone || '',
+      website: org.website || '',
+    })
+    setShowEditOrg(org._id)
+  }
+
+  const handleSaveEditOrg = async () => {
+    if (!showEditOrg) return
+    try {
+      await updateCompanyInfo({
+        orgId: showEditOrg as any,
+        adminToken: effectiveToken,
+        ...editOrgForm,
+      })
+      showToast('Company information updated', 'success')
+      setShowEditOrg(null)
+      setRefreshKey(k => k + 1)
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update company info', 'error')
+    }
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       {toast && (
@@ -316,6 +353,12 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
                           Reinstate
                         </button>
                       )}
+                      <button onClick={() => handleViewPasswords(org._id)} className="px-2.5 py-1 bg-amber-600/20 text-amber-400 rounded-lg text-[10px] font-black hover:bg-amber-600/30 transition-all">
+                        🔑 Passwords
+                      </button>
+                      <button onClick={() => handleEditOrg(org)} className="px-2.5 py-1 bg-cyan-600/20 text-cyan-400 rounded-lg text-[10px] font-black hover:bg-cyan-600/30 transition-all">
+                        ✏️ Edit
+                      </button>
                       <button onClick={() => setExpandedOrg(expandedOrg === org._id ? null : org._id)} className="px-2.5 py-1 bg-blue-600/20 text-blue-400 rounded-lg text-[10px] font-black hover:bg-blue-600/30 transition-all">
                         View Users
                       </button>
@@ -450,6 +493,91 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Passwords Modal */}
+      {showPasswords && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 w-full max-w-lg max-h-[80vh] overflow-y-auto">
+            <h3 className="text-lg font-black mb-6">🔑 Organization Passwords</h3>
+            {getOrganizationPasswords ? (
+              <div className="space-y-4">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <p className="text-xs text-slate-500 mb-1">Organization Password</p>
+                  <p className="text-sm font-mono text-white bg-black/30 p-2 rounded">{getOrganizationPasswords.orgPassword}</p>
+                </div>
+                <div className="text-xs text-slate-500 font-black uppercase tracking-wider">User Passwords</div>
+                {getOrganizationPasswords.users.map((user: any) => (
+                  <div key={user._id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-bold text-white">{user.name}</span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-black ${user.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                        {user.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mb-1">{user.email}</p>
+                    <p className="text-xs text-slate-500 mb-1">Role: {user.role}</p>
+                    <p className="text-sm font-mono text-white bg-black/30 p-2 rounded">{user.password}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-slate-500 py-8">Loading passwords...</div>
+            )}
+            <div className="flex gap-3 pt-6">
+              <button onClick={() => setShowPasswords(null)} className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-black hover:bg-white/10 transition-all">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Organization Modal */}
+      {showEditOrg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 w-full max-w-lg">
+            <h3 className="text-lg font-black mb-6">✏️ Edit Company Information</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Organization Name</label>
+                <input type="text" value={editOrgForm.name} onChange={e => setEditOrgForm({ ...editOrgForm, name: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Email</label>
+                <input type="email" value={editOrgForm.email} onChange={e => setEditOrgForm({ ...editOrgForm, email: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Industry</label>
+                  <input type="text" value={editOrgForm.industry} onChange={e => setEditOrgForm({ ...editOrgForm, industry: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Size</label>
+                  <input type="text" value={editOrgForm.size} onChange={e => setEditOrgForm({ ...editOrgForm, size: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Phone</label>
+                  <input type="text" value={editOrgForm.phone} onChange={e => setEditOrgForm({ ...editOrgForm, phone: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Website</label>
+                  <input type="text" value={editOrgForm.website} onChange={e => setEditOrgForm({ ...editOrgForm, website: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 pt-6">
+              <button onClick={() => setShowEditOrg(null)} className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-black hover:bg-white/10 transition-all">
+                Cancel
+              </button>
+              <button onClick={handleSaveEditOrg} className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-xl text-sm font-black hover:bg-orange-700 transition-all">
+                Save Changes
+              </button>
+            </div>
           </div>
         </div>
       )}

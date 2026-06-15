@@ -98,13 +98,40 @@ export const login = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const org = await ctx.db.query("enterprise_organizations")
+    // First try to find organization by email
+    let org = await ctx.db.query("enterprise_organizations")
       .withIndex("by_email", (q) => q.eq("email", args.email))
       .first();
-    if (!org || org.passwordHash !== args.password) return { error: "Invalid credentials" };
+
+    // If not found by org email, try to find via org_users email
+    if (!org) {
+      const orgUser = await ctx.db.query("enterprise_org_users")
+        .withIndex("by_email", (q) => q.eq("email", args.email))
+        .first();
+      if (orgUser) {
+        org = await ctx.db.get("enterprise_organizations", orgUser.orgId);
+      }
+    }
+
+    if (!org) return { error: "Invalid credentials" };
+
+    // Check password against organization password OR org_user password
+    let passwordMatch = org.passwordHash === args.password;
+
+    // Also check org_users table
+    if (!passwordMatch) {
+      const orgUser = await ctx.db.query("enterprise_org_users")
+        .withIndex("by_email", (q) => q.eq("email", args.email))
+        .first();
+      if (orgUser && orgUser.passwordHash === args.password) {
+        passwordMatch = true;
+      }
+    }
+
+    if (!passwordMatch) return { error: "Invalid credentials" };
 
     const now = Date.now();
-    const token = await ctx.runQuery(internal.auth_helpers.generateToken);
+    const token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
 
     await ctx.db.insert("enterprise_sessions", {
       orgId: org._id,
@@ -114,15 +141,14 @@ export const login = mutation({
       createdAt: now,
     });
 
-    if (org._id) {
-      const existingSessions = await ctx.db.query("enterprise_sessions")
-        .withIndex("by_org", (q) => q.eq("orgId", org._id))
-        .filter((q) => q.eq(q.field("isCurrent"), true))
-        .collect();
-      for (const session of existingSessions) {
-        if (session._id !== org._id) {
-          await ctx.db.patch(session._id, { isCurrent: false, updatedAt: now });
-        }
+    // Invalidate old sessions
+    const existingSessions = await ctx.db.query("enterprise_sessions")
+      .withIndex("by_org", (q) => q.eq("orgId", org._id))
+      .filter((q) => q.eq(q.field("isCurrent"), true))
+      .collect();
+    for (const session of existingSessions) {
+      if (session.token !== token) {
+        await ctx.db.patch(session._id, { isCurrent: false });
       }
     }
 

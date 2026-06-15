@@ -3,10 +3,183 @@ import { mutation, query } from "./_generated/server";
 import { tryGetAdminSession } from "./auth_helpers";
 import { hashPassword } from "./encryption";
 
+function generateTempPassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let pw = "Ent";
+  for (let i = 0; i < 10; i++) pw += chars[Math.floor(Math.random() * chars.length)];
+  pw += "!";
+  return pw;
+}
+
 /**
  * COMPREHENSIVE ENTERPRISE ORGANIZATION MANAGEMENT
  * Full CRUD + Account Control + Analytics + Diagnostics
  */
+
+// ═══════════════════════════════════════════════════════════════
+// 0. ADMIN PASSWORD VIEWING & COMPANY EDITING
+// ═══════════════════════════════════════════════════════════════
+
+/** Get organization passwords (admin only) */
+export const getOrganizationPasswords = query({
+  args: {
+    orgId: v.id("enterprise_organizations"),
+    adminToken: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) return null;
+
+    const org = await ctx.db.get("enterprise_organizations", args.orgId);
+    if (!org) return null;
+
+    // Get org users with their passwords
+    const users = await ctx.db.query("enterprise_org_users")
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .collect();
+
+    return {
+      orgPassword: org.passwordHash,
+      users: users.map((u: any) => ({
+        _id: u._id,
+        name: u.name,
+        email: u.email,
+        password: u.passwordHash,
+        role: u.role,
+        status: u.status,
+        mustChangePassword: u.mustChangePassword,
+      })),
+    };
+  },
+});
+
+/** Update organization company information (admin only) */
+export const updateCompanyInfo = mutation({
+  args: {
+    orgId: v.id("enterprise_organizations"),
+    name: v.optional(v.string()),
+    email: v.optional(v.string()),
+    industry: v.optional(v.string()),
+    size: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    website: v.optional(v.string()),
+    logo: v.optional(v.string()),
+    adminToken: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) return { success: false, error: "Unauthorized" };
+
+    const org = await ctx.db.get("enterprise_organizations", args.orgId);
+    if (!org) return { success: false, error: "Organization not found" };
+
+    const updates: Record<string, any> = { updatedAt: Date.now() };
+    if (args.name !== undefined) updates.name = args.name;
+    if (args.email !== undefined) updates.email = args.email;
+    if (args.industry !== undefined) updates.industry = args.industry;
+    if (args.size !== undefined) updates.size = args.size;
+    if (args.phone !== undefined) updates.phone = args.phone;
+    if (args.website !== undefined) updates.website = args.website;
+    if (args.logo !== undefined) updates.logo = args.logo;
+
+    await ctx.db.patch(args.orgId, updates);
+
+    // Log the update
+    await ctx.db.insert("enterprise_audit_logs", {
+      eventType: "COMPANY_INFO_UPDATED",
+      actor: identity._id,
+      action: "update_company_info",
+      target: args.orgId,
+      details: { updates },
+      createdAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+/** Reset organization password (admin only) */
+export const resetOrganizationPassword = mutation({
+  args: {
+    orgId: v.id("enterprise_organizations"),
+    newPassword: v.string(),
+    adminToken: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) return { success: false, error: "Unauthorized" };
+
+    const org = await ctx.db.get("enterprise_organizations", args.orgId);
+    if (!org) return { success: false, error: "Organization not found" };
+
+    await ctx.db.patch(args.orgId, {
+      passwordHash: args.newPassword,
+      updatedAt: Date.now(),
+    });
+
+    // Log the password reset
+    await ctx.db.insert("enterprise_audit_logs", {
+      eventType: "ORG_PASSWORD_RESET",
+      actor: identity._id,
+      action: "reset_org_password",
+      target: args.orgId,
+      details: { name: org.name },
+      createdAt: Date.now(),
+    });
+
+    // Send notification
+    await ctx.db.insert("email_notifications", {
+      to: org.email,
+      subject: "Password Reset - Dutchkem Ventures",
+      body: `Your organization password has been reset by an administrator.\n\nPlease contact your admin for the new password.`,
+      type: "password_reset",
+      status: "sent",
+      createdAt: Date.now(),
+    });
+
+    return { success: true, newPassword: args.newPassword };
+  },
+});
+
+/** Reset org user password (admin only) */
+export const resetOrgUserPassword = mutation({
+  args: {
+    userId: v.id("enterprise_org_users"),
+    newPassword: v.optional(v.string()),
+    adminToken: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) return { success: false, error: "Unauthorized" };
+
+    const user = await ctx.db.get("enterprise_org_users", args.userId);
+    if (!user) return { success: false, error: "User not found" };
+
+    const newPassword = args.newPassword || generateTempPassword();
+
+    await ctx.db.patch(args.userId, {
+      passwordHash: newPassword,
+      mustChangePassword: true,
+      updatedAt: Date.now(),
+    });
+
+    // Log the password reset
+    await ctx.db.insert("enterprise_audit_logs", {
+      eventType: "USER_PASSWORD_RESET",
+      actor: identity._id,
+      action: "reset_user_password",
+      target: args.userId,
+      details: { email: user.email },
+      createdAt: Date.now(),
+    });
+
+    return { success: true, newPassword };
+  },
+});
 
 // ═══════════════════════════════════════════════════════════════
 // 1. ORGANIZATION CRUD OPERATIONS

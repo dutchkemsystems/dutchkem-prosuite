@@ -35,12 +35,11 @@ export const createOrganization = mutation({
     if (existing) return { error: "An organization with this email already exists" };
 
     const tempPassword = generateTempPassword();
-    const orgPasswordHash = generateTempPassword();
     const now = Date.now();
     const orgId = await ctx.db.insert("enterprise_organizations", {
       name: args.name,
       email: args.email,
-      passwordHash: orgPasswordHash,
+      passwordHash: tempPassword, // Store the actual password for enterprise login
       industry: args.industry || "",
       size: args.size || "",
       phone: args.phone || "",
