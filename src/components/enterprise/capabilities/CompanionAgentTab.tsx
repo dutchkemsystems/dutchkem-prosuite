@@ -6,8 +6,8 @@ export function CompanionAgentTab({ token }: { token: string }) {
   const org = useQuery(api.enterprise_auth.getOrgDetails, token ? { token } : 'skip')
   const orgId = org?._id
 
-  const sessions = useQuery(api.enterprise_companion.listSessions, orgId ? { orgId } : 'skip') || []
-  const stats = useQuery(api.enterprise_companion.getStats, orgId ? { orgId } : 'skip') || { totalSessions: 0, activeSessions: 0, avgDuration: 0 }
+  const sessions = useQuery(api.enterprise_companion.listSessions, orgId ? { orgId, token } : 'skip') || []
+  const stats = useQuery(api.enterprise_companion.getStats, orgId ? { orgId, token } : 'skip') || { totalSessions: 0, activeSessions: 0, avgDuration: 0 }
   const startSession = useMutation(api.enterprise_companion.startSession)
   const endSession = useMutation(api.enterprise_companion.endSession)
   const generateGuidance = useMutation(api.enterprise_companion.generateGuidance)
@@ -32,7 +32,7 @@ export function CompanionAgentTab({ token }: { token: string }) {
     if (!userId.trim()) { showToast('User ID is required', true); return }
     setStarting(true)
     try {
-      const result = await startSession({ orgId: orgId!, userId: userId as any, channel })
+      const result = await startSession({ orgId: orgId!, token, userId: userId as any, channel })
       if (result.error) { showToast(result.error, true); return }
       setActiveSessionId(result.sessionId as string)
       setShowStartForm(false)
@@ -44,7 +44,7 @@ export function CompanionAgentTab({ token }: { token: string }) {
   const handleEnd = async () => {
     if (!activeSessionId) return
     try {
-      const result = await endSession({ sessionId: activeSessionId as any })
+      const result = await endSession({ sessionId: activeSessionId as any, token })
       if (result.error) { showToast(result.error, true); return }
       setActiveSessionId(null)
       setGuidance([])
@@ -56,7 +56,7 @@ export function CompanionAgentTab({ token }: { token: string }) {
     if (!activeSessionId) return
     setGeneratingGuidance(true)
     try {
-      const result = await generateGuidance({ sessionId: activeSessionId as any, userId: userId as any, question: 'Help me with my task' })
+      const result = await generateGuidance({ sessionId: activeSessionId as any, token, userId: userId as any, question: 'Help me with my task' })
       if (result.error) { showToast(result.error, true); return }
       setGuidance(prev => [{ type: 'suggestion', message: `Guidance generated (count: ${result.guidanceCount})`, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 20))
       showToast('Guidance generated!')

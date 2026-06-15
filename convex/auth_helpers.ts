@@ -157,6 +157,42 @@ export async function tryGetAdminSessionInAction(
   return await ctx.runQuery(internal.auth_helpers.validateAdminSession, { adminToken });
 }
 
+// ─── Enterprise Session Auth ───
+
+export interface EnterpriseAuthResult {
+  authenticated: boolean;
+  isAdmin: boolean;
+  orgId?: any;
+  actorId?: string;
+}
+
+/**
+ * Resolve authentication from either admin token or enterprise session token.
+ * Returns auth info including resolved orgId, or null if not authenticated.
+ */
+export async function tryResolveEnterpriseAuth(
+  ctx: any,
+  args: { adminToken?: string; token?: string; orgId?: any },
+): Promise<EnterpriseAuthResult | null> {
+  // Try admin token first
+  if (args.adminToken) {
+    const identity = await tryGetAdminSession(ctx as any, args.adminToken);
+    if (identity) {
+      return { authenticated: true, isAdmin: true, orgId: args.orgId || null, actorId: identity._id };
+    }
+  }
+  // Try enterprise session token
+  if (args.token) {
+    const session = await ctx.db.query("enterprise_sessions")
+      .withIndex("by_token", (q: any) => q.eq("token", args.token))
+      .first();
+    if (session && session.isCurrent) {
+      return { authenticated: true, isAdmin: false, orgId: args.orgId || session.orgId, actorId: session.orgId };
+    }
+  }
+  return null;
+}
+
 // ─── Rate Limiting / Failed Logins ───
 
 export const countFailedLogins = query({

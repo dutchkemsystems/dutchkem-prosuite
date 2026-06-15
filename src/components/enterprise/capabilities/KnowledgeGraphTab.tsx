@@ -6,8 +6,8 @@ export function KnowledgeGraphTab({ token }: { token: string }) {
   const org = useQuery(api.enterprise_auth.getOrgDetails, token ? { token } : 'skip')
   const orgId = org?._id
 
-  const entries = useQuery(api.enterprise_knowledge.listEntries, orgId ? { orgId } : 'skip') || []
-  const stats = useQuery(api.enterprise_knowledge.getStats, orgId ? { orgId } : 'skip') || { totalEntries: 0, entities: [], sources: [], avgConfidence: 0 }
+  const entries = useQuery(api.enterprise_knowledge.listEntries, orgId ? { orgId, token } : 'skip') || []
+  const stats = useQuery(api.enterprise_knowledge.getStats, orgId ? { orgId, token } : 'skip') || { totalEntries: 0, entities: [], sources: [], avgConfidence: 0 }
   const addEntry = useMutation(api.enterprise_knowledge.addEntry)
   const deleteEntry = useMutation(api.enterprise_knowledge.deleteEntry)
 
@@ -21,7 +21,7 @@ export function KnowledgeGraphTab({ token }: { token: string }) {
 
   const searchResults = useQuery(
     api.enterprise_knowledge.searchEntries,
-    orgId && searchQuery ? { orgId, query: searchQuery } : 'skip'
+    orgId && searchQuery ? { orgId, token, query: searchQuery } : 'skip'
   ) || entries
 
   const showToast = (msg: string, isError = false) => {
@@ -36,7 +36,7 @@ export function KnowledgeGraphTab({ token }: { token: string }) {
     }
     setAdding(true)
     try {
-      const result = await addEntry({ orgId: orgId!, ...newEntry })
+      const result = await addEntry({ orgId: orgId!, token, ...newEntry })
       if (result.error) { showToast(result.error, true); return }
       showToast('Knowledge entry added!')
       setShowAdd(false)
@@ -46,7 +46,7 @@ export function KnowledgeGraphTab({ token }: { token: string }) {
   }
 
   const handleDelete = async (entryId: string) => {
-    const result = await deleteEntry({ entryId: entryId as any })
+    const result = await deleteEntry({ entryId: entryId as any, token })
     if (result.error) { showToast(result.error, true); return }
     showToast('Entry deleted!')
   }

@@ -1,26 +1,47 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { tryGetAdminSession } from "./auth_helpers";
+import { tryResolveEnterpriseAuth } from "./auth_helpers";
+import type { Id } from "./_generated/dataModel";
+
+/** Resolve orgId from either admin session or enterprise session token */
+async function resolveOrgId(
+  ctx: any,
+  args: { adminToken?: string; token?: string; orgId?: Id<"enterprise_organizations"> }
+): Promise<Id<"enterprise_organizations"> | null> {
+  if (args.orgId) return args.orgId;
+  if (args.token) {
+    const session = await ctx.db.query("enterprise_sessions")
+      .withIndex("by_token", (q: any) => q.eq("token", args.token))
+      .first();
+    if (session && session.isCurrent) return session.orgId;
+  }
+  return null;
+}
 
 /** Create a workflow */
 export const createWorkflow = mutation({
   args: {
-    orgId: v.id("enterprise_organizations"),
+    orgId: v.optional(v.id("enterprise_organizations")),
     name: v.string(),
     description: v.optional(v.string()),
     nodes: v.array(v.any()),
     edges: v.array(v.any()),
     createdBy: v.string(),
     adminToken: v.optional(v.string()),
+    token: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
+    const resolvedOrgId = await resolveOrgId(ctx, args);
+    if (!resolvedOrgId) {
+      const auth = await tryResolveEnterpriseAuth(ctx, args);
+      if (!auth) throw new Error("Not authenticated");
+      if (!resolvedOrgId) throw new Error("Organization not found");
+    }
 
     const now = Date.now();
     const workflowId = await ctx.db.insert("enterprise_workflows", {
-      orgId: args.orgId,
+      orgId: resolvedOrgId!,
       name: args.name,
       description: args.description,
       nodes: args.nodes,
@@ -37,26 +58,23 @@ export const createWorkflow = mutation({
 
 /** List all workflows */
 export const listWorkflows = query({
-  args: { orgId: v.id("enterprise_organizations"), adminToken: v.optional(v.string()) },
+  args: { orgId: v.optional(v.id("enterprise_organizations")), adminToken: v.optional(v.string()), token: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
+    const resolvedOrgId = await resolveOrgId(ctx, args);
+    if (!resolvedOrgId) return [];
 
     return await ctx.db.query("enterprise_workflows")
-      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .withIndex("by_org", (q) => q.eq("orgId", resolvedOrgId))
       .collect();
   },
 });
 
 /** Get a single workflow */
 export const getWorkflow = query({
-  args: { workflowId: v.id("enterprise_workflows"), adminToken: v.optional(v.string()) },
+  args: { workflowId: v.id("enterprise_workflows"), adminToken: v.optional(v.string()), token: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
-
     return await ctx.db.get("enterprise_workflows", args.workflowId);
   },
 });
@@ -71,11 +89,12 @@ export const updateWorkflow = mutation({
     edges: v.optional(v.array(v.any())),
     status: v.optional(v.union(v.literal("draft"), v.literal("active"), v.literal("paused"))),
     adminToken: v.optional(v.string()),
+    token: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
+    const auth = await tryResolveEnterpriseAuth(ctx, args);
+    if (!auth) throw new Error("Not authenticated");
 
     const existing = await ctx.db.get("enterprise_workflows", args.workflowId);
     if (!existing) return { error: "Workflow not found" };
@@ -94,11 +113,11 @@ export const updateWorkflow = mutation({
 
 /** Delete a workflow */
 export const deleteWorkflow = mutation({
-  args: { workflowId: v.id("enterprise_workflows"), adminToken: v.optional(v.string()) },
+  args: { workflowId: v.id("enterprise_workflows"), adminToken: v.optional(v.string()), token: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
+    const auth = await tryResolveEnterpriseAuth(ctx, args);
+    if (!auth) throw new Error("Not authenticated");
 
     await ctx.db.delete(args.workflowId);
     return { success: true };
@@ -111,11 +130,12 @@ export const runWorkflow = mutation({
     workflowId: v.id("enterprise_workflows"),
     inputData: v.optional(v.any()),
     adminToken: v.optional(v.string()),
+    token: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
+    const auth = await tryResolveEnterpriseAuth(ctx, args);
+    if (!auth) throw new Error("Not authenticated");
 
     const workflow = await ctx.db.get("enterprise_workflows", args.workflowId);
     if (!workflow) return { error: "Workflow not found" };
@@ -128,7 +148,7 @@ export const runWorkflow = mutation({
 
     await ctx.db.insert("enterprise_audit_logs", {
       eventType: "WORKFLOW_RUN",
-      actor: identity._id,
+      actor: auth.actorId || "unknown",
       action: "run_workflow",
       target: args.workflowId,
       details: { name: workflow.name, runNumber: workflow.runCount + 1 },
@@ -145,13 +165,14 @@ export const duplicateWorkflow = mutation({
     workflowId: v.id("enterprise_workflows"),
     newName: v.string(),
     adminToken: v.optional(v.string()),
+    token: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
+    const auth = await tryResolveEnterpriseAuth(ctx, args);
+    if (!auth) throw new Error("Not authenticated");
 
-    const orgId = identity._id;
+    const orgId = auth.orgId;
     const source = await ctx.db.get("enterprise_workflows", args.workflowId);
     if (!source || source.orgId !== orgId) return { error: "Not found" };
 

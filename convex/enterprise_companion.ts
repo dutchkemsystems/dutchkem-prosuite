@@ -1,24 +1,43 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { tryGetAdminSession } from "./auth_helpers";
+import { tryResolveEnterpriseAuth } from "./auth_helpers";
+import type { Id } from "./_generated/dataModel";
+
+/** Resolve orgId from either admin session or enterprise session token */
+async function resolveOrgId(
+  ctx: any,
+  args: { adminToken?: string; token?: string; orgId?: Id<"enterprise_organizations"> }
+): Promise<Id<"enterprise_organizations"> | null> {
+  if (args.orgId) return args.orgId;
+  if (args.token) {
+    const session = await ctx.db.query("enterprise_sessions")
+      .withIndex("by_token", (q: any) => q.eq("token", args.token))
+      .first();
+    if (session && session.isCurrent) return session.orgId;
+  }
+  return null;
+}
 
 /** Start a session */
 export const startSession = mutation({
   args: {
-    orgId: v.id("enterprise_organizations"),
-    userId: v.id("users"),
+    orgId: v.optional(v.id("enterprise_organizations")),
+    userId: v.string(),
     channel: v.string(),
     adminToken: v.optional(v.string()),
+    token: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
+    const resolvedOrgId = await resolveOrgId(ctx, args);
+    const auth = await tryResolveEnterpriseAuth(ctx, { ...args, orgId: resolvedOrgId });
+    if (!auth) throw new Error("Not authenticated");
+    if (!resolvedOrgId) throw new Error("Organization not found");
 
     const now = Date.now();
     const sessionId = await ctx.db.insert("enterprise_companion_sessions", {
-      orgId: args.orgId,
-      userId: args.userId,
+      orgId: resolvedOrgId,
+      userId: args.userId as any,
       channel: args.channel,
       status: "active",
       startedAt: now,
@@ -27,10 +46,10 @@ export const startSession = mutation({
 
     await ctx.db.insert("enterprise_audit_logs", {
       eventType: "COMPANION_SESSION_STARTED",
-      actor: identity._id,
+      actor: auth.actorId || "unknown",
       action: "start_session",
       target: sessionId,
-      details: { orgId: args.orgId, userId: args.userId, channel: args.channel },
+      details: { orgId: resolvedOrgId, userId: args.userId, channel: args.channel },
       createdAt: now,
     });
 
@@ -43,11 +62,12 @@ export const endSession = mutation({
   args: {
     sessionId: v.id("enterprise_companion_sessions"),
     adminToken: v.optional(v.string()),
+    token: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
+    const auth = await tryResolveEnterpriseAuth(ctx, args);
+    if (!auth) throw new Error("Not authenticated");
 
     const session = await ctx.db.get("enterprise_companion_sessions", args.sessionId);
     if (!session) return { error: "Session not found" };
@@ -56,12 +76,11 @@ export const endSession = mutation({
     await ctx.db.patch(args.sessionId, {
       status: "ended",
       endedAt: now,
-      updatedAt: now,
     });
 
     await ctx.db.insert("enterprise_audit_logs", {
       eventType: "COMPANION_SESSION_ENDED",
-      actor: identity._id,
+      actor: auth.actorId || "unknown",
       action: "end_session",
       target: args.sessionId,
       details: { duration: now - (session.startedAt || now), endedAt: now },
@@ -74,28 +93,28 @@ export const endSession = mutation({
 
 /** List all sessions */
 export const listSessions = query({
-  args: { orgId: v.id("enterprise_organizations"), adminToken: v.optional(v.string()) },
+  args: { orgId: v.optional(v.id("enterprise_organizations")), adminToken: v.optional(v.string()), token: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
+    const resolvedOrgId = await resolveOrgId(ctx, args);
+    if (!resolvedOrgId) return [];
 
     return await ctx.db.query("enterprise_companion_sessions")
-      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .withIndex("by_org", (q) => q.eq("orgId", resolvedOrgId))
       .collect();
   },
 });
 
 /** Get session stats */
 export const getStats = query({
-  args: { orgId: v.id("enterprise_organizations"), adminToken: v.optional(v.string()) },
+  args: { orgId: v.optional(v.id("enterprise_organizations")), adminToken: v.optional(v.string()), token: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
+    const resolvedOrgId = await resolveOrgId(ctx, args);
+    if (!resolvedOrgId) return { activeSessions: 0, totalSessions: 0, avgDuration: 0 };
 
     const sessions = await ctx.db.query("enterprise_companion_sessions")
-      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .withIndex("by_org", (q) => q.eq("orgId", resolvedOrgId))
       .collect();
 
     return {
@@ -110,15 +129,16 @@ export const getStats = query({
 export const generateGuidance = mutation({
   args: {
     sessionId: v.id("enterprise_companion_sessions"),
-    userId: v.id("users"),
+    userId: v.string(),
     question: v.string(),
     context: v.optional(v.any()),
     adminToken: v.optional(v.string()),
+    token: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
+    const auth = await tryResolveEnterpriseAuth(ctx, args);
+    if (!auth) throw new Error("Not authenticated");
 
     const session = await ctx.db.get("enterprise_companion_sessions", args.sessionId);
     if (!session) return { error: "Session not found" };
@@ -131,7 +151,7 @@ export const generateGuidance = mutation({
 
     await ctx.db.insert("enterprise_audit_logs", {
       eventType: "COMPANION_GUIDANCE_GENERATED",
-      actor: identity._id,
+      actor: auth.actorId || "unknown",
       action: "generate_guidance",
       target: args.sessionId,
       details: { question: args.question, sessionId: args.sessionId },

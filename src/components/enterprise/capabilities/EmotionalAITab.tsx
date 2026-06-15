@@ -6,8 +6,8 @@ export function EmotionalAITab({ token }: { token: string }) {
   const org = useQuery(api.enterprise_auth.getOrgDetails, token ? { token } : 'skip')
   const orgId = org?._id
 
-  const profiles = useQuery(api.enterprise_emotional.listProfiles, orgId ? { orgId } : 'skip') || []
-  const stats = useQuery(api.enterprise_emotional.getStats, orgId ? { orgId } : 'skip') || { totalProfiles: 0, avgRetentionScore: 0, totalMemories: 0 }
+  const profiles = useQuery(api.enterprise_emotional.listProfiles, orgId ? { orgId, token } : 'skip') || []
+  const stats = useQuery(api.enterprise_emotional.getStats, orgId ? { orgId, token } : 'skip') || { totalProfiles: 0, avgRetentionScore: 0, totalMemories: 0 }
   const upsertProfile = useMutation(api.enterprise_emotional.upsertProfile)
   const addMemory = useMutation(api.enterprise_emotional.addMemory)
 
@@ -34,6 +34,7 @@ export function EmotionalAITab({ token }: { token: string }) {
     try {
       const result = await upsertProfile({
         orgId: orgId!,
+        token,
         userId: newUserId,
         personality: newPersonality ? { description: newPersonality } : undefined,
       })
@@ -50,7 +51,7 @@ export function EmotionalAITab({ token }: { token: string }) {
     if (!expandedProfile || !newMemory.trim()) return
     setAddingMemory(true)
     try {
-      const result = await addMemory({ profileId: expandedProfile._id, memory: newMemory, sentiment: 'neutral' })
+      const result = await addMemory({ profileId: expandedProfile._id, token, memory: newMemory, sentiment: 'neutral' })
       if (result.error) { showToast(result.error, true); return }
       showToast('Memory added!')
       setNewMemory('')

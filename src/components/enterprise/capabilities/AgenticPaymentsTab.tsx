@@ -6,9 +6,9 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
   const org = useQuery(api.enterprise_auth.getOrgDetails, token ? { token } : 'skip')
   const orgId = org?._id
 
-  const transactions = useQuery(api.enterprise_payments.listTransactions, orgId ? { orgId } : 'skip') || []
-  const stats = useQuery(api.enterprise_payments.getStats, orgId ? { orgId } : 'skip') || { totalTransactions: 0, totalVolume: 0, pendingTransactions: 0, failedTransactions: 0, avgTransactionAmount: 0 }
-  const spendingLimitData = useQuery(api.enterprise_payments.getSpendingLimit, orgId ? { orgId } : 'skip') || { spendingLimit: 500000 }
+  const transactions = useQuery(api.enterprise_payments.listTransactions, orgId ? { orgId, token } : 'skip') || []
+  const stats = useQuery(api.enterprise_payments.getStats, orgId ? { orgId, token } : 'skip') || { totalTransactions: 0, totalVolume: 0, pendingTransactions: 0, failedTransactions: 0, avgTransactionAmount: 0 }
+  const spendingLimitData = useQuery(api.enterprise_payments.getSpendingLimit, orgId ? { orgId, token } : 'skip') || { spendingLimit: 500000 }
   const createTransaction = useMutation(api.enterprise_payments.createTransaction)
   const simulatePayment = useMutation(api.enterprise_payments.simulatePayment)
   const setSpendingLimitMut = useMutation(api.enterprise_payments.setSpendingLimit)
@@ -56,7 +56,7 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
     if (amount <= 0) { showToast('Amount must be positive', true); return }
     setPaying(true)
     try {
-      const result = await createTransaction({ orgId, fromAgent: payFrom, toAgent: payTo, amount, currency: 'NGN', status: 'completed' })
+      const result = await createTransaction({ orgId, token, fromAgent: payFrom, toAgent: payTo, amount, currency: 'NGN', status: 'completed' })
       if (result.error) { showToast(result.error, true); return }
       showToast(`Payment of ₦${amount.toLocaleString()} completed! Ref: ${result.reference}`)
       setShowPay(false)
@@ -96,7 +96,7 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
     setSubStep('processing')
     try {
       if (orgId) {
-        await simulatePayment({ orgId, fromAgent: 'Subscription', toAgent: 'Dutchkem', amount: Number(subAmount), currency: 'NGN' })
+        await simulatePayment({ orgId, token, fromAgent: 'Subscription', toAgent: 'Dutchkem', amount: Number(subAmount), currency: 'NGN' })
       }
       showToast(`Subscription to ${SUBSCRIPTION_PLANS.find(p => p.id === selectedPlan)?.name} activated!`)
       setSubStep('done')
@@ -111,7 +111,7 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
     if (amount <= 0) { showToast('Amount must be positive', true); return }
     setPaying(true)
     try {
-      const result = await simulatePayment({ orgId, fromAgent: payFrom, toAgent: payTo, amount, currency: 'NGN' })
+      const result = await simulatePayment({ orgId, token, fromAgent: payFrom, toAgent: payTo, amount, currency: 'NGN' })
       if (result.error) { showToast(result.error, true); return }
       showToast(`Agent payment completed! Ref: ${result.reference}`)
       setShowPay(false)
@@ -124,7 +124,7 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
     if (!orgId) return
     setSavingLimit(true)
     try {
-      const result = await setSpendingLimitMut({ orgId, limit: spendingLimit })
+      const result = await setSpendingLimitMut({ orgId, token, limit: spendingLimit })
       if (result.error) { showToast(result.error, true); return }
       showToast(`Spending limit set to ₦${spendingLimit.toLocaleString()}`)
     } catch (e: any) { showToast(e.message || 'Failed to save', true) }

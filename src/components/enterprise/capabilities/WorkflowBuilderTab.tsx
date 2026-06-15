@@ -21,7 +21,7 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
   const org = useQuery(api.enterprise_auth.getOrgDetails, token ? { token } : 'skip')
   const orgId = org?._id
 
-  const wq = useQuery(api.enterprise_workflows.listWorkflows, orgId ? { orgId } : 'skip')
+  const wq = useQuery(api.enterprise_workflows.listWorkflows, orgId ? { orgId, token } : 'skip')
   const tq = useQuery(api.admin_enterprise_hub.listTemplates)
   const workflows = wq || []
   const templates = tq || []
@@ -61,7 +61,7 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
   const handleCreateFromTemplate = async (template: any) => {
     setSaving(true)
     try {
-      const result = await createWorkflow({ orgId: orgId!, name: template.name, description: template.description, nodes: template.nodes || [], edges: template.edges || [], createdBy: 'admin' })
+      const result = await createWorkflow({ orgId: orgId!, token, name: template.name, description: template.description, nodes: template.nodes || [], edges: template.edges || [], createdBy: 'admin' })
       if (result.error) { showToast(result.error, true); return }
       showToast(`Workflow "${template.name}" created!`)
       setView('list')
@@ -90,11 +90,11 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
     setSaving(true)
     try {
       if (selectedWorkflow) {
-        const result = await updateWorkflow({ workflowId: selectedWorkflow._id, name: workflowName, description: workflowDesc })
+        const result = await updateWorkflow({ workflowId: selectedWorkflow._id, name: workflowName, description: workflowDesc, token })
         if (result.error) { showToast(result.error, true); return }
         showToast('Workflow updated!')
       } else {
-        const result = await createWorkflow({ orgId: orgId!, name: workflowName, description: workflowDesc, nodes: builderNodes, edges: builderEdges, createdBy: 'admin' })
+        const result = await createWorkflow({ orgId: orgId!, token, name: workflowName, description: workflowDesc, nodes: builderNodes, edges: builderEdges, createdBy: 'admin' })
         if (result.error) { showToast(result.error, true); return }
         showToast('Workflow created!')
       }
@@ -106,7 +106,7 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
   const handleRun = async (wf: any) => {
     setRunning(wf._id)
     try {
-      const result = await runWorkflow({ workflowId: wf._id })
+      const result = await runWorkflow({ workflowId: wf._id, token })
       if (result.error) { showToast(result.error, true); return }
       showToast(`Workflow executed! Run #${result.runNumber}`)
     } catch (e: any) { showToast(e.message || 'Failed', true) }
@@ -114,14 +114,14 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
   }
 
   const handleDelete = async (wfId: string) => {
-    const result = await deleteWorkflow({ workflowId: wfId as any })
+    const result = await deleteWorkflow({ workflowId: wfId as any, token })
     if (result.error) { showToast(result.error, true); return }
     showToast('Workflow deleted!')
     setConfirmDelete(null)
   }
 
   const handleDuplicate = async (wf: any) => {
-    const result = await duplicateWorkflow({ workflowId: wf._id, newName: `${wf.name} (Copy)` })
+    const result = await duplicateWorkflow({ workflowId: wf._id, newName: `${wf.name} (Copy)`, token })
     if (result.error) { showToast(result.error, true); return }
     showToast('Workflow duplicated!')
   }

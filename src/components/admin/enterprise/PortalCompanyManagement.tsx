@@ -247,7 +247,7 @@ export function PortalCompanyManagement({ adminToken, organizations }: { adminTo
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-white/10 rounded-2xl p-4">
           <div className="text-2xl font-black">{companyList.length}</div>
           <div className="text-xs text-slate-400">Total Companies</div>
@@ -264,6 +264,7 @@ export function PortalCompanyManagement({ adminToken, organizations }: { adminTo
           <div className="text-2xl font-black text-purple-400">{COMPANY_TYPES.length}</div>
           <div className="text-xs text-slate-400">Total Types Available</div>
         </div>
+        <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-white/10 rounded-2xl p-4">
           <div className="text-2xl font-black text-purple-400">{companyList.filter((c: any) => c.size === 'enterprise').length}</div>
           <div className="text-xs text-slate-400">Enterprise (M1-M5)</div>
         </div>
@@ -274,7 +275,7 @@ export function PortalCompanyManagement({ adminToken, organizations }: { adminTo
       </div>
 
       <div>
-        <h3 className="text-sm font-black text-slate-300 mb-3">Company Types (20 total)</h3>
+        <h3 className="text-sm font-black text-slate-300 mb-3">Company Types ({COMPANY_TYPES.length} total)</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {COMPANY_TYPES.map((type) => {
             const count = companyList.filter((c: any) => c.companyType === type.id).length
