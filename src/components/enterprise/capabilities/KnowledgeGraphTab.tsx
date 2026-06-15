@@ -3,8 +3,11 @@ import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../../convex/_generated/api'
 
 export function KnowledgeGraphTab({ token }: { token: string }) {
-  const entries = useQuery(api.enterprise_knowledge.listEntries, { token }) || []
-  const stats = useQuery(api.enterprise_knowledge.getStats, { token }) || { totalEntries: 0, entities: [], sources: [], avgConfidence: 0 }
+  const org = useQuery(api.enterprise_auth.getOrgDetails, token ? { token } : 'skip')
+  const orgId = org?._id
+
+  const entries = useQuery(api.enterprise_knowledge.listEntries, orgId ? { orgId } : 'skip') || []
+  const stats = useQuery(api.enterprise_knowledge.getStats, orgId ? { orgId } : 'skip') || { totalEntries: 0, entities: [], sources: [], avgConfidence: 0 }
   const addEntry = useMutation(api.enterprise_knowledge.addEntry)
   const deleteEntry = useMutation(api.enterprise_knowledge.deleteEntry)
 
@@ -18,7 +21,7 @@ export function KnowledgeGraphTab({ token }: { token: string }) {
 
   const searchResults = useQuery(
     api.enterprise_knowledge.searchEntries,
-    searchQuery ? { token, query: searchQuery } : 'skip'
+    orgId && searchQuery ? { orgId, query: searchQuery } : 'skip'
   ) || entries
 
   const showToast = (msg: string, isError = false) => {
@@ -33,7 +36,7 @@ export function KnowledgeGraphTab({ token }: { token: string }) {
     }
     setAdding(true)
     try {
-      const result = await addEntry({ token, ...newEntry })
+      const result = await addEntry({ orgId: orgId!, ...newEntry })
       if (result.error) { showToast(result.error, true); return }
       showToast('Knowledge entry added!')
       setShowAdd(false)
@@ -43,7 +46,7 @@ export function KnowledgeGraphTab({ token }: { token: string }) {
   }
 
   const handleDelete = async (entryId: string) => {
-    const result = await deleteEntry({ token, entryId: entryId as any })
+    const result = await deleteEntry({ entryId: entryId as any })
     if (result.error) { showToast(result.error, true); return }
     showToast('Entry deleted!')
   }
@@ -114,7 +117,7 @@ export function KnowledgeGraphTab({ token }: { token: string }) {
           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Unique Entities</p>
         </div>
         <div className="p-5 bg-white/5 border border-white/10 rounded-2xl text-center">
-          <p className="text-3xl font-black text-violet-400">{(stats.avgConfidence * 100).toFixed(0)}%</p>
+          <p className="text-3xl font-black text-violet-400">{stats.avgConfidence.toFixed(0)}%</p>
           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Avg Confidence</p>
         </div>
       </div>
@@ -170,7 +173,7 @@ export function KnowledgeGraphTab({ token }: { token: string }) {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <p className="text-sm font-black text-emerald-400">{(entry.confidence * 100).toFixed(0)}%</p>
+                    <p className="text-sm font-black text-emerald-400">{entry.confidence}%</p>
                     <p className="text-[9px] text-slate-500 uppercase">confidence</p>
                   </div>
                   <button onClick={() => handleDelete(entry._id)}
@@ -178,7 +181,7 @@ export function KnowledgeGraphTab({ token }: { token: string }) {
                 </div>
               </div>
               <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full transition-all" style={{ width: `${entry.confidence * 100}%` }} />
+                <div className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full transition-all" style={{ width: `${entry.confidence}%` }} />
               </div>
             </div>
           ))}

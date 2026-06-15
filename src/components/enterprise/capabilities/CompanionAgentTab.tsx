@@ -1,10 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../../convex/_generated/api'
 
 export function CompanionAgentTab({ token }: { token: string }) {
-  const sessions = useQuery(api.enterprise_companion.listSessions, { token }) || []
-  const stats = useQuery(api.enterprise_companion.getStats, { token }) || { totalSessions: 0, activeSessions: 0, totalGuidance: 0, avgGuidancePerSession: 0 }
+  const org = useQuery(api.enterprise_auth.getOrgDetails, token ? { token } : 'skip')
+  const orgId = org?._id
+
+  const sessions = useQuery(api.enterprise_companion.listSessions, orgId ? { orgId } : 'skip') || []
+  const stats = useQuery(api.enterprise_companion.getStats, orgId ? { orgId } : 'skip') || { totalSessions: 0, activeSessions: 0, avgDuration: 0 }
   const startSession = useMutation(api.enterprise_companion.startSession)
   const endSession = useMutation(api.enterprise_companion.endSession)
   const generateGuidance = useMutation(api.enterprise_companion.generateGuidance)
@@ -17,6 +20,7 @@ export function CompanionAgentTab({ token }: { token: string }) {
   const [userId, setUserId] = useState('')
   const [channel, setChannel] = useState('live_chat')
   const [showStartForm, setShowStartForm] = useState(false)
+  const [generatingGuidance, setGeneratingGuidance] = useState(false)
 
   const showToast = (msg: string, isError = false) => {
     if (isError) setError(msg)
@@ -28,7 +32,7 @@ export function CompanionAgentTab({ token }: { token: string }) {
     if (!userId.trim()) { showToast('User ID is required', true); return }
     setStarting(true)
     try {
-      const result = await startSession({ token, userId, channel })
+      const result = await startSession({ orgId: orgId!, userId: userId as any, channel })
       if (result.error) { showToast(result.error, true); return }
       setActiveSessionId(result.sessionId as string)
       setShowStartForm(false)
@@ -40,7 +44,7 @@ export function CompanionAgentTab({ token }: { token: string }) {
   const handleEnd = async () => {
     if (!activeSessionId) return
     try {
-      const result = await endSession({ token, sessionId: activeSessionId as any })
+      const result = await endSession({ sessionId: activeSessionId as any })
       if (result.error) { showToast(result.error, true); return }
       setActiveSessionId(null)
       setGuidance([])
@@ -48,21 +52,17 @@ export function CompanionAgentTab({ token }: { token: string }) {
     } catch (e: any) { showToast(e.message || 'Failed', true) }
   }
 
-  const pollGuidance = useCallback(async () => {
-    if (!activeSessionId || !token) return
-    try {
-      const result = await generateGuidance({ token, sessionId: activeSessionId as any })
-      if (result.success && result.guidance) {
-        setGuidance(prev => [result.guidance, ...prev].slice(0, 20))
-      }
-    } catch {}
-  }, [activeSessionId, token])
-
-  useEffect(() => {
+  const handleGenerateGuidance = async () => {
     if (!activeSessionId) return
-    const timer = setInterval(pollGuidance, 5000)
-    return () => clearInterval(timer)
-  }, [activeSessionId, pollGuidance])
+    setGeneratingGuidance(true)
+    try {
+      const result = await generateGuidance({ sessionId: activeSessionId as any, userId: userId as any, question: 'Help me with my task' })
+      if (result.error) { showToast(result.error, true); return }
+      setGuidance(prev => [{ type: 'suggestion', message: `Guidance generated (count: ${result.guidanceCount})`, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 20))
+      showToast('Guidance generated!')
+    } catch (e: any) { showToast(e.message || 'Failed', true) }
+    finally { setGeneratingGuidance(false) }
+  }
 
   const typeColors: Record<string, string> = {
     suggestion: 'bg-blue-500/10 text-blue-400',
@@ -132,7 +132,7 @@ export function CompanionAgentTab({ token }: { token: string }) {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="p-5 bg-white/5 border border-white/10 rounded-2xl text-center">
           <p className="text-3xl font-black text-emerald-400">{stats.totalSessions}</p>
           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Total Sessions</p>
@@ -142,26 +142,30 @@ export function CompanionAgentTab({ token }: { token: string }) {
           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Active Now</p>
         </div>
         <div className="p-5 bg-white/5 border border-white/10 rounded-2xl text-center">
-          <p className="text-3xl font-black text-orange-400">{stats.totalGuidance}</p>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Guidance Given</p>
-        </div>
-        <div className="p-5 bg-white/5 border border-white/10 rounded-2xl text-center">
-          <p className="text-3xl font-black text-violet-400">{stats.avgGuidancePerSession.toFixed(1)}</p>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Avg/Session</p>
+          <p className="text-3xl font-black text-violet-400">{stats.avgDuration > 0 ? `${Math.round(stats.avgDuration / 60000)}m` : '0m'}</p>
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Avg Duration</p>
         </div>
       </div>
 
       {/* Live Guidance Feed */}
       <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 mb-4">
-          {activeSessionId ? '🔴 Live Guidance Feed' : 'Recent Guidance'}
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">
+            {activeSessionId ? '🔴 Live Guidance Feed' : 'Recent Guidance'}
+          </h3>
+          {activeSessionId && (
+            <button onClick={handleGenerateGuidance} disabled={generatingGuidance}
+              className="px-4 py-2 bg-emerald-600 text-white font-black text-xs rounded-xl hover:bg-emerald-700 transition-all disabled:opacity-50">
+              {generatingGuidance ? 'Generating...' : '⚡ Generate Guidance'}
+            </button>
+          )}
+        </div>
         <div className="space-y-3 max-h-[400px] overflow-y-auto">
           {guidance.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-4xl mb-4">🤝</p>
               <p className="text-slate-500 font-bold">
-                {activeSessionId ? 'Waiting for guidance messages...' : 'Start a session to receive real-time guidance'}
+                {activeSessionId ? 'Click "Generate Guidance" to get real-time suggestions' : 'Start a session to receive real-time guidance'}
               </p>
             </div>
           ) : guidance.map((g: any, i: number) => (

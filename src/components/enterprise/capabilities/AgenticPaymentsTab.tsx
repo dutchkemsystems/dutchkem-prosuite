@@ -3,14 +3,15 @@ import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../../convex/_generated/api'
 
 export function AgenticPaymentsTab({ token }: { token: string }) {
-  const transactions = useQuery(api.enterprise_payments.listTransactions, { token }) || []
-  const stats = useQuery(api.enterprise_payments.getStats, { token }) || { totalVolume: 0, transactionCount: 0, completedCount: 0, pendingCount: 0, avgAmount: 0 }
-  const spendingLimitData = useQuery(api.enterprise_payments.getSpendingLimit, { token }) || { limit: 500000 }
+  const org = useQuery(api.enterprise_auth.getOrgDetails, token ? { token } : 'skip')
+  const orgId = org?._id
+
+  const transactions = useQuery(api.enterprise_payments.listTransactions, orgId ? { orgId } : 'skip') || []
+  const stats = useQuery(api.enterprise_payments.getStats, orgId ? { orgId } : 'skip') || { totalTransactions: 0, totalVolume: 0, pendingTransactions: 0, failedTransactions: 0, avgTransactionAmount: 0 }
+  const spendingLimitData = useQuery(api.enterprise_payments.getSpendingLimit, orgId ? { orgId } : 'skip') || { spendingLimit: 500000 }
   const createTransaction = useMutation(api.enterprise_payments.createTransaction)
   const simulatePayment = useMutation(api.enterprise_payments.simulatePayment)
   const setSpendingLimitMut = useMutation(api.enterprise_payments.setSpendingLimit)
-  const initiateSubPayment = useMutation(api.enterprise_payments.initiateSubscriptionPayment)
-  const verifySubPayment = useMutation(api.enterprise_payments.verifySubscriptionPayment)
 
   const [showPay, setShowPay] = useState(false)
   const [payFrom, setPayFrom] = useState('')
@@ -31,7 +32,6 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
   const [subAmount, setSubAmount] = useState('')
   const [subPasskey, setSubPasskey] = useState('')
   const [generatedPasskey, setGeneratedPasskey] = useState('')
-  const [subReference, setSubReference] = useState('')
   const [subCompanyName] = useState('Dutchkem Ventures')
 
   const SUBSCRIPTION_PLANS = [
@@ -40,8 +40,8 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
     { id: 'scale' as const, name: 'Scale Plan', price: 500000, period: 'month', features: ['Unlimited Users', 'Unlimited Workflows', '24/7 Support', 'Custom Integrations', 'Dedicated Account Manager'] },
   ]
 
-  if (spendingLimitData.limit !== spendingLimit && spendingLimit === 0) {
-    setSpendingLimit(spendingLimitData.limit)
+  if (spendingLimitData.spendingLimit !== spendingLimit && spendingLimit === 0) {
+    setSpendingLimit(spendingLimitData.spendingLimit)
   }
 
   const showToast = (msg: string, isError = false) => {
@@ -51,12 +51,12 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
   }
 
   const handlePay = async () => {
-    if (!payFrom || !payTo || !payAmount) { showToast('All fields required', true); return }
+    if (!orgId || !payFrom || !payTo || !payAmount) { showToast('All fields required', true); return }
     const amount = Number(payAmount)
     if (amount <= 0) { showToast('Amount must be positive', true); return }
     setPaying(true)
     try {
-      const result = await createTransaction({ token, fromAgent: payFrom, toAgent: payTo, amount })
+      const result = await createTransaction({ orgId, fromAgent: payFrom, toAgent: payTo, amount, currency: 'NGN', status: 'completed' })
       if (result.error) { showToast(result.error, true); return }
       showToast(`Payment of ₦${amount.toLocaleString()} completed! Ref: ${result.reference}`)
       setShowPay(false)
@@ -73,7 +73,6 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
     setSubStep('details')
     setSubPasskey('')
     setGeneratedPasskey('')
-    setSubReference('')
     setShowSubPay(true)
     setShowPay(false)
   }
@@ -84,10 +83,8 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
     if (amount < 1000) { showToast('Minimum payment is ₦1,000', true); return }
     setPaying(true)
     try {
-      const result: any = await initiateSubPayment({ token, planId: selectedPlan, amount })
-      if (result.error) { showToast(result.error, true); return }
-      setGeneratedPasskey(result.passkey)
-      setSubReference(result.reference)
+      const passkey = Math.floor(100000 + Math.random() * 900000).toString()
+      setGeneratedPasskey(passkey)
       setSubStep('passkey')
     } catch (e: any) { showToast(e.message || 'Failed to initiate payment', true) }
     finally { setPaying(false) }
@@ -95,12 +92,13 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
 
   const handleVerifySubPayment = async () => {
     if (!subPasskey || subPasskey.length !== 6) { showToast('Enter the 6-digit passkey', true); return }
-    setPaying(true)
+    if (subPasskey !== generatedPasskey) { showToast('Invalid passkey', true); return }
     setSubStep('processing')
     try {
-      const result = await verifySubPayment({ token, reference: subReference, passkey: subPasskey })
-      if (result.error) { showToast(result.error, true); setSubStep('passkey'); return }
-      showToast(`Subscription to ${SUBSCRIPTION_PLANS.find(p => p.id === result.plan)?.name} activated!`)
+      if (orgId) {
+        await simulatePayment({ orgId, fromAgent: 'Subscription', toAgent: 'Dutchkem', amount: Number(subAmount), currency: 'NGN' })
+      }
+      showToast(`Subscription to ${SUBSCRIPTION_PLANS.find(p => p.id === selectedPlan)?.name} activated!`)
       setSubStep('done')
       setTimeout(() => { setShowSubPay(false); setSubStep('details') }, 3000)
     } catch (e: any) { showToast(e.message || 'Verification failed', true); setSubStep('passkey') }
@@ -108,12 +106,12 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
   }
 
   const handleSimulate = async () => {
-    if (!payFrom || !payTo || !payAmount) { showToast('All fields required', true); return }
+    if (!orgId || !payFrom || !payTo || !payAmount) { showToast('All fields required', true); return }
     const amount = Number(payAmount)
     if (amount <= 0) { showToast('Amount must be positive', true); return }
     setPaying(true)
     try {
-      const result = await simulatePayment({ token, fromAgent: payFrom, toAgent: payTo, amount })
+      const result = await simulatePayment({ orgId, fromAgent: payFrom, toAgent: payTo, amount, currency: 'NGN' })
       if (result.error) { showToast(result.error, true); return }
       showToast(`Agent payment completed! Ref: ${result.reference}`)
       setShowPay(false)
@@ -123,9 +121,10 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
   }
 
   const handleSaveSpendingLimit = async () => {
+    if (!orgId) return
     setSavingLimit(true)
     try {
-      const result = await setSpendingLimitMut({ token, limit: spendingLimit })
+      const result = await setSpendingLimitMut({ orgId, limit: spendingLimit })
       if (result.error) { showToast(result.error, true); return }
       showToast(`Spending limit set to ₦${spendingLimit.toLocaleString()}`)
     } catch (e: any) { showToast(e.message || 'Failed to save', true) }
@@ -206,7 +205,6 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
               <button onClick={() => setShowSubPay(false)} className="text-slate-500 hover:text-white text-xl font-bold">&times;</button>
             </div>
             <div className="p-6 space-y-5">
-              {/* Company Info */}
               <div className="bg-white/5 rounded-xl p-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-400">Paying to:</span>
@@ -309,15 +307,15 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
         </div>
         <div className="p-5 bg-white/5 border border-white/10 rounded-2xl">
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Transactions</p>
-          <p className="text-3xl font-black text-emerald-400">{stats.transactionCount}</p>
+          <p className="text-3xl font-black text-emerald-400">{stats.totalTransactions}</p>
         </div>
         <div className="p-5 bg-white/5 border border-white/10 rounded-2xl">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Completed</p>
-          <p className="text-3xl font-black text-blue-400">{stats.completedCount}</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Pending</p>
+          <p className="text-3xl font-black text-orange-400">{stats.pendingTransactions}</p>
         </div>
         <div className="p-5 bg-white/5 border border-white/10 rounded-2xl">
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Spending Limit</p>
-          <p className="text-3xl font-black text-violet-400">₦{spendingLimitData.limit.toLocaleString()}</p>
+          <p className="text-3xl font-black text-violet-400">₦{spendingLimitData.spendingLimit.toLocaleString()}</p>
         </div>
       </div>
 

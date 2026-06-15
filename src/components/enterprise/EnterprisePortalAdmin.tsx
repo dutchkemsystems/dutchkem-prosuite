@@ -21,13 +21,13 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
   const [showCreateAdmin, setShowCreateAdmin] = useState<string | null>(null)
   const [expandedOrg, setExpandedOrg] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  const [orgForm, setOrgForm] = useState({ name: '', email: '', industry: '', size: '', phone: '', website: '', plan: 'trial', adminEmail: '', adminPassword: '', confirmPassword: '' })
+  const [orgForm, setOrgForm] = useState({ name: '', email: '', industry: '', size: '', phone: '', website: '', subdomain: '', address: '', city: '', country: '', billingEmail: '', taxId: '', plan: 'trial', adminEmail: '', adminPassword: '', confirmPassword: '' })
   const [adminForm, setAdminForm] = useState({ name: '', email: '' })
   const [creating, setCreating] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [showPasswords, setShowPasswords] = useState<string | null>(null)
   const [showEditOrg, setShowEditOrg] = useState<string | null>(null)
-  const [editOrgForm, setEditOrgForm] = useState({ name: '', email: '', industry: '', size: '', phone: '', website: '' })
+  const [editOrgForm, setEditOrgForm] = useState({ name: '', email: '', industry: '', size: '', phone: '', website: '', subdomain: '', address: '', city: '', country: '', billingEmail: '', taxId: '' })
 
   const effectiveToken = adminToken || ''
   const orgs = useQuery(api.admin_enterprise.listOrganizations, effectiveToken ? { adminToken: effectiveToken } : 'skip')
@@ -95,6 +95,12 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
         size: orgForm.size,
         phone: orgForm.phone,
         website: orgForm.website,
+        subdomain: orgForm.subdomain,
+        address: orgForm.address,
+        city: orgForm.city,
+        country: orgForm.country,
+        billingEmail: orgForm.billingEmail,
+        taxId: orgForm.taxId,
         plan: orgForm.plan as any,
         adminName: orgForm.name,
         adminEmail: orgForm.adminEmail || orgForm.email,
@@ -106,7 +112,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
         return
       }
       setShowCreateOrg(false)
-      setOrgForm({ name: '', email: '', industry: '', size: '', phone: '', website: '', plan: 'trial', adminEmail: '', adminPassword: '', confirmPassword: '' })
+      setOrgForm({ name: '', email: '', industry: '', size: '', phone: '', website: '', subdomain: '', address: '', city: '', country: '', billingEmail: '', taxId: '', plan: 'trial', adminEmail: '', adminPassword: '', confirmPassword: '' })
       showToast(`Organization created! Admin: ${result.adminEmail} | Temp password: ${result.tempPassword}`, 'success')
       setRefreshKey(k => k + 1)
     } catch (err: any) {
@@ -197,6 +203,12 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
       size: org.size || '',
       phone: org.phone || '',
       website: org.website || '',
+      subdomain: org.subdomain || '',
+      address: org.address || '',
+      city: org.city || '',
+      country: org.country || '',
+      billingEmail: org.billingEmail || '',
+      taxId: org.taxId || '',
     })
     setShowEditOrg(org._id)
   }
@@ -410,28 +422,22 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
 
       {showCreateOrg && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-black mb-6">Create Organization</h3>
             <form onSubmit={handleCreateOrg} className="space-y-4">
-              <input type="text" placeholder="Organization Name" required value={orgForm.name} onChange={e => setOrgForm({ ...orgForm, name: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
-              <input type="email" placeholder="Organization Email" required value={orgForm.email} onChange={e => setOrgForm({ ...orgForm, email: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
-              <div className="grid grid-cols-2 gap-4">
-                <input type="text" placeholder="Industry" value={orgForm.industry} onChange={e => setOrgForm({ ...orgForm, industry: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
-                <input type="text" placeholder="Size" value={orgForm.size} onChange={e => setOrgForm({ ...orgForm, size: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+              <div className="border-t border-white/10 pt-4">
+                <h4 className="text-xs font-black text-orange-400 uppercase tracking-wider mb-3">Basic Information</h4>
+                <input type="text" placeholder="Organization Name" required value={orgForm.name} onChange={e => setOrgForm({ ...orgForm, name: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 mb-3" />
+                <input type="email" placeholder="Organization Email" required value={orgForm.email} onChange={e => setOrgForm({ ...orgForm, email: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 mb-3" />
+                <input type="text" placeholder="Subdomain (e.g. acme.dutchkem.com)" value={orgForm.subdomain} onChange={e => setOrgForm({ ...orgForm, subdomain: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 mb-3" />
+                <div className="grid grid-cols-2 gap-4">
+                  <input type="text" placeholder="Industry" value={orgForm.industry} onChange={e => setOrgForm({ ...orgForm, industry: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                  <input type="text" placeholder="Number of Employees" value={orgForm.size} onChange={e => setOrgForm({ ...orgForm, size: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <input type="text" placeholder="Phone" value={orgForm.phone} onChange={e => setOrgForm({ ...orgForm, phone: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
-                <input type="text" placeholder="Website" value={orgForm.website} onChange={e => setOrgForm({ ...orgForm, website: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
-              </div>
-              <select value={orgForm.plan} onChange={e => setOrgForm({ ...orgForm, plan: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-orange-500">
-                <option value="trial">Trial (14 days free)</option>
-                <option value="growth">Growth</option>
-                <option value="enterprise">Enterprise</option>
-                <option value="scale">Scale</option>
-              </select>
-              
-              <div className="border-t border-white/10 pt-4 mt-4">
-                <h4 className="text-sm font-black text-orange-400 mb-3">Admin Account Credentials</h4>
+
+              <div className="border-t border-white/10 pt-4">
+                <h4 className="text-xs font-black text-orange-400 uppercase tracking-wider mb-3">Admin Account Credentials</h4>
                 <input type="email" placeholder="Admin Email Address *" required value={orgForm.adminEmail} onChange={e => setOrgForm({ ...orgForm, adminEmail: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 mb-3" />
                 <div className="relative">
                   <input type="text" placeholder="Temporary Password *" required value={orgForm.adminPassword} onChange={e => setOrgForm({ ...orgForm, adminPassword: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
@@ -450,10 +456,34 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
                   <p className="text-red-400 text-xs mt-1">Passwords do not match</p>
                 )}
               </div>
-              
-              <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-slate-400">
-                The admin account will be created with the email and password above. A temporary password will be generated if not provided.
+
+              <div className="border-t border-white/10 pt-4">
+                <h4 className="text-xs font-black text-orange-400 uppercase tracking-wider mb-3">Contact Information</h4>
+                <div className="grid grid-cols-2 gap-4 mb-3">
+                  <input type="text" placeholder="Phone Number" value={orgForm.phone} onChange={e => setOrgForm({ ...orgForm, phone: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                  <input type="text" placeholder="Website" value={orgForm.website} onChange={e => setOrgForm({ ...orgForm, website: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                </div>
+                <input type="text" placeholder="Address" value={orgForm.address} onChange={e => setOrgForm({ ...orgForm, address: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 mb-3" />
+                <div className="grid grid-cols-2 gap-4">
+                  <input type="text" placeholder="City" value={orgForm.city} onChange={e => setOrgForm({ ...orgForm, city: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                  <input type="text" placeholder="Country" value={orgForm.country} onChange={e => setOrgForm({ ...orgForm, country: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                </div>
               </div>
+
+              <div className="border-t border-white/10 pt-4">
+                <h4 className="text-xs font-black text-orange-400 uppercase tracking-wider mb-3">Subscription & Billing</h4>
+                <select value={orgForm.plan} onChange={e => setOrgForm({ ...orgForm, plan: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-orange-500 mb-3">
+                  <option value="trial">Trial (14 days free)</option>
+                  <option value="growth">Growth ($499/month)</option>
+                  <option value="enterprise">Enterprise ($1,999/month)</option>
+                  <option value="scale">Scale ($4,999/month)</option>
+                </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <input type="email" placeholder="Billing Email" value={orgForm.billingEmail} onChange={e => setOrgForm({ ...orgForm, billingEmail: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                  <input type="text" placeholder="Tax ID / VAT Number" value={orgForm.taxId} onChange={e => setOrgForm({ ...orgForm, taxId: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowCreateOrg(false)} className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-black hover:bg-white/10 transition-all">
                   Cancel
@@ -528,8 +558,8 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
       {/* Edit Organization Modal */}
       {showEditOrg && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 w-full max-w-lg">
-            <h3 className="text-lg font-black mb-6">✏️ Edit Company Information</h3>
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-black mb-6">Edit Company Information</h3>
             <div className="space-y-4">
               <div>
                 <label className="text-xs text-slate-500 mb-1 block">Organization Name</label>
@@ -538,6 +568,10 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
               <div>
                 <label className="text-xs text-slate-500 mb-1 block">Email</label>
                 <input type="email" value={editOrgForm.email} onChange={e => setEditOrgForm({ ...editOrgForm, email: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Subdomain</label>
+                <input type="text" value={editOrgForm.subdomain} onChange={e => setEditOrgForm({ ...editOrgForm, subdomain: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -557,6 +591,30 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
                 <div>
                   <label className="text-xs text-slate-500 mb-1 block">Website</label>
                   <input type="text" value={editOrgForm.website} onChange={e => setEditOrgForm({ ...editOrgForm, website: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 mb-1 block">Address</label>
+                <input type="text" value={editOrgForm.address} onChange={e => setEditOrgForm({ ...editOrgForm, address: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">City</label>
+                  <input type="text" value={editOrgForm.city} onChange={e => setEditOrgForm({ ...editOrgForm, city: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Country</label>
+                  <input type="text" value={editOrgForm.country} onChange={e => setEditOrgForm({ ...editOrgForm, country: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Billing Email</label>
+                  <input type="email" value={editOrgForm.billingEmail} onChange={e => setEditOrgForm({ ...editOrgForm, billingEmail: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Tax ID / VAT</label>
+                  <input type="text" value={editOrgForm.taxId} onChange={e => setEditOrgForm({ ...editOrgForm, taxId: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
                 </div>
               </div>
             </div>

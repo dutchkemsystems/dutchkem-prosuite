@@ -3,8 +3,11 @@ import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../../convex/_generated/api'
 
 export function EmotionalAITab({ token }: { token: string }) {
-  const profiles = useQuery(api.enterprise_emotional.listProfiles, { token }) || []
-  const stats = useQuery(api.enterprise_emotional.getStats, { token }) || { totalProfiles: 0, avgRetention: 0, totalMemories: 0 }
+  const org = useQuery(api.enterprise_auth.getOrgDetails, token ? { token } : 'skip')
+  const orgId = org?._id
+
+  const profiles = useQuery(api.enterprise_emotional.listProfiles, orgId ? { orgId } : 'skip') || []
+  const stats = useQuery(api.enterprise_emotional.getStats, orgId ? { orgId } : 'skip') || { totalProfiles: 0, avgRetentionScore: 0, totalMemories: 0 }
   const upsertProfile = useMutation(api.enterprise_emotional.upsertProfile)
   const addMemory = useMutation(api.enterprise_emotional.addMemory)
 
@@ -30,13 +33,12 @@ export function EmotionalAITab({ token }: { token: string }) {
     setAdding(true)
     try {
       const result = await upsertProfile({
-        token,
+        orgId: orgId!,
         userId: newUserId,
         personality: newPersonality ? { description: newPersonality } : undefined,
-        sentiment: 'neutral',
       })
       if (result.error) { showToast(result.error, true); return }
-      showToast(result.isNew ? 'Profile created!' : 'Profile updated!')
+      showToast('Profile updated!')
       setShowAddProfile(false)
       setNewUserId('')
       setNewPersonality('')
@@ -48,7 +50,7 @@ export function EmotionalAITab({ token }: { token: string }) {
     if (!expandedProfile || !newMemory.trim()) return
     setAddingMemory(true)
     try {
-      const result = await addMemory({ token, profileId: expandedProfile._id, memoryText: newMemory })
+      const result = await addMemory({ profileId: expandedProfile._id, memory: newMemory, sentiment: 'neutral' })
       if (result.error) { showToast(result.error, true); return }
       showToast('Memory added!')
       setNewMemory('')
@@ -121,7 +123,7 @@ export function EmotionalAITab({ token }: { token: string }) {
           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Active Profiles</p>
         </div>
         <div className="p-5 bg-white/5 border border-white/10 rounded-2xl text-center">
-          <p className="text-3xl font-black text-emerald-400">{stats.avgRetention}%</p>
+          <p className="text-3xl font-black text-emerald-400">{stats.avgRetentionScore.toFixed(0)}%</p>
           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Avg Retention Score</p>
         </div>
         <div className="p-5 bg-white/5 border border-white/10 rounded-2xl text-center">
@@ -146,13 +148,13 @@ export function EmotionalAITab({ token }: { token: string }) {
               }`}>
               <div className="flex items-center justify-between mb-2">
                 <p className="font-black text-sm">{p.userId}</p>
-                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${sentimentColors[p.sentiment]}`}>
-                  {sentimentIcons[p.sentiment]} {p.sentiment}
+                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${sentimentColors[p.sentiment || 'neutral']}`}>
+                  {sentimentIcons[p.sentiment || 'neutral']} {p.sentiment || 'neutral'}
                 </span>
               </div>
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>❤️ {p.retentionScore}%</span>
-                <span>🧠 {p.memoryCount} memories</span>
+                <span>🧠 {p.memoryCount || p.memories?.length || 0} memories</span>
               </div>
               <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden mt-2">
                 <div className={`h-full bg-gradient-to-r ${getRetentionColor(p.retentionScore)} rounded-full`}
@@ -212,7 +214,7 @@ export function EmotionalAITab({ token }: { token: string }) {
                     <div key={i} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl">
                       <span className="text-sm">💭</span>
                       <span className="text-sm text-slate-300">{m.text}</span>
-                      <span className="text-[10px] text-slate-600 ml-auto">{new Date(m.createdAt).toLocaleDateString()}</span>
+                      <span className="text-[10px] text-slate-600 ml-auto">{new Date(m.createdAt || m.timestamp).toLocaleDateString()}</span>
                     </div>
                   )) : (
                     <p className="text-sm text-slate-600 italic">No memories stored yet</p>

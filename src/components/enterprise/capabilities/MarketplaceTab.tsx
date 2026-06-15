@@ -3,8 +3,8 @@ import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../../convex/_generated/api'
 
 export function MarketplaceTab({ token }: { token: string }) {
-  const agents = useQuery(api.enterprise_marketplace.listAgents) || []
-  const installedData = useQuery(api.enterprise_marketplace.getInstalledAgents, { token }) || []
+  const agents: any[] = useQuery(api.enterprise_marketplace.listAgents) || []
+  const installedData: any[] = useQuery(api.enterprise_marketplace.getInstalledAgents, token ? { token } : 'skip') || []
   const installAgent = useMutation(api.enterprise_marketplace.installAgent)
   const uninstallAgent = useMutation(api.enterprise_marketplace.uninstallAgent)
 
@@ -15,7 +15,7 @@ export function MarketplaceTab({ token }: { token: string }) {
   const [selectedAgent, setSelectedAgent] = useState<any>(null)
 
   const installedIds = installedData.map((i: any) => i.templateId)
-  const categories = ['all', ...new Set(agents.map((a: any) => a.category))]
+  const categories: string[] = ['all', ...Array.from(new Set(agents.map((a: any) => String(a.category || ''))))]
   const filtered = filter === 'all' ? agents : agents.filter((a: any) => a.category === filter)
 
   const showToast = (msg: string, isError = false) => {
@@ -27,7 +27,7 @@ export function MarketplaceTab({ token }: { token: string }) {
   const handleInstall = async (agent: any) => {
     setProcessing(agent.id)
     try {
-      const result = await installAgent({ token, templateId: agent.id, templateName: agent.name })
+      const result = await installAgent({ token, templateId: agent.id, templateName: agent.name } as any)
       if (result.error) { showToast(result.error, true); return }
       showToast(`"${agent.name}" installed successfully!`)
     } catch (e: any) { showToast(e.message || 'Install failed', true) }
@@ -37,7 +37,9 @@ export function MarketplaceTab({ token }: { token: string }) {
   const handleUninstall = async (agent: any) => {
     setProcessing(agent.id)
     try {
-      const result = await uninstallAgent({ token, templateId: agent.id })
+      const installRecord = installedData.find((i: any) => i.templateId === agent.id)
+      if (!installRecord) { showToast('Agent not installed', true); return }
+      const result = await uninstallAgent({ token, installId: installRecord._id } as any)
       if (result.error) { showToast(result.error, true); return }
       showToast(`"${agent.name}" uninstalled`)
     } catch (e: any) { showToast(e.message || 'Uninstall failed', true) }

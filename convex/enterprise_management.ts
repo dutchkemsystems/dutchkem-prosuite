@@ -64,6 +64,12 @@ export const updateCompanyInfo = mutation({
     size: v.optional(v.string()),
     phone: v.optional(v.string()),
     website: v.optional(v.string()),
+    subdomain: v.optional(v.string()),
+    address: v.optional(v.string()),
+    city: v.optional(v.string()),
+    country: v.optional(v.string()),
+    billingEmail: v.optional(v.string()),
+    taxId: v.optional(v.string()),
     logo: v.optional(v.string()),
     adminToken: v.optional(v.string()),
   },
@@ -82,6 +88,12 @@ export const updateCompanyInfo = mutation({
     if (args.size !== undefined) updates.size = args.size;
     if (args.phone !== undefined) updates.phone = args.phone;
     if (args.website !== undefined) updates.website = args.website;
+    if (args.subdomain !== undefined) updates.subdomain = args.subdomain;
+    if (args.address !== undefined) updates.address = args.address;
+    if (args.city !== undefined) updates.city = args.city;
+    if (args.country !== undefined) updates.country = args.country;
+    if (args.billingEmail !== undefined) updates.billingEmail = args.billingEmail;
+    if (args.taxId !== undefined) updates.taxId = args.taxId;
     if (args.logo !== undefined) updates.logo = args.logo;
 
     await ctx.db.patch(args.orgId, updates);

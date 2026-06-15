@@ -1,6 +1,26 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { tryGetAdminSession } from "./auth_helpers";
+import type { Id } from "./_generated/dataModel";
+
+/** Resolve orgId from either admin session or enterprise session token */
+async function resolveOrgId(
+  ctx: any,
+  args: { adminToken?: string; token?: string; orgId?: Id<"enterprise_organizations"> }
+): Promise<Id<"enterprise_organizations"> | null> {
+  if (args.orgId) return args.orgId;
+  if (args.adminToken) {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    return identity ? null : null; // admin doesn't have an orgId
+  }
+  if (args.token) {
+    const session = await ctx.db.query("enterprise_sessions")
+      .withIndex("by_token", (q: any) => q.eq("token", args.token))
+      .first();
+    if (session && session.isCurrent) return session.orgId;
+  }
+  return null;
+}
 
 const MARKETPLACE_AGENTS = [
   { id: "M1", name: "Customer Support Bot", description: "Handles customer inquiries, ticket routing, and support escalation with 24/7 availability", category: "Support", price: 5000, complexity: "medium", estimatedTime: "2 weeks", capabilities: ["ticket_routing", "auto_response", "escalation", "sentiment_analysis"] },
@@ -28,36 +48,53 @@ export const listAgents = query({
   },
 });
 
-/** Get installed agents for an org */
+/** Get installed agents for an org — works with both admin and enterprise tokens */
 export const getInstalledAgents = query({
-  args: { orgId: v.id("enterprise_organizations"), adminToken: v.optional(v.string()) },
+  args: {
+    orgId: v.optional(v.id("enterprise_organizations")),
+    adminToken: v.optional(v.string()),
+    token: v.optional(v.string()),
+  },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
+    const orgId = await resolveOrgId(ctx, args);
+    if (!orgId) {
+      if (args.adminToken) {
+        const identity = await tryGetAdminSession(ctx, args.adminToken);
+        if (!identity) throw new Error("Not authenticated");
+      }
+      return [];
+    }
 
     return await ctx.db.query("enterprise_marketplace_installs")
-      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
   },
 });
 
-/** Install an agent/template */
+/** Install an agent/template — works with both admin and enterprise tokens */
 export const installAgent = mutation({
   args: {
     templateId: v.string(),
     templateName: v.string(),
-    orgId: v.id("enterprise_organizations"),
+    orgId: v.optional(v.id("enterprise_organizations")),
     customConfig: v.optional(v.any()),
     adminToken: v.optional(v.string()),
+    token: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
+    const orgId = await resolveOrgId(ctx, args);
+    if (!orgId) {
+      if (args.adminToken) {
+        const identity = await tryGetAdminSession(ctx, args.adminToken);
+        if (!identity) throw new Error("Not authenticated");
+      }
+      return { error: "Not authenticated" };
+    }
 
     const existing = await ctx.db.query("enterprise_marketplace_installs")
-      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .filter((q) => q.eq(q.field("templateId"), args.templateId))
       .first();
 
@@ -73,7 +110,7 @@ export const installAgent = mutation({
 
     const now = Date.now();
     const installId = await ctx.db.insert("enterprise_marketplace_installs", {
-      orgId: args.orgId,
+      orgId,
       templateId: args.templateId,
       templateName: args.templateName,
       status: "active",
@@ -86,16 +123,27 @@ export const installAgent = mutation({
   },
 });
 
-/** Uninstall an agent */
+/** Uninstall an agent — works with both admin and enterprise tokens */
 export const uninstallAgent = mutation({
   args: {
     installId: v.id("enterprise_marketplace_installs"),
     adminToken: v.optional(v.string()),
+    token: v.optional(v.string()),
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) throw new Error("Not authenticated");
+    if (args.adminToken) {
+      const identity = await tryGetAdminSession(ctx, args.adminToken);
+      if (!identity) throw new Error("Not authenticated");
+    } else if (args.token) {
+      const session = await ctx.db.query("enterprise_sessions")
+        .withIndex("by_token", (q) => q.eq("token", args.token!))
+        .first();
+      if (!session || !session.isCurrent) return { error: "Not authenticated" };
+    }
+
+    const record = await ctx.db.get(args.installId);
+    if (!record) return { error: "Install not found" };
 
     await ctx.db.delete(args.installId);
     return { success: true };
