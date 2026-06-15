@@ -22,6 +22,7 @@ export const createOrganization = mutation({
     plan: v.optional(v.union(v.literal("trial"), v.literal("growth"), v.literal("enterprise"), v.literal("scale"))),
     adminName: v.optional(v.string()),
     adminEmail: v.optional(v.string()),
+    adminPassword: v.optional(v.string()),
     adminToken: v.optional(v.string()),
   },
   returns: v.any(),
@@ -34,12 +35,14 @@ export const createOrganization = mutation({
       .first();
     if (existing) return { error: "An organization with this email already exists" };
 
-    const tempPassword = generateTempPassword();
+    const tempPassword = args.adminPassword && args.adminPassword.length >= 6
+      ? args.adminPassword
+      : generateTempPassword();
     const now = Date.now();
     const orgId = await ctx.db.insert("enterprise_organizations", {
       name: args.name,
       email: args.email,
-      passwordHash: tempPassword, // Store the actual password for enterprise login
+      passwordHash: tempPassword,
       industry: args.industry || "",
       size: args.size || "",
       phone: args.phone || "",

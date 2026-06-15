@@ -195,20 +195,29 @@ export const logout = mutation({
   },
 });
 
-/** Get organization details */
+/** Get organization details — orgId derived from session if not provided */
 export const getOrgDetails = query({
-  args: { orgId: v.id("enterprise_organizations"), token: v.string() },
+  args: {
+    orgId: v.optional(v.id("enterprise_organizations")),
+    token: v.string(),
+  },
   returns: v.any(),
   handler: async (ctx, args) => {
     const session = await ctx.db.query("enterprise_sessions")
       .withIndex("by_token", (q) => q.eq("token", args.token))
       .first();
 
-    if (!session || session.orgId !== args.orgId || !session.isCurrent) {
+    if (!session || !session.isCurrent) {
       throw new Error("Unauthorized");
     }
 
-    return await ctx.db.get("enterprise_organizations", args.orgId);
+    const orgId = args.orgId || session.orgId;
+
+    if (session.orgId !== orgId) {
+      throw new Error("Unauthorized");
+    }
+
+    return await ctx.db.get("enterprise_organizations", orgId);
   },
 });
 

@@ -82,20 +82,9 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
 
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (creating) return
-    
-    // Validate passwords match
     if (orgForm.adminPassword !== orgForm.confirmPassword) {
-      showToast('Passwords do not match', 'error')
       return
     }
-    
-    // Validate password strength
-    if (orgForm.adminPassword.length < 8) {
-      showToast('Password must be at least 8 characters', 'error')
-      return
-    }
-    
     setCreating(true)
     try {
       const result = await createOrganization({
@@ -109,6 +98,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
         plan: orgForm.plan as any,
         adminName: orgForm.name,
         adminEmail: orgForm.adminEmail || orgForm.email,
+        adminPassword: orgForm.adminPassword || undefined,
       })
       if (result?.error) {
         showToast(result.error, 'error')
