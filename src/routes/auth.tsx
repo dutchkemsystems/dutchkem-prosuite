@@ -162,10 +162,10 @@ function EmailAuthForm() {
               setError("")
               setIsLoading(true)
               try {
-                await signIn("google")
+                await signIn("google", { redirectTo: "/dashboard" })
               } catch (err: any) {
                 console.error("[Auth] Google sign-in error:", err)
-                setError("Google Sign-In failed. Make sure Google is configured in your Convex dashboard.")
+                setError("Google Sign-In failed. Make sure Google OAuth is configured in Google Cloud Console.")
               } finally {
                 setIsLoading(false)
               }
