@@ -32,6 +32,7 @@ export default defineSchema({
     adminLockedUntil: v.optional(v.number()),
     adminLastLoginAt: v.optional(v.number()),
     adminAllowedIps: v.optional(v.array(v.string())),
+    adminForcePasswordChange: v.optional(v.boolean()),
   })
     .index("email", ["email"])
     .index("phone", ["phone"])
@@ -3913,4 +3914,141 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_request", ["otpRequestId"])
     .index("by_created", ["createdAt"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // PASSWORD MANAGEMENT SYSTEM
+  // ═══════════════════════════════════════════════════════════════
+  password_change_requests: defineTable({
+    userId: v.id("users"),
+    requestedBy: v.id("users"),
+    currentPasswordHash: v.string(),
+    newPasswordHash: v.string(),
+    reason: v.optional(v.string()),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
+    approvedBy: v.optional(v.id("users")),
+    approvedAt: v.optional(v.number()),
+    rejectedBy: v.optional(v.id("users")),
+    rejectedAt: v.optional(v.number()),
+    rejectionReason: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_status", ["status"])
+    .index("by_requested_by", ["requestedBy"]),
+
+  email_notifications: defineTable({
+    to: v.string(),
+    subject: v.string(),
+    body: v.string(),
+    type: v.string(),
+    status: v.union(v.literal("pending"), v.literal("sent"), v.literal("failed")),
+    errorMessage: v.optional(v.string()),
+    createdAt: v.number(),
+    sentAt: v.optional(v.number()),
+  }).index("by_to", ["to"])
+    .index("by_type", ["type"])
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // ENTERPRISE ORGANIZATION MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════
+  enterprise_org_transactions: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    type: v.union(
+      v.literal("subscription_payment"),
+      v.literal("agent_usage"),
+      v.literal("api_call"),
+      v.literal("refund"),
+      v.literal("payout"),
+      v.literal("adjustment")
+    ),
+    amount: v.number(),
+    currency: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("completed"),
+      v.literal("failed"),
+      v.literal("reversed")
+    ),
+    description: v.string(),
+    reference: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+  }).index("by_org", ["orgId"])
+    .index("by_type", ["type"])
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
+
+  enterprise_org_analytics: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    date: v.string(), // YYYY-MM-DD
+    metric: v.string(),
+    value: v.number(),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+  }).index("by_org_date", ["orgId", "date"])
+    .index("by_org_metric", ["orgId", "metric"]),
+
+  enterprise_org_diagnostics: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    checkType: v.string(),
+    status: v.union(v.literal("healthy"), v.literal("warning"), v.literal("critical")),
+    details: v.any(),
+    recommendations: v.array(v.string()),
+    performedBy: v.id("users"),
+    createdAt: v.number(),
+  }).index("by_org", ["orgId"])
+    .index("by_status", ["status"]),
+
+  enterprise_org_healing_logs: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    mode: v.union(v.literal("auto"), v.literal("manual")),
+    fixesApplied: v.number(),
+    details: v.any(),
+    performedBy: v.id("users"),
+    createdAt: v.number(),
+  }).index("by_org", ["orgId"]),
+
+  enterprise_org_payment_configs: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    gateway: v.union(v.literal("kora"), v.literal("stripe"), v.literal("paystack"), v.literal("flutterwave")),
+    apiKey: v.string(),
+    secretKey: v.string(),
+    webhookSecret: v.optional(v.string()),
+    payoutSchedule: v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly")),
+    minimumPayout: v.number(),
+    platformFeePercentage: v.number(),
+    currency: v.string(),
+    configuredBy: v.id("users"),
+    configuredAt: v.number(),
+  }).index("by_org", ["orgId"]),
+
+  enterprise_org_subadmins: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    userId: v.id("enterprise_org_users"),
+    role: v.union(
+      v.literal("company_admin"),
+      v.literal("department_manager"),
+      v.literal("team_lead"),
+      v.literal("billing"),
+      v.literal("support"),
+      v.literal("viewer")
+    ),
+    permissions: v.array(v.string()),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_org", ["orgId"])
+    .index("by_user", ["userId"]),
+
+  enterprise_org_feature_flags: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    feature: v.string(),
+    enabled: v.boolean(),
+    config: v.optional(v.any()),
+    setBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_org", ["orgId"])
+    .index("by_feature", ["feature"]),
 });

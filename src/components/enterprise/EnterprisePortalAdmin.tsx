@@ -21,7 +21,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
   const [showCreateAdmin, setShowCreateAdmin] = useState<string | null>(null)
   const [expandedOrg, setExpandedOrg] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  const [orgForm, setOrgForm] = useState({ name: '', email: '', industry: '', size: '', phone: '', website: '', plan: 'trial' })
+  const [orgForm, setOrgForm] = useState({ name: '', email: '', industry: '', size: '', phone: '', website: '', plan: 'trial', adminEmail: '', adminPassword: '', confirmPassword: '' })
   const [adminForm, setAdminForm] = useState({ name: '', email: '' })
   const [creating, setCreating] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -78,6 +78,19 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault()
     if (creating) return
+    
+    // Validate passwords match
+    if (orgForm.adminPassword !== orgForm.confirmPassword) {
+      showToast('Passwords do not match', 'error')
+      return
+    }
+    
+    // Validate password strength
+    if (orgForm.adminPassword.length < 8) {
+      showToast('Password must be at least 8 characters', 'error')
+      return
+    }
+    
     setCreating(true)
     try {
       const result = await createOrganization({
@@ -90,7 +103,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
         website: orgForm.website,
         plan: orgForm.plan as any,
         adminName: orgForm.name,
-        adminEmail: orgForm.email,
+        adminEmail: orgForm.adminEmail || orgForm.email,
       })
       if (result?.error) {
         showToast(result.error, 'error')
@@ -98,7 +111,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
         return
       }
       setShowCreateOrg(false)
-      setOrgForm({ name: '', email: '', industry: '', size: '', phone: '', website: '', plan: 'trial' })
+      setOrgForm({ name: '', email: '', industry: '', size: '', phone: '', website: '', plan: 'trial', adminEmail: '', adminPassword: '', confirmPassword: '' })
       showToast(`Organization created! Admin: ${result.adminEmail} | Temp password: ${result.tempPassword}`, 'success')
       setRefreshKey(k => k + 1)
     } catch (err: any) {
@@ -364,11 +377,11 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
 
       {showCreateOrg && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 w-full max-w-lg">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-black mb-6">Create Organization</h3>
             <form onSubmit={handleCreateOrg} className="space-y-4">
               <input type="text" placeholder="Organization Name" required value={orgForm.name} onChange={e => setOrgForm({ ...orgForm, name: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
-              <input type="email" placeholder="Email" required value={orgForm.email} onChange={e => setOrgForm({ ...orgForm, email: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+              <input type="email" placeholder="Organization Email" required value={orgForm.email} onChange={e => setOrgForm({ ...orgForm, email: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
               <div className="grid grid-cols-2 gap-4">
                 <input type="text" placeholder="Industry" value={orgForm.industry} onChange={e => setOrgForm({ ...orgForm, industry: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
                 <input type="text" placeholder="Size" value={orgForm.size} onChange={e => setOrgForm({ ...orgForm, size: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
@@ -383,8 +396,30 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
                 <option value="enterprise">Enterprise</option>
                 <option value="scale">Scale</option>
               </select>
+              
+              <div className="border-t border-white/10 pt-4 mt-4">
+                <h4 className="text-sm font-black text-orange-400 mb-3">Admin Account Credentials</h4>
+                <input type="email" placeholder="Admin Email Address *" required value={orgForm.adminEmail} onChange={e => setOrgForm({ ...orgForm, adminEmail: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 mb-3" />
+                <div className="relative">
+                  <input type="text" placeholder="Temporary Password *" required value={orgForm.adminPassword} onChange={e => setOrgForm({ ...orgForm, adminPassword: e.target.value })} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                  <button type="button" onClick={() => {
+                    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%&*'
+                    let pw = 'Ent'
+                    for (let i = 0; i < 10; i++) pw += chars[Math.floor(Math.random() * chars.length)]
+                    pw += '!'
+                    setOrgForm({ ...orgForm, adminPassword: pw, confirmPassword: pw })
+                  }} className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-orange-600/20 text-orange-400 rounded-lg text-[10px] font-black hover:bg-orange-600/30 transition-all">
+                    Generate
+                  </button>
+                </div>
+                <input type="password" placeholder="Confirm Password *" required value={orgForm.confirmPassword} onChange={e => setOrgForm({ ...orgForm, confirmPassword: e.target.value })} className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none mt-3 ${orgForm.confirmPassword && orgForm.adminPassword !== orgForm.confirmPassword ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-orange-500'}`} />
+                {orgForm.confirmPassword && orgForm.adminPassword !== orgForm.confirmPassword && (
+                  <p className="text-red-400 text-xs mt-1">Passwords do not match</p>
+                )}
+              </div>
+              
               <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-slate-400">
-                An admin account will be auto-created with the same email. A temporary password will be shown after creation.
+                The admin account will be created with the email and password above. A temporary password will be generated if not provided.
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowCreateOrg(false)} className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-black hover:bg-white/10 transition-all">
