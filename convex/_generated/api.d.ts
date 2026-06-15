@@ -181,6 +181,7 @@ import type * as travel_chat from "../travel_chat.js";
 import type * as trypost from "../trypost.js";
 import type * as trypost_webhook from "../trypost_webhook.js";
 import type * as uae_engine from "../uae_engine.js";
+import type * as unified_email from "../unified_email.js";
 import type * as updates from "../updates.js";
 import type * as usage_alerts from "../usage_alerts.js";
 import type * as usd_wallet from "../usd_wallet.js";
@@ -373,6 +374,7 @@ declare const fullApi: ApiFromModules<{
   trypost: typeof trypost;
   trypost_webhook: typeof trypost_webhook;
   uae_engine: typeof uae_engine;
+  unified_email: typeof unified_email;
   updates: typeof updates;
   usage_alerts: typeof usage_alerts;
   usd_wallet: typeof usd_wallet;
