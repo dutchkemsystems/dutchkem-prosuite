@@ -45,7 +45,7 @@ const router = routerWithQueryClient(
     ),
     defaultNotFoundComponent: () => <p>not found</p>,
     Wrap: ({ children }) => (
-      <ConvexAuthProvider client={convexQueryClient.convexClient}>
+      <ConvexAuthProvider client={convexQueryClient.convexClient} storage={typeof localStorage !== 'undefined' ? localStorage : undefined}>
         {children}
       </ConvexAuthProvider>
     ),

@@ -33,7 +33,7 @@ export function getRouter() {
       defaultErrorComponent: () => <div className="min-h-screen flex items-center justify-center bg-slate-950"><p className="text-red-500 font-black text-xl">An unexpected error occurred. Please try again.</p></div>,
       defaultNotFoundComponent: () => <p>not found</p>,
       Wrap: ({ children }) => (
-        <ConvexAuthProvider client={convexQueryClient.convexClient}>
+        <ConvexAuthProvider client={convexQueryClient.convexClient} storage={typeof localStorage !== 'undefined' ? localStorage : undefined}>
           {children}
         </ConvexAuthProvider>
       ),
