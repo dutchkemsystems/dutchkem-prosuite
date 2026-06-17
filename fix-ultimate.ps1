@@ -216,7 +216,7 @@ Write-Section "7/9" "CONVEX DEPLOYMENT"
 
 if ($convexOk) {
     Write-Info "Deploying to Convex..."
-    npx convex deploy --typecheck=disable --yes 2>$null
+    npx convex deploy --typecheck=disable 2>$null
     if ($LASTEXITCODE -eq 0) {
         Write-Ok "Deployed successfully to Convex"
     } else {
