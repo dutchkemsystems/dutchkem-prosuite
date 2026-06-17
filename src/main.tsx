@@ -1,10 +1,10 @@
-import { StrictMode } from 'react'
+import { StrictMode, useEffect, useContext, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { QueryClient } from '@tanstack/react-query'
 import { routerWithQueryClient } from '@tanstack/react-router-with-query'
 import { ConvexQueryClient } from '@convex-dev/react-query'
-import { ConvexAuthProvider } from '@convex-dev/auth/react'
+import { ConvexAuthProvider, ConvexAuthTokenContext } from '@convex-dev/auth/react'
 import { routeTree } from './routeTree.gen'
 import '~/styles/app.css'
 
@@ -27,6 +27,19 @@ const queryClient = new QueryClient({
 })
 convexQueryClient.connect(queryClient)
 
+function AuthBridge() {
+  const client = convexQueryClient.convexClient
+  const token = useContext(ConvexAuthTokenContext)
+  const tokenRef = useRef(token)
+  tokenRef.current = token
+
+  useEffect(() => {
+    client.setAuth(async () => tokenRef.current)
+  }, [client])
+
+  return null
+}
+
 const router = routerWithQueryClient(
   createRouter({
     routeTree,
@@ -46,6 +59,7 @@ const router = routerWithQueryClient(
     defaultNotFoundComponent: () => <p>not found</p>,
     Wrap: ({ children }) => (
       <ConvexAuthProvider client={convexQueryClient.convexClient} storage={typeof localStorage !== 'undefined' ? localStorage : undefined}>
+        <AuthBridge />
         {children}
       </ConvexAuthProvider>
     ),
