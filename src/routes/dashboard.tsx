@@ -1,10 +1,10 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useSuspenseQuery } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
 import { useAction, useConvexAuth, useMutation } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
-import { useEffect, useState } from "react"
-import { 
+import { Suspense, useEffect, useState } from "react"
+import {
   CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis
 } from 'recharts';
@@ -27,7 +27,7 @@ export const Route = createFileRoute('/dashboard')({
 })
 
 function DashboardPage() {
-  const { isAuthenticated, isLoading } = useConvexAuth();
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const { signOut } = useAuthActions();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
@@ -37,18 +37,23 @@ function DashboardPage() {
   const [passwordMessage, setPasswordMessage] = useState("");
   const [tfaMessage, setTfaMessage] = useState("");
   const [payoutMessage, setPayoutMessage] = useState("");
-  const { data } = useSuspenseQuery(convexQuery(api.dashboard.getDashboardData, {}));
+
+  const { data, isLoading: queryLoading } = useQuery({
+    ...convexQuery(api.dashboard.getDashboardData, {}),
+    enabled: isAuthenticated,
+    retry: false,
+  });
   const toggle2FAAction = useMutation(api.client_actions.toggle2FA);
   const changePasswordAction = useMutation(api.client_actions.changeClientPassword);
   const requestReferralPayoutAction = useMutation(api.client_actions.requestReferralPayout);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!authLoading && !isAuthenticated) {
       navigate({ to: '/auth' });
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isAuthenticated, authLoading, navigate]);
 
-  if (isLoading) {
+  if (authLoading || queryLoading || !data) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
         <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>

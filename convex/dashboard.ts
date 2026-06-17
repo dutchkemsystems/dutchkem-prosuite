@@ -75,6 +75,11 @@ export const getDashboardData = query({
       lastActive: v.number(),
       isCurrent: v.boolean(),
     })),
+    agentEnhancement: v.array(v.object({
+      agentId: v.string(),
+      enhanced: v.boolean(),
+      toolCount: v.number(),
+    })),
   }),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
@@ -212,8 +217,8 @@ export const getDashboardData = query({
       })),
       // Composio agent enhancement status for client dashboard
       agentEnhancement: (await ctx.db.query("composio_agent_settings").collect()).map((s: any) => ({
-        agentId: s.agentId,
-        enhanced: s.enabled,
+        agentId: s.agentId ?? "",
+        enhanced: s.enabled ?? false,
         toolCount: s.toolCount ?? 0,
       })),
     };
