@@ -1,7 +1,9 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react"
+import { useConvexAuth, useMutation } from "convex/react"
+import { useQuery } from "@tanstack/react-query"
+import { convexQuery } from "@convex-dev/react-query"
 import { useAuthActions } from "@convex-dev/auth/react"
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import {
   CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis
@@ -44,7 +46,11 @@ function DashboardPage() {
   const [tfaMessage, setTfaMessage] = useState("");
   const [payoutMessage, setPayoutMessage] = useState("");
 
-  const data = useQuery(api.dashboard.getDashboardData);
+  const { data, isLoading: queryLoading, error: queryError } = useQuery({
+    ...convexQuery(api.dashboard.getDashboardData, {}),
+    enabled: isAuthenticated && !authLoading,
+    retry: 1,
+  });
   const toggle2FAAction = useMutation(api.client_actions.toggle2FA);
   const changePasswordAction = useMutation(api.client_actions.changeClientPassword);
   const requestReferralPayoutAction = useMutation(api.client_actions.requestReferralPayout);
@@ -55,7 +61,18 @@ function DashboardPage() {
     }
   }, [isAuthenticated, authLoading, navigate]);
 
-  if (authLoading || !isAuthenticated || !data) {
+  if (authLoading || !isAuthenticated || queryLoading || !data) {
+    if (queryError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+          <div className="text-center max-w-md p-8">
+            <p className="text-red-400 font-bold text-lg mb-4">Authentication Error</p>
+            <p className="text-slate-400 text-sm mb-4">{queryError.message || 'Failed to load dashboard'}</p>
+            <button onClick={() => window.location.reload()} className="px-4 py-2 bg-indigo-600 rounded-lg text-sm font-bold hover:bg-indigo-500">Retry</button>
+          </div>
+        </div>
+      );
+    }
     return <DashboardSpinner />;
   }
 
@@ -108,25 +125,29 @@ function DashboardPage() {
           
           {activeTab === "overview" && <Overview data={data} setActiveTab={setActiveTab} setModal={setModal} />}
           {activeTab === "activity" && (
-            <div className="space-y-8 animate-in fade-in duration-500">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <ClientActivityFeed />
-                <ClientPerformanceSummary />
+            <Suspense fallback={<DashboardSpinner />}>
+              <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <ClientActivityFeed />
+                  <ClientPerformanceSummary />
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <ClientQuickActions />
+                  <ClientNotificationPrefs />
+                </div>
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <ClientQuickActions />
-                <ClientNotificationPrefs />
-              </div>
-            </div>
+            </Suspense>
           )}
           {activeTab === "subscriptions" && <Subscriptions data={data} />}
           {activeTab === "kdp" && (
-            <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-               <KDPProjectHub userId={data.user._id} />
-               {(data.user.subscription?.plan === "quarterly" || data.user.subscription?.plan === "yearly") && (
-                 <KDPRoyaltyDashboard userId={data.user._id} />
-               )}
-            </div>
+            <Suspense fallback={<DashboardSpinner />}>
+              <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                 <KDPProjectHub userId={data.user._id} />
+                 {(data.user.subscription?.plan === "quarterly" || data.user.subscription?.plan === "yearly") && (
+                   <KDPRoyaltyDashboard userId={data.user._id} />
+                 )}
+              </div>
+            </Suspense>
           )}
           {activeTab === "projects" && <Projects data={data} setActiveTab={setActiveTab} setModal={setModal} />}
           {activeTab === "referrals" && <Referrals data={data} payoutMessage={payoutMessage} setPayoutMessage={setPayoutMessage} requestReferralPayoutAction={requestReferralPayoutAction} />}
