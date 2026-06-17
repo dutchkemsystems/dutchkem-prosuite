@@ -1,9 +1,7 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useSuspenseQuery } from "@tanstack/react-query"
-import { convexQuery } from "@convex-dev/react-query"
-import { useAction, useConvexAuth, useMutation } from "convex/react"
+import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
-import { Suspense, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import {
   CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis
@@ -38,26 +36,6 @@ function DashboardPage() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const { signOut } = useAuthActions();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate({ to: '/auth' });
-    }
-  }, [isAuthenticated, authLoading, navigate]);
-
-  if (authLoading || !isAuthenticated) {
-    return <DashboardSpinner />;
-  }
-
-  return (
-    <Suspense fallback={<DashboardSpinner />}>
-      <DashboardContent signOut={signOut} />
-    </Suspense>
-  );
-}
-
-function DashboardContent({ signOut }: { signOut: () => void }) {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [modal, setModal] = useState<string | null>(null);
@@ -65,10 +43,21 @@ function DashboardContent({ signOut }: { signOut: () => void }) {
   const [passwordMessage, setPasswordMessage] = useState("");
   const [tfaMessage, setTfaMessage] = useState("");
   const [payoutMessage, setPayoutMessage] = useState("");
-  const { data } = useSuspenseQuery(convexQuery(api.dashboard.getDashboardData, {}));
+
+  const data = useQuery(api.dashboard.getDashboardData);
   const toggle2FAAction = useMutation(api.client_actions.toggle2FA);
   const changePasswordAction = useMutation(api.client_actions.changeClientPassword);
   const requestReferralPayoutAction = useMutation(api.client_actions.requestReferralPayout);
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate({ to: '/auth' });
+    }
+  }, [isAuthenticated, authLoading, navigate]);
+
+  if (authLoading || !isAuthenticated || !data) {
+    return <DashboardSpinner />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row overflow-hidden">
