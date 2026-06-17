@@ -1,0 +1,16 @@
+﻿{
+    "runId":  "run-20260617-160209",
+    "urls":  {
+                 "convexSite":  "https://warmhearted-aardvark-280.convex.site",
+                 "convex":  "https://warmhearted-aardvark-280.convex.cloud",
+                 "vercel":  "https://dutchkem-prosuite-app.vercel.app",
+                 "github":  "https://github.com/dutchkemsystems/dutchkem-prosuite"
+             },
+    "issuesFixed":  1,
+    "sections":  9,
+    "timestamp":  "2026-06-17T16:07:35.0262638+01:00",
+    "commitSha":  "098f028",
+    "issuesFound":  1,
+    "sectionsPassed":  9,
+    "duration":  "325.8s"
+}

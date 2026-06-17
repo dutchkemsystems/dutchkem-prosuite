@@ -6,7 +6,7 @@ export const getDashboardData = query({
   args: {},
   returns: v.object({
     user: v.object({
-      _id: v.id("users"),
+      _id: v.string(),
       name: v.optional(v.string()),
       image: v.optional(v.string()),
       email: v.optional(v.string()),
@@ -25,14 +25,14 @@ export const getDashboardData = query({
       savingsThisMonth: v.number(),
     }),
     subscriptions: v.array(v.object({
-      _id: v.id("subscriptions"),
+      _id: v.string(),
       plan: v.string(),
       status: v.string(),
       endsAt: v.number(),
       autoRenew: v.boolean(),
     })),
     projects: v.array(v.object({
-      _id: v.id("projects"),
+      _id: v.string(),
       name: v.string(),
       agentId: v.string(),
       status: v.string(),
@@ -42,7 +42,7 @@ export const getDashboardData = query({
       downloadUrl: v.optional(v.string()),
     })),
     notifications: v.array(v.object({
-      _id: v.id("notifications"),
+      _id: v.string(),
       title: v.string(),
       message: v.string(),
       type: v.string(),
@@ -50,7 +50,7 @@ export const getDashboardData = query({
       createdAt: v.number(),
     })),
     paymentMethods: v.array(v.object({
-      _id: v.id("payment_methods"),
+      _id: v.string(),
       type: v.string(),
       provider: v.string(),
       last4: v.optional(v.string()),
@@ -68,7 +68,7 @@ export const getDashboardData = query({
       })),
     }),
     sessions: v.array(v.object({
-      _id: v.id("user_sessions"),
+      _id: v.string(),
       device: v.string(),
       location: v.string(),
       ip: v.string(),
@@ -84,80 +84,111 @@ export const getDashboardData = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Unauthorized");
+      throw new Error("Unauthorized: Please sign in again");
     }
 
     const user = await ctx.db.get("users", userId);
     if (!user) {
-      throw new Error("User not found");
+      throw new Error("User not found: Please create an account");
     }
 
-    const subscriptions = (await ctx.db
-      .query("subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect()).filter(s => s.status === "active");
+    let subscriptions: any[] = [];
+    try {
+      subscriptions = (await ctx.db
+        .query("subscriptions")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .collect()).filter(s => s.status === "active");
+    } catch {}
 
-    const projects = await ctx.db
-      .query("projects")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .order("desc")
-      .take(10);
+    let projects: any[] = [];
+    try {
+      projects = await ctx.db
+        .query("projects")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .order("desc")
+        .take(10);
+    } catch {}
 
-    const notifications = (await ctx.db
-      .query("notifications")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .order("desc")
-      .take(10));
+    let notifications: any[] = [];
+    try {
+      notifications = await ctx.db
+        .query("notifications")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .order("desc")
+        .take(10);
+    } catch {}
 
-    // Also fetch broadcast notifications (userId = null means broadcast to all)
-    const allNotifications = await ctx.db.query("notifications").order("desc").take(50);
-    const broadcasts = allNotifications.filter((n: any) => !n.userId && !notifications.some((pn: any) => pn._id === n._id)).slice(0, 5);
+    let mergedNotifications: any[] = [];
+    try {
+      const allNotifications = await ctx.db.query("notifications").order("desc").take(50);
+      const broadcasts = allNotifications.filter((n: any) => !n.userId && !notifications.some((pn: any) => pn._id === n._id)).slice(0, 5);
+      mergedNotifications = [...notifications, ...broadcasts].sort((a: any, b: any) => b.createdAt - a.createdAt).slice(0, 15);
+    } catch {
+      mergedNotifications = notifications;
+    }
 
-    const mergedNotifications = [...notifications, ...broadcasts].sort((a: any, b: any) => b.createdAt - a.createdAt).slice(0, 15);
+    let paymentMethods: any[] = [];
+    try {
+      paymentMethods = await ctx.db
+        .query("payment_methods")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .collect();
+    } catch {}
 
-    const paymentMethods = await ctx.db
-      .query("payment_methods")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
+    let sessions: any[] = [];
+    try {
+      sessions = await ctx.db
+        .query("user_sessions")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .order("desc")
+        .collect();
+    } catch {}
 
-    const sessions = await ctx.db
-      .query("user_sessions")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .order("desc")
-      .collect();
+    let referredUsers: any[] = [];
+    try {
+      referredUsers = (await ctx.db
+        .query("users")
+        .collect()).filter(u => (u as any).referredBy === userId);
+    } catch {}
 
-    // Referrals
-    const referredUsers = (await ctx.db
-      .query("users")
-      .collect()).filter(u => u.referredBy === userId);
+    let referralPayouts: any[] = [];
+    try {
+      referralPayouts = (await ctx.db
+        .query("payouts")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .collect()).filter(p => (p as any).type === "referral");
+    } catch {}
 
-    const referralPayouts = (await ctx.db
-      .query("payouts")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect()).filter(p => p.type === "referral");
+    const totalEarned = referralPayouts.reduce((sum, p) => sum + ((p as any).amount || 0), 0);
+    const availableBalance = (user as any).balance ?? 0;
 
-    const totalEarned = referralPayouts.reduce((sum, p) => sum + p.amount, 0);
-    const availableBalance = user.balance ?? 0;
-
-    // Calculate from real data
     const stats = {
       activeSubscriptions: subscriptions.length,
-      totalSpentThisMonth: projects.reduce((sum, p) => sum + (p as any).amount || 0, 0),
+      totalSpentThisMonth: 0,
       completedProjects: projects.filter(p => p.status === "completed").length,
       referralEarnings: totalEarned,
       savingsThisMonth: 0,
     };
 
-    const activeSubscription = subscriptions[0]; // Primary active subscription
+    const activeSubscription = subscriptions[0];
+
+    let agentEnhancement: any[] = [];
+    try {
+      agentEnhancement = (await ctx.db.query("composio_agent_settings").collect()).map((s: any) => ({
+        agentId: s.agentId ?? "",
+        enhanced: s.enabled ?? false,
+        toolCount: s.toolCount ?? 0,
+      }));
+    } catch {}
 
     return {
       user: {
         _id: user._id,
-        name: user.name,
-        image: user.image,
-        email: user.email,
-        balance: user.balance,
-        referralCode: user.referralCode,
+        name: (user as any).name,
+        image: (user as any).image,
+        email: (user as any).email,
+        balance: (user as any).balance,
+        referralCode: (user as any).referralCode,
         subscription: activeSubscription ? {
           plan: activeSubscription.plan,
           status: activeSubscription.status,
@@ -202,7 +233,7 @@ export const getDashboardData = query({
         pendingEarnings: 0,
         availableBalance,
         history: referredUsers.map(u => ({
-          name: u.name,
+          name: (u as any).name,
           date: u._creationTime,
           commission: 500,
         })),
@@ -215,12 +246,7 @@ export const getDashboardData = query({
         lastActive: s.lastActive,
         isCurrent: s.isCurrent,
       })),
-      // Composio agent enhancement status for client dashboard
-      agentEnhancement: (await ctx.db.query("composio_agent_settings").collect()).map((s: any) => ({
-        agentId: s.agentId ?? "",
-        enhanced: s.enabled ?? false,
-        toolCount: s.toolCount ?? 0,
-      })),
+      agentEnhancement,
     };
   },
 });

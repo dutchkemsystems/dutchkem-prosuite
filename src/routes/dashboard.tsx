@@ -43,6 +43,7 @@ function DashboardPage() {
   const [passwordMessage, setPasswordMessage] = useState("");
   const [tfaMessage, setTfaMessage] = useState("");
   const [payoutMessage, setPayoutMessage] = useState("");
+  const [queryError, setQueryError] = useState<string | null>(null);
 
   const data = useQuery(api.dashboard.getDashboardData);
   const toggle2FAAction = useMutation(api.client_actions.toggle2FA);
@@ -55,8 +56,30 @@ function DashboardPage() {
     }
   }, [isAuthenticated, authLoading, navigate]);
 
-  if (authLoading || !isAuthenticated || !data) {
+  if (authLoading) {
     return <DashboardSpinner />;
+  }
+
+  if (!isAuthenticated) {
+    return <DashboardSpinner />;
+  }
+
+  if (data === undefined) {
+    return <DashboardSpinner />;
+  }
+
+  if (data === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <div className="text-center max-w-md p-8">
+          <p className="text-red-400 font-bold text-xl mb-4">Failed to load dashboard</p>
+          <p className="text-slate-400 mb-6">Please try refreshing the page or signing in again.</p>
+          <button onClick={async () => { try { await signOut(); } catch {} navigate({ to: '/auth' }); }} className="px-6 py-3 bg-indigo-600 rounded-xl text-white font-bold hover:bg-indigo-500 transition-colors">
+            Sign In Again
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
