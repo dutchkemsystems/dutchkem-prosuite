@@ -2,8 +2,7 @@ import { createRouter } from '@tanstack/react-router'
 import { QueryClient } from '@tanstack/react-query'
 import { routerWithQueryClient } from '@tanstack/react-router-with-query'
 import { ConvexQueryClient } from '@convex-dev/react-query'
-import { ConvexProviderWithAuth } from 'convex/react'
-import { useConvexAuth } from '@convex-dev/auth/react'
+import { ConvexAuthProvider } from '@convex-dev/auth/react'
 import { routeTree } from './routeTree.gen'
 
 export function getRouter() {
@@ -34,9 +33,9 @@ export function getRouter() {
       defaultErrorComponent: () => <div className="min-h-screen flex items-center justify-center bg-slate-950"><p className="text-red-500 font-black text-xl">An unexpected error occurred. Please try again.</p></div>,
       defaultNotFoundComponent: () => <p>not found</p>,
       Wrap: ({ children }) => (
-        <ConvexProviderWithAuth client={convexQueryClient.convexClient} useAuth={useConvexAuth}>
+        <ConvexAuthProvider client={convexQueryClient.convexClient} storage={typeof localStorage !== 'undefined' ? localStorage : undefined}>
           {children}
-        </ConvexProviderWithAuth>
+        </ConvexAuthProvider>
       ),
     }),
     queryClient,
