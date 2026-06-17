@@ -1,5 +1,5 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useQuery } from "@tanstack/react-query"
+import { useSuspenseQuery } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
 import { useAction, useConvexAuth, useMutation } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
@@ -26,9 +26,37 @@ export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
 })
 
+function DashboardSpinner() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+      <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+}
+
 function DashboardPage() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const { signOut } = useAuthActions();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate({ to: '/auth' });
+    }
+  }, [isAuthenticated, authLoading, navigate]);
+
+  if (authLoading || !isAuthenticated) {
+    return <DashboardSpinner />;
+  }
+
+  return (
+    <Suspense fallback={<DashboardSpinner />}>
+      <DashboardContent signOut={signOut} />
+    </Suspense>
+  );
+}
+
+function DashboardContent({ signOut }: { signOut: () => void }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -37,29 +65,10 @@ function DashboardPage() {
   const [passwordMessage, setPasswordMessage] = useState("");
   const [tfaMessage, setTfaMessage] = useState("");
   const [payoutMessage, setPayoutMessage] = useState("");
-
-  const { data, isLoading: queryLoading } = useQuery({
-    ...convexQuery(api.dashboard.getDashboardData, {}),
-    enabled: isAuthenticated,
-    retry: false,
-  });
+  const { data } = useSuspenseQuery(convexQuery(api.dashboard.getDashboardData, {}));
   const toggle2FAAction = useMutation(api.client_actions.toggle2FA);
   const changePasswordAction = useMutation(api.client_actions.changeClientPassword);
   const requestReferralPayoutAction = useMutation(api.client_actions.requestReferralPayout);
-
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate({ to: '/auth' });
-    }
-  }, [isAuthenticated, authLoading, navigate]);
-
-  if (authLoading || queryLoading || !data) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row overflow-hidden">
