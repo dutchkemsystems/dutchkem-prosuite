@@ -103,6 +103,27 @@ Write-Section "3/9" "ENVIRONMENT VARIABLES CHECK"
 $criticalVars = @("VITE_CONVEX_URL", "CONVEX_DEPLOYMENT")
 $optionalVars = @("COMPOSIO_API_KEY", "TELEGRAM_BOT_TOKEN", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY")
 
+# Load .env file into process env for checks
+$envFileVars = @{}
+if (Test-Path ".env") {
+    $envContent = Get-Content ".env" -Raw -ErrorAction SilentlyContinue
+    foreach ($line in $envContent -split "`n") {
+        $line = $line.Trim()
+        if ($line -and -not $line.StartsWith("#") -and $line.Contains("=")) {
+            $parts = $line -split "=", 2
+            $key = $parts[0].Trim()
+            $val = $parts[1].Trim().Trim('"').Trim("'")
+            $envFileVars[$key] = $val
+            if (-not [Environment]::GetEnvironmentVariable($key, "Process")) {
+                [Environment]::SetEnvironmentVariable($key, $val, "Process")
+            }
+        }
+    }
+    Write-Ok ".env file loaded ($($envFileVars.Count) variables)"
+} else {
+    Write-Warn ".env file not found"
+}
+
 foreach ($var in $criticalVars) {
     $val = [Environment]::GetEnvironmentVariable($var, "Process")
     if ($val -and $val.Length -gt 5) { Write-Ok "$var is set" } else { Write-Fail "$var is MISSING (critical)" }
@@ -110,22 +131,6 @@ foreach ($var in $criticalVars) {
 foreach ($var in $optionalVars) {
     $val = [Environment]::GetEnvironmentVariable($var, "Process")
     if ($val -and $val.Length -gt 5) { Write-Ok "$var is set" } else { Write-Warn "$var not set (optional)" }
-}
-
-# Check .env file
-if (Test-Path ".env") {
-    $envContent = Get-Content ".env" -Raw -ErrorAction SilentlyContinue
-    $envVars = @{}
-    foreach ($line in $envContent -split "`n") {
-        $line = $line.Trim()
-        if ($line -and -not $line.StartsWith("#") -and $line.Contains("=")) {
-            $parts = $line -split "=", 2
-            $envVars[$parts[0].Trim()] = $parts[1].Trim()
-        }
-    }
-    Write-Ok ".env file has $($envVars.Count) variables"
-} else {
-    Write-Warn ".env file not found"
 }
 
 $Section3 = @{ name = "Environment Vars"; status = "pass" }
@@ -211,7 +216,7 @@ Write-Section "7/9" "CONVEX DEPLOYMENT"
 
 if ($convexOk) {
     Write-Info "Deploying to Convex..."
-    npx convex deploy --typecheck=disable 2>$null
+    npx convex deploy --typecheck=disable --yes 2>$null
     if ($LASTEXITCODE -eq 0) {
         Write-Ok "Deployed successfully to Convex"
     } else {
