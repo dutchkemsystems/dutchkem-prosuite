@@ -1,10 +1,10 @@
-import { StrictMode, useEffect, useContext, useRef } from 'react'
+import { StrictMode, useEffect, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { QueryClient } from '@tanstack/react-query'
 import { routerWithQueryClient } from '@tanstack/react-router-with-query'
 import { ConvexQueryClient } from '@convex-dev/react-query'
-import { ConvexAuthProvider, ConvexAuthTokenContext } from '@convex-dev/auth/react'
+import { ConvexAuthProvider, useConvexAuth } from '@convex-dev/auth/react'
 import { routeTree } from './routeTree.gen'
 import '~/styles/app.css'
 
@@ -27,17 +27,23 @@ const queryClient = new QueryClient({
 })
 convexQueryClient.connect(queryClient)
 
-function AuthBridge() {
+function AuthBridgeInner() {
   const client = convexQueryClient.convexClient
-  const token = useContext(ConvexAuthTokenContext)
-  const tokenRef = useRef(token)
-  tokenRef.current = token
+  const { fetchAccessToken } = useConvexAuth()
+  const fetchRef = useRef(fetchAccessToken)
+  fetchRef.current = fetchAccessToken
 
   useEffect(() => {
-    client.setAuth(async () => tokenRef.current)
+    client.setAuth(async () => {
+      return await fetchRef.current({ forceRefreshToken: false })
+    })
   }, [client])
 
   return null
+}
+
+function AuthBridge() {
+  return <AuthBridgeInner />
 }
 
 const router = routerWithQueryClient(
