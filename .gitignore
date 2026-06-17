@@ -63,3 +63,4 @@ coverage/
 .vscode/
 *.swp
 *.swo
+.env
