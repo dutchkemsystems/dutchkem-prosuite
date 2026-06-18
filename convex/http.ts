@@ -1,4 +1,4 @@
-﻿import { httpRouter } from "convex/server";
+import { httpRouter } from "convex/server";
 import { auth } from "./auth";
 import { httpAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
@@ -35,7 +35,7 @@ function manualBase64(input: string): string {
   return result;
 }
 
-const DASHBOARD_URL = "https://dutchkem-prosuite-app.vercel.app/admin/dashboard";
+const DASHBOARD_URL = process.env.DASHBOARD_URL || "https://dutchkem-prosuite-app.vercel.app/admin/dashboard";
 
 // ═══════════════════════════════════════════════════════════════════
 // OTP RATE LIMITING (5 requests per hour per phone number)
