@@ -31,9 +31,6 @@ app.post('/api/auth/request-otp', (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const isEmail = identifier.includes('@');
     
-    // Log OTP
-    console.log(`\n🔐 OTP for ${identifier}: ${otp}`);
-    
     // Store OTP
     const key = `${identifier}_${purpose}`;
     otpStore.set(key, {
