@@ -8,9 +8,14 @@ const awsMessaging = require('../services/awsMessaging.service');
 const users = new Map();
 
 function generateToken(user) {
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    console.error('FATAL: JWT_SECRET environment variable is not set');
+    process.exit(1);
+  }
   return jwt.sign(
     { id: user.id, email: user.email, phone: user.phone, role: user.role },
-    process.env.JWT_SECRET || 'your-secret-key-change-this',
+    jwtSecret,
     { expiresIn: '7d' }
   );
 }
