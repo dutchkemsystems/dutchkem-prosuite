@@ -1,7 +1,7 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useConvexAuth, useMutation, useQuery } from "convex/react"
+import { useConvexAuth, useConvex, useMutation } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import {
   CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis
@@ -56,6 +56,7 @@ function DashboardPage() {
 function DashboardContent() {
   const { signOut } = useAuthActions();
   const navigate = useNavigate();
+  const convexClient = useConvex();
   const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [modal, setModal] = useState<string | null>(null);
@@ -63,35 +64,54 @@ function DashboardContent() {
   const [passwordMessage, setPasswordMessage] = useState("");
   const [tfaMessage, setTfaMessage] = useState("");
   const [payoutMessage, setPayoutMessage] = useState("");
-  const [loadTimedOut, setLoadTimedOut] = useState(false);
+  const [data, setData] = useState<any>(undefined);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const fetchedRef = useRef(false);
 
-  const data = useQuery(api.dashboard.getDashboardData);
+  const fetchDashboard = useCallback(async () => {
+    try {
+      setLoadError(null);
+      setData(undefined);
+      const result = await convexClient.query(api.dashboard.getDashboardData);
+      setData(result);
+      fetchedRef.current = true;
+    } catch (err: any) {
+      console.error("[Dashboard] Fetch error:", err);
+      setLoadError(err?.message || "Failed to load dashboard");
+    }
+  }, [convexClient]);
+
+  useEffect(() => {
+    if (!fetchedRef.current) {
+      fetchDashboard();
+    }
+  }, [fetchDashboard]);
+
   const toggle2FAAction = useMutation(api.client_actions.toggle2FA);
   const changePasswordAction = useMutation(api.client_actions.changeClientPassword);
   const requestReferralPayoutAction = useMutation(api.client_actions.requestReferralPayout);
 
-  useEffect(() => {
-    if (data === undefined && !loadTimedOut) {
-      const timer = setTimeout(() => setLoadTimedOut(true), 15000);
-      return () => clearTimeout(timer);
-    }
-  }, [data, loadTimedOut]);
+  if (data === undefined && !loadError) {
+    return <DashboardSpinner />;
+  }
 
-  if (data === undefined) {
-    if (loadTimedOut) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-          <div className="text-center max-w-md p-8">
-            <p className="text-amber-400 font-bold text-xl mb-4">⏱️ Dashboard is taking too long to load</p>
-            <p className="text-slate-400 mb-6">This could be a temporary connection issue. Please try again.</p>
-            <button onClick={() => window.location.reload()} className="px-6 py-3 bg-indigo-600 rounded-xl text-white font-bold hover:bg-indigo-500 transition-colors">
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <div className="text-center max-w-md p-8">
+          <p className="text-red-400 font-bold text-xl mb-4">Failed to load dashboard</p>
+          <p className="text-slate-400 text-sm mb-6">{loadError}</p>
+          <div className="flex gap-3 justify-center">
+            <button onClick={fetchDashboard} className="px-6 py-3 bg-indigo-600 rounded-xl text-white font-bold hover:bg-indigo-500 transition-colors">
               Retry
+            </button>
+            <button onClick={async () => { try { await signOut(); } catch {} navigate({ to: '/auth' }); }} className="px-6 py-3 bg-slate-800 rounded-xl text-white font-bold hover:bg-slate-700 transition-colors border border-slate-700">
+              Sign In Again
             </button>
           </div>
         </div>
-      );
-    }
-    return <DashboardSpinner />;
+      </div>
+    );
   }
 
   if (!data.user._id) {
