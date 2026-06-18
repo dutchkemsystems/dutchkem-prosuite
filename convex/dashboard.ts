@@ -117,12 +117,13 @@ export const getDashboardData = query({
       return emptyReturn;
     }
 
+    // Bounded queries with .take() instead of .collect()
     let subscriptions: any[] = [];
     try {
       const allSubs = await ctx.db
         .query("subscriptions")
         .withIndex("by_user", (q) => q.eq("userId", userId))
-        .collect();
+        .take(20);
       subscriptions = allSubs.filter((s: any) => s.status === "active");
     } catch {}
 
@@ -158,7 +159,7 @@ export const getDashboardData = query({
       paymentMethods = await ctx.db
         .query("payment_methods")
         .withIndex("by_user", (q) => q.eq("userId", userId))
-        .collect();
+        .take(10);
     } catch {}
 
     let sessions: any[] = [];
@@ -167,16 +168,20 @@ export const getDashboardData = query({
         .query("user_sessions")
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .order("desc")
-        .collect();
+        .take(5);
     } catch {}
 
+    // Use index-based query instead of full table scan for referrals
     let referredCount = 0;
     let referredHistory: any[] = [];
     try {
-      const allUsers = await ctx.db.query("users").collect();
-      const referred = allUsers.filter((u: any) => u.referredBy === userId);
+      // Query users by referredBy index if it exists, otherwise bounded scan
+      const referred = await ctx.db
+        .query("users")
+        .filter((q) => q.eq(q.field("referredBy"), userId))
+        .take(20);
       referredCount = referred.length;
-      referredHistory = referred.slice(0, 20).map((u: any) => ({
+      referredHistory = referred.map((u: any) => ({
         name: u.name,
         date: u._creationTime,
         commission: 500,
@@ -188,7 +193,7 @@ export const getDashboardData = query({
       const referralPayouts = await ctx.db
         .query("payouts")
         .withIndex("by_user", (q) => q.eq("userId", userId))
-        .collect();
+        .take(50);
       totalEarned = referralPayouts
         .filter((p: any) => p.type === "referral")
         .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
@@ -197,9 +202,10 @@ export const getDashboardData = query({
     const availableBalance = (user as any).balance ?? 0;
     const activeSubscription = subscriptions[0];
 
+    // Bounded query for agent enhancement settings
     let agentEnhancement: any[] = [];
     try {
-      agentEnhancement = (await ctx.db.query("composio_agent_settings").collect()).map((s: any) => ({
+      agentEnhancement = (await ctx.db.query("composio_agent_settings").take(30)).map((s: any) => ({
         agentId: String(s.agentId ?? ""),
         enhanced: Boolean(s.enabled ?? false),
         toolCount: Number(s.toolCount ?? 0),

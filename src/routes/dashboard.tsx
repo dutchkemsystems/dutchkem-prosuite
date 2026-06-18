@@ -1,5 +1,5 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useConvexAuth, useConvex, useMutation } from "convex/react"
+import { useConvexAuth, useConvex, useMutation, useAction } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
 import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import {
@@ -47,7 +47,14 @@ function DashboardPage() {
   }
 
   if (!isAuthenticated) {
-    return <DashboardSpinner />;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-400 text-sm">Redirecting to sign in...</p>
+        </div>
+      </div>
+    );
   }
 
   return <DashboardContent />;
