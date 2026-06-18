@@ -64,9 +64,37 @@ export const executeSecurePayout = internalAction({
             
             // 3. Call Kora Payout API
             const koraReference = `${args.referencePrefix}_${Date.now()}`;
+            const koraSecret = process.env.KORA_SECRET_KEY;
             
-            // Simulation of disburse call
-            const result = { success: true, reference: koraReference };
+            if (!koraSecret) {
+                throw new Error("KORA_SECRET_KEY not configured");
+            }
+
+            const response = await fetch("https://api.korapay.com/merchant/api/v1/transactions/disburse", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${koraSecret}`,
+                },
+                body: JSON.stringify({
+                    reference: koraReference,
+                    destination: {
+                        type: "bank_account",
+                        amount: args.amount,
+                        currency: "NGN",
+                        narration: args.narration || "Dutchkem Ventures Sweep",
+                        bank_account: { bank: bankCode, account: accountNumber },
+                        customer: { name: accountName || "Beneficiary", email: "dutchkemdeveloper@gmail.com" },
+                    },
+                }),
+            });
+
+            const data = await response.json() as any;
+            const result = { success: data.status === true, reference: koraReference, koraResponse: data };
+            
+            if (!result.success) {
+                console.error(`[SECURE PAYOUT] Kora disburse failed:`, data.message);
+            }
             
             // 4. IMMEDIATELY clear sensitive data
             const logAccountMasked = maskAccountNumber(accountNumber);

@@ -161,6 +161,10 @@ export const getKDPCheckoutUrl = mutation({
     const reference = `KDP-${plan}-${userId.replace(/\W/g, "")}-${Date.now()}`;
     const secretKey = process.env.KORA_SECRET_KEY;
 
+    // Get user email for Kora checkout
+    const user = await ctx.db.get(userId);
+    const customerEmail = user?.email || "client@dutchkem.com";
+
     // Real Kora Pay checkout initialization
     if (secretKey) {
       try {
@@ -174,8 +178,8 @@ export const getKDPCheckoutUrl = mutation({
             amount: planConfig.price,
             currency: "NGN",
             reference,
-            customer: { email: "client@dutchkem.com" },
-            redirect_url: returnUrl || `${process.env.SITE_URL || "https://dutchkem-prosuite-app.vercel.app"}/dashboard?kdp=success&reference=${reference}`,
+            customer: { email: customerEmail },
+            redirect_url: returnUrl || `${process.env.SITE_URL || "https://dutchkem-prosuite-app.vercel.app"}/dashboard?payment=success&reference=${reference}`,
             metadata: {
               userId,
               service: "kdp",
@@ -199,12 +203,10 @@ export const getKDPCheckoutUrl = mutation({
       }
     }
 
-    // Fallback: simulated checkout URL
-    const checkoutUrl = returnUrl
-      ? `${returnUrl}?reference=${reference}&plan=${plan}&amount=${planConfig.price}`
-      : `https://pay.korapay.com?reference=${reference}&amount=${planConfig.price}&currency=NGN`;
+    // Fallback: redirect to dashboard with payment info
+    const fallbackUrl = returnUrl || `${process.env.SITE_URL || "https://dutchkem-prosuite-app.vercel.app"}/dashboard?payment=success&reference=${reference}`;
 
-    return { checkoutUrl, reference, amount: planConfig.price, currency: "NGN", plan };
+    return { checkoutUrl: fallbackUrl, reference, amount: planConfig.price, currency: "NGN", plan };
   },
 });
 

@@ -250,48 +250,59 @@ export const adminBulkProcessPayouts = action({
     if (requests.length < 2) return { error: "Need at least 2 approved requests" };
 
     const batchRef = `DKBATCH_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    let successCount = 0;
+    let failCount = 0;
+    const results: any[] = [];
 
-    const res = await fetch("https://api.korapay.com/merchant/api/v1/transactions/disburse", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${koraSecret}`,
-      },
-      body: JSON.stringify({
-        reference: batchRef,
-        destination: {
-          type: "bank_account",
-          amount: requests.reduce((sum, r) => sum + r.amount, 0),
-          currency: "NGN",
-          narration: `Dutchkem bulk payout - ${requests.length} recipients`,
-          bank_account: { bank: requests[0].bankCode, account: requests[0].accountNumber },
-          customer: { name: "Dutchkem Bulk Payout", email: "dutchkemdeveloper@gmail.com" },
-        },
-      }),
-    });
+    // Process each payout individually (Kora disburse API is single-recipient)
+    for (const r of requests) {
+      try {
+        const payoutRef = `${batchRef}_${r._id}`;
+        const res = await fetch("https://api.korapay.com/merchant/api/v1/transactions/disburse", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${koraSecret}`,
+          },
+          body: JSON.stringify({
+            reference: payoutRef,
+            destination: {
+              type: "bank_account",
+              amount: r.amount,
+              currency: "NGN",
+              narration: `Dutchkem payout - ${r.accountName || "client"}`,
+              bank_account: { bank: r.bankCode, account: r.accountNumber },
+              customer: { name: r.accountName || "Client", email: "dutchkemdeveloper@gmail.com" },
+            },
+          }),
+        });
 
-    const data = await res.json() as any;
+        const data = await res.json() as any;
+        if (data.status) {
+          successCount++;
+          await ctx.runMutation(internal.admin_payouts.markPayoutProcessing, {
+            requestId: r._id, koraReference: payoutRef,
+          });
+        } else {
+          failCount++;
+          results.push({ requestId: r._id, error: data.message });
+        }
+      } catch (e: any) {
+        failCount++;
+        results.push({ requestId: r._id, error: e.message });
+      }
+    }
 
     const batchId = await ctx.runMutation(internal.admin_payouts.createBatch, {
       batchReference: batchRef,
       totalAmount: requests.reduce((sum, r) => sum + r.amount, 0),
       totalPayouts: requests.length,
-      status: data.status ? "processing" : "failed",
-      koraResponse: data,
+      status: successCount > 0 ? "processing" : "failed",
+      koraResponse: { successCount, failCount, results },
       initiatedBy: session.name || "admin",
     });
 
-    for (const r of requests) {
-      if (data.status) {
-        await ctx.runMutation(internal.admin_payouts.markPayoutProcessing, {
-          requestId: r._id, koraReference: batchRef,
-        });
-      }
-    }
-
-    return data.status
-      ? { success: true, batchReference: batchRef, batchId, count: requests.length }
-      : { error: data.message || "Bulk disbursement failed" };
+    return { success: successCount > 0, batchReference: batchRef, batchId, successCount, failCount, errors: results };
   },
 });
 
