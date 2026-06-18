@@ -50,7 +50,6 @@ app.post('/api/auth/request-otp', (req, res) => {
       message: `OTP sent via ${isEmail ? 'email' : 'SMS'}`,
       expiresIn: '10 minutes',
       mode: awsConfigured ? 'aws' : 'fallback',
-      debug_otp: otp  // Always show for testing
     });
     
   } catch (error) {
