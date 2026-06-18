@@ -35,6 +35,16 @@ function DashboardSpinner() {
 function DashboardPage() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const navigate = useNavigate();
+  const [authTimeout, setAuthTimeout] = useState(false);
+
+  // Safety timeout: if authLoading stays true for >8s, show recovery UI
+  useEffect(() => {
+    if (authLoading) {
+      const timer = setTimeout(() => setAuthTimeout(true), 8000);
+      return () => clearTimeout(timer);
+    }
+    setAuthTimeout(false);
+  }, [authLoading]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -42,8 +52,27 @@ function DashboardPage() {
     }
   }, [isAuthenticated, authLoading, navigate]);
 
-  if (authLoading) {
+  if (authLoading && !authTimeout) {
     return <DashboardSpinner />;
+  }
+
+  if (authTimeout && !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <div className="text-center max-w-md p-8">
+          <p className="text-amber-400 font-bold text-xl mb-4">Authentication is taking longer than expected</p>
+          <p className="text-slate-400 text-sm mb-6">This can happen after Google sign-in. Please wait a moment or try again.</p>
+          <div className="flex gap-3 justify-center">
+            <button onClick={() => window.location.reload()} className="px-6 py-3 bg-indigo-600 rounded-xl text-white font-bold hover:bg-indigo-500 transition-colors">
+              Refresh Page
+            </button>
+            <button onClick={() => navigate({ to: '/auth' })} className="px-6 py-3 bg-slate-800 rounded-xl text-white font-bold hover:bg-slate-700 transition-colors border border-slate-700">
+              Back to Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
@@ -79,7 +108,13 @@ function DashboardContent() {
     try {
       setLoadError(null);
       setData(undefined);
-      const result = await convexClient.query(api.dashboard.getDashboardData);
+      fetchedRef.current = false;
+      const result = await Promise.race([
+        convexClient.query(api.dashboard.getDashboardData),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Dashboard request timed out. Please refresh.")), 15000)
+        ),
+      ]);
       setData(result);
       fetchedRef.current = true;
     } catch (err: any) {
@@ -121,7 +156,7 @@ function DashboardContent() {
     );
   }
 
-  if (!data.user._id) {
+  if (!data.user._id || data.user._id === "") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
         <div className="text-center max-w-md p-8">
