@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
@@ -86,9 +86,14 @@ app.post('/api/auth/verify-otp', (req, res) => {
     
     otpStore.delete(key);
     
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      console.error('FATAL: JWT_SECRET environment variable is not set');
+      process.exit(1);
+    }
     const token = jwt.sign(
       { identifier, purpose },
-      process.env.JWT_SECRET || 'dutchkem-secret',
+      jwtSecret,
       { expiresIn: '7d' }
     );
     
