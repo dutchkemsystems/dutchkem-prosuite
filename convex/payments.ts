@@ -334,7 +334,7 @@ export const chargeKoraPay = internalAction({
     const reference = `RENEWAL-${args.service}-${args.subscriptionId}-${Date.now()}`;
 
     try {
-      const response = await fetch("https://api.korapay.com/merchant/api/v1/transactions/initialize", {
+      const response = await fetch("https://api.korapay.com/merchant/api/v1/charges/initialize", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${secretKey}`,

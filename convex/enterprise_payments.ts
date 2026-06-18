@@ -240,7 +240,7 @@ export const initiateSubscriptionPayment = action({
       const siteUrl = process.env.SITE_URL || "https://dutchkem-prosuite-app.vercel.app";
       const returnUrl = args.returnUrl || `${siteUrl}/admin/dashboard?enterprise=payment-success&reference=${ref}`;
 
-      const response = await fetch("https://api.korapay.com/merchant/api/v1/transactions/initialize", {
+      const response = await fetch("https://api.korapay.com/merchant/api/v1/charges/initialize", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${koraSecret}`,
