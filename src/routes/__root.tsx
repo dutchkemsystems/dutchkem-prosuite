@@ -7,6 +7,7 @@ import * as React from 'react'
 import type { QueryClient } from '@tanstack/react-query'
 import { Navbar } from '~/components/Navbar'
 import { Footer } from '~/components/Footer'
+import { BackToTop } from '~/components/BackToTop'
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -46,6 +47,7 @@ function RootComponent() {
         <Outlet />
       </div>
       {!isDashboard && <Footer />}
+      <BackToTop />
     </>
   )
 }
