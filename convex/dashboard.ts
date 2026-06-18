@@ -175,10 +175,9 @@ export const getDashboardData = query({
     let referredCount = 0;
     let referredHistory: any[] = [];
     try {
-      // Query users by referredBy index if it exists, otherwise bounded scan
       const referred = await ctx.db
         .query("users")
-        .filter((q) => q.eq(q.field("referredBy"), userId))
+        .withIndex("by_referredBy", (q) => q.eq("referredBy", userId))
         .take(20);
       referredCount = referred.length;
       referredHistory = referred.map((u: any) => ({

@@ -37,7 +37,8 @@ export default defineSchema({
     .index("email", ["email"])
     .index("phone", ["phone"])
     .index("referralCode", ["referralCode"])
-    .index("by_role", ["role"]),
+    .index("by_role", ["role"])
+    .index("by_referredBy", ["referredBy"]),
 
   jobs: defineTable({
     freelancerId: v.id("users"),
