@@ -2,16 +2,36 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 
+const emptyReturn = {
+  user: {
+    _id: "",
+    name: "",
+    image: undefined as string | undefined,
+    email: "",
+    balance: 0,
+    referralCode: "",
+    subscription: undefined as { plan: string; status: string } | undefined,
+  },
+  stats: { activeSubscriptions: 0, totalSpentThisMonth: 0, completedProjects: 0, referralEarnings: 0, savingsThisMonth: 0 },
+  subscriptions: [] as any[],
+  projects: [] as any[],
+  notifications: [] as any[],
+  paymentMethods: [] as any[],
+  referrals: { friendsSignedUp: 0, totalEarned: 0, pendingEarnings: 0, availableBalance: 0, history: [] as any[] },
+  sessions: [] as any[],
+  agentEnhancement: [] as any[],
+};
+
 export const getDashboardData = query({
   args: {},
   returns: v.object({
     user: v.object({
       _id: v.string(),
-      name: v.optional(v.string()),
+      name: v.string(),
       image: v.optional(v.string()),
-      email: v.optional(v.string()),
-      balance: v.optional(v.number()),
-      referralCode: v.optional(v.string()),
+      email: v.string(),
+      balance: v.number(),
+      referralCode: v.string(),
       subscription: v.optional(v.object({
         plan: v.string(),
         status: v.string(),
@@ -82,22 +102,28 @@ export const getDashboardData = query({
     })),
   }),
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
+    let userId;
+    try {
+      userId = await getAuthUserId(ctx);
+    } catch {
+      return emptyReturn;
+    }
     if (!userId) {
-      throw new Error("Unauthorized: Please sign in again");
+      return emptyReturn;
     }
 
     const user = await ctx.db.get("users", userId);
     if (!user) {
-      throw new Error("User not found: Please create an account");
+      return emptyReturn;
     }
 
     let subscriptions: any[] = [];
     try {
-      subscriptions = (await ctx.db
+      const allSubs = await ctx.db
         .query("subscriptions")
         .withIndex("by_user", (q) => q.eq("userId", userId))
-        .collect()).filter(s => s.status === "active");
+        .collect();
+      subscriptions = allSubs.filter((s: any) => s.status === "active");
     } catch {}
 
     let projects: any[] = [];
@@ -144,107 +170,108 @@ export const getDashboardData = query({
         .collect();
     } catch {}
 
-    let referredUsers: any[] = [];
+    let referredCount = 0;
+    let referredHistory: any[] = [];
     try {
-      referredUsers = (await ctx.db
-        .query("users")
-        .collect()).filter(u => (u as any).referredBy === userId);
+      const allUsers = await ctx.db.query("users").collect();
+      const referred = allUsers.filter((u: any) => u.referredBy === userId);
+      referredCount = referred.length;
+      referredHistory = referred.slice(0, 20).map((u: any) => ({
+        name: u.name,
+        date: u._creationTime,
+        commission: 500,
+      }));
     } catch {}
 
-    let referralPayouts: any[] = [];
+    let totalEarned = 0;
     try {
-      referralPayouts = (await ctx.db
+      const referralPayouts = await ctx.db
         .query("payouts")
         .withIndex("by_user", (q) => q.eq("userId", userId))
-        .collect()).filter(p => (p as any).type === "referral");
+        .collect();
+      totalEarned = referralPayouts
+        .filter((p: any) => p.type === "referral")
+        .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
     } catch {}
 
-    const totalEarned = referralPayouts.reduce((sum, p) => sum + ((p as any).amount || 0), 0);
     const availableBalance = (user as any).balance ?? 0;
-
-    const stats = {
-      activeSubscriptions: subscriptions.length,
-      totalSpentThisMonth: 0,
-      completedProjects: projects.filter(p => p.status === "completed").length,
-      referralEarnings: totalEarned,
-      savingsThisMonth: 0,
-    };
-
     const activeSubscription = subscriptions[0];
 
     let agentEnhancement: any[] = [];
     try {
       agentEnhancement = (await ctx.db.query("composio_agent_settings").collect()).map((s: any) => ({
-        agentId: s.agentId ?? "",
-        enhanced: s.enabled ?? false,
-        toolCount: s.toolCount ?? 0,
+        agentId: String(s.agentId ?? ""),
+        enhanced: Boolean(s.enabled ?? false),
+        toolCount: Number(s.toolCount ?? 0),
       }));
     } catch {}
 
     return {
       user: {
-        _id: user._id,
-        name: (user as any).name,
-        image: (user as any).image,
-        email: (user as any).email,
-        balance: (user as any).balance,
-        referralCode: (user as any).referralCode,
+        _id: String(user._id),
+        name: String((user as any).name ?? ""),
+        image: (user as any).image ? String((user as any).image) : undefined,
+        email: String((user as any).email ?? ""),
+        balance: Number((user as any).balance ?? 0),
+        referralCode: String((user as any).referralCode ?? ""),
         subscription: activeSubscription ? {
-          plan: activeSubscription.plan,
-          status: activeSubscription.status,
+          plan: String(activeSubscription.plan ?? "monthly"),
+          status: String(activeSubscription.status ?? "active"),
         } : undefined,
       },
-      stats,
-      subscriptions: subscriptions.map(s => ({
-        _id: s._id,
-        plan: s.plan,
-        status: s.status,
-        endsAt: s.endsAt,
-        autoRenew: s.autoRenew,
+      stats: {
+        activeSubscriptions: subscriptions.length,
+        totalSpentThisMonth: 0,
+        completedProjects: projects.filter((p: any) => p.status === "completed").length,
+        referralEarnings: totalEarned,
+        savingsThisMonth: 0,
+      },
+      subscriptions: subscriptions.map((s: any) => ({
+        _id: String(s._id),
+        plan: String(s.plan ?? "monthly"),
+        status: String(s.status ?? "active"),
+        endsAt: Number(s.endsAt ?? Date.now()),
+        autoRenew: Boolean(s.autoRenew ?? false),
       })),
-      projects: projects.map(p => ({
-        _id: p._id,
-        name: p.name,
-        agentId: p.agentId,
-        status: p.status,
-        format: p.format,
-        createdAt: p.createdAt,
-        completedAt: p.completedAt,
-        downloadUrl: p.downloadUrl,
+      projects: projects.map((p: any) => ({
+        _id: String(p._id),
+        name: String(p.name ?? "Untitled"),
+        agentId: String(p.agentId ?? "A1"),
+        status: String(p.status ?? "in-progress"),
+        format: String(p.format ?? "pdf"),
+        createdAt: Number(p.createdAt ?? Date.now()),
+        completedAt: p.completedAt ? Number(p.completedAt) : undefined,
+        downloadUrl: p.downloadUrl ? String(p.downloadUrl) : undefined,
       })),
-      notifications: mergedNotifications.map(n => ({
-        _id: n._id,
-        title: n.title,
-        message: n.message,
-        type: n.type,
-        read: n.read,
-        createdAt: n.createdAt,
+      notifications: mergedNotifications.map((n: any) => ({
+        _id: String(n._id),
+        title: String(n.title ?? ""),
+        message: String(n.message ?? ""),
+        type: String(n.type ?? "info"),
+        read: Boolean(n.read ?? false),
+        createdAt: Number(n.createdAt ?? Date.now()),
       })),
-      paymentMethods: paymentMethods.map(pm => ({
-        _id: pm._id,
-        type: pm.type,
-        provider: pm.provider,
-        last4: pm.last4,
-        isDefault: pm.isDefault,
+      paymentMethods: paymentMethods.map((pm: any) => ({
+        _id: String(pm._id),
+        type: String(pm.type ?? "card"),
+        provider: String(pm.provider ?? ""),
+        last4: pm.last4 ? String(pm.last4) : undefined,
+        isDefault: Boolean(pm.isDefault ?? false),
       })),
       referrals: {
-        friendsSignedUp: referredUsers.length,
+        friendsSignedUp: referredCount,
         totalEarned,
         pendingEarnings: 0,
         availableBalance,
-        history: referredUsers.map(u => ({
-          name: (u as any).name,
-          date: u._creationTime,
-          commission: 500,
-        })),
+        history: referredHistory,
       },
-      sessions: sessions.map(s => ({
-        _id: s._id,
-        device: s.device,
-        location: s.location,
-        ip: s.ip,
-        lastActive: s.lastActive,
-        isCurrent: s.isCurrent,
+      sessions: sessions.map((s: any) => ({
+        _id: String(s._id),
+        device: String(s.device ?? "Unknown"),
+        location: String(s.location ?? "Unknown"),
+        ip: String(s.ip ?? "0.0.0.0"),
+        lastActive: Number(s.lastActive ?? Date.now()),
+        isCurrent: Boolean(s.isCurrent ?? false),
       })),
       agentEnhancement,
     };

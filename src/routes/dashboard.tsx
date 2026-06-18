@@ -34,21 +34,7 @@ function DashboardSpinner() {
 
 function DashboardPage() {
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  const { signOut } = useAuthActions();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("overview");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [modal, setModal] = useState<string | null>(null);
-  const [newPassword, setNewPassword] = useState("");
-  const [passwordMessage, setPasswordMessage] = useState("");
-  const [tfaMessage, setTfaMessage] = useState("");
-  const [payoutMessage, setPayoutMessage] = useState("");
-  const [queryError, setQueryError] = useState<string | null>(null);
-
-  const data = useQuery(api.dashboard.getDashboardData);
-  const toggle2FAAction = useMutation(api.client_actions.toggle2FA);
-  const changePasswordAction = useMutation(api.client_actions.changeClientPassword);
-  const requestReferralPayoutAction = useMutation(api.client_actions.requestReferralPayout);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -64,18 +50,58 @@ function DashboardPage() {
     return <DashboardSpinner />;
   }
 
+  return <DashboardContent />;
+}
+
+function DashboardContent() {
+  const { signOut } = useAuthActions();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [modal, setModal] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [tfaMessage, setTfaMessage] = useState("");
+  const [payoutMessage, setPayoutMessage] = useState("");
+  const [loadTimedOut, setLoadTimedOut] = useState(false);
+
+  const data = useQuery(api.dashboard.getDashboardData);
+  const toggle2FAAction = useMutation(api.client_actions.toggle2FA);
+  const changePasswordAction = useMutation(api.client_actions.changeClientPassword);
+  const requestReferralPayoutAction = useMutation(api.client_actions.requestReferralPayout);
+
+  useEffect(() => {
+    if (data === undefined && !loadTimedOut) {
+      const timer = setTimeout(() => setLoadTimedOut(true), 15000);
+      return () => clearTimeout(timer);
+    }
+  }, [data, loadTimedOut]);
+
   if (data === undefined) {
+    if (loadTimedOut) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+          <div className="text-center max-w-md p-8">
+            <p className="text-amber-400 font-bold text-xl mb-4">⏱️ Dashboard is taking too long to load</p>
+            <p className="text-slate-400 mb-6">This could be a temporary connection issue. Please try again.</p>
+            <button onClick={() => window.location.reload()} className="px-6 py-3 bg-indigo-600 rounded-xl text-white font-bold hover:bg-indigo-500 transition-colors">
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
     return <DashboardSpinner />;
   }
 
-  if (data === null) {
+  if (!data.user._id) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
         <div className="text-center max-w-md p-8">
-          <p className="text-red-400 font-bold text-xl mb-4">Failed to load dashboard</p>
-          <p className="text-slate-400 mb-6">Please try refreshing the page or signing in again.</p>
+          <p className="text-red-400 font-bold text-xl mb-4">Authentication required</p>
+          <p className="text-slate-400 mb-6">Please sign in to view your dashboard.</p>
           <button onClick={async () => { try { await signOut(); } catch {} navigate({ to: '/auth' }); }} className="px-6 py-3 bg-indigo-600 rounded-xl text-white font-bold hover:bg-indigo-500 transition-colors">
-            Sign In Again
+            Sign In
           </button>
         </div>
       </div>
