@@ -102,6 +102,7 @@ function DashboardContent() {
   const [payoutMessage, setPayoutMessage] = useState("");
   const [data, setData] = useState<any>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [showAccessGranted, setShowAccessGranted] = useState(false);
   const fetchedRef = useRef(false);
 
   const fetchDashboard = useCallback(async () => {
@@ -128,6 +129,15 @@ function DashboardContent() {
       fetchDashboard();
     }
   }, [fetchDashboard]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") === "success") {
+      setShowAccessGranted(true);
+      window.history.replaceState({}, "", window.location.pathname);
+      setTimeout(() => setShowAccessGranted(false), 5000);
+    }
+  }, []);
 
   const toggle2FAAction = useMutation(api.client_actions.toggle2FA);
   const changePasswordAction = useMutation(api.client_actions.changeClientPassword);
@@ -269,18 +279,25 @@ function DashboardContent() {
                   )}
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { icon: "🎓", name: "Academic Writer", agentId: "A1" },
-                      { icon: "💼", name: "Business Consultant", agentId: "A2" },
-                      { icon: "✍️", name: "Content Strategist", agentId: "A3" },
-                      { icon: "📄", name: "Career Coach", agentId: "A4" },
-                      { icon: "🛍️", name: "Personal Shopper", agentId: "A5" },
-                      { icon: "📝", name: "Exam Prep", agentId: "A6" },
-                      { icon: "💰", name: "Finance Advisor", agentId: "A7" },
-                      { icon: "🎬", name: "MediaStudio", agentId: "A8" },
+                      { icon: "🎓", name: "Academic Writer", agentId: "A1", path: "/academic-writer" },
+                      { icon: "💼", name: "Business Consultant", agentId: "A2", path: "/business-consultant" },
+                      { icon: "✍️", name: "Content Strategist", agentId: "A3", path: "/content-writer" },
+                      { icon: "📄", name: "Career Coach", agentId: "A4", path: "/career-coach" },
+                      { icon: "🛍️", name: "Personal Shopper", agentId: "A5", path: "/personal-shopper" },
+                      { icon: "📝", name: "Exam Prep", agentId: "A6", path: "/exam-prep" },
+                      { icon: "💰", name: "Finance Advisor", agentId: "A7", path: "/finance-advisor" },
+                      { icon: "🎬", name: "MediaStudio", agentId: "A8", path: "/video-production" },
+                      { icon: "🏥", name: "Wellness Coach", agentId: "A9", path: "/wellness-coach" },
+                      { icon: "🧹", name: "Home Services", agentId: "A10", path: "/home-management" },
+                      { icon: "🗣️", name: "Language Tutor", agentId: "A11", path: "/language-coach" },
+                      { icon: "✈️", name: "Travel Planner", agentId: "A12", path: "/travel-planner" },
+                      { icon: "🚀", name: "ServiceMart NG", agentId: "A13", path: "/exam-success" },
+                      { icon: "📝", name: "Translation Hub", agentId: "A14", path: "/translation-hub" },
+                      { icon: "🎉", name: "Event Planner", agentId: "A15", path: "/event-planner" },
                     ].map((agent) => {
                       const enhancement = data.agentEnhancement?.find((e: any) => e.agentId === agent.agentId);
                       return (
-                        <button key={agent.agentId} onClick={() => navigate({ to: "/" })} className="p-4 bg-slate-800 rounded-2xl border border-slate-700 hover:border-indigo-500 transition-all text-left relative">
+                        <button key={agent.agentId} onClick={() => navigate({ to: agent.path })} className="p-4 bg-slate-800 rounded-2xl border border-slate-700 hover:border-indigo-500 transition-all text-left relative">
                           {enhancement?.enhanced && (
                             <span className="absolute top-2 right-2 text-[9px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold border border-emerald-500/30">⚡ Enhanced</span>
                           )}
@@ -291,13 +308,37 @@ function DashboardContent() {
                       );
                     })}
                   </div>
-                  <button onClick={() => navigate({ to: "/" })} className="w-full py-4 bg-indigo-600 rounded-xl font-bold">View All 15 Agents</button>
                 </div>
               )}
 
               {modal === "buy-credits" && (
                 <BuyCreditsModal user={data.user} onClose={() => setModal(null)} />
               )}
+            </div>
+          </div>
+        )}
+
+        {showAccessGranted && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-emerald-500/30 rounded-3xl p-8 max-w-md w-full text-center animate-in fade-in zoom-in-95 duration-300">
+              <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-500 text-4xl mx-auto mb-6 border border-emerald-500/20">✓</div>
+              <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Access Granted!</h2>
+              <p className="text-slate-400 mb-6 font-medium">Your subscription is now active. You have full access to all 15 AI agents.</p>
+              <div className="space-y-2 text-left text-sm text-slate-300 mb-6">
+                <div className="flex items-center gap-2"><span className="text-emerald-400">✓</span> All 15 agents unlocked</div>
+                <div className="flex items-center gap-2"><span className="text-emerald-400">✓</span> Unlimited tasks</div>
+                <div className="flex items-center gap-2"><span className="text-emerald-400">✓</span> Priority response time</div>
+                <div className="flex items-center gap-2"><span className="text-emerald-400">✓</span> File generation</div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowAccessGranted(false);
+                  setModal("new-project");
+                }}
+                className="w-full py-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl font-bold text-white hover:from-orange-600 hover:to-orange-700 transition-all"
+              >
+                Start Your First Project →
+              </button>
             </div>
           </div>
         )}
