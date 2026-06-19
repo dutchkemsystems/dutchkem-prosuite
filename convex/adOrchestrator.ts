@@ -154,7 +154,7 @@ const AD_TEMPLATES = [
   {
     id: "home_services",
     name: "Home Management",
-    headline": "Your Smart Home Assistant",
+    headline: "Your Smart Home Assistant",
     description: "Maintenance schedules, cleaning checklists, and home improvement plans. Keep your home perfect.",
     cta: "Manage Your Home",
     hashtags: ["#HomeManagement", "#SmartHome", "#Cleaning", "#HomeImprovement", "#Lagos"],
