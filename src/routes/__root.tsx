@@ -36,7 +36,8 @@ function RootComponent() {
                         '/career-coach', '/personal-shopper', '/exam-prep', 
                         '/finance-advisor', '/video-production', '/wellness-coach', 
                         '/home-management', '/language-coach', '/travel-planner', 
-                        '/exam-success', '/translation-hub', '/event-planner'
+                        '/exam-success', '/translation-hub', '/event-planner',
+                      '/all-agents'
                       ].includes(location.pathname)
 
   return (

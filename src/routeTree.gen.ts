@@ -30,13 +30,14 @@ import { Route as CareersRouteImport } from './routes/careers'
 import { Route as CareerCoachRouteImport } from './routes/career-coach'
 import { Route as BusinessConsultantRouteImport } from './routes/business-consultant'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AllAgentsRouteImport } from './routes/all-agents'
 import { Route as AcademicWriterRouteImport } from './routes/academic-writer'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AdminLoginRouteImport } from './routes/admin/login'
-import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
 import { Route as EnterpriseLoginRouteImport } from './routes/enterprise/login'
 import { Route as EnterpriseDashboardRouteImport } from './routes/enterprise/dashboard'
+import { Route as AdminLoginRouteImport } from './routes/admin/login'
+import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
 
 const WellnessCoachRoute = WellnessCoachRouteImport.update({
   id: '/wellness-coach',
@@ -143,6 +144,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AllAgentsRoute = AllAgentsRouteImport.update({
+  id: '/all-agents',
+  path: '/all-agents',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AcademicWriterRoute = AcademicWriterRouteImport.update({
   id: '/academic-writer',
   path: '/academic-writer',
@@ -158,16 +164,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminLoginRoute = AdminLoginRouteImport.update({
-  id: '/admin/login',
-  path: '/admin/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminDashboardRoute = AdminDashboardRouteImport.update({
-  id: '/admin/dashboard',
-  path: '/admin/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const EnterpriseLoginRoute = EnterpriseLoginRouteImport.update({
   id: '/enterprise/login',
   path: '/enterprise/login',
@@ -178,11 +174,22 @@ const EnterpriseDashboardRoute = EnterpriseDashboardRouteImport.update({
   path: '/enterprise/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin/login',
+  path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDashboardRoute = AdminDashboardRouteImport.update({
+  id: '/admin/dashboard',
+  path: '/admin/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/academic-writer': typeof AcademicWriterRoute
+  '/all-agents': typeof AllAgentsRoute
   '/auth': typeof AuthRoute
   '/business-consultant': typeof BusinessConsultantRoute
   '/career-coach': typeof CareerCoachRoute
@@ -206,13 +213,14 @@ export interface FileRoutesByFullPath {
   '/wellness-coach': typeof WellnessCoachRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/login': typeof AdminLoginRoute
-  '/enterprise/login': typeof EnterpriseLoginRoute
   '/enterprise/dashboard': typeof EnterpriseDashboardRoute
+  '/enterprise/login': typeof EnterpriseLoginRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/academic-writer': typeof AcademicWriterRoute
+  '/all-agents': typeof AllAgentsRoute
   '/auth': typeof AuthRoute
   '/business-consultant': typeof BusinessConsultantRoute
   '/career-coach': typeof CareerCoachRoute
@@ -236,14 +244,15 @@ export interface FileRoutesByTo {
   '/wellness-coach': typeof WellnessCoachRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/login': typeof AdminLoginRoute
-  '/enterprise/login': typeof EnterpriseLoginRoute
   '/enterprise/dashboard': typeof EnterpriseDashboardRoute
+  '/enterprise/login': typeof EnterpriseLoginRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/academic-writer': typeof AcademicWriterRoute
+  '/all-agents': typeof AllAgentsRoute
   '/auth': typeof AuthRoute
   '/business-consultant': typeof BusinessConsultantRoute
   '/career-coach': typeof CareerCoachRoute
@@ -267,8 +276,8 @@ export interface FileRoutesById {
   '/wellness-coach': typeof WellnessCoachRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/login': typeof AdminLoginRoute
-  '/enterprise/login': typeof EnterpriseLoginRoute
   '/enterprise/dashboard': typeof EnterpriseDashboardRoute
+  '/enterprise/login': typeof EnterpriseLoginRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -276,6 +285,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/academic-writer'
+    | '/all-agents'
     | '/auth'
     | '/business-consultant'
     | '/career-coach'
@@ -299,13 +309,14 @@ export interface FileRouteTypes {
     | '/wellness-coach'
     | '/admin/dashboard'
     | '/admin/login'
-    | '/enterprise/login'
     | '/enterprise/dashboard'
+    | '/enterprise/login'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/academic-writer'
+    | '/all-agents'
     | '/auth'
     | '/business-consultant'
     | '/career-coach'
@@ -329,13 +340,14 @@ export interface FileRouteTypes {
     | '/wellness-coach'
     | '/admin/dashboard'
     | '/admin/login'
-    | '/enterprise/login'
     | '/enterprise/dashboard'
+    | '/enterprise/login'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/academic-writer'
+    | '/all-agents'
     | '/auth'
     | '/business-consultant'
     | '/career-coach'
@@ -359,14 +371,15 @@ export interface FileRouteTypes {
     | '/wellness-coach'
     | '/admin/dashboard'
     | '/admin/login'
-    | '/enterprise/login'
     | '/enterprise/dashboard'
+    | '/enterprise/login'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   AcademicWriterRoute: typeof AcademicWriterRoute
+  AllAgentsRoute: typeof AllAgentsRoute
   AuthRoute: typeof AuthRoute
   BusinessConsultantRoute: typeof BusinessConsultantRoute
   CareerCoachRoute: typeof CareerCoachRoute
@@ -390,6 +403,8 @@ export interface RootRouteChildren {
   WellnessCoachRoute: typeof WellnessCoachRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  EnterpriseDashboardRoute: typeof EnterpriseDashboardRoute
+  EnterpriseLoginRoute: typeof EnterpriseLoginRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -541,6 +556,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/all-agents': {
+      id: '/all-agents'
+      path: '/all-agents'
+      fullPath: '/all-agents'
+      preLoaderRoute: typeof AllAgentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/academic-writer': {
       id: '/academic-writer'
       path: '/academic-writer'
@@ -562,20 +584,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/login': {
-      id: '/admin/login'
-      path: '/admin/login'
-      fullPath: '/admin/login'
-      preLoaderRoute: typeof AdminLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/dashboard': {
-      id: '/admin/dashboard'
-      path: '/admin/dashboard'
-      fullPath: '/admin/dashboard'
-      preLoaderRoute: typeof AdminDashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/enterprise/login': {
       id: '/enterprise/login'
       path: '/enterprise/login'
@@ -590,6 +598,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EnterpriseDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/admin/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/dashboard': {
+      id: '/admin/dashboard'
+      path: '/admin/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -597,6 +619,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   AcademicWriterRoute: AcademicWriterRoute,
+  AllAgentsRoute: AllAgentsRoute,
   AuthRoute: AuthRoute,
   BusinessConsultantRoute: BusinessConsultantRoute,
   CareerCoachRoute: CareerCoachRoute,
@@ -620,11 +643,9 @@ const rootRouteChildren: RootRouteChildren = {
   WellnessCoachRoute: WellnessCoachRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminLoginRoute: AdminLoginRoute,
-  EnterpriseLoginRoute: EnterpriseLoginRoute,
   EnterpriseDashboardRoute: EnterpriseDashboardRoute,
+  EnterpriseLoginRoute: EnterpriseLoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
