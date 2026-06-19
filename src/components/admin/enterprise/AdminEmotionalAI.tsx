@@ -20,7 +20,7 @@ export function AdminEmotionalAI({ adminToken, organizations }: { adminToken: st
 
   const profileList = profiles || []
   const filtered = filter === 'all' ? profileList : profileList.filter((p: any) => p.personality?.dominantEmotion === filter)
-  const emotions = [...new Set(profileList.map((p: any) => p.personality?.dominantEmotion || 'neutral'))]
+  const emotions = [...new Set(profileList.map((p: any) => p.personality?.dominantEmotion || 'neutral'))] as string[];
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -51,7 +51,7 @@ export function AdminEmotionalAI({ adminToken, organizations }: { adminToken: st
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        {['all', ...emotions].map((e) => (
+        {['all', ...emotions].map((e: string) => (
           <button key={e} onClick={() => setFilter(e)} className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 ${filter === e ? 'bg-[#FF6B35] text-white' : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10'}`}>
             {String(e)}
           </button>

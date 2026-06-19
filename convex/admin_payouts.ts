@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, action } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 
 export const adminListPendingPayouts = query({
@@ -23,9 +24,9 @@ export const adminListAllPayouts = query({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return [];
 
-    let q = ctx.db.query("client_payout_requests").order("desc");
+    let q = ctx.db.query("client_payout_requests");
     if (args.status) q = q.withIndex("by_status", (iq) => iq.eq("status", args.status as any));
-    return await q.take(args.limit || 100);
+    return await q.order("desc").take(args.limit || 100);
   },
 });
 

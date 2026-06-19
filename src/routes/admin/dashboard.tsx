@@ -346,7 +346,7 @@ function ManualAgentTaskPanel() {
   const currentServices = agentServices[agentId] || [];
 
   const { data: services } = useSuspenseQuery(convexQuery(api.admin.getAgentServices, { agentId }));
-  const { data: logs } = useSuspenseQuery(convexQuery(api.uae_engine.getManualTaskLogs, {}));
+  const { data: logs } = useSuspenseQuery(convexQuery(api.uae_engine.getManualTaskLogs, {})) as { data: any[] };
   const generateTask = useMutation(api.uae_engine.generateAdminManualTask);
 
   // Poll for task completion
@@ -518,7 +518,7 @@ function ManualAgentTaskPanel() {
 }
 
 function TaxDashboardPanel() {
-  const { data: taxData } = useSuspenseQuery(convexQuery(api.admin.getTaxWalletStats, {}));
+  const { data: taxData } = useSuspenseQuery(convexQuery(api.admin.getTaxWalletStats, {})) as { data: any };
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
       <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl relative overflow-hidden">
@@ -1439,7 +1439,7 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
 }
 
 function GuardianWatchPanel() {
-  const { data: logs } = useSuspenseQuery(convexQuery(api.guardian_watch.getGuardianLogs, {}));
+  const { data: logs } = useSuspenseQuery(convexQuery(api.guardian_watch.getGuardianLogs, {})) as { data: any[] };
   const { data: dashboard } = useSuspenseQuery(convexQuery(api.guardian_watch.getGuardianDashboard, {})) as { data: any };
   const runDiagnosis = useAction(api.guardian_watch.runFullDiagnosis);
   const [running, setRunning] = useState(false);
@@ -1859,78 +1859,82 @@ function DailySweepStatusPanel() {
       setResolving(false);
    };
 
-   // Generate passkey for sweep
-   const handleGeneratePasskey = async () => {
+    // Generate passkey for sweep
+    const handleGeneratePasskey = async () => {
       try {
          const result = await generatePasskey({});
          if (result?.success) {
             setPasskeyId(result.passkeyId);
             setGeneratedPasskey(result.passkey);
+            setPasskeyCode(result.passkey); // Auto-fill the passkey
          }
       } catch (err: any) {
          setSweepStatus({ message: err.message, type: "error" });
       }
-   };
+    };
 
-   // Initiate transfer — sends OTP to email, then shows OTP modal
-   const handleInitiateTransfer = async () => {
+    // Initiate transfer — generates passkey and shows it on screen
+    const handleInitiateTransfer = async () => {
       if (!selectedBank || !recipientAccount || !transferAmount || !recipientName) {
          setTransferStatus({ message: "Please fill all fields and resolve account", type: "error" });
          return;
       }
 
-      setTransferStatus({ message: "Sending OTP to your email...", type: "loading" });
+      setTransferStatus({ message: "Generating passkey for transfer...", type: "loading" });
       try {
-         const result = await initiateDirectTransfer({
-            amount: parseFloat(transferAmount),
-            bankCode: selectedBank,
-            bankName: banks?.find((b: any) => b.code === selectedBank)?.name || selectedBank,
-            accountNumber: recipientAccount,
-            accountName: recipientName,
-            purpose: `Transfer to ${recipientName}`,
-         });
-         if (result?.success) {
-            setOtpId(result.otpId || "");
-            setGeneratedOtp(result.otp || "");
-            setTransferStatus({ message: "OTP sent! Check your email.", type: "success" });
-            setShowOtpModal(true);
-         } else {
-            setTransferStatus({ message: result?.error || "Failed to initiate transfer", type: "error" });
+         // Generate passkey first
+         const pkResult = await generatePasskey({});
+         if (!pkResult?.success) {
+            setTransferStatus({ message: "Failed to generate passkey", type: "error" });
+            return;
          }
-      } catch (err: any) {
-         setTransferStatus({ message: err.message, type: "error" });
-      }
-   };
-
-    // Verify OTP and execute transfer via Kora Pay API
-    const handleVerifyOtpAndTransfer = async () => {
-      if (otpCode !== generatedOtp) {
-         setTransferStatus({ message: "Invalid OTP", type: "error" });
-         return;
-      }
-
-      setShowOtpModal(false);
-      setTransferStatus({ message: "Verifying OTP and executing transfer via Kora Pay API...", type: "loading" });
-      try {
-         const result = await verifyDirectTransferOTP({
-            otpId,
-            otp: otpCode,
-         });
-
-         if (result?.success) {
-            setReceipt(result.receipt);
-            setShowReceipt(true);
-            setTransferStatus({ message: "Transfer completed successfully!", type: "success" });
-            setOtpCode("");
-         } else {
-            setTransferStatus({ message: result?.error || "Transfer failed", type: "error" });
-         }
+         setPasskeyId(pkResult.passkeyId);
+         setGeneratedPasskey(pkResult.passkey);
+         setPasskeyCode(pkResult.passkey); // Auto-fill the passkey
+         setTransferStatus({ message: "Passkey generated! Enter it below to confirm transfer.", type: "success" });
+         setShowPasskeyModal(true);
       } catch (err: any) {
          setTransferStatus({ message: err.message, type: "error" });
       }
     };
 
-    // OTP removed — transfer executes directly after passkey verification
+     // Verify passkey and execute transfer via Kora Pay API
+     const handleVerifyPasskeyAndTransfer = async () => {
+       if (passkeyCode !== generatedPasskey) {
+          setTransferStatus({ message: "Invalid passkey", type: "error" });
+          return;
+       }
+
+       setShowPasskeyModal(false);
+       setTransferStatus({ message: "Executing transfer via Kora Pay API...", type: "loading" });
+       try {
+          const result = await executeDirectTransfer({
+             amount: parseFloat(transferAmount),
+             bankCode: selectedBank,
+             bankName: banks?.find((b: any) => b.code === selectedBank)?.name || selectedBank,
+             accountNumber: recipientAccount,
+             accountName: recipientName,
+             purpose: `Transfer to ${recipientName}`,
+             passkeyId,
+             passkey: passkeyCode,
+          });
+
+          if (result?.success) {
+             setReceipt(result.receipt);
+             setShowReceipt(true);
+             setTransferStatus({ message: "Transfer completed successfully!", type: "success" });
+             setPasskeyCode("");
+             setTransferAmount("");
+             setRecipientAccount("");
+             setRecipientName("");
+             setSelectedBank("");
+          } else {
+             setTransferStatus({ message: result?.error || "Transfer failed", type: "error" });
+          }
+       } catch (err: any) {
+          setTransferStatus({ message: err.message, type: "error" });
+       }
+     };
 
    const handleAutoSweepToggle = async () => {
       const newState = !settings?.autoSweep;
@@ -2156,8 +2160,8 @@ function DailySweepStatusPanel() {
                </div>
             )}
 
-            {/* Transfer Form */}
-             {!showPasskeyModal && !showOtpModal && !showReceipt && (
+             {/* Transfer Form */}
+              {!showPasskeyModal && !showReceipt && (
                <div className="space-y-6">
                   {/* Bank and Account Row */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -2230,25 +2234,27 @@ function DailySweepStatusPanel() {
             )}
 
             {/* Passkey Modal */}
-             {showOtpModal && (
+             {showPasskeyModal && (
                 <div className="bg-slate-950 p-8 rounded-2xl border border-white/5 space-y-6">
                    <div className="text-center">
-                      <div className="text-4xl mb-4">📧</div>
-                      <h4 className="text-lg font-black text-white">Email OTP Verification</h4>
+                      <div className="text-4xl mb-4">🔐</div>
+                      <h4 className="text-lg font-black text-white">Passkey Verification</h4>
                       <p className="text-sm text-slate-500 mt-2">
-                         Enter the 6-digit OTP sent to your email to confirm this transfer.
+                         Enter the 6-digit passkey below to confirm this transfer.
                       </p>
-                      {generatedOtp && (
-                         <p className="text-xs font-mono text-amber-500 mt-2 bg-amber-500/10 p-2 rounded">
-                            OTP: {generatedOtp}
-                         </p>
+                      {generatedPasskey && (
+                         <div className="mt-4 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+                            <p className="text-xs text-slate-400 mb-1">Your Passkey:</p>
+                            <p className="text-3xl font-mono font-black text-emerald-400 tracking-[0.3em]">{generatedPasskey}</p>
+                            <p className="text-[10px] text-slate-500 mt-2">Expires in 10 minutes</p>
+                         </div>
                       )}
                    </div>
                    <div className="flex justify-center">
                       <input
                          type="text"
-                         value={otpCode}
-                         onChange={(e) => setOtpCode(e.target.value)}
+                         value={passkeyCode}
+                         onChange={(e) => setPasskeyCode(e.target.value)}
                          maxLength={6}
                          placeholder="000000"
                          className="w-48 bg-slate-900 border border-white/10 rounded-xl p-4 text-white text-2xl text-center font-mono tracking-[0.5em]"
@@ -2256,14 +2262,14 @@ function DailySweepStatusPanel() {
                    </div>
                    <div className="flex gap-4">
                       <button 
-                         onClick={() => { setShowOtpModal(false); setOtpCode(""); }}
+                         onClick={() => { setShowPasskeyModal(false); setPasskeyCode(""); }}
                          className="flex-1 py-3 bg-slate-800 text-white rounded-xl text-xs font-bold"
                       >
                          Cancel
                       </button>
                       <button 
-                         onClick={handleVerifyOtpAndTransfer}
-                         disabled={otpCode.length !== 6}
+                         onClick={handleVerifyPasskeyAndTransfer}
+                         disabled={passkeyCode.length !== 6}
                          className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold disabled:opacity-50"
                       >
                          Verify & Execute Transfer
@@ -2534,7 +2540,7 @@ function AgentHealthMatrix({ data }: any) {
 }
 
 function AuditTrailPanel() {
-  const { data: logs } = useSuspenseQuery(convexQuery(api.admin.getAuditLogs, {}));
+  const { data: logs } = useSuspenseQuery(convexQuery(api.admin.getAuditLogs, {})) as { data: any[] };
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl animate-in fade-in duration-700">
       <div className="p-10 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">

@@ -300,6 +300,14 @@ crons.interval(
   {}
 );
 
+// 🎯 Ad Orchestrator - Auto-generate and post adverts every 4 hours
+crons.interval(
+  "ad orchestrator auto-generate",
+  { hours: 4 },
+  internal.adOrchestrator.runAutoGenerateAndPost,
+  {}
+);
+
 // Auto-backup synthetic agent configs every 12 hours
 crons.interval(
   "auto backup synthetic agents",

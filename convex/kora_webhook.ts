@@ -1,5 +1,6 @@
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // KORA PAY WEBHOOK HANDLER
@@ -92,9 +93,32 @@ export const koraWebhook = httpAction(async (ctx, request) => {
   // Process based on event type
   try {
     if (eventType === "transfer.completed" || eventType === "charge.successful") {
-      await ctx.runMutation(internal.kora_pay.handleTransferCompleted, {
-        reference: String(reference),
-      });
+      // Check if this is an agent subscription payment
+      if (reference.startsWith("AGENT-")) {
+        // Extract agent payment details from metadata
+        const metadata = payload.data?.metadata || {};
+        const customerEmail = payload.data?.customer?.email || metadata.customerEmail;
+        const customerName = payload.data?.customer?.name || metadata.customerName;
+        
+        if (customerEmail) {
+          await ctx.runMutation(internal.agent_payments.completePayment, {
+            reference: String(reference),
+            amount: typeof amount === "number" ? amount : 0,
+            agentId: metadata.agentId || "unknown",
+            agentName: metadata.agentName || "Unknown Agent",
+            planId: metadata.planId || "basic",
+            planName: metadata.planName || "Basic",
+            customerEmail,
+            customerName: customerName || "Client",
+          });
+          console.log(`[KORA WEBHOOK] Agent payment completed: ${reference}`);
+        }
+      } else {
+        // Handle regular subscription payments
+        await ctx.runMutation(internal.kora_pay.handleTransferCompleted, {
+          reference: String(reference),
+        });
+      }
     } else if (eventType === "transfer.failed" || eventType === "charge.failed") {
       await ctx.runMutation(internal.kora_pay.handleTransferFailed, {
         reference: String(reference),

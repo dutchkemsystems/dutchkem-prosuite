@@ -132,3 +132,32 @@ function generateSecret(): string {
   }
   return secret;
 }
+
+function generateReferralCode(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let code = "";
+  for (let i = 0; i < 8; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
+export const ensureReferralCode = mutation({
+  args: {},
+  returns: v.object({ referralCode: v.string(), generated: v.boolean() }),
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return { referralCode: "", generated: false };
+
+    const user = await ctx.db.get("users", userId);
+    if (!user) return { referralCode: "", generated: false };
+
+    if ((user as any).referralCode) {
+      return { referralCode: (user as any).referralCode, generated: false };
+    }
+
+    const referralCode = generateReferralCode();
+    await ctx.db.patch("users", userId, { referralCode });
+    return { referralCode, generated: true };
+  },
+});

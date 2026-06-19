@@ -38,6 +38,7 @@ import { Route as EnterpriseLoginRouteImport } from './routes/enterprise/login'
 import { Route as EnterpriseDashboardRouteImport } from './routes/enterprise/dashboard'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
+import { Route as PaymentCallbackRouteImport } from './routes/payment/callback'
 
 const WellnessCoachRoute = WellnessCoachRouteImport.update({
   id: '/wellness-coach',
@@ -172,6 +173,11 @@ const EnterpriseLoginRoute = EnterpriseLoginRouteImport.update({
 const EnterpriseDashboardRoute = EnterpriseDashboardRouteImport.update({
   id: '/enterprise/dashboard',
   path: '/enterprise/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaymentCallbackRoute = PaymentCallbackRouteImport.update({
+  id: '/payment/callback',
+  path: '/payment/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
@@ -641,6 +647,7 @@ const rootRouteChildren: RootRouteChildren = {
   TravelPlannerRoute: TravelPlannerRoute,
   VideoProductionRoute: VideoProductionRoute,
   WellnessCoachRoute: WellnessCoachRoute,
+  PaymentCallbackRoute: PaymentCallbackRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminLoginRoute: AdminLoginRoute,
   EnterpriseDashboardRoute: EnterpriseDashboardRoute,

@@ -36,11 +36,12 @@ export const getCreditPackages = query({
   ),
   handler: async () => {
     return [
-      { id: "p1", credits: 100, price: 1000, label: "Best for light usage" },
-      { id: "p2", credits: 500, price: 4500, label: "Save 10%" },
-      { id: "p3", credits: 1000, price: 8000, label: "Most Popular! Save 20%" },
-      { id: "p4", credits: 5000, price: 35000, label: "Save 30%" },
-      { id: "p5", credits: 10000, price: 60000, label: "Save 40%" },
+      { id: "starter", credits: 1000, price: 1000, label: "Starter • Quick task" },
+      { id: "basic", credits: 5000, price: 5000, label: "Basic • Single task completion" },
+      { id: "standard", credits: 8000, price: 8000, label: "Standard • 2-3 tasks" },
+      { id: "pro", credits: 15000, price: 15000, label: "Pro • 5 tasks with priority" },
+      { id: "premium", credits: 35000, price: 35000, label: "Premium • 15 tasks + revisions" },
+      { id: "enterprise", credits: 100000, price: 100000, label: "Enterprise • Unlimited access" },
     ];
   },
 });

@@ -15,7 +15,7 @@ import { FlashSaleBanner } from '~/components/FlashSaleBanner';
 import { UrgencyTriggers } from '~/components/UrgencyTriggers';
 import { ActivityStats, SocialProofFeed } from '~/components/SocialProofFeed';
 import { ClientActivityFeed } from '~/components/ClientActivityFeed';
-import { ClientQuickActions } from '~/components/ClientQuickActions';
+
 import { ClientNotificationPrefs } from '~/components/ClientNotificationPrefs';
 import { ClientPerformanceSummary } from '~/components/ClientPerformanceSummary';
 import { getExistingSubscription, isPushSupported, subscribeToPush, subscriptionToJSON, unsubscribeFromPush } from '~/lib/push';
@@ -150,6 +150,21 @@ function DashboardContent() {
   const toggle2FAAction = useMutation(api.client_actions.toggle2FA);
   const changePasswordAction = useMutation(api.client_actions.changeClientPassword);
   const requestReferralPayoutAction = useMutation(api.client_actions.requestReferralPayout);
+  const ensureReferralCode = useMutation(api.client_actions.ensureReferralCode);
+
+  // Auto-generate referral code if missing
+  useEffect(() => {
+    if (data?.user?._id && !data.user.referralCode) {
+      ensureReferralCode({}).then((result) => {
+        if (result?.generated) {
+          setData((prev: any) => ({
+            ...prev,
+            user: { ...prev.user, referralCode: result.referralCode },
+          }));
+        }
+      }).catch(() => {});
+    }
+  }, [data?.user?._id, data?.user?.referralCode, ensureReferralCode]);
 
   if (data === undefined && !loadError) {
     return <DashboardSpinner />;
@@ -240,18 +255,9 @@ function DashboardContent() {
           
           {activeTab === "overview" && <Overview data={data} setActiveTab={setActiveTab} setModal={setModal} setShowAgentBrowser={setShowAgentBrowser} setShowCredits={setShowCredits} setShowHistory={setShowHistory} setShowSupport={setShowSupport} />}
           {activeTab === "activity" && (
-            <Suspense fallback={<DashboardSpinner />}>
-              <div className="space-y-8 animate-in fade-in duration-500">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <ClientActivityFeed />
-                  <ClientPerformanceSummary />
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <ClientQuickActions />
-                  <ClientNotificationPrefs />
-                </div>
-              </div>
-            </Suspense>
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <AgentBrowser isOpen={true} onClose={() => setActiveTab("overview")} mode="page" agentEnhancement={data.agentEnhancement} />
+            </div>
           )}
           {activeTab === "subscriptions" && <Subscriptions data={data} />}
           {activeTab === "kdp" && (

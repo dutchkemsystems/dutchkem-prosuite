@@ -90,7 +90,7 @@ function OverviewTab({ adminToken }: { adminToken: string }) {
   const apiUsers = (apiKeys ?? []).length
   const socialRevenue = socialStats?.totalRevenue ?? 0
 
-  const totalMRR = marketplaceSales + consultingRevenue + socialRevenue + whiteLabelStats?.totalMonthlyRevenue ?? 0
+  const totalMRR = (marketplaceSales + consultingRevenue + socialRevenue + (whiteLabelStats?.totalMonthlyRevenue ?? 0))
 
   const statCards = [
     { icon: '💰', value: formatNgN(creditSales), label: 'Credit Sales', color: 'from-orange-500/20 to-orange-600/10' },
@@ -132,7 +132,7 @@ function CreditsTab({ adminToken }: { adminToken: string }) {
     { id: 'enterprise', name: 'Enterprise', price: '₦120,000', credits: '20,000 credits', bonus: '+5,000 bonus', icon: '🏢' },
   ]
 
-  const costEntries = costs ? Object.entries(costs) : []
+  const costEntries = costs ? Object.entries(costs as Record<string, number>) : []
 
   const actionLabels: Record<string, string> = {
     agent_message: 'Agent Message',
@@ -174,7 +174,7 @@ function CreditsTab({ adminToken }: { adminToken: string }) {
             <div>Action</div>
             <div>Credits</div>
           </div>
-          {costEntries.map(([action, credits]) => (
+          {costEntries.map(([action, credits]: [string, number]) => (
             <div key={action} className="grid grid-cols-[1fr_auto] px-5 py-3 border-b border-white/5 hover:bg-white/5 transition-colors">
               <div className="text-white text-sm">{actionLabels[action] ?? action}</div>
               <div className="text-[#FF6B35] font-bold text-sm">{credits}</div>

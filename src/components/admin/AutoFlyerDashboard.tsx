@@ -114,7 +114,7 @@ export default function AutoFlyerDashboard() {
         <StatCard label="Total Generated" value={stats?.totalFlyers || 0} icon="🎨" />
         <StatCard label="Total Posted" value={engine?.totalPosted || 0} icon="✅" />
         <StatCard label="Total Failed" value={engine?.totalFailed || 0} icon="❌" />
-        <StatCard label="Queue Pending" value={queueItems?.filter((q) => q.status === "pending").length || 0} icon="📋" />
+        <StatCard label="Queue Pending" value={queueItems?.filter((q: { status: string }) => q.status === "pending").length || 0} icon="📋" />
         <StatCard
           label="Current Mode"
           value={engine ? MODE_LABELS[["full_ai", "ai_bg_svg_text", "svg_only"][engine.currentModeIndex % 3]] : "N/A"}
@@ -212,7 +212,7 @@ export default function AutoFlyerDashboard() {
         <h3 className="text-lg font-bold text-white mb-3">Recent Flyers</h3>
         {flyers && flyers.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {flyers.map((flyer) => (
+            {flyers.map((flyer: { _id: string; imageUrl: string; headline: string; generationMode: string; createdAt: number }) => (
               <div
                 key={flyer._id}
                 className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden"
@@ -270,7 +270,7 @@ export default function AutoFlyerDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {logs.map((log) => (
+                {logs.map((log: { _id: string; createdAt: number; platform: string; status: string; durationMs: number; error?: string }) => (
                   <tr key={log._id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
                     <td className="p-3 text-gray-300">{new Date(log.createdAt).toLocaleString()}</td>
                     <td className="p-3">

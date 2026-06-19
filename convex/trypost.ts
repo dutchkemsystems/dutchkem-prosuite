@@ -505,6 +505,31 @@ export const _verifyAdmin = internalQuery({
   },
 });
 
+// Internal mutation for orchestrator to schedule posts
+export const schedulePostInternal = internalMutation({
+  args: {
+    content: v.string(),
+    platforms: v.array(v.string()),
+    scheduledFor: v.number(),
+    hashtags: v.optional(v.array(v.string())),
+  },
+  returns: v.string(),
+  handler: async (ctx, args) => {
+    const id = await ctx.db.insert("trypost_scheduled_posts", {
+      content: args.content,
+      platforms: args.platforms,
+      scheduledFor: args.scheduledFor,
+      timezone: "Africa/Lagos",
+      status: "scheduled",
+      hashtags: args.hashtags,
+      aiGenerated: true,
+      createdBy: "orchestrator" as any,
+      createdAt: Date.now(),
+    });
+    return String(id);
+  },
+});
+
 export const _insertCarousel = internalMutation({
   args: {
     topic: v.string(),

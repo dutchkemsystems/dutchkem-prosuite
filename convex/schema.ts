@@ -697,6 +697,51 @@ export default defineSchema({
     .index("by_date", ["date"]),
 
   // ═══════════════════════════════════════════════════════════════════
+  // AD ORCHESTRATOR — Unified automation system tables
+  // ═══════════════════════════════════════════════════════════════════
+
+  ad_orchestrator_status: defineTable({
+    enabled: v.boolean(),
+    autoGenerate: v.boolean(),
+    autoPost: v.boolean(),
+    lastRun: v.union(v.null(), v.number()),
+    nextRun: v.union(v.null(), v.number()),
+    totalGenerated: v.number(),
+    totalPosted: v.number(),
+    platforms: v.array(v.object({
+      id: v.string(),
+      enabled: v.boolean(),
+    })),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }),
+
+  ad_generated_content: defineTable({
+    headline: v.string(),
+    description: v.string(),
+    cta: v.string(),
+    hashtags: v.array(v.string()),
+    targetAudience: v.string(),
+    socialPosts: v.array(v.object({
+      templateId: v.string(),
+      style: v.string(),
+      fullContent: v.string(),
+      platformPosts: v.any(),
+    })),
+    usedCount: v.number(),
+    lastUsedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_created", ["createdAt"]),
+
+  ad_posting_logs: defineTable({
+    contentId: v.id("ad_generated_content"),
+    platforms: v.array(v.string()),
+    results: v.array(v.any()),
+    timestamp: v.number(),
+  }).index("by_timestamp", ["timestamp"])
+    .index("by_content", ["contentId"]),
+
+  // ═══════════════════════════════════════════════════════════════════
   // KYC VERIFICATION — Mandatory before any client payout
   // ═══════════════════════════════════════════════════════════════════
 
@@ -4058,4 +4103,69 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_org", ["orgId"])
     .index("by_feature", ["feature"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // AGENT SUBSCRIPTIONS & PAYMENTS
+  // ═══════════════════════════════════════════════════════════════
+
+  agent_subscriptions: defineTable({
+    userId: v.id("users"),
+    agentId: v.string(),
+    agentName: v.string(),
+    planId: v.string(),
+    planName: v.string(),
+    amount: v.number(),
+    status: v.union(v.literal("active"), v.literal("expired"), v.literal("canceled")),
+    endsAt: v.number(),
+    autoRenew: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_agent", ["agentId"])
+    .index("by_status", ["status"]),
+
+  agent_payment_pending: defineTable({
+    reference: v.string(),
+    agentId: v.string(),
+    agentName: v.string(),
+    planId: v.string(),
+    planName: v.string(),
+    amount: v.number(),
+    email: v.string(),
+    name: v.string(),
+    checkoutUrl: v.string(),
+    status: v.union(v.literal("pending"), v.literal("completed"), v.literal("failed")),
+    subscriptionId: v.optional(v.string()),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  }).index("by_reference", ["reference"])
+    .index("by_status", ["status"]),
+
+  agent_receipts: defineTable({
+    userId: v.id("users"),
+    reference: v.string(),
+    receiptNumber: v.string(),
+    agentId: v.string(),
+    agentName: v.string(),
+    planId: v.string(),
+    planName: v.string(),
+    amount: v.number(),
+    customerName: v.string(),
+    customerEmail: v.string(),
+    status: v.union(v.literal("paid"), v.literal("pending"), v.literal("failed")),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_reference", ["reference"])
+    .index("by_receipt_number", ["receiptNumber"]),
+
+  system_wallet_transactions: defineTable({
+    walletType: v.string(),
+    type: v.union(v.literal("credit"), v.literal("debit"), v.literal("sweep")),
+    amount: v.number(),
+    description: v.string(),
+    reference: v.string(),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+  }).index("by_wallet", ["walletType"])
+    .index("by_type", ["type"])
+    .index("by_created", ["createdAt"]),
 });
