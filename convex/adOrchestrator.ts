@@ -735,10 +735,11 @@ export const bulkGenerateContent = mutation({
 
       const socialPosts = SOCIAL_POST_TEMPLATES.map(t => {
         let content = t.template
-          .replace("{headline}", template.headline)
-          .replace("{description}", template.description)
-          .replace("{cta}", template.cta)
-          .replace("{hashtags}", template.hashtags.join(" "));
+          .replace(/{headline}/g, template.headline)
+          .replace(/{description}/g, template.description)
+          .replace(/{cta}/g, template.cta)
+          .replace(/{hashtags}/g, template.hashtags.join(" "))
+          .replace(/{SITE_URL}/g, SITE_URL);
 
         const platformPosts: Record<string, string> = {};
         for (const platform of PLATFORM_CONFIGS) {

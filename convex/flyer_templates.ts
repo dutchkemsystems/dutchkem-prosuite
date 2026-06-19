@@ -90,6 +90,56 @@ const DESIGN_PRESETS = [
     fontFamily: "Impact, sans-serif",
     layout: "bold" as const,
   },
+  {
+    name: "Ocean Blue",
+    primaryColor: "#0288d1",
+    secondaryColor: "#01579b",
+    accentColor: "#b3e5fc",
+    bgColor: "#001a2d",
+    textColor: "#ffffff",
+    fontFamily: "Helvetica, sans-serif",
+    layout: "modern" as const,
+  },
+  {
+    name: "Crimson Fire",
+    primaryColor: "#d32f2f",
+    secondaryColor: "#b71c1c",
+    accentColor: "#ffcdd2",
+    bgColor: "#1a0000",
+    textColor: "#ffffff",
+    fontFamily: "Trebuchet MS, sans-serif",
+    layout: "bold" as const,
+  },
+  {
+    name: "Mint Fresh",
+    primaryColor: "#26a69a",
+    secondaryColor: "#00897b",
+    accentColor: "#b2dfdb",
+    bgColor: "#0a1f1e",
+    textColor: "#ffffff",
+    fontFamily: "Verdana, sans-serif",
+    layout: "minimal" as const,
+  },
+  {
+    name: "Royal Gold",
+    primaryColor: "#ffd700",
+    secondaryColor: "#b8860b",
+    accentColor: "#fff8e1",
+    bgColor: "#1a1000",
+    textColor: "#ffffff",
+    fontFamily: "Georgia, serif",
+    layout: "corporate" as const,
+  },
+  {
+    name: "Electric Pink",
+    primaryColor: "#e91e63",
+    secondaryColor: "#c2185b",
+    accentColor: "#fce4ec",
+    bgColor: "#1a0010",
+    textColor: "#ffffff",
+    fontFamily: "Arial, sans-serif",
+    layout: "creative" as const,
+  },
 ];
 
 function generateQRSvg(text: string, size: number = 60): string {
@@ -138,7 +188,7 @@ function generateFlyerSvg(
   const size = PLATFORM_SIZES[platform] || { w: FLYER_WIDTH, h: FLYER_HEIGHT };
   const w = size.w;
   const h = size.h;
-  const qrSvg = generateQRSvg(`https://dutchkem.com/ref/${encodeURIComponent(headline.slice(0, 20))}`);
+  const qrSvg = generateQRSvg(`https://dutchkem-prosuite-app.vercel.app`);
 
   const bgImageTag = bgImageUrl
     ? `<image href="${bgImageUrl}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice" opacity="0.3"/>`
@@ -199,7 +249,7 @@ function generateFlyerSvg(
     ${qrSvg}
   </g>
   <text x="${w / 2}" y="${h * 0.95}" text-anchor="middle" font-family="${style.fontFamily}" font-size="${Math.round(w * 0.025)}" fill="${style.textColor}" opacity="0.6">
-    dutchkem.com
+    dutchkem-prosuite-app.vercel.app
   </text>
 </svg>`;
 
