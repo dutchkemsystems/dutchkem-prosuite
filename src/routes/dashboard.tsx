@@ -19,6 +19,10 @@ import { ClientQuickActions } from '~/components/ClientQuickActions';
 import { ClientNotificationPrefs } from '~/components/ClientNotificationPrefs';
 import { ClientPerformanceSummary } from '~/components/ClientPerformanceSummary';
 import { getExistingSubscription, isPushSupported, subscribeToPush, subscriptionToJSON, unsubscribeFromPush } from '~/lib/push';
+import { AgentBrowser } from '~/components/dashboard/AgentBrowser';
+import { CreditPackages } from '~/components/dashboard/CreditPackages';
+import { HistoryPanel } from '~/components/dashboard/HistoryPanel';
+import { SupportChat } from '~/components/dashboard/SupportChat';
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -103,6 +107,10 @@ function DashboardContent() {
   const [data, setData] = useState<any>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showAccessGranted, setShowAccessGranted] = useState(false);
+  const [showAgentBrowser, setShowAgentBrowser] = useState(false);
+  const [showCredits, setShowCredits] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
   const fetchedRef = useRef(false);
 
   const fetchDashboard = useCallback(async () => {
@@ -213,6 +221,9 @@ function DashboardContent() {
             <TabButton active={activeTab === "referrals"} onClick={() => { setActiveTab("referrals"); setSidebarOpen(false); }} icon="🤝" label="Referrals" />
             <TabButton active={activeTab === "security"} onClick={() => { setActiveTab("security"); setSidebarOpen(false); }} icon="🛡️" label="Security" />
             <TabButton active={activeTab === "settings"} onClick={() => { setActiveTab("settings"); setSidebarOpen(false); }} icon="⚙️" label="Settings" />
+            <TabButton active={activeTab === "browse-agents"} onClick={() => { setActiveTab("browse-agents"); setSidebarOpen(false); }} icon="🤖" label="Browse Agents" />
+            <TabButton active={activeTab === "history"} onClick={() => { setActiveTab("history"); setSidebarOpen(false); }} icon="📜" label="Full History" />
+            <TabButton active={activeTab === "support"} onClick={() => { setActiveTab("support"); setSidebarOpen(false); }} icon="💬" label="Support" />
           </nav>
         </div>
         <div className="mt-auto p-4 md:p-6 border-t border-slate-800">
@@ -227,7 +238,7 @@ function DashboardContent() {
         <div className="p-4 md:p-8 space-y-8 flex-grow">
           <Header user={data.user} notifications={data.notifications} />
           
-          {activeTab === "overview" && <Overview data={data} setActiveTab={setActiveTab} setModal={setModal} />}
+          {activeTab === "overview" && <Overview data={data} setActiveTab={setActiveTab} setModal={setModal} setShowAgentBrowser={setShowAgentBrowser} setShowCredits={setShowCredits} setShowHistory={setShowHistory} setShowSupport={setShowSupport} />}
           {activeTab === "activity" && (
             <Suspense fallback={<DashboardSpinner />}>
               <div className="space-y-8 animate-in fade-in duration-500">
@@ -253,10 +264,25 @@ function DashboardContent() {
               </div>
             </Suspense>
           )}
-          {activeTab === "projects" && <Projects data={data} setActiveTab={setActiveTab} setModal={setModal} />}
+          {activeTab === "projects" && <Projects data={data} setActiveTab={setActiveTab} setModal={setModal} setShowAgentBrowser={setShowAgentBrowser} setShowCredits={setShowCredits} setShowHistory={setShowHistory} setShowSupport={setShowSupport} />}
           {activeTab === "referrals" && <Referrals data={data} payoutMessage={payoutMessage} setPayoutMessage={setPayoutMessage} requestReferralPayoutAction={requestReferralPayoutAction} />}
           {activeTab === "security" && <Security data={data} tfaMessage={tfaMessage} setTfaMessage={setTfaMessage} toggle2FAAction={toggle2FAAction} newPassword={newPassword} setNewPassword={setNewPassword} passwordMessage={passwordMessage} setPasswordMessage={setPasswordMessage} changePasswordAction={changePasswordAction} />}
           {activeTab === "settings" && <Settings data={data} />}
+          {activeTab === "browse-agents" && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <AgentBrowser isOpen={true} onClose={() => setActiveTab("overview")} mode="page" />
+            </div>
+          )}
+          {activeTab === "history" && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <HistoryPanel isOpen={true} onClose={() => setActiveTab("overview")} />
+            </div>
+          )}
+          {activeTab === "support" && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <SupportChat isOpen={true} onClose={() => setActiveTab("overview")} />
+            </div>
+          )}
         </div>
         <Footer />
 
@@ -307,6 +333,13 @@ function DashboardContent() {
                         </button>
                       );
                     })}
+                    <button
+                      onClick={() => { setModal(null); setShowAgentBrowser(true); }}
+                      className="col-span-2 p-4 bg-slate-800 rounded-2xl border border-dashed border-slate-600 hover:border-indigo-500 transition-all text-center"
+                    >
+                      <div className="text-2xl mb-2">🔍</div>
+                      <div className="font-bold text-sm text-slate-400">Browse All 15 Agents</div>
+                    </button>
                   </div>
                 </div>
               )}
@@ -342,6 +375,11 @@ function DashboardContent() {
             </div>
           </div>
         )}
+
+        <AgentBrowser isOpen={showAgentBrowser} onClose={() => setShowAgentBrowser(false)} mode="modal" />
+        <CreditPackages isOpen={showCredits} onClose={() => setShowCredits(false)} />
+        <HistoryPanel isOpen={showHistory} onClose={() => setShowHistory(false)} />
+        <SupportChat isOpen={showSupport} onClose={() => setShowSupport(false)} />
       </main>
     </div>
   );
@@ -493,7 +531,7 @@ function Header({ user, notifications }: { user: any, notifications: Array<any> 
   );
 }
 
-function Overview({ data, setActiveTab, setModal }: { data: any, setActiveTab: (tab: string) => void, setModal: (m: string | null) => void }) {
+function Overview({ data, setActiveTab, setModal, setShowAgentBrowser, setShowCredits, setShowHistory, setShowSupport }: { data: any, setActiveTab: (tab: string) => void, setModal: (m: string | null) => void, setShowAgentBrowser: (v: boolean) => void, setShowCredits: (v: boolean) => void, setShowHistory: (v: boolean) => void, setShowSupport: (v: boolean) => void }) {
   const navigate = useNavigate();
   const chartData = [
     { name: 'Week 1', value: 4000 },
@@ -641,11 +679,11 @@ function Overview({ data, setActiveTab, setModal }: { data: any, setActiveTab: (
             <h3 className="text-xl font-bold mb-6">Quick Actions</h3>
             <div className="grid grid-cols-1 gap-3">
               <ActionButton icon="➕" text="New Project" highlight onClick={() => setModal("new-project")} />
-              <ActionButton icon="🎓" text="Browse All Agents" onClick={() => navigate({ to: "/" })} />
-              <ActionButton icon="💰" text="Buy Credits" onClick={() => setModal("buy-credits")} />
-              <ActionButton icon="📜" text="View Full History" onClick={() => setActiveTab("projects")} />
+              <ActionButton icon="🎓" text="Browse All Agents" onClick={() => setShowAgentBrowser(true)} />
+              <ActionButton icon="💰" text="Buy Credits" onClick={() => setShowCredits(true)} />
+              <ActionButton icon="📜" text="View Full History" onClick={() => setShowHistory(true)} />
               <ActionButton icon="🎁" text="Refer a Friend" onClick={() => setActiveTab("referrals")} />
-              <ActionButton icon="🔧" text="Support" />
+              <ActionButton icon="🔧" text="Support" onClick={() => setShowSupport(true)} />
               <ActionButton icon="⚙️" text="Settings" onClick={() => setActiveTab("settings")} />
             </div>
           </div>
@@ -827,7 +865,7 @@ function Subscriptions({ data }: { data: any }) {
   ); 
 }
 
-function Projects({ data, setActiveTab, setModal }: { data: any, setActiveTab: (tab: string) => void, setModal: (m: string | null) => void }) { return <Overview data={data} setActiveTab={setActiveTab} setModal={setModal} />; }
+function Projects({ data, setActiveTab, setModal, setShowAgentBrowser, setShowCredits, setShowHistory, setShowSupport }: { data: any, setActiveTab: (tab: string) => void, setModal: (m: string | null) => void, setShowAgentBrowser: (v: boolean) => void, setShowCredits: (v: boolean) => void, setShowHistory: (v: boolean) => void, setShowSupport: (v: boolean) => void }) { return <Overview data={data} setActiveTab={setActiveTab} setModal={setModal} setShowAgentBrowser={setShowAgentBrowser} setShowCredits={setShowCredits} setShowHistory={setShowHistory} setShowSupport={setShowSupport} />; }
 
 function Referrals({ data, payoutMessage, setPayoutMessage, requestReferralPayoutAction }: { data: any; payoutMessage: string; setPayoutMessage: (v: string) => void; requestReferralPayoutAction: any }) {
   return (
