@@ -409,6 +409,273 @@ Here are my top event planning tips:
 
 What kind of event are you planning? I can help you create a detailed checklist! 🎉`;
   },
+
+  A5: (prompt) => {
+    const lowerPrompt = prompt.toLowerCase();
+    if (lowerPrompt.includes('price') || lowerPrompt.includes('cheap') || lowerPrompt.includes('deal') || lowerPrompt.includes('budget')) {
+      return `Great question about finding the best deals! 🛍️
+
+Here's my secret to saving money on every purchase:
+
+**The Price Comparison Framework:**
+1. **Check 3+ vendors** — Never buy from the first option
+2. **Read reviews carefully** — Look for patterns, not outliers
+3. **Compare total cost** — Include shipping, taxes, and hidden fees
+4. **Check for coupons** — Always search before checkout
+5. **Buy during sales** — Black Friday, end-of-season, clearance
+
+**Free Tip:** I track prices across 100+ Nigerian vendors. I can alert you when prices drop on items you're watching!
+
+What are you looking to buy? I'll find you the best deal! 🛍️`;
+    }
+    if (lowerPrompt.includes('phone') || lowerPrompt.includes('laptop') || lowerPrompt.includes('electronics') || lowerPrompt.includes('gadget')) {
+      return `Smart choice asking about electronics! 📱
+
+Here's what I look for when recommending tech:
+
+**For Phones:**
+- Battery life (5000mAh+ for heavy users)
+- Camera quality (MP count + software processing)
+- Storage (128GB minimum for 2024)
+- Processor (Snapdragon 8+ for flagship, MediaTek for budget)
+
+**For Laptops:**
+- RAM (16GB minimum for professionals)
+- SSD storage (512GB minimum)
+- Battery life (8+ hours)
+- Build quality (aluminum > plastic)
+
+**Free Tip:** Buy during Jumia/Konga sales events — you can save 20-40% on electronics!
+
+What's your budget and what do you need it for? 📱`;
+    }
+    return `That's a great question! 🛍️
+
+As your Personal Shopper, I compare prices across 100+ Nigerian vendors to save you time and money. Here's what I can help with:
+
+✅ Price comparison across Jumia, Konga, Jiji, etc.
+✅ Product recommendations based on your needs
+✅ Coupon and discount hunting
+✅ Warranty and return policy checks
+✅ Delivery cost optimization
+
+**Free Tip:** Always check Jumia Flash Sales and Konga Yello Monday for the best deals!
+
+What are you shopping for today? I'll find you the best deal! 🛍️`;
+  },
+
+  A6: (prompt) => {
+    const lowerPrompt = prompt.toLowerCase();
+    if (lowerPrompt.includes('jamb') || lowerPrompt.includes('waec') || lowerPrompt.includes('exam') || lowerPrompt.includes('study')) {
+      return `Great question about exam prep! 📝
+
+Here's my proven study framework that's helped students improve scores by 40%:
+
+**The SMART Study Method:**
+1. **S**pecific — Focus on one topic per session
+2. **M**easurable — Track your progress with practice tests
+3. **A**chievable — Set realistic daily goals
+4. **R**elevant — Study what's actually tested
+5. **T**ime-bound — Use the Pomodoro technique (25min study + 5min break)
+
+**Free Tip:** Past questions are your best friend! 70% of exams repeat concepts from previous years.
+
+What exam are you preparing for? I'll create a customized study plan! 📝`;
+    }
+    if (lowerPrompt.includes('study') || lowerPrompt.includes('plan') || lowerPrompt.includes('schedule')) {
+      return `Let me help you create a winning study plan! 📅
+
+**The 4-Week Intensive Plan:**
+- **Week 1:** Foundation — Cover all major topics
+- **Week 2:** Practice — Past questions and mock tests
+- **Week 3:** Review — Focus on weak areas
+- **Week 4:** Polish — Final revision and confidence building
+
+**Daily Schedule:**
+- 6:00-8:00 AM: Fresh study (hardest topics)
+- 10:00-12:00 PM: Practice questions
+- 2:00-4:00 PM: Review and notes
+- 8:00-9:00 PM: Quick recap
+
+**Free Tip:** Study in 25-minute blocks with 5-minute breaks. Your brain retains more this way!
+
+Want me to create a personalized study schedule for your exam? 📝`;
+    }
+    return `That's a great question! 📝
+
+As your Exam Specialist, I've helped 3,000+ students improve their scores. Here's what I can help with:
+
+✅ Personalized study plans
+✅ Past question analysis
+✅ Mock test creation
+✅ Time management strategies
+✅ Exam anxiety techniques
+✅ Subject-specific tips
+
+**Free Tip:** The secret to exam success is practice, not just reading. Do at least 2 practice tests per week!
+
+What exam are you preparing for? Let's create a winning strategy! 📝`;
+  },
+
+  A8: (prompt) => {
+    const lowerPrompt = prompt.toLowerCase();
+    if (lowerPrompt.includes('video') || lowerPrompt.includes('youtube') || lowerPrompt.includes('content') || lowerPrompt.includes('edit')) {
+      return `Great question about video content! 🎬
+
+Here's my formula for creating viral videos:
+
+**The HOOK Framework:**
+1. **H**ook — First 3 seconds must grab attention
+2. **O**ffer — What value are you providing?
+3. **U**rgency — Why should they watch now?
+4. **K**ey message — What's the one thing they should remember?
+
+**Free Tips for Better Videos:**
+- Shoot in landscape for YouTube, portrait for TikTok/Reels
+- Good audio matters more than good video
+- Add subtitles — 80% of viewers watch without sound
+- Keep it under 3 minutes for social media
+
+What type of video content are you looking to create? 🎬`;
+    }
+    if (lowerPrompt.includes('script') || lowerPrompt.includes('write') || lowerPrompt.includes('content')) {
+      return `Let me help you create compelling video scripts! 📝
+
+**My Script Structure:**
+1. **Hook** (0-3 sec) — Attention grabber
+2. **Problem** (3-10 sec) — What pain point are you addressing?
+3. **Solution** (10-30 sec) — How do you solve it?
+4. **Proof** (30-45 sec) — Why should they believe you?
+5. **CTA** (45-60 sec) — What should they do next?
+
+**Free Tip:** Write scripts like you talk — conversational, not formal. People connect with authenticity!
+
+What's your video about? I'll help you write a script that converts! 🎬`;
+    }
+    return `That's a great question! 🎬
+
+As MediaStudio Pro, I help creators produce professional videos and media content. Here's what I can help with:
+
+✅ Video script writing
+✅ YouTube/TikTok content strategy
+✅ Video editing guidance
+✅ Thumbnail design tips
+✅ Content calendar creation
+✅ Audience growth strategies
+
+**Free Tip:** Consistency beats perfection. Post 3-4 times per week minimum!
+
+What type of media project are you working on? 🎬`;
+  },
+
+  A10: (prompt) => {
+    const lowerPrompt = prompt.toLowerCase();
+    if (lowerPrompt.includes('clean') || lowerPrompt.includes('organize') || lowerPrompt.includes('house') || lowerPrompt.includes('home')) {
+      return `Great question about home management! 🧹
+
+Here's my 30-Minute Daily Reset routine that keeps homes spotless:
+
+**Morning (10 min):**
+- Make bed
+- Wipe kitchen counters
+- Load/unload dishwasher
+
+**Afternoon (10 min):**
+- Quick vacuum high-traffic areas
+- Sort incoming mail
+- Wipe bathroom surfaces
+
+**Evening (10 min):**
+- Prep for tomorrow
+- Quick tidy living areas
+- Take out trash if needed
+
+**Free Tip:** The secret is "closing duties" — 10 minutes of tidying before bed makes mornings SO much easier!
+
+What's your biggest home challenge? I can create a personalized plan! 🧹`;
+    }
+    if (lowerPrompt.includes('repair') || lowerPrompt.includes('fix') || lowerPrompt.includes('plumb') || lowerPrompt.includes('electric')) {
+      return `Let me help you with home repairs! 🔧
+
+**Common DIY Fixes Anyone Can Do:**
+1. **Leaky faucet** — Replace washer (₦500 fix!)
+2. **Clogged drain** — Baking soda + vinegar trick
+3. **Running toilet** — Adjust flapper valve
+4. **Squeaky doors** — WD-40 or petroleum jelly
+5. **Wall holes** — Spackle + sandpaper
+
+**When to Call a Pro:**
+- Electrical work (safety first!)
+- Major plumbing issues
+- Structural changes
+- Gas line work
+
+**Free Tip:** For Nigerian homes, always check if your electrician is licensed. Unlicensed work voids your insurance!
+
+What repair do you need help with? 🔧`;
+    }
+    return `That's a great question! 🧹
+
+As your Home Specialist, I help you maintain a beautiful, organized home. Here's what I can help with:
+
+✅ Cleaning schedules and routines
+✅ Home organization systems
+✅ Repair guidance and contractor recommendations
+✅ Interior design tips
+✅ Energy efficiency improvements
+✅ Home security advice
+
+**Free Tip:** The "one in, one out" rule prevents clutter. For every new item, donate or discard one!
+
+What's your biggest home challenge? 🧹`;
+  },
+
+  A13: (prompt) => {
+    const lowerPrompt = prompt.toLowerCase();
+    if (lowerPrompt.includes('plumb') || lowerPrompt.includes('electric') || lowerPrompt.includes('repair') || lowerPrompt.includes('service')) {
+      return `Great question about finding reliable services! 🚀
+
+Here's how I find the best service providers:
+
+**My Vetting Process:**
+1. **Check reviews** — Minimum 4.5 stars on Google/Jumia
+2. **Verify licenses** — Especially for electrical and plumbing
+3. **Get 3 quotes** — Never accept the first price
+4. **Ask for references** — Talk to past customers
+5. **Check insurance** — Protects you from liability
+
+**Free Tip:** For Lagos, I recommend checking TaskRabbit, Kandoo, and local Facebook groups for verified professionals!
+
+What service are you looking for? I'll connect you with the best provider! 🚀`;
+    }
+    if (lowerPrompt.includes('price') || lowerPrompt.includes('cost') || lowerPrompt.includes('how much')) {
+      return `Let me help you understand service pricing! 💰
+
+**Typical Nigerian Service Prices:**
+- **Plumber:** ₦5,000-15,000 (depends on complexity)
+- **Electrician:** ₦3,000-10,000 (depends on job)
+- **Caterer:** ₦3,000-8,000 per head
+- **Photographer:** ₦50,000-200,000 (depends on hours)
+- **Event Planner:** ₦100,000-500,000 (depends on scale)
+
+**Free Tip:** Always get written quotes before work starts. Verbal agreements lead to disputes!
+
+What service are you pricing? I'll help you find the best value! 🚀`;
+    }
+    return `That's a great question! 🚀
+
+As ServiceMart NG, I connect you with trusted local professionals. Here's what I can help with:
+
+✅ Finding verified plumbers, electricians, caterers
+✅ Price comparison across providers
+✅ Review verification
+✅ Booking coordination
+✅ Quality guarantees
+
+**Free Tip:** For any service, always ask for a written quote and check references before committing!
+
+What service are you looking for today? 🚀`;
+  },
 };
 
 // Default fallback for agents without specific handlers
