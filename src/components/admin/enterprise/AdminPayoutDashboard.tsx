@@ -14,6 +14,8 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function AdminPayoutDashboard({ adminToken }: { adminToken: string }) {
   const [tab, setTab] = useState<'pending' | 'all' | 'kyc' | 'batches' | 'balance'>('pending')
+  const [rejectModal, setRejectModal] = useState<{ id: string; reason: string } | null>(null)
+  const [processConfirm, setProcessConfirm] = useState<string | null>(null)
 
   return (
     <div className="space-y-6">
@@ -61,13 +63,11 @@ function PendingPayoutsTab({ adminToken }: { adminToken: string }) {
   }
 
   const handleReject = async (id: string) => {
-    const reason = prompt('Rejection reason:')
-    if (!reason) return
-    await rejectPayout({ adminToken, requestId: id as any, reason })
+    setRejectModal({ id, reason: '' })
   }
 
   const handleProcess = async (id: string) => {
-    if (!confirm('Process this payout via Kora Pay?')) return
+    setProcessConfirm(id)
     setProcessing(id)
     try {
       const result = await processPayout({ adminToken, requestId: id as any })
@@ -188,9 +188,13 @@ function KycReviewTab({ adminToken }: { adminToken: string }) {
   }
 
   const handleReject = async (id: string) => {
-    const reason = prompt('Rejection reason:')
-    if (!reason) return
-    await rejectKyc({ adminToken, submissionId: id as any, reason })
+    setRejectModal({ id, reason: '' })
+  }
+
+  const confirmReject = async () => {
+    if (!rejectModal?.reason) return
+    await rejectKyc({ adminToken, submissionId: rejectModal.id as any, reason: rejectModal.reason })
+    setRejectModal(null)
   }
 
   return (
@@ -287,6 +291,37 @@ function KoraBalanceTab({ adminToken }: { adminToken: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Reject Modal */}
+      {rejectModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-black text-white mb-4">Rejection Reason</h3>
+            <input
+              placeholder="Reason for rejection"
+              value={rejectModal.reason}
+              onChange={(e) => setRejectModal({ ...rejectModal, reason: e.target.value })}
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white mb-4"
+            />
+            <div className="flex gap-2">
+              <button onClick={confirmReject} disabled={!rejectModal.reason} className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold disabled:opacity-50">Reject</button>
+              <button onClick={() => setRejectModal(null)} className="px-4 py-2 bg-white/5 border border-white/10 text-slate-400 rounded-xl text-xs font-bold">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Process Confirm Modal */}
+      {processConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-black text-white mb-2">Process Payout?</h3>
+            <p className="text-sm text-slate-400 mb-4">Process this payout via Kora Pay?</p>
+            <div className="flex gap-2">
+              <button onClick={async () => { setProcessing(processConfirm); try { await processPayout({ adminToken, payoutRequestId: processConfirm as any }); showToast('Payout processed', 'success'); } catch (e: any) { showToast(e.message || 'Failed', 'error'); } finally { setProcessing(null); setProcessConfirm(null); } }} className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold">Confirm</button>
+              <button onClick={() => setProcessConfirm(null)} className="px-4 py-2 bg-white/5 border border-white/10 text-slate-400 rounded-xl text-xs font-bold">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
       <h3 className="text-lg font-semibold text-white">Kora Pay Balance</h3>
       <button onClick={fetchBalance} disabled={loading}
         className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">

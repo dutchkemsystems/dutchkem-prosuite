@@ -46,6 +46,8 @@ export function MimoControlPanel({ adminToken }: { adminToken: string }) {
   const blockIPMutation = useMutation(api.mimo_core.blockIP)
   const unblockIPMutation = useMutation(api.mimo_core.unblockIP)
 
+  const [blockIPModal, setBlockIPModal] = useState<{ ip: string; reason: string } | null>(null)
+
   const runDiagnose = useCallback(async () => {
     setCommandOutput('Running diagnosis...')
     try {
@@ -292,20 +294,32 @@ export function MimoControlPanel({ adminToken }: { adminToken: string }) {
               <h3 className="text-lg font-black text-white mb-4">Manual Fixes</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button onClick={async () => {
-                  const r = await manualFix({ adminToken, component: 'agents', fixType: 're_register_all', description: 'Re-register all agents' })
-                  setCommandOutput(JSON.stringify(r, null, 2))
+                  try {
+                    const r = await manualFix({ adminToken, component: 'agents', fixType: 're_register_all', description: 'Re-register all agents' })
+                    setCommandOutput(JSON.stringify(r, null, 2))
+                  } catch (err) {
+                    setCommandOutput(`Error: ${err instanceof Error ? err.message : String(err)}`)
+                  }
                 }} className="px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold text-sm transition-all">
                   🤖 Re-register Agents
                 </button>
                 <button onClick={async () => {
-                  const r = await manualFix({ adminToken, component: 'wallets', fixType: 're_initialize', description: 'Re-initialize all wallets' })
-                  setCommandOutput(JSON.stringify(r, null, 2))
+                  try {
+                    const r = await manualFix({ adminToken, component: 'wallets', fixType: 're_initialize', description: 'Re-initialize all wallets' })
+                    setCommandOutput(JSON.stringify(r, null, 2))
+                  } catch (err) {
+                    setCommandOutput(`Error: ${err instanceof Error ? err.message : String(err)}`)
+                  }
                 }} className="px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold text-sm transition-all">
                   💰 Re-init Wallets
                 </button>
                 <button onClick={async () => {
-                  const r = await manualFix({ adminToken, component: 'security', fixType: 'clear_expired_blocks', description: 'Clear expired IP blocks' })
-                  setCommandOutput(JSON.stringify(r, null, 2))
+                  try {
+                    const r = await manualFix({ adminToken, component: 'security', fixType: 'clear_expired_blocks', description: 'Clear expired IP blocks' })
+                    setCommandOutput(JSON.stringify(r, null, 2))
+                  } catch (err) {
+                    setCommandOutput(`Error: ${err instanceof Error ? err.message : String(err)}`)
+                  }
                 }} className="px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold text-sm transition-all">
                   🛡️ Clear Expired Blocks
                 </button>
@@ -581,13 +595,7 @@ export function MimoControlPanel({ adminToken }: { adminToken: string }) {
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-red-400">{item.count} attempts</span>
                         <button
-                          onClick={async () => {
-                            const reason = prompt('Block reason:', 'Rate limit exceeded')
-                            if (reason) {
-                              await blockIPMutation({ adminToken, ip: item.ip, reason })
-                              setCommandOutput(`Blocked ${item.ip}`)
-                            }
-                          }}
+                          onClick={() => setBlockIPModal({ ip: item.ip, reason: 'Rate limit exceeded' })}
                           className="px-3 py-1 bg-red-600/20 text-red-400 rounded-lg text-xs font-bold hover:bg-red-600/40"
                         >
                           Block
@@ -617,8 +625,12 @@ export function MimoControlPanel({ adminToken }: { adminToken: string }) {
                         <span className="text-xs text-slate-500">{new Date(block.blockedAt).toLocaleString()}</span>
                         <button
                           onClick={async () => {
-                            await unblockIPMutation({ adminToken, ip: block.ip })
-                            setCommandOutput(`Unblocked ${block.ip}`)
+                            try {
+                              await unblockIPMutation({ adminToken, ip: block.ip })
+                              setCommandOutput(`Unblocked ${block.ip}`)
+                            } catch (err) {
+                              setCommandOutput(`Error unblocking IP: ${err instanceof Error ? err.message : String(err)}`)
+                            }
                           }}
                           className="px-3 py-1 bg-emerald-600/20 text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-600/40"
                         >
@@ -666,14 +678,7 @@ export function MimoControlPanel({ adminToken }: { adminToken: string }) {
                 <button onClick={runSelfUpdate} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-sm transition-all">
                   🔄 Self-Update
                 </button>
-                <button onClick={async () => {
-                  const ip = prompt('IP to block:')
-                  const reason = prompt('Reason:')
-                  if (ip && reason) {
-                    await blockIPMutation({ adminToken, ip, reason })
-                    setCommandOutput(`Blocked ${ip}`)
-                  }
-                }} className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold text-sm transition-all">
+                <button onClick={() => setBlockIPModal({ ip: '', reason: '' })} className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold text-sm transition-all">
                   🚫 Block IP
                 </button>
               </div>
@@ -751,7 +756,11 @@ export function MimoControlPanel({ adminToken }: { adminToken: string }) {
                     <div className="flex gap-2 mt-3">
                       <button
                         onClick={async () => {
-                          await suspendAgentMutation({ adminToken, agentId: agent.agentId })
+                          try {
+                            await suspendAgentMutation({ adminToken, agentId: agent.agentId })
+                          } catch (err) {
+                            console.error('[Mimo] Failed to suspend agent:', err)
+                          }
                         }}
                         className="px-3 py-1 bg-amber-600/20 text-amber-400 rounded-lg text-xs font-bold hover:bg-amber-600/40"
                       >
@@ -760,7 +769,11 @@ export function MimoControlPanel({ adminToken }: { adminToken: string }) {
                       <button
                         onClick={async () => {
                           if (confirm(`Delete agent ${agent.agentId}?`)) {
-                            await deleteAgentMutation({ adminToken, agentId: agent.agentId })
+                            try {
+                              await deleteAgentMutation({ adminToken, agentId: agent.agentId })
+                            } catch (err) {
+                              console.error('[Mimo] Failed to delete agent:', err)
+                            }
                           }
                         }}
                         className="px-3 py-1 bg-red-600/20 text-red-400 rounded-lg text-xs font-bold hover:bg-red-600/40"
@@ -824,6 +837,38 @@ export function MimoControlPanel({ adminToken }: { adminToken: string }) {
 
   return (
     <div className="space-y-6">
+      {/* Block IP Modal */}
+      {blockIPModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-black text-white mb-4">Block IP Address</h3>
+            <div className="space-y-3">
+              <input
+                placeholder="IP Address"
+                value={blockIPModal.ip}
+                onChange={(e) => setBlockIPModal({ ...blockIPModal, ip: e.target.value })}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white"
+              />
+              <input
+                placeholder="Reason"
+                value={blockIPModal.reason}
+                onChange={(e) => setBlockIPModal({ ...blockIPModal, reason: e.target.value })}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white"
+              />
+              <div className="flex gap-2">
+                <button onClick={async () => {
+                  if (blockIPModal.ip && blockIPModal.reason) {
+                    await blockIPMutation({ adminToken, ip: blockIPModal.ip, reason: blockIPModal.reason })
+                    setCommandOutput(`Blocked ${blockIPModal.ip}`)
+                    setBlockIPModal(null)
+                  }
+                }} className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold">Block</button>
+                <button onClick={() => setBlockIPModal(null)} className="px-4 py-2 bg-white/5 border border-white/10 text-slate-400 rounded-xl text-xs font-bold">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-black tracking-tight text-white flex items-center gap-3">

@@ -116,13 +116,10 @@ function AdminDashboardPage() {
   // Real-time socket connection (safe: only connect when token exists)
   const { connected: _wsConnected } = useSocket(adminToken || "");
 
-  // Browser Notification Logic
-  const [_lastTxId, setLastTxId] = useState<string | null>(null);
-
   const handleLogout = async () => {
     localStorage.removeItem('admin_session_token');
     setAdminToken(null);
-    try { await authSignOut(); } catch {}
+    try { await authSignOut(); } catch (e) { console.error("Failed to sign out:", e); }
     navigate({ to: '/admin/login' });
   };
 
@@ -211,7 +208,7 @@ function AdminDashboardPage() {
             {activeTab === "social" && <SocialEnginePanel adminToken={adminToken} />}
             {activeTab === "guardian" && <GuardianWatchPanel />}
             {activeTab === "tax" && <TaxDashboardPanel />}
-            {activeTab === "payouts" && <DailySweepStatusPanel />}
+            {activeTab === "payouts" && <DailySweepStatusPanel adminToken={adminToken} />}
             {activeTab === "security" && <SecurityHubPanel adminToken={adminToken} />}
             {activeTab === "agents" && <AgentHealthMatrixLazy />}
             {activeTab === "freelancers" && <FreelancerPanelLazy />}
@@ -370,7 +367,7 @@ function ManualAgentTaskPanel() {
             setCurrentTaskId(null);
           }
         }
-      } catch {}
+      } catch (e) { console.error("Task status poll failed:", e); }
     };
     const interval = setInterval(poll, 2000);
     poll();
@@ -585,14 +582,19 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
 
   const [platforms, setPlatforms] = useState<Array<any>>([]);
   const [platformsLoading, setPlatformsLoading] = useState(true);
-  const [rotating, setRotating] = useState(false);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<"platforms" | "analytics" | "posts">("platforms");
   const [postingMode, setPostingMode] = useState<Record<string, string>>({});
-  const [manualPostContent, setManualPostContent] = useState("");
+  const [manualPostContent, setManualPostContent] = useState<Record<string, string>>({});
   const [postingStatus, setPostingStatus] = useState<{ platformId: string; status: string; error?: string } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
   const [composioPoll, setComposioPoll] = useState<{ connectionId: string; platformId: string; startedAt: number } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const [telegramModal, setTelegramModal] = useState(false);
+  const [telegramToken, setTelegramToken] = useState("");
+  const [blueskyModal, setBlueskyModal] = useState(false);
+  const [blueskyHandle, setBlueskyHandle] = useState("");
+  const [blueskyPassword, setBlueskyPassword] = useState("");
 
   const fetchPlatforms = useCallback(async () => {
     try {
@@ -681,7 +683,7 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
             });
           }
         }
-      } catch {}
+      } catch (e) { console.error("Failed to read localStorage:", e); }
     };
     const onStorage = (e: StorageEvent) => {
       if (e.key === "oauth_result" || e.key === "composio_result") checkLocalStorage();
@@ -729,7 +731,7 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
             }
           }
         }
-      } catch {}
+      } catch (e) { console.error("Failed to check pending composio connections:", e); }
     };
     const interval = setInterval(checkPending, 2000);
     checkPending();
@@ -796,24 +798,14 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
     try {
       // Telegram: use bot token modal (no OAuth)
       if (platformId === "telegram") {
-        const botToken = prompt("Enter your Telegram Bot Token (from @BotFather):\n\nFormat: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz");
-        if (!botToken) { setConnecting(null); return; }
-        const result = await connectTelegramBot({ botToken, adminToken });
-        if (result?.error) { showToast(result.error, "error"); }
-        else { showToast(`Connected to Telegram (${result.username || "bot"})`, "success"); fetchPlatforms(); }
+        setTelegramModal(true);
         setConnecting(null);
         return;
       }
 
       // Bluesky: use AT Protocol credentials modal
       if (platformId === "bluesky") {
-        const identifier = prompt("Enter your Bluesky handle (e.g. alice.bsky.social):");
-        if (!identifier) { setConnecting(null); return; }
-        const appPassword = prompt("Enter your Bluesky App Password (create one at bsky.social/settings/app-passwords):");
-        if (!appPassword) { setConnecting(null); return; }
-        const result = await connectBluesky({ identifier, appPassword, adminToken });
-        if (result?.error) { showToast(result.error, "error"); }
-        else { showToast(`Connected to Bluesky (@${result.handle})`, "success"); fetchPlatforms(); }
+        setBlueskyModal(true);
         setConnecting(null);
         return;
       }
@@ -860,7 +852,6 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
         if (directResult?.error) {
           // If the error indicates TryPost is available, redirect there
           if (directResult.error.startsWith("TRYPST:")) {
-            const tpPlatform = directResult.error.replace("TRYPST:", "");
             if (directResult.authUrl) {
               authUrl = directResult.authUrl;
               usingProvider = "trypost";
@@ -930,14 +921,18 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
   };
 
   const handleDisconnect = async (platformId: string, platformName: string) => {
-    if (!confirm(`Disconnect from ${platformName}? Auto-posting to this platform will stop.`)) return;
-    try {
-      await disconnectPlatform({ platformId, adminToken });
-      showToast(`Disconnected from ${platformName}`, "success");
-      fetchPlatforms();
-    } catch {
-      showToast(`Failed to disconnect from ${platformName}`, "error");
-    }
+    setConfirmDialog({
+      message: `Disconnect from ${platformName}? Auto-posting to this platform will stop.`,
+      onConfirm: async () => {
+        try {
+          await disconnectPlatform({ platformId, adminToken });
+          showToast(`Disconnected from ${platformName}`, "success");
+          fetchPlatforms();
+        } catch {
+          showToast(`Failed to disconnect from ${platformName}`, "error");
+        }
+      },
+    });
   };
 
   const handleConnectAll = async () => {
@@ -946,7 +941,9 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
       showToast("All platforms are already connected!", "success");
       return;
     }
-    if (!confirm(`Connect all ${unconnected.length} platforms? Each will open its login page in a popup.`)) return;
+    setConfirmDialog({
+      message: `Connect all ${unconnected.length} platforms? Each will open its login page in a popup.`,
+      onConfirm: async () => {
 
     showToast(`Opening ${unconnected.length} platform connections...`, "success");
     let openedCount = 0;
@@ -998,6 +995,8 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
       }
     }
     showToast(`${openedCount} popups opened. Authorize in each window.`, "success");
+    },
+    });
   };
 
   // handleDisconnectAll removed — disconnectAllPlatforms not in current social engine
@@ -1007,14 +1006,18 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
       showToast("No platforms are connected!", "error");
       return;
     }
-    if (!confirm(`Disconnect ALL ${connectedCount} connected platforms? Auto-posting will stop everywhere.`)) return;
-    try {
-      await disconnectAllPlatforms({ adminToken });
-      showToast(`Disconnected all ${connectedCount} platforms`, "success");
-      fetchPlatforms();
-    } catch {
-      showToast("Failed to disconnect platforms", "error");
-    }
+    setConfirmDialog({
+      message: `Disconnect ALL ${connectedCount} connected platforms? Auto-posting will stop everywhere.`,
+      onConfirm: async () => {
+        try {
+          await disconnectAllPlatforms({ adminToken });
+          showToast(`Disconnected all ${connectedCount} platforms`, "success");
+          fetchPlatforms();
+        } catch {
+          showToast("Failed to disconnect platforms", "error");
+        }
+      },
+    });
   };
 
   const handleModeChange = async (platformId: string, mode: "auto" | "manual" | "paused") => {
@@ -1030,15 +1033,16 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
   };
 
   const handleManualPost = async (platformId: string) => {
-    if (!manualPostContent.trim()) {
+    const content = manualPostContent[platformId] || "";
+    if (!content.trim()) {
       showToast("Please enter content to post", "error");
       return;
     }
     setPostingStatus({ platformId, status: "posting" });
-    const result = await manualPost({ platform: platformId, content: manualPostContent, adminToken });
+    const result = await manualPost({ platform: platformId, content, adminToken });
     if (result?.success) {
       setPostingStatus({ platformId, status: "success" });
-      setManualPostContent("");
+      setManualPostContent(prev => ({ ...prev, [platformId]: "" }));
       showToast(`Post published to ${platformId}!`, "success");
       setTimeout(() => setPostingStatus(null), 3000);
       // FIX: refresh platforms so stats reflect the new post
@@ -1049,6 +1053,33 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
       setPostingStatus({ platformId, status: "error", error: errMsg });
       showToast(errMsg, "error");
     }
+  };
+
+  const handleTelegramConnect = async () => {
+    if (!telegramToken.trim()) return;
+    setConnecting("telegram");
+    try {
+      const result = await connectTelegramBot({ botToken: telegramToken, adminToken });
+      if (result?.error) { showToast(result.error, "error"); }
+      else { showToast(`Connected to Telegram (${result.username || "bot"})`, "success"); fetchPlatforms(); }
+    } catch (err: any) { showToast(err?.message || "Failed to connect Telegram", "error"); }
+    setConnecting(null);
+    setTelegramModal(false);
+    setTelegramToken("");
+  };
+
+  const handleBlueskyConnect = async () => {
+    if (!blueskyHandle.trim() || !blueskyPassword.trim()) return;
+    setConnecting("bluesky");
+    try {
+      const result = await connectBluesky({ identifier: blueskyHandle, appPassword: blueskyPassword, adminToken });
+      if (result?.error) { showToast(result.error, "error"); }
+      else { showToast(`Connected to Bluesky (@${result.handle})`, "success"); fetchPlatforms(); }
+    } catch (err: any) { showToast(err?.message || "Failed to connect Bluesky", "error"); }
+    setConnecting(null);
+    setBlueskyModal(false);
+    setBlueskyHandle("");
+    setBlueskyPassword("");
   };
 
   if (platformsLoading) {
@@ -1278,8 +1309,8 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
                             <div className="mt-3 space-y-2">
                               <textarea
                                 placeholder="Write your post content here..."
-                                value={manualPostContent}
-                                onChange={(e) => setManualPostContent(e.target.value)}
+                                value={manualPostContent[p.id] || ""}
+                                onChange={(e) => setManualPostContent(prev => ({ ...prev, [p.id]: e.target.value }))}
                                 className="w-full bg-slate-950 border border-white/10 rounded-xl p-3 text-white text-xs resize-none"
                                 rows={2}
                               />
@@ -1436,6 +1467,75 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
 
         </div>
       </div>
+
+      {/* Confirm Dialog */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setConfirmDialog(null)}>
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-black text-white mb-4">Confirm Action</h3>
+            <p className="text-sm text-slate-400 mb-6">{confirmDialog.message}</p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmDialog(null)} className="flex-1 py-3 bg-slate-800 text-slate-400 rounded-xl font-bold text-sm">Cancel</button>
+              <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }} className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold text-sm">Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Telegram Bot Token Modal */}
+      {telegramModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setTelegramModal(false); setTelegramToken(""); }}>
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-black text-white mb-2">Connect Telegram Bot</h3>
+            <p className="text-sm text-slate-400 mb-6">Enter your Telegram Bot Token from @BotFather</p>
+            <input
+              type="text"
+              value={telegramToken}
+              onChange={(e) => setTelegramToken(e.target.value)}
+              placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white font-mono text-sm mb-4"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => { setTelegramModal(false); setTelegramToken(""); }} className="flex-1 py-3 bg-slate-800 text-slate-400 rounded-xl font-bold text-sm">Cancel</button>
+              <button onClick={handleTelegramConnect} disabled={!telegramToken.trim() || connecting === "telegram"} className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold text-sm disabled:opacity-50">
+                {connecting === "telegram" ? "Connecting..." : "Connect"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bluesky Credentials Modal */}
+      {blueskyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setBlueskyModal(false); setBlueskyHandle(""); setBlueskyPassword(""); }}>
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-black text-white mb-2">Connect Bluesky</h3>
+            <p className="text-sm text-slate-400 mb-6">Enter your AT Protocol credentials</p>
+            <div className="space-y-3 mb-4">
+              <input
+                type="text"
+                value={blueskyHandle}
+                onChange={(e) => setBlueskyHandle(e.target.value)}
+                placeholder="alice.bsky.social"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white text-sm"
+              />
+              <input
+                type="password"
+                value={blueskyPassword}
+                onChange={(e) => setBlueskyPassword(e.target.value)}
+                placeholder="App Password (from bsky.social/settings/app-passwords)"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white text-sm"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => { setBlueskyModal(false); setBlueskyHandle(""); setBlueskyPassword(""); }} className="flex-1 py-3 bg-slate-800 text-slate-400 rounded-xl font-bold text-sm">Cancel</button>
+              <button onClick={handleBlueskyConnect} disabled={!blueskyHandle.trim() || !blueskyPassword.trim() || connecting === "bluesky"} className="flex-1 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold text-sm disabled:opacity-50">
+                {connecting === "bluesky" ? "Connecting..." : "Connect"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1581,14 +1681,12 @@ function StatsOverview({ data, earnings, uaeStatus }: any) {
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [liveEarnings, setLiveEarnings] = useState(earnings);
   const [liveTxs, setLiveTxs] = useState<any[]>([]);
-
-  // Multi-currency exchange rates
-  const EXCHANGE_RATES: Record<string, number> = {
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({
     NGN: 1,
     USD: 1500,
     GBP: 1900,
     EUR: 1650,
-  };
+  });
 
   const CURRENCY_SYMBOLS: Record<string, string> = {
     NGN: '₦',
@@ -1599,7 +1697,7 @@ function StatsOverview({ data, earnings, uaeStatus }: any) {
 
   // Calculate wallet balance in all currencies
   const walletBalance = liveEarnings?.allTime?.share || 0;
-  const walletCurrencies = Object.entries(EXCHANGE_RATES).map(([code, rate]) => ({
+  const walletCurrencies = Object.entries(exchangeRates).map(([code, rate]) => ({
     code,
     symbol: CURRENCY_SYMBOLS[code],
     amount: Math.round(walletBalance / rate),
@@ -1615,8 +1713,9 @@ function StatsOverview({ data, earnings, uaeStatus }: any) {
           const d = await res.json();
           if (d.earnings) setLiveEarnings(d.earnings);
           if (d.txs) setLiveTxs(d.txs);
+          if (d.exchangeRates) setExchangeRates(d.exchangeRates);
         }
-      } catch {}
+      } catch (e) { console.error("Failed to fetch live earnings:", e); }
     };
     fetchLive();
     const interval = setInterval(fetchLive, 1000);
@@ -1840,15 +1939,13 @@ function RecentTransactions() {
    )
 }
 
-function DailySweepStatusPanel() {
+function DailySweepStatusPanel({ adminToken }: { adminToken: string }) {
    const { data: settings } = useSuspenseQuery(convexQuery(api.secure_sweeps.getSettings, {})) as { data: any };
    const { data: sweepHistory } = useSuspenseQuery(convexQuery(api.secure_sweeps.getHistory, { limit: 10 })) as { data: any };
    const { data: sweepStats } = useSuspenseQuery(convexQuery(api.secure_sweeps.getSweepStats, {})) as { data: any };
    const { data: beneficiaries } = useSuspenseQuery(convexQuery(api.payouts.getBeneficiaries, {})) as { data: any };
    const { data: earnings } = useSuspenseQuery(convexQuery(api.admin.getEarningsSummary, {})) as { data: any };
    const { data: banks } = useSuspenseQuery(convexQuery(api.fintech.getAvailableBanks, {})) as { data: any };
-   
-   const adminToken = typeof window !== "undefined" ? localStorage.getItem("admin_session_token") || "" : "";
    
    const updateSettings = useMutation(api.secure_sweeps.updateSettings);
    const performSweep = useMutation(api.secure_sweeps.performSweep);
@@ -2946,7 +3043,7 @@ function IPWhitelistModal({ onClose, adminId }: { onClose: () => void; adminId: 
     try {
       await updateIPs({ adminId: adminId as any, ipAddresses: ips, description: "Admin IP whitelist" });
       setSuccess(true);
-    } catch {}
+    } catch (e) { console.error("Failed to update IP whitelist:", e); }
     setLoading(false);
   };
 

@@ -340,7 +340,7 @@ function SocialTab({ adminToken }: { adminToken: string }) {
             <button onClick={() => handleToggle(rule._id, rule.isActive)} className="text-sm text-slate-400 hover:text-white transition-colors px-3">
               {rule.isActive ? '⏸' : '▶'}
             </button>
-            <button onClick={() => handleDelete(rule._id)} className="text-sm text-red-400 hover:text-red-300 transition-colors px-3">🗑</button>
+            <button onClick={() => handleDelete(rule._id)} disabled={isSubmitting} className="text-sm text-red-400 hover:text-red-300 transition-colors px-3 disabled:opacity-50">🗑</button>
           </div>
         ))}
         {(!dmRules || dmRules.length === 0) && (
