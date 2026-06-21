@@ -1141,11 +1141,6 @@ function Settings({ data }: { data: any }) {
           </div>
         </div>
       </div>
-
-      {/* Theme Customization */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
-        <ThemeSelector />
-      </div>
     </div>
   );
 }
