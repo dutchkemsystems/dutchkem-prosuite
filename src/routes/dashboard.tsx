@@ -473,11 +473,11 @@ function Header({ user, notifications }: { user: any, notifications: Array<any> 
   return (
     <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative">
           <div>
-            <h1 className="text-2xl font-black tracking-tight">Welcome back, {user.name || 'User'}! 👋</h1>
+            <h1 className="text-2xl font-black tracking-tight text-white">Welcome back, {user.name || 'User'}! 👋</h1>
             <div className="flex items-center gap-3 mt-1">
-              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{new Date().toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} • {time}</p>
-              <div className="h-3 w-px bg-slate-800"></div>
-              <p className="text-orange-500 text-[10px] font-black uppercase tracking-widest">TIN: 2512403526652</p>
+              <p className="text-slate-300 text-[10px] font-black uppercase tracking-widest">{new Date().toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} • {time}</p>
+              <div className="h-3 w-px bg-slate-600"></div>
+              <p className="text-orange-400 text-[10px] font-black uppercase tracking-widest">TIN: 2512403526652</p>
             </div>
           </div>
       <div className="flex items-center gap-4">
@@ -541,18 +541,18 @@ function Header({ user, notifications }: { user: any, notifications: Array<any> 
         </div>
         <div className="flex items-center gap-3 pl-4 border-l border-slate-800 group relative cursor-pointer">
           <div className="text-right hidden md:block">
-            <p className="text-sm font-black leading-none">{user.name || 'Account'}</p>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{user.email}</p>
+            <p className="text-sm font-black text-white leading-none">{user.name || 'Account'}</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{user.email}</p>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center font-black overflow-hidden border-2 border-indigo-500/20 shadow-lg group-hover:scale-105 transition-transform">
-            {user.image ? <img src={user.image} alt="Avatar" className="w-full h-full object-cover" /> : <span>{user.name?.[0] || 'U'}</span>}
+            {user.image ? <img src={user.image} alt="Avatar" className="w-full h-full object-cover" /> : <span className="text-white">{user.name?.[0] || 'U'}</span>}
           </div>
           
           {/* Avatar Dropdown */}
           <div className="absolute right-0 top-full mt-4 w-48 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 translate-y-2 group-hover:translate-y-0">
              <div className="p-2 space-y-1">
-                <button className="w-full text-left px-4 py-3 text-xs font-bold text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition-colors">Profile Settings</button>
-                <button className="w-full text-left px-4 py-3 text-xs font-bold text-slate-400 hover:bg-slate-800 hover:text-white rounded-xl transition-colors">Billing & Plans</button>
+                 <button className="w-full text-left px-4 py-3 text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white rounded-xl transition-colors">Profile Settings</button>
+                 <button className="w-full text-left px-4 py-3 text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white rounded-xl transition-colors">Billing & Plans</button>
                 <button onClick={async () => { try { await signOut(); } catch {} navigate({ to: '/auth' }); }} className="w-full text-left px-4 py-3 text-xs font-bold text-red-400 hover:bg-red-500/10 rounded-xl transition-colors">Sign Out</button>
              </div>
           </div>
@@ -604,7 +604,7 @@ function Overview({ data, setActiveTab, setModal, setShowAgentBrowser, setShowCr
           {/* Usage Analytics Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-              <h3 className="text-lg font-bold mb-6 flex items-center gap-2">📈 Subscription Value</h3>
+              <h3 className="text-lg font-black text-white mb-6 flex items-center gap-2">📈 Subscription Value</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
@@ -621,7 +621,7 @@ function Overview({ data, setActiveTab, setModal, setShowAgentBrowser, setShowCr
               </div>
             </div>
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-              <h3 className="text-lg font-bold mb-6 flex items-center gap-2">🧩 Agent Usage</h3>
+              <h3 className="text-lg font-black text-white mb-6 flex items-center gap-2">🧩 Agent Usage</h3>
               <div className="h-64 flex">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -672,12 +672,12 @@ function Overview({ data, setActiveTab, setModal, setShowAgentBrowser, setShowCr
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-800/50 border-b border-slate-800">
                   <tr>
-                    <th className="px-6 py-4 font-semibold text-slate-300">Project</th>
-                    <th className="px-6 py-4 font-semibold text-slate-300">Agent</th>
-                    <th className="px-6 py-4 font-semibold text-slate-300">Status</th>
-                    <th className="px-6 py-4 font-semibold text-slate-300">Format</th>
-                    <th className="px-6 py-4 font-semibold text-slate-300">Date</th>
-                    <th className="px-6 py-4 font-semibold text-slate-300">Action</th>
+                    <th className="px-6 py-4 text-white">Project</th>
+                    <th className="px-6 py-4 text-white">Agent</th>
+                    <th className="px-6 py-4 text-white">Status</th>
+                    <th className="px-6 py-4 text-white">Format</th>
+                    <th className="px-6 py-4 text-white">Date</th>
+                    <th className="px-6 py-4 text-white">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
@@ -766,8 +766,8 @@ function StatCard({ label, value, icon, color }: { label: string, value: any, ic
       <div className={`w-10 h-10 rounded-xl mb-3 flex items-center justify-center text-xl border ${colors[color]}`}>
         {icon}
       </div>
-      <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">{label}</p>
-      <h4 className="text-xl font-bold">{value}</h4>
+      <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">{label}</p>
+      <h4 className="text-xl font-bold text-white">{value}</h4>
     </div>
   );
 }
@@ -776,7 +776,7 @@ function Section({ title, children, actionLabel }: { title: string, children: an
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold">{title}</h3>
+        <h3 className="text-lg font-black text-white">{title}</h3>
         {actionLabel && <button className="text-xs text-indigo-400 font-bold hover:underline">{actionLabel} →</button>}
       </div>
       {children}
@@ -932,9 +932,9 @@ function Referrals({ data, payoutMessage, setPayoutMessage, requestReferralPayou
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-800/50 border-b border-slate-800">
                 <tr>
-                  <th className="px-6 py-4 font-semibold text-slate-300">Friend</th>
-                  <th className="px-6 py-4 font-semibold text-slate-300">Date</th>
-                  <th className="px-6 py-4 font-semibold text-slate-300">Commission</th>
+                  <th className="px-6 py-4 text-white">Friend</th>
+                  <th className="px-6 py-4 text-white">Date</th>
+                  <th className="px-6 py-4 text-white">Commission</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
