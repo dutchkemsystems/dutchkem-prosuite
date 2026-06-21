@@ -16,6 +16,8 @@ import { UrgencyTriggers } from '~/components/UrgencyTriggers';
 import { ActivityStats, SocialProofFeed } from '~/components/SocialProofFeed';
 import { ClientActivityFeed } from '~/components/ClientActivityFeed';
 import { AnimatedBackground } from '~/components/AnimatedBackground';
+import ThemeSelector from '~/theme/ThemeSelector';
+import ThemeBackground from '~/theme/ThemeBackground';
 
 import { ClientNotificationPrefs } from '~/components/ClientNotificationPrefs';
 import { ClientPerformanceSummary } from '~/components/ClientPerformanceSummary';
@@ -208,8 +210,8 @@ function DashboardContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row overflow-hidden relative">
-      <AnimatedBackground variant="dashboard" />
+    <ThemeBackground>
+    <div className="min-h-screen text-slate-100 flex flex-col md:flex-row overflow-hidden relative">
       <InactivityLogout adminMode={false} logoutPath="/auth" />
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800 sticky top-0 z-30">
@@ -411,6 +413,7 @@ function DashboardContent() {
         <SupportChat isOpen={showSupport} onClose={() => setShowSupport(false)} />
       </main>
     </div>
+    </ThemeBackground>
   );
 }
 
@@ -1124,6 +1127,11 @@ function Settings({ data }: { data: any }) {
             </div>
           </div>
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-6">
+            <h3 className="text-xl font-bold flex items-center gap-2">🎨 Dashboard Theme</h3>
+            <p className="text-slate-400 text-sm">Choose a theme to personalize your dashboard experience.</p>
+            <ThemeSelector />
+          </div>
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-6">
             <h3 className="text-xl font-bold flex items-center gap-2">💰 Billing Currency</h3>
             <p className="text-slate-400 text-sm">Choose your preferred currency for invoices and pricing display.</p>
             <div className="flex gap-2">
@@ -1132,6 +1140,11 @@ function Settings({ data }: { data: any }) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Theme Customization */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
+        <ThemeSelector />
       </div>
     </div>
   );

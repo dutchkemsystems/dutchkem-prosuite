@@ -5,6 +5,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { routerWithQueryClient } from '@tanstack/react-router-with-query'
 import { ConvexQueryClient } from '@convex-dev/react-query'
 import { ConvexAuthProvider } from '@convex-dev/auth/react'
+import { ThemeProvider } from '~/theme/ThemeContext'
 import { routeTree } from './routeTree.gen'
 import '~/styles/app.css'
 
@@ -46,7 +47,7 @@ const router = routerWithQueryClient(
     defaultNotFoundComponent: () => <p>not found</p>,
       Wrap: ({ children }) => (
         <ConvexAuthProvider client={convexQueryClient.convexClient} storage={typeof localStorage !== 'undefined' ? localStorage : undefined}>
-          {children}
+          <ThemeProvider>{children}</ThemeProvider>
         </ConvexAuthProvider>
       ),
   }),
@@ -58,7 +59,9 @@ if (!rootElement.innerHTML) {
   const root = createRoot(rootElement)
   root.render(
     <StrictMode>
-      <RouterProvider router={router} />
+      <ThemeProvider>
+        <RouterProvider router={router} />
+      </ThemeProvider>
     </StrictMode>,
   )
 }
