@@ -6,6 +6,28 @@ export function UsageTracker({ userId }: { userId: string }) {
   const expiryConfig = useQuery(api.revenue_growth.getCreditExpiryConfig)
   const expiringCredits = useQuery(api.revenue_growth.getExpiringCredits, userId ? { userId } : 'skip')
 
+  if (usage === undefined) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-black text-white">Usage This Month</h2>
+          <p className="text-sm text-slate-400 mt-1">{new Date().toISOString().slice(0, 7)} — Track your resource consumption</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1,2,3,4,5,6].map(i => (
+            <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-5">
+              <div className="animate-pulse space-y-3">
+                <div className="h-8 bg-white/10 rounded w-8"></div>
+                <div className="h-3 bg-white/10 rounded w-24"></div>
+                <div className="h-6 bg-white/10 rounded w-16"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   const period = new Date().toISOString().slice(0, 7)
 
   const usageItems = [

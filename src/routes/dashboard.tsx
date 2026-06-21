@@ -996,7 +996,7 @@ function Security({ data, tfaMessage, setTfaMessage, toggle2FAAction, newPasswor
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
-              {data.sessions.map((s: any) => (
+              {(data.sessions || []).map((s: any) => (
                 <tr key={s._id} className={`${s.isCurrent ? "bg-indigo-600/5" : ""} hover:bg-slate-800/30 transition-colors`}>
                   <td className="px-8 py-5 font-bold flex items-center gap-3">
                     <span className="text-xl">{s.device.includes('Mobile') ? '📱' : '💻'}</span>

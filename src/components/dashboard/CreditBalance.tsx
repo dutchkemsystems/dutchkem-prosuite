@@ -11,6 +11,22 @@ export function CreditBalance({ userId, email }: { userId: string; email?: strin
   const expiryConfig = useQuery(api.revenue_growth.getCreditExpiryConfig)
   const expiringCredits = useQuery(api.revenue_growth.getExpiringCredits, userId ? { userId } : 'skip')
   const transactions = useQuery(api.revenue_credits.getCreditTransactions, userId ? { userId, limit: 10 } : 'skip')
+
+  if (credits === undefined) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div><h2 className="text-2xl font-black text-white">Credit Balance</h2></div>
+        </div>
+        <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/5 border border-orange-500/20 rounded-2xl p-6">
+          <div className="animate-pulse space-y-3">
+            <div className="h-4 bg-white/10 rounded w-32"></div>
+            <div className="h-10 bg-white/10 rounded w-48"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
   const initiatePurchase = useAction(api.kora_checkout.initiateCreditPurchase)
   const setAutoRecharge = useMutation(api.revenue_credits.setAutoRecharge)
 
