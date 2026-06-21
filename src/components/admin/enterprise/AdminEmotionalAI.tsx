@@ -23,7 +23,7 @@ export function AdminEmotionalAI({ adminToken, organizations }: { adminToken: st
   const emotions = [...new Set(profileList.map((p: any) => p.personality?.dominantEmotion || 'neutral'))] as string[];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 ">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-black tracking-tight">Emotional AI</h2>

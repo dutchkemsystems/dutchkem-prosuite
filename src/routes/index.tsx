@@ -203,7 +203,7 @@ function Home() {
             <p className="mt-8 text-[10px] font-black uppercase tracking-[0.4em] text-slate-300">RC: 9489855</p>
 
             {/* Live Stats Ticker */}
-            <div className="mt-20 flex flex-col items-center gap-4 animate-in fade-in duration-1000 ">
+            <div className="mt-20 flex flex-col items-center gap-4  ">
                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Real-time Performance</p>
                <div className="flex items-center gap-3 px-6 py-3 bg-slate-900 rounded-2xl text-white font-black text-sm shadow-2xl border border-slate-800">
                   <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>

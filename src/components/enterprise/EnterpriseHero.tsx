@@ -88,7 +88,7 @@ export function EnterpriseHero() {
             </div>
 
             {/* Trust metrics */}
-            <div className="flex flex-wrap gap-8 pt-8 border-t border-white/5 animate-in fade-in duration-1000 delay-500">
+            <div className="flex flex-wrap gap-8 pt-8 border-t border-white/5 ">
               <div>
                 <p className="text-3xl font-black text-white"><AnimatedCounter target={10000} suffix="+" /></p>
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mt-1">Active Users</p>

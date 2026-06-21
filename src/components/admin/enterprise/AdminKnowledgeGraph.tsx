@@ -21,7 +21,7 @@ export function AdminKnowledgeGraph({ adminToken, organizations }: { adminToken:
   const displayEntries = searchQuery.length > 0 ? (searchResults || []) : (entries || [])
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 ">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-black tracking-tight">Knowledge Graph</h2>

@@ -1697,7 +1697,7 @@ function StatsOverview({ data, earnings, uaeStatus }: any) {
 
       {/* Expanded Transaction Panels */}
       {expandedCard === "sweep" && (
-        <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl animate-in fade-in duration-300">
+        <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl ">
           <div className="p-10 border-b border-slate-800 flex justify-between items-center">
             <div>
               <h2 className="text-xl font-black uppercase tracking-tighter">Ready to Sweep — Monthly Payout Transactions</h2>
@@ -1748,7 +1748,7 @@ function StatsOverview({ data, earnings, uaeStatus }: any) {
       )}
 
       {expandedCard === "fees" && (
-        <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl animate-in fade-in duration-300">
+        <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl ">
           <div className="p-10 border-b border-slate-800 flex justify-between items-center">
             <div>
               <h2 className="text-xl font-black uppercase tracking-tighter">Total Fees Collected — All Time</h2>
@@ -2761,7 +2761,7 @@ function AdminProfileCard({ profile, adminToken }: { profile: any; adminToken: s
       {showDropdown && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)}></div>
-          <div className="absolute right-0 top-full mt-4 w-80 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="absolute right-0 top-full mt-4 w-80 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl z-50 overflow-hidden ">
             <div className="p-6 border-b border-slate-800 bg-gradient-to-br from-orange-900/10 to-slate-900">
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-orange-600 to-red-600 flex items-center justify-center text-white font-black text-2xl shadow-lg">

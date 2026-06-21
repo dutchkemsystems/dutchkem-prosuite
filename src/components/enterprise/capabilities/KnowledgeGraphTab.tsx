@@ -59,7 +59,7 @@ export function KnowledgeGraphTab({ token }: { token: string }) {
   const sourceList = stats.sources || []
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 ">
       {(error || success) && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-black ${error ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}`}>
           {error || success}
