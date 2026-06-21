@@ -17,7 +17,7 @@ import { ActivityStats, SocialProofFeed } from '~/components/SocialProofFeed';
 import { ClientActivityFeed } from '~/components/ClientActivityFeed';
 import { AnimatedBackground } from '~/components/AnimatedBackground';
 import ThemeSelector from '~/theme/ThemeSelector';
-import ThemeBackground from '~/theme/ThemeBackground';
+import ThemeBackground from '~/theme/ThemeBackground'
 
 import { ClientNotificationPrefs } from '~/components/ClientNotificationPrefs';
 import { ClientPerformanceSummary } from '~/components/ClientPerformanceSummary';

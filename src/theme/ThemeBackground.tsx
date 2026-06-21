@@ -1,5 +1,5 @@
 import { useEffect, useRef, ReactNode } from 'react';
-import { useTheme } from './ThemeProvider';
+import { useTheme } from './ThemeContext';
 
 export default function ThemeBackground({ children }: { children: ReactNode }) {
   const { currentTheme } = useTheme();
