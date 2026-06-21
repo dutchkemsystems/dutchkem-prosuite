@@ -50,18 +50,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty("--theme-primary", c.primary);
     root.style.setProperty("--theme-secondary", c.secondary);
     root.style.setProperty("--theme-accent", c.accent);
-    root.style.setProperty("--theme-bg", c.bg);
-    root.style.setProperty("--theme-bg-secondary", c.bgSecondary);
-    root.style.setProperty("--theme-bg-tertiary", c.bgTertiary);
     root.style.setProperty("--theme-text", c.text);
-    root.style.setProperty("--theme-text-secondary", c.textSecondary);
     root.style.setProperty("--theme-card", c.card);
     root.style.setProperty("--theme-card-border", c.cardBorder);
     root.style.setProperty("--theme-button", c.button);
     root.style.setProperty("--theme-button-hover", c.buttonHover);
-    root.style.setProperty("--theme-shadow", c.shadow);
-    root.style.setProperty("--theme-glow", c.glow);
-    root.style.setProperty("--theme-type", `"${currentTheme.effects.type}"`);
+    root.style.setProperty("--theme-bg", currentTheme.background);
+    document.body.style.background = currentTheme.background;
+    document.body.style.backgroundAttachment = 'fixed';
   }, [currentTheme]);
 
   return (
