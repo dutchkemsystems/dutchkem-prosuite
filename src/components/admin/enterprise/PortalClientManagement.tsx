@@ -2,12 +2,22 @@ import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../../convex/_generated/api'
 
+type ClientRow = { name: string; email: string; phone: string; company: string; clientType: string }
+
 export function PortalClientManagement({ adminToken, organizations }: { adminToken: string, organizations: any[] }) {
   const [selectedOrg, setSelectedOrg] = useState(organizations[0]?._id || '')
   const [selectedCompany, setSelectedCompany] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [showBulk, setShowBulk] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [form, setForm] = useState({ name: '', email: '', phone: '', company: '', clientType: 'individual' })
+  const [bulkRows, setBulkRows] = useState<ClientRow[]>([
+    { name: '', email: '', phone: '', company: '', clientType: 'individual' },
+    { name: '', email: '', phone: '', company: '', clientType: 'individual' },
+    { name: '', email: '', phone: '', company: '', clientType: 'individual' },
+  ])
+  const [bulkProcessing, setBulkProcessing] = useState(false)
+  const [bulkResult, setBulkResult] = useState<any>(null)
 
   const companies = useQuery(api.enterprise_companies.listAllCompanies, adminToken ? { adminToken } : "skip")
   const clients = useQuery(api.enterprise_clients.listAllClients, adminToken ? { adminToken } : "skip")
@@ -19,12 +29,13 @@ export function PortalClientManagement({ adminToken, organizations }: { adminTok
   const filtered = selectedCompany ? clientList.filter((c: any) => c.companyId === selectedCompany) : clientList
 
   const createClient = useMutation(api.enterprise_clients.createClient)
+  const createBulkClients = useMutation(api.enterprise_clients.createBulkClients)
   const updateStatus = useMutation(api.enterprise_clients.updateClientStatus)
   const deleteClient = useMutation(api.enterprise_clients.deleteClient)
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type })
-    setTimeout(() => setToast(null), 3000)
+    setTimeout(() => setToast(null), 4000)
   }
 
   const handleCreate = async () => {
@@ -49,6 +60,77 @@ export function PortalClientManagement({ adminToken, organizations }: { adminTok
     } catch (e: any) { showToast(e.message || 'Failed', 'error') }
   }
 
+  const handleBulkCreate = async () => {
+    if (!selectedCompany) { showToast('Select a company first', 'error'); return }
+    const validRows = bulkRows.filter(r => r.name.trim() && r.email.trim())
+    if (validRows.length === 0) { showToast('Add at least one client with name and email', 'error'); return }
+
+    setBulkProcessing(true)
+    setBulkResult(null)
+    try {
+      const company = companyList.find((c: any) => c.companyId === selectedCompany)
+      const result: any = await createBulkClients({
+        companyId: selectedCompany,
+        orgId: company?.orgId || selectedOrg as any,
+        clients: validRows.map(r => ({
+          name: r.name.trim(),
+          email: r.email.trim(),
+          phone: r.phone.trim() || undefined,
+          company: r.company.trim() || undefined,
+          clientType: r.clientType || undefined,
+        })),
+        adminToken,
+      })
+      if (result?.error) { showToast(result.error, 'error'); return }
+      setBulkResult(result)
+      showToast(`✅ ${result.created} clients added${result.skipped > 0 ? `, ${result.skipped} skipped` : ''}`, 'success')
+      if (result.created > 0) {
+        setBulkRows([
+          { name: '', email: '', phone: '', company: '', clientType: 'individual' },
+          { name: '', email: '', phone: '', company: '', clientType: 'individual' },
+          { name: '', email: '', phone: '', company: '', clientType: 'individual' },
+        ])
+      }
+    } catch (e: any) { showToast(e.message || 'Failed', 'error') }
+    finally { setBulkProcessing(false) }
+  }
+
+  const updateBulkRow = (index: number, field: keyof ClientRow, value: string) => {
+    const next = [...bulkRows]
+    next[index] = { ...next[index], [field]: value }
+    setBulkRows(next)
+  }
+
+  const addBulkRow = () => {
+    if (bulkRows.length < 100) {
+      setBulkRows([...bulkRows, { name: '', email: '', phone: '', company: '', clientType: 'individual' }])
+    }
+  }
+
+  const removeBulkRow = (index: number) => {
+    if (bulkRows.length > 1) {
+      setBulkRows(bulkRows.filter((_, i) => i !== index))
+    }
+  }
+
+  const handlePasteBulk = (text: string) => {
+    const lines = text.split('\n').filter(l => l.trim())
+    const newRows: ClientRow[] = lines.map(line => {
+      const parts = line.split(/[,\t]/).map(p => p.trim())
+      return {
+        name: parts[0] || '',
+        email: parts[1] || '',
+        phone: parts[2] || '',
+        company: parts[3] || '',
+        clientType: parts[4] || 'individual',
+      }
+    }).filter(r => r.name || r.email)
+    if (newRows.length > 0) {
+      setBulkRows(newRows.length > 100 ? newRows.slice(0, 100) : newRows)
+      showToast(`Loaded ${newRows.length} clients from paste`, 'success')
+    }
+  }
+
   const handleStatusChange = async (clientId: string, status: 'active' | 'inactive' | 'suspended') => {
     try {
       await updateStatus({ clientId: clientId as any, status, adminToken })
@@ -64,6 +146,7 @@ export function PortalClientManagement({ adminToken, organizations }: { adminTok
   }
 
   const totalRevenue = filtered.reduce((sum: number, c: any) => sum + (c.totalSpent || 0), 0)
+  const validBulkCount = bulkRows.filter(r => r.name.trim() && r.email.trim()).length
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -83,8 +166,11 @@ export function PortalClientManagement({ adminToken, organizations }: { adminTok
             <option value="" className="bg-[#0a0a0f]">All Companies</option>
             {companyList.map((c: any) => <option key={c.companyId} value={c.companyId} className="bg-[#0a0a0f]">{c.companyName}</option>)}
           </select>
-          <button onClick={() => setShowCreate(true)} className="px-4 py-2 bg-[#FF6B35] hover:bg-[#FF8255] text-white rounded-xl text-xs font-black transition-all duration-200">
-            + Add Client
+          <button onClick={() => setShowCreate(true)} className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white rounded-xl text-xs font-black transition-all duration-200 border border-white/10">
+            + Add Single
+          </button>
+          <button onClick={() => { setShowBulk(true); setBulkResult(null) }} className="px-4 py-2 bg-[#FF6B35] hover:bg-[#FF8255] text-white rounded-xl text-xs font-black transition-all duration-200">
+            + Bulk Add
           </button>
         </div>
       </div>
@@ -108,6 +194,7 @@ export function PortalClientManagement({ adminToken, organizations }: { adminTok
         </div>
       </div>
 
+      {/* ═══════════ SINGLE ADD MODAL ═══════════ */}
       {showCreate && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
           <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-6 w-full max-w-lg">
@@ -139,6 +226,114 @@ export function PortalClientManagement({ adminToken, organizations }: { adminTok
         </div>
       )}
 
+      {/* ═══════════ BULK ADD MODAL ═══════════ */}
+      {showBulk && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-black">Bulk Add Clients</h3>
+                <p className="text-xs text-slate-400 mt-1">Add multiple clients at once. Paste from spreadsheet or fill the table below.</p>
+              </div>
+              <button onClick={() => setShowBulk(false)} className="text-slate-400 hover:text-white text-lg">✕</button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Company selector */}
+              <select value={selectedCompany} onChange={(e) => setSelectedCompany(e.target.value)} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-[#FF6B35]/50">
+                <option value="" className="bg-[#0a0a0f]">Select Company *</option>
+                {companyList.map((c: any) => <option key={c.companyId} value={c.companyId} className="bg-[#0a0a0f]">{c.companyName} ({c.typeName})</option>)}
+              </select>
+
+              {/* Paste from clipboard */}
+              <div className="bg-white/5 border border-white/10 rounded-xl p-3">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 block">Quick Paste (CSV/TSV format: name, email, phone, company, type)</label>
+                <textarea
+                  placeholder={"John Doe, john@example.com, +2348012345678, Acme Corp, individual\nJane Smith, jane@example.com, +2348098765432, Acme Corp, business"}
+                  className="w-full h-20 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-[#FF6B35]/50 resize-none"
+                  onBlur={(e) => handlePasteBulk(e.target.value)}
+                />
+              </div>
+
+              {/* Client table */}
+              <div className="border border-white/10 rounded-xl overflow-hidden">
+                <div className="grid grid-cols-12 gap-px bg-white/5 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <div className="col-span-1 bg-[#0a0a0f] px-3 py-2">#</div>
+                  <div className="col-span-3 bg-[#0a0a0f] px-3 py-2">Name *</div>
+                  <div className="col-span-3 bg-[#0a0a0f] px-3 py-2">Email *</div>
+                  <div className="col-span-2 bg-[#0a0a0f] px-3 py-2">Phone</div>
+                  <div className="col-span-1 bg-[#0a0a0f] px-3 py-2">Company</div>
+                  <div className="col-span-1 bg-[#0a0a0f] px-3 py-2">Type</div>
+                  <div className="col-span-1 bg-[#0a0a0f] px-3 py-2"></div>
+                </div>
+                {bulkRows.map((row, i) => (
+                  <div key={i} className="grid grid-cols-12 gap-px bg-white/5">
+                    <div className="col-span-1 bg-[#0a0a0f] px-3 py-1.5 text-xs text-slate-500 flex items-center">{i + 1}</div>
+                    <div className="col-span-3 bg-[#0a0a0f] px-1 py-1">
+                      <input value={row.name} onChange={(e) => updateBulkRow(i, 'name', e.target.value)} placeholder="Name" className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#FF6B35]/50" />
+                    </div>
+                    <div className="col-span-3 bg-[#0a0a0f] px-1 py-1">
+                      <input value={row.email} onChange={(e) => updateBulkRow(i, 'email', e.target.value)} placeholder="Email" className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#FF6B35]/50" />
+                    </div>
+                    <div className="col-span-2 bg-[#0a0a0f] px-1 py-1">
+                      <input value={row.phone} onChange={(e) => updateBulkRow(i, 'phone', e.target.value)} placeholder="Phone" className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#FF6B35]/50" />
+                    </div>
+                    <div className="col-span-1 bg-[#0a0a0f] px-1 py-1">
+                      <input value={row.company} onChange={(e) => updateBulkRow(i, 'company', e.target.value)} placeholder="Company" className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#FF6B35]/50" />
+                    </div>
+                    <div className="col-span-1 bg-[#0a0a0f] px-1 py-1">
+                      <select value={row.clientType} onChange={(e) => updateBulkRow(i, 'clientType', e.target.value)} className="w-full px-1 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[10px] text-white focus:outline-none">
+                        <option value="individual" className="bg-[#0a0a0f]">Individual</option>
+                        <option value="business" className="bg-[#0a0a0f]">Business</option>
+                        <option value="enterprise" className="bg-[#0a0a0f]">Enterprise</option>
+                        <option value="government" className="bg-[#0a0a0f]">Govt</option>
+                      </select>
+                    </div>
+                    <div className="col-span-1 bg-[#0a0a0f] px-1 py-1 flex items-center justify-center">
+                      <button onClick={() => removeBulkRow(i)} className="text-red-400 hover:text-red-300 text-xs">✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button onClick={addBulkRow} className="w-full py-2 border border-dashed border-white/10 rounded-xl text-xs text-slate-400 hover:text-white hover:border-[#FF6B35]/50 transition-all">
+                + Add Row ({bulkRows.length}/100)
+              </button>
+
+              {/* Results */}
+              {bulkResult && (
+                <div className={`p-4 rounded-xl border ${bulkResult.created > 0 ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+                  <div className="text-sm font-black mb-2">
+                    {bulkResult.created > 0 && <span className="text-emerald-400">✅ {bulkResult.created} clients created</span>}
+                    {bulkResult.skipped > 0 && <span className="text-amber-400 ml-3">⚠️ {bulkResult.skipped} skipped</span>}
+                  </div>
+                  {bulkResult.skippedDetails?.length > 0 && (
+                    <div className="text-xs text-slate-400 space-y-1">
+                      {bulkResult.skippedDetails.map((s: any, i: number) => (
+                        <div key={i}>• {s.email}: {s.reason}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={handleBulkCreate}
+                  disabled={bulkProcessing || validBulkCount === 0}
+                  className="flex-1 px-4 py-3 bg-[#FF6B35] hover:bg-[#FF8255] text-white rounded-xl text-xs font-black transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {bulkProcessing ? 'Processing...' : `Add ${validBulkCount} Client${validBulkCount !== 1 ? 's' : ''}`}
+                </button>
+                <button onClick={() => setShowBulk(false)} className="px-4 py-3 bg-white/5 border border-white/10 text-slate-400 rounded-xl text-xs font-black hover:text-white">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════ CLIENT LIST ═══════════ */}
       <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
         <h3 className="text-sm font-black text-slate-300 mb-3">Clients ({filtered.length})</h3>
         {filtered.length === 0 ? (

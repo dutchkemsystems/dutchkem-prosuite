@@ -110,3 +110,85 @@ export const deleteClient = mutation({
     return { success: true };
   },
 });
+
+/** Create multiple clients at once */
+export const createBulkClients = mutation({
+  args: {
+    companyId: v.string(),
+    orgId: v.id("enterprise_organizations"),
+    clients: v.array(v.object({
+      name: v.string(),
+      email: v.string(),
+      phone: v.optional(v.string()),
+      company: v.optional(v.string()),
+      clientType: v.optional(v.string()),
+    })),
+    adminToken: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) throw new Error("Not authenticated");
+
+    if (args.clients.length === 0) return { error: "No clients provided" };
+    if (args.clients.length > 100) return { error: "Maximum 100 clients per batch" };
+
+    const now = Date.now();
+    const created: string[] = [];
+    const skipped: { email: string; reason: string }[] = [];
+
+    // Check for duplicate emails within the batch
+    const batchEmails = new Set<string>();
+    for (const client of args.clients) {
+      if (batchEmails.has(client.email.toLowerCase())) {
+        skipped.push({ email: client.email, reason: "Duplicate in batch" });
+        continue;
+      }
+      batchEmails.add(client.email.toLowerCase());
+
+      // Check if email already exists in DB
+      const existing = await ctx.db.query("enterprise_clients")
+        .withIndex("by_email", (q) => q.eq("email", client.email))
+        .first();
+      if (existing) {
+        skipped.push({ email: client.email, reason: "Already exists" });
+        continue;
+      }
+
+      const recordId = await ctx.db.insert("enterprise_clients", {
+        companyId: args.companyId,
+        orgId: args.orgId,
+        name: client.name,
+        email: client.email,
+        phone: client.phone,
+        company: client.company,
+        status: "active",
+        clientType: client.clientType,
+        assignedSubAdmin: undefined,
+        totalSpent: 0,
+        lastActivity: undefined,
+        createdAt: now,
+        updatedAt: now,
+      });
+      created.push(recordId);
+    }
+
+    // Log audit event
+    await ctx.db.insert("enterprise_audit_logs", {
+      eventType: "CLIENTS_BULK_CREATED",
+      actor: identity._id,
+      action: "bulk_create_clients",
+      target: args.companyId,
+      details: { count: created.length, skipped: skipped.length, batchSize: args.clients.length },
+      createdAt: now,
+    });
+
+    return {
+      success: true,
+      created: created.length,
+      skipped: skipped.length,
+      skippedDetails: skipped,
+      clientIds: created,
+    };
+  },
+});
