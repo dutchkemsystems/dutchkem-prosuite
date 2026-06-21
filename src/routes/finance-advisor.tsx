@@ -6,6 +6,7 @@ import { api } from "../../convex/_generated/api"
 import { AgentHeader } from '../components/AgentHeader'
 import type { UIMessage } from "@convex-dev/agent"
 import { CompanyLogo } from "~/components/CompanyLogo"
+import { FileDownloadButtons } from '~/components/dashboard/FileDownloadButtons'
 
 export const Route = createFileRoute('/finance-advisor')({
   component: FinanceAdvisorPage,
@@ -143,22 +144,27 @@ function MessageBubble({ message }: { message: UIMessage }) {
   return (
     <div className={`flex ${isAssistant ? 'justify-start' : 'justify-end'} group animate-in fade-in slide-in-from-bottom-2 duration-300`}>
       <div className={`max-w-[85%] md:max-w-[70%] flex gap-3 ${isAssistant ? '' : 'flex-row-reverse'}`}>
-        <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center text-xl font-bold ${
-          isAssistant ? 'bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-lg' : 'bg-slate-800 border border-slate-700 text-white'
+        <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-sm font-bold ${
+          isAssistant ? 'bg-gradient-to-br from-yellow-500 to-amber-500 text-white' : 'bg-yellow-600 text-white'
         }`}>
-          {isAssistant ? '💰' : '👤'}
+          {isAssistant ? '💰' : 'U'}
         </div>
-        <div className={`p-5 rounded-2xl ${
+        <div className={`p-4 rounded-2xl ${
           isAssistant 
-            ? 'bg-slate-900 text-slate-100 border border-slate-800 shadow-sm' 
-            : 'bg-emerald-600 text-white shadow-xl shadow-emerald-500/20'
+            ? 'bg-slate-800 text-slate-100 border border-slate-700 shadow-sm' 
+            : 'bg-yellow-600 text-white shadow-lg shadow-yellow-500/10'
         }`}>
-          <div className="whitespace-pre-wrap leading-relaxed text-sm font-medium">
+          <div className="whitespace-pre-wrap leading-relaxed text-sm">
             {visibleText}
             {message.status === "streaming" && (
-              <span className="inline-block w-1.5 h-4 ml-1 bg-emerald-400 animate-pulse align-middle"></span>
+              <span className="inline-block w-1.5 h-4 ml-1 bg-yellow-400 animate-pulse align-middle"></span>
             )}
           </div>
+          {isAssistant && visibleText && visibleText.length > 50 && message.status !== "streaming" && (
+            <div className="mt-3 pt-3 border-t border-slate-700">
+              <FileDownloadButtons content={visibleText} agentType="Finance Advisor" title="Finance Output" />
+            </div>
+          )}
         </div>
       </div>
     </div>

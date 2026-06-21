@@ -15,6 +15,7 @@ const PLATFORMS = [
 
 const TABS = [
   { id: 'overview', label: '📊 Overview', },
+  { id: 'orchestrator', label: '🎯 Unified Orchestrator', },
   { id: 'campaigns', label: '🚀 AI Campaigns', },
   { id: 'budget', label: '💰 Budget Optimizer', },
   { id: 'abtest', label: '🧪 A/B Testing', },
@@ -57,6 +58,7 @@ export default function AdAutomationHub({ adminToken }: { adminToken: string }) 
       </div>
 
       {activeTab === 'overview' && <OverviewTab adminToken={adminToken} />}
+      {activeTab === 'orchestrator' && <OrchestratorTab adminToken={adminToken} />}
       {activeTab === 'campaigns' && <CampaignsTab adminToken={adminToken} />}
       {activeTab === 'budget' && <BudgetTab adminToken={adminToken} />}
       {activeTab === 'abtest' && <ABTestTab adminToken={adminToken} />}
@@ -64,6 +66,179 @@ export default function AdAutomationHub({ adminToken }: { adminToken: string }) 
       {activeTab === 'accounts' && <AccountsTab adminToken={adminToken} />}
       {activeTab === 'analytics' && <AnalyticsTab adminToken={adminToken} />}
       {activeTab === 'monetization' && <MonetizationTab adminToken={adminToken} />}
+    </div>
+  )
+}
+
+function OrchestratorTab({ adminToken }: { adminToken: string }) {
+  const status = useQuery(api.unifiedOrchestrator.getOrchestratorStatus)
+  const toggleOrchestrator = useMutation(api.unifiedOrchestrator.toggleOrchestrator)
+  const togglePlatform = useMutation(api.unifiedOrchestrator.togglePlatform)
+  const [toast, setToast] = useState<string | null>(null)
+
+  const handleToggle = async (enabled: boolean) => {
+    await toggleOrchestrator({ enabled, autoGenerate: true, autoPost: true, adminToken })
+    setToast(enabled ? 'Orchestrator enabled!' : 'Orchestrator disabled!')
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const handlePlatformToggle = async (platformId: string, enabled: boolean) => {
+    await togglePlatform({ platformId, enabled, adminToken })
+    setToast(`${platformId} ${enabled ? 'enabled' : 'disabled'}!`)
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const platforms = [
+    { id: 'twitter', name: 'Twitter/X', icon: '🐦', times: '8AM, 12PM, 6PM' },
+    { id: 'linkedin', name: 'LinkedIn', icon: '💼', times: '8AM, 12PM, 5PM' },
+    { id: 'facebook', name: 'Facebook', icon: '📘', times: '9AM, 1PM, 7PM' },
+    { id: 'instagram', name: 'Instagram', icon: '📸', times: '11AM, 2PM, 7PM' },
+    { id: 'threads', name: 'Threads', icon: '🧵', times: '8AM, 12PM, 6PM' },
+    { id: 'tiktok', name: 'TikTok', icon: '🎵', times: '10AM, 3PM, 8PM' },
+    { id: 'youtube', name: 'YouTube', icon: '📺', times: '2PM, 6PM, 9PM' },
+    { id: 'pinterest', name: 'Pinterest', icon: '📌', times: '9AM, 2PM, 8PM' },
+    { id: 'reddit', name: 'Reddit', icon: '🤖', times: '8AM, 12PM, 6PM' },
+    { id: 'bluesky', name: 'Bluesky', icon: '🦋', times: '8AM, 12PM, 6PM' },
+    { id: 'telegram', name: 'Telegram', icon: '✈️', times: '9AM, 1PM, 7PM' },
+    { id: 'discord', name: 'Discord', icon: '🎮', times: '10AM, 3PM, 8PM' },
+  ]
+
+  return (
+    <div className="space-y-6">
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 bg-emerald-500/90 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium">
+          ✓ {toast}
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white">🎯 Unified Advert Orchestrator</h2>
+          <p className="text-gray-400 text-sm">Automated posting across all platforms on schedule</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className={`text-sm font-medium ${status?.enabled ? 'text-green-400' : 'text-gray-400'}`}>
+            {status?.enabled ? '✓ Active' : '○ Inactive'}
+          </span>
+          <button
+            onClick={() => handleToggle(!status?.enabled)}
+            className={`px-6 py-3 rounded-xl font-bold text-sm transition-all ${
+              status?.enabled
+                ? 'bg-red-600 hover:bg-red-700 text-white'
+                : 'bg-green-600 hover:bg-green-700 text-white'
+            }`}
+          >
+            {status?.enabled ? 'Disable Orchestrator' : 'Enable Orchestrator'}
+          </button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30 rounded-xl p-4">
+          <div className="text-2xl mb-1">📤</div>
+          <div className="text-2xl font-bold text-white">{status?.totalPosted || 0}</div>
+          <div className="text-xs text-gray-400">Total Posted</div>
+        </div>
+        <div className="bg-gradient-to-br from-green-500/20 to-green-600/10 border border-green-500/30 rounded-xl p-4">
+          <div className="text-2xl mb-1">📅</div>
+          <div className="text-2xl font-bold text-white">{status?.totalGenerated || 0}</div>
+          <div className="text-xs text-gray-400">Content Generated</div>
+        </div>
+        <div className="bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30 rounded-xl p-4">
+          <div className="text-2xl mb-1">🔗</div>
+          <div className="text-2xl font-bold text-white">{status?.platforms?.filter((p: any) => p.enabled).length || 0}</div>
+          <div className="text-xs text-gray-400">Active Platforms</div>
+        </div>
+        <div className="bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/30 rounded-xl p-4">
+          <div className="text-2xl mb-1">⏰</div>
+          <div className="text-2xl font-bold text-white">3x/day</div>
+          <div className="text-xs text-gray-400">Posting Frequency</div>
+        </div>
+      </div>
+
+      {/* Platform Grid */}
+      <div>
+        <h3 className="text-lg font-bold text-white mb-3">Connected Platforms</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {platforms.map((platform) => {
+            const isEnabled = status?.platforms?.find((p: any) => p.id === platform.id)?.enabled ?? false
+            return (
+              <div
+                key={platform.id}
+                className={`p-4 rounded-xl border transition-all ${
+                  isEnabled
+                    ? 'bg-white/5 border-green-500/30'
+                    : 'bg-gray-900 border-gray-700 opacity-60'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{platform.icon}</span>
+                    <span className="text-white font-medium text-sm">{platform.name}</span>
+                  </div>
+                  <button
+                    onClick={() => handlePlatformToggle(platform.id, !isEnabled)}
+                    className={`w-10 h-6 rounded-full transition-all ${
+                      isEnabled ? 'bg-green-500' : 'bg-gray-600'
+                    }`}
+                  >
+                    <div className={`w-4 h-4 bg-white rounded-full transition-transform ml-1 ${
+                      isEnabled ? 'translate-x-4' : 'translate-x-0'
+                    }`} />
+                  </button>
+                </div>
+                <div className="text-xs text-gray-400">
+                  <span className="text-gray-500">Schedule:</span> {platform.times}
+                </div>
+                <div className={`text-xs mt-2 font-medium ${isEnabled ? 'text-green-400' : 'text-gray-500'}`}>
+                  {isEnabled ? '✓ Active' : '○ Disabled'}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* How It Works */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-white mb-4">How It Works</h3>
+        <div className="grid grid-cols-5 gap-4">
+          {[
+            { step: '1', icon: '🤖', label: 'AI Generates Content', desc: 'Headlines, descriptions, CTAs' },
+            { step: '2', icon: '🎨', label: 'Flyer Engine Creates Visuals', desc: 'Eye-catching graphics' },
+            { step: '3', icon: '📅', label: 'TryPost Schedules', desc: 'Optimal posting times' },
+            { step: '4', icon: '📤', label: 'Posts to Platforms', desc: '12 platforms simultaneously' },
+            { step: '5', icon: '📈', label: 'Track Analytics', desc: 'Impressions, clicks, engagement' },
+          ].map((item) => (
+            <div key={item.step} className="text-center p-4 bg-white/5 rounded-xl">
+              <div className="text-3xl mb-2">{item.icon}</div>
+              <div className="text-white font-bold text-sm mb-1">{item.label}</div>
+              <div className="text-xs text-gray-400">{item.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Revenue Projection */}
+      <div className="bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 rounded-2xl p-6">
+        <h3 className="text-lg font-bold text-white mb-4">💰 Revenue Projection</h3>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="text-center">
+            <div className="text-3xl font-bold text-green-400">₦2,936</div>
+            <div className="text-xs text-gray-400">Daily Ad Revenue</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-green-400">₦88,080</div>
+            <div className="text-xs text-gray-400">Monthly Ad Revenue</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-green-400">₦1,056,960</div>
+            <div className="text-xs text-gray-400">Annual Ad Revenue</div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

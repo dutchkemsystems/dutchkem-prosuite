@@ -62,12 +62,12 @@ const monthAgo = now - (30 * 24 * 60 * 60 * 1000);
 
     // Revenue metrics from database
     const verifications = await ctx.db.query("payment_verifications").collect();
-    const approved = verifications.filter(v => v.status === "approved");
+    const approved = verifications.filter(verification => verification.status === "approved");
     
-    const dailyRevenue = approved.filter(v => v.verifiedAt >= dayAgo).reduce((sum, v) => sum + v.amount, 0);
-    const weeklyRevenue = approved.filter(v => v.verifiedAt >= weekAgo).reduce((sum, v) => sum + v.amount, 0);
-    const monthlyRevenue = approved.filter(v => v.verifiedAt >= monthAgo).reduce((sum, v) => sum + v.amount, 0);
-    const totalRevenue = approved.reduce((sum, v) => sum + v.amount, 0);
+    const dailyRevenue = approved.filter(verification => verification.verifiedAt >= dayAgo).reduce((sum, verification) => sum + verification.amount, 0);
+    const weeklyRevenue = approved.filter(verification => verification.verifiedAt >= weekAgo).reduce((sum, verification) => sum + verification.amount, 0);
+    const monthlyRevenue = approved.filter(verification => verification.verifiedAt >= monthAgo).reduce((sum, verification) => sum + verification.amount, 0);
+    const totalRevenue = approved.reduce((sum, verification) => sum + verification.amount, 0);
 
     const activeSubscriptions = await ctx.db.query("subscriptions")
       .withIndex("by_status_and_endsAt", q => q.eq("status", "active"))
@@ -130,12 +130,12 @@ const monthAgo = now - (30 * 24 * 60 * 60 * 1000);
       .take(10);
 
     const guardianStats = {
-        todayTransactions: approved.filter(v => v.verifiedAt >= dayAgo).length,
-        autoApproved: approved.filter(v => v.verifiedAt >= dayAgo).length,
+        todayTransactions: approved.filter(verification => verification.verifiedAt >= dayAgo).length,
+        autoApproved: approved.filter(verification => verification.verifiedAt >= dayAgo).length,
         autoApprovedValue: dailyRevenue,
-        autoRejected: verifications.filter(v => v.status === "rejected" && v.verifiedAt >= dayAgo).length,
-        autoRejectedValue: verifications.filter(v => v.status === "rejected" && v.verifiedAt >= dayAgo).reduce((sum, v) => sum + v.amount, 0),
-        flagged: verifications.filter(v => v.status === "manual_review" && v.verifiedAt >= dayAgo).length,
+        autoRejected: verifications.filter(verification => verification.status === "rejected" && verification.verifiedAt >= dayAgo).length,
+        autoRejectedValue: verifications.filter(verification => verification.status === "rejected" && verification.verifiedAt >= dayAgo).reduce((sum, verification) => sum + verification.amount, 0),
+        flagged: verifications.filter(verification => verification.status === "manual_review" && verification.verifiedAt >= dayAgo).length,
         avgVerificationTime: 2.3,
         fraudPreventedMonth: 0,
         lastVerification: recentPayments[0]?.verifiedAt || now,
@@ -168,15 +168,15 @@ export const getEarningsSummary = query({
         const mainWallet = await ctx.db.query("system_wallets").withIndex("by_type", q => q.eq("type", "main")).unique();
 
         const calculateEarnings = (items: Array<{ amount: number }>) => {
-            const revenue = items.reduce((acc, i) => acc + i.amount, 0);
+            const revenue = items.reduce((acc, item) => acc + item.amount, 0);
             const fee = revenue * 0.15;
             return { revenue, fee, share: revenue - fee };
         };
 
         return {
-            today: calculateEarnings(verifications.filter(v => v.verifiedAt >= startOfDay)),
-            week: calculateEarnings(verifications.filter(v => v.verifiedAt >= startOfWeek)),
-            month: calculateEarnings(verifications.filter(v => v.verifiedAt >= startOfMonth)),
+            today: calculateEarnings(verifications.filter(verification => verification.verifiedAt >= startOfDay)),
+            week: calculateEarnings(verifications.filter(verification => verification.verifiedAt >= startOfWeek)),
+            month: calculateEarnings(verifications.filter(verification => verification.verifiedAt >= startOfMonth)),
             allTime: calculateEarnings(verifications),
             walletBalance: mainWallet?.balance ?? 0
         };

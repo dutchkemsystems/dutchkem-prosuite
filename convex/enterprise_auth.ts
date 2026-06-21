@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { tryGetAdminSession } from "./auth_helpers";
 
 /** Generate a temporary password */
@@ -188,7 +189,7 @@ export const logout = mutation({
       .first();
 
     if (session) {
-      await ctx.db.patch(session._id, { isCurrent: false, updatedAt: Date.now() });
+      await ctx.db.patch(session._id, { isCurrent: false });
     }
 
     return { success: true };

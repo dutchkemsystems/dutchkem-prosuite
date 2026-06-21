@@ -219,7 +219,8 @@ export const batchGenerate = action({
     platforms: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    const results: Array<{ platform: string; flyerId: string; mode: string }> = [];
+    const results: Array<{ platform: string; flyerId: string; mode: string; error?: string }> = [];
+    const errors: Array<{ platform: string; error: string }> = [];
 
     for (let i = 0; i < Math.min(args.count, 10); i++) {
       for (const platform of args.platforms) {
@@ -234,11 +235,18 @@ export const batchGenerate = action({
             mode: result.mode,
           });
         } catch (err) {
-          // skip failed generation
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          errors.push({ platform, error: errorMsg });
+          console.error(`Batch generate failed for ${platform}:`, errorMsg);
         }
       }
     }
 
-    return { generated: results.length, results };
+    return {
+      generated: results.length,
+      failed: errors.length,
+      results,
+      errors,
+    };
   },
 });

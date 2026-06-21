@@ -226,30 +226,32 @@ export const generateFlyer = action({
 
     let imageUrl: string;
 
-    if (currentMode === "full_ai") {
-      imageUrl = await ctx.runAction(internal.flyer_templates.generateFullAiFlyer, {
-        headline,
-        subheadline,
-        cta,
-        platform: args.platform,
-      });
-    } else if (currentMode === "ai_bg_svg_text") {
-      const bgUrl = await ctx.runAction(internal.flyer_templates.generateAiBackgroundWithSvgOverlay, {
-        headline,
-        subheadline,
-        cta,
-        platform: args.platform,
-      });
-
-      const svgOverlay = await ctx.runAction(internal.flyer_templates.generateFlyerSvgOnly, {
-        headline,
-        subheadline,
-        cta,
-        platform: args.platform,
-      });
-
-      imageUrl = bgUrl;
-    } else {
+    try {
+      if (currentMode === "full_ai") {
+        imageUrl = await ctx.runAction(internal.flyer_templates.generateFullAiFlyer, {
+          headline,
+          subheadline,
+          cta,
+          platform: args.platform,
+        });
+      } else if (currentMode === "ai_bg_svg_text") {
+        imageUrl = await ctx.runAction(internal.flyer_templates.generateAiBackgroundWithSvgOverlay, {
+          headline,
+          subheadline,
+          cta,
+          platform: args.platform,
+        });
+      } else {
+        imageUrl = await ctx.runAction(internal.flyer_templates.generateFlyerSvgOnly, {
+          headline,
+          subheadline,
+          cta,
+          platform: args.platform,
+        });
+      }
+    } catch (err) {
+      // Fallback to SVG-only if AI generation fails
+      console.log("AI generation failed, falling back to SVG:", err);
       imageUrl = await ctx.runAction(internal.flyer_templates.generateFlyerSvgOnly, {
         headline,
         subheadline,
@@ -297,21 +299,31 @@ export const generateFlyerInternal = internalAction({
 
     let imageUrl: string;
 
-    if (currentMode === "full_ai") {
-      imageUrl = await ctx.runAction(internal.flyer_templates.generateFullAiFlyer, {
-        headline,
-        subheadline,
-        cta,
-        platform: args.platform,
-      });
-    } else if (currentMode === "ai_bg_svg_text") {
-      imageUrl = await ctx.runAction(internal.flyer_templates.generateAiBackgroundWithSvgOverlay, {
-        headline,
-        subheadline,
-        cta,
-        platform: args.platform,
-      });
-    } else {
+    try {
+      if (currentMode === "full_ai") {
+        imageUrl = await ctx.runAction(internal.flyer_templates.generateFullAiFlyer, {
+          headline,
+          subheadline,
+          cta,
+          platform: args.platform,
+        });
+      } else if (currentMode === "ai_bg_svg_text") {
+        imageUrl = await ctx.runAction(internal.flyer_templates.generateAiBackgroundWithSvgOverlay, {
+          headline,
+          subheadline,
+          cta,
+          platform: args.platform,
+        });
+      } else {
+        imageUrl = await ctx.runAction(internal.flyer_templates.generateFlyerSvgOnly, {
+          headline,
+          subheadline,
+          cta,
+          platform: args.platform,
+        });
+      }
+    } catch (err) {
+      // Fallback to SVG-only if AI generation fails
       imageUrl = await ctx.runAction(internal.flyer_templates.generateFlyerSvgOnly, {
         headline,
         subheadline,

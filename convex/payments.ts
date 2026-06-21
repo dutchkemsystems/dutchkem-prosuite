@@ -36,7 +36,7 @@ export const attemptCharge = internalAction({
   returns: v.null(),
   handler: async (ctx, { subscriptionId }) => {
     const sub = await ctx.runQuery(internal.payments.getSubscription, { subscriptionId });
-    if (!sub || !sub.paymentMethodId) return null;
+    if (!sub) return null;
 
     const user = await ctx.runQuery(internal.payments.getUser, { userId: sub.userId });
     if (!user) return null;
@@ -68,7 +68,7 @@ export const attemptCharge = internalAction({
         amount,
         email: user.email || "client@dutchkem.com",
         plan: sub.plan,
-        service: sub.service || "prosuite",
+        service: sub.service || "standard",
       });
 
       if (chargeResult.success) {

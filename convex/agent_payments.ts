@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action, mutation, query } from "./_generated/server";
+import { action, mutation, internalMutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 /**
@@ -91,7 +91,7 @@ export const initiatePayment = action({
 /**
  * Record pending payment before redirect
  */
-export const recordPendingPayment = mutation({
+export const recordPendingPayment = internalMutation({
   args: {
     reference: v.string(),
     agentId: v.string(),
@@ -126,7 +126,7 @@ export const recordPendingPayment = mutation({
  * Complete payment after webhook confirmation
  * Credits admin wallet and activates agent subscription
  */
-export const completePayment = mutation({
+export const completePayment = internalMutation({
   args: {
     reference: v.string(),
     amount: v.number(),

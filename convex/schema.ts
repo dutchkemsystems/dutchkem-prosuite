@@ -3957,6 +3957,179 @@ export default defineSchema({
   }).index("by_identifier_ip", ["identifier", "ipAddress"])
     .index("by_created", ["createdAt"]),
 
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE GROWTH: CREDIT EXPIRATION SYSTEM
+  // ═══════════════════════════════════════════════════════════════
+  credit_expiry_config: defineTable({
+    enabled: v.boolean(),
+    expiryDays: v.number(), // default 30
+    warningDays: v.number(), // warn before expiry (default 7)
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_singleton", ["enabled"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE GROWTH: ANNUAL PLAN DISCOUNTS
+  // ═══════════════════════════════════════════════════════════════
+  subscription_plans: defineTable({
+    planId: v.string(), // "starter", "pro", "enterprise"
+    name: v.string(),
+    description: v.string(),
+    monthlyPriceNgn: v.number(),
+    annualPriceNgn: v.number(),
+    annualDiscountPercent: v.number(),
+    creditsIncluded: v.number(),
+    messageLimitMonthly: v.number(), // -1 for unlimited
+    features: v.array(v.string()),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_plan_id", ["planId"])
+    .index("by_active", ["isActive"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE GROWTH: AGENT-SPECIFIC PREMIUM PRICING
+  // ═══════════════════════════════════════════════════════════════
+  agent_pricing_tiers: defineTable({
+    agentId: v.string(), // "A1"-"A15"
+    agentName: v.string(),
+    tier: v.union(v.literal("standard"), v.literal("premium"), v.literal("enterprise")),
+    monthlyPriceNgn: v.number(),
+    creditsPerMessage: v.number(),
+    features: v.array(v.string()),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_agent", ["agentId"])
+    .index("by_tier", ["tier"])
+    .index("by_active", ["isActive"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE GROWTH: ENTERPRISE ADD-ONS
+  // ═══════════════════════════════════════════════════════════════
+  enterprise_addons: defineTable({
+    addonId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    category: v.union(v.literal("api_access"), v.literal("custom_training"), v.literal("white_label"), v.literal("dedicated_support"), v.literal("custom_integration")),
+    priceNgn: v.number(),
+    billingCycle: v.union(v.literal("one_time"), v.literal("monthly"), v.literal("annual")),
+    features: v.array(v.string()),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_addon_id", ["addonId"])
+    .index("by_category", ["category"])
+    .index("by_active", ["isActive"]),
+
+  enterprise_addon_subscriptions: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    addonId: v.string(),
+    addonName: v.string(),
+    status: v.union(v.literal("active"), v.literal("cancelled"), v.literal("expired")),
+    startDate: v.number(),
+    endDate: v.optional(v.number()),
+    lastBillingAt: v.number(),
+    nextBillingAt: v.optional(v.number()),
+    amountPaid: v.number(),
+    createdAt: v.number(),
+  }).index("by_org", ["orgId"])
+    .index("by_addon", ["addonId"])
+    .index("by_status", ["status"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE GROWTH: USAGE TIERS & OVERAGE BILLING
+  // ═══════════════════════════════════════════════════════════════
+  user_usage_tracking: defineTable({
+    userId: v.string(),
+    period: v.string(), // "2026-06"
+    agentMessagesUsed: v.number(),
+    documentUploadsUsed: v.number(),
+    voiceMinutesUsed: v.number(),
+    flyerGenerationsUsed: v.number(),
+    socialPostsUsed: v.number(),
+    researchTasksUsed: v.number(),
+    overageCharges: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user_period", ["userId", "period"])
+    .index("by_period", ["period"]),
+
+  overage_invoices: defineTable({
+    userId: v.string(),
+    period: v.string(),
+    overageType: v.string(), // "agent_messages", "document_uploads", etc.
+    quantity: v.number(),
+    unitPrice: v.number(),
+    totalNgn: v.number(),
+    status: v.union(v.literal("pending"), v.literal("paid"), v.literal("failed")),
+    paidAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_period", ["period"])
+    .index("by_status", ["status"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE GROWTH: FREEMIUM CONVERSION TRACKING
+  // ═══════════════════════════════════════════════════════════════
+  freemium_conversion_events: defineTable({
+    userId: v.string(),
+    eventType: v.union(
+      v.literal("free_credit_granted"),
+      v.literal("free_limit_reached"),
+      v.literal("upgrade_prompt_shown"),
+      v.literal("upgrade_prompt_clicked"),
+      v.literal("conversion_completed"),
+      v.literal("trial_started"),
+      v.literal("trial_expired")
+    ),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_event", ["eventType"])
+    .index("by_created", ["createdAt"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE GROWTH: REVENUE ANALYTICS DASHBOARD
+  // ═══════════════════════════════════════════════════════════════
+  revenue_daily_snapshots: defineTable({
+    date: v.string(), // "2026-06-19"
+    totalRevenueNgn: v.number(),
+    subscriptionRevenue: v.number(),
+    creditRevenue: v.number(),
+    enterpriseRevenue: v.number(),
+    marketplaceRevenue: v.number(),
+    adRevenue: v.number(),
+    addonRevenue: v.number(),
+    overageRevenue: v.number(),
+    newSubscriptions: v.number(),
+    churnedSubscriptions: v.number(),
+    activeUsers: v.number(),
+    mrr: v.number(), // monthly recurring revenue
+    arr: v.number(), // annual recurring revenue
+    arpu: v.number(), // average revenue per user
+    ltv: v.number(), // customer lifetime value
+    conversionRate: v.number(),
+    createdAt: v.number(),
+  }).index("by_date", ["date"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REVENUE GROWTH: SUBSCRIPTION UPGRADE/DOWNGRADE TRACKING
+  // ═══════════════════════════════════════════════════════════════
+  subscription_changes: defineTable({
+    userId: v.string(),
+    changeType: v.union(v.literal("upgrade"), v.literal("downgrade"), v.literal("renewal"), v.literal("cancellation")),
+    fromPlan: v.string(),
+    toPlan: v.string(),
+    fromPriceNgn: v.number(),
+    toPriceNgn: v.number(),
+    proratedAmount: v.number(),
+    effectiveDate: v.number(),
+    reason: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_change_type", ["changeType"])
+    .index("by_created", ["createdAt"]),
+
   aws_otp_delivery_logs: defineTable({
     otpRequestId: v.id("aws_otp_requests"),
     channel: v.string(),
@@ -4168,4 +4341,178 @@ export default defineSchema({
   }).index("by_wallet", ["walletType"])
     .index("by_type", ["type"])
     .index("by_created", ["createdAt"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // LONG-FORM VIDEO PRODUCTION
+  // ═══════════════════════════════════════════════════════════════
+  video_productions: defineTable({
+    userId: v.string(),
+    title: v.string(),
+    prompt: v.string(),
+    genre: v.string(),
+    targetDuration: v.number(), // in minutes
+    style: v.string(),
+    storyData: v.any(),
+    scenes: v.array(v.any()),
+    status: v.union(
+      v.literal("story_developed"),
+      v.literal("scenes_generating"),
+      v.literal("scenes_complete"),
+      v.literal("assembling"),
+      v.literal("completed"),
+      v.literal("failed")
+    ),
+    finalVideoUrl: v.optional(v.string()),
+    totalDuration: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  }).index("by_user", ["userId"])
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
+
+  video_scenes: defineTable({
+    storyId: v.string(),
+    sceneIndex: v.number(),
+    sceneData: v.any(),
+    videoUrl: v.optional(v.string()),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("generating"),
+      v.literal("generated"),
+      v.literal("failed")
+    ),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_story", ["storyId"])
+    .index("by_status", ["status"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // ENTERPRISE BILLING SYSTEM
+  // ═══════════════════════════════════════════════════════════════
+  enterprise_invoices: defineTable({
+    orgId: v.string(),
+    planName: v.string(),
+    period: v.string(),
+    flatFee: v.number(),
+    adSpendTotal: v.number(),
+    successFee: v.number(),
+    total: v.number(),
+    status: v.union(v.literal("pending"), v.literal("paid"), v.literal("overdue"), v.literal("cancelled")),
+    paidAt: v.optional(v.number()),
+    dueAt: v.number(),
+    createdAt: v.number(),
+  }).index("by_org", ["orgId"])
+    .index("by_status", ["status"])
+    .index("by_period", ["period"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // REFERRAL WITHDRAWAL SYSTEM
+  // ═══════════════════════════════════════════════════════════════
+  referral_withdrawal_requests: defineTable({
+    userId: v.string(),
+    requestedAmount: v.number(),
+    serviceFee: v.number(),
+    netAmount: v.number(),
+    bankCode: v.string(),
+    bankName: v.string(),
+    accountNumber: v.string(),
+    accountName: v.string(),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"), v.literal("completed")),
+    approvedAt: v.optional(v.number()),
+    approvedBy: v.optional(v.string()),
+    rejectedAt: v.optional(v.number()),
+    rejectedBy: v.optional(v.string()),
+    rejectionReason: v.optional(v.string()),
+    completedAt: v.optional(v.number()),
+    koraReference: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // UNIFIED ADVERT ORCHESTRATOR
+  // ═══════════════════════════════════════════════════════════════
+  unified_orchestrator_status: defineTable({
+    enabled: v.boolean(),
+    autoGenerate: v.boolean(),
+    autoPost: v.boolean(),
+    platforms: v.array(v.object({
+      id: v.string(),
+      enabled: v.boolean(),
+    })),
+    lastRun: v.union(v.null(), v.number()),
+    nextRun: v.union(v.null(), v.number()),
+    totalGenerated: v.number(),
+    totalPosted: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }),
+
+  unified_ad_content: defineTable({
+    headline: v.string(),
+    description: v.string(),
+    cta: v.string(),
+    platforms: v.array(v.string()),
+    usedCount: v.number(),
+    lastUsedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_created", ["createdAt"]),
+
+  unified_scheduled_posts: defineTable({
+    content: v.string(),
+    platforms: v.array(v.string()),
+    scheduledFor: v.number(),
+    status: v.union(
+      v.literal("draft"),
+      v.literal("scheduled"),
+      v.literal("published"),
+      v.literal("failed")
+    ),
+    hashtags: v.optional(v.array(v.string())),
+    externalId: v.optional(v.string()),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_status", ["status"])
+    .index("by_scheduled", ["scheduledFor"]),
+
+  unified_posting_logs: defineTable({
+    contentId: v.string(),
+    platforms: v.array(v.string()),
+    results: v.array(v.any()),
+    timestamp: v.number(),
+  }).index("by_timestamp", ["timestamp"])
+    .index("by_content", ["contentId"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // PRE-SUBSCRIPTION TRACKING — Track free exchanges before subscribe
+  // ═══════════════════════════════════════════════════════════════
+  pre_subscription_exchanges: defineTable({
+    userId: v.string(),
+    agentId: v.string(),
+    exchangeCount: v.number(),
+    lastExchangeAt: v.number(),
+    createdAt: v.number(),
+  }).index("by_user_agent", ["userId", "agentId"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // KORA PAY CHECKOUT — Pending Transactions
+  // ═══════════════════════════════════════════════════════════════
+  kora_pending_transactions: defineTable({
+    userId: v.string(),
+    type: v.string(), // "credit_purchase", "subscription", "enterprise_addon"
+    reference: v.string(),
+    amount: v.number(),
+    packageId: v.string(),
+    credits: v.number(),
+    email: v.string(),
+    billingCycle: v.optional(v.string()),
+    status: v.union(v.literal("pending"), v.literal("completed"), v.literal("failed")),
+    processedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"])
+    .index("by_reference", ["reference"])
+    .index("by_status", ["status"]),
 });

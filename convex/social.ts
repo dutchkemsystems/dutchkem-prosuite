@@ -119,9 +119,9 @@ export const COMPOSIO_APP_MAP: Record<string, string | undefined> = {
   youtube: "youtube",
   reddit: "reddit",
   discord: "discord",
-  tiktok: undefined,
-  pinterest: undefined,
-  threads: undefined,
+  tiktok: "tiktok",
+  threads: "threads",
+  pinterest: "pinterest",
   bluesky: undefined,
   telegram: undefined,
 };
@@ -131,13 +131,6 @@ export const TRYPOST_PLATFORMS: Record<string, string> = {
   pinterest: "pinterest",
   tiktok: "tiktok",
   threads: "threads",
-  facebook: "facebook",
-  instagram: "instagram",
-  youtube: "youtube",
-  reddit: "reddit",
-  discord: "discord",
-  linkedin: "linkedin",
-  x: "x",
 };
 
 // ═══════════════════════════════════════════════════════════════════

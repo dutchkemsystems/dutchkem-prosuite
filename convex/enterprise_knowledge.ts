@@ -114,20 +114,23 @@ export const getStats = query({
   returns: v.any(),
   handler: async (ctx, args) => {
     const resolvedOrgId = await resolveOrgId(ctx, args);
-    if (!resolvedOrgId) return { totalEntries: 0, sourceBreakdown: {}, avgConfidence: 0 };
+    if (!resolvedOrgId) return { totalEntries: 0, entities: [], sources: [], avgConfidence: 0 };
 
     const entries = await ctx.db.query("enterprise_knowledge_entries")
       .withIndex("by_org", (q) => q.eq("orgId", resolvedOrgId))
       .collect();
 
     const sourceCounts: Record<string, number> = {};
+    const entityCounts: Record<string, number> = {};
     entries.forEach((e: any) => {
       sourceCounts[e.source] = (sourceCounts[e.source] || 0) + 1;
+      entityCounts[e.entity] = (entityCounts[e.entity] || 0) + 1;
     });
 
     return {
       totalEntries: entries.length,
-      sourceBreakdown: sourceCounts,
+      entities: Object.entries(entityCounts).map(([name, count]) => ({ name, count })),
+      sources: Object.entries(sourceCounts).map(([name, count]) => ({ name, count })),
       avgConfidence: entries.reduce((sum: number, e: any) => sum + e.confidence, 0) / (entries.length || 1),
     };
   },

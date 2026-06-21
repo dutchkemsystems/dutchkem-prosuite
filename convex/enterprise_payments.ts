@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action, mutation, internalMutation, query } from "./_generated/server";
+import { action, mutation, internalMutation, internalQuery, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { tryResolveEnterpriseAuth, tryGetAdminSessionInAction } from "./auth_helpers";
 import type { Id } from "./_generated/dataModel";
@@ -68,7 +68,7 @@ export const createTransaction = mutation({
       createdAt: now,
     });
 
-    return { success: true, transactionId };
+    return { success: true, transactionId, reference: ref };
   },
 });
 
@@ -128,6 +128,7 @@ export const simulatePayment = mutation({
     if (!resolvedOrgId) throw new Error("Organization not found");
 
     const now = Date.now();
+    const ref = args.reference || `SIM_${now}_${Math.random().toString(36).substr(2, 9)}`;
     const transactionId = await ctx.db.insert("enterprise_transactions", {
       orgId: resolvedOrgId,
       fromAgent: args.fromAgent,
@@ -135,12 +136,12 @@ export const simulatePayment = mutation({
       amount: args.amount,
       currency: args.currency,
       status: "completed",
-      reference: args.reference || `SIM_${now}_${Math.random().toString(36).substr(2, 9)}`,
+      reference: ref,
       metadata: { simulated: true },
       createdAt: now,
     });
 
-    return { success: true, transactionId, simulated: true };
+    return { success: true, transactionId, reference: ref, simulated: true };
   },
 });
 
@@ -289,7 +290,7 @@ export const initiateSubscriptionPayment = action({
 });
 
 /** Internal query to resolve orgId from enterprise session token (for actions) */
-export const _resolveSessionOrgId = internalMutation({
+export const _resolveSessionOrgId = internalQuery({
   args: { token: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {

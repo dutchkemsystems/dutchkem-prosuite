@@ -6,6 +6,10 @@ import { shoppingAgent } from "./shopping_agent";
 import { components, internal } from "./_generated/api";
 import { internalAction, mutation, query } from "./_generated/server";
 import { buildComposioContext, AGENT_ID_MAP } from "./agent_runtime";
+import { getPreSubscriptionResponse, getUpgradePrompt, getPreSubscriptionCountInternal, savePreSubscriptionExchange } from "./pre_subscription_handler";
+
+const MAX_FREE_EXCHANGES = 3;
+const AGENT_ID = "A5";
 
 export const createThread = mutation({
   args: {},
@@ -24,22 +28,43 @@ export const sendMessage = mutation({
   returns: v.string(),
   handler: async (ctx, { prompt, threadId }) => {
     const userId = await getAuthUserId(ctx);
-    // SUBSCRIPTION CHECK — require active plan before AI processing
     if (userId) {
       const sub = await ctx.runQuery(internal.subscription_guard.checkUserSubscription, { userId });
       if (!sub.active) {
+        const exchangeCount = await ctx.runQuery(internal.pre_subscription_handler.getPreSubscriptionCountInternal, {
+          userId,
+          agentId: AGENT_ID,
+        });
+
         const { messageId } = await shoppingAgent.agents[0].saveMessage(ctx, {
           threadId,
           prompt,
           userId,
           skipEmbeddings: true,
         });
-        await (shoppingAgent.agents[0] as any).answer(ctx, {
-          threadId,
-          promptMessageId: messageId,
-          assistantId: (shoppingAgent.agents[0] as any).agentId ?? "shopping-agent",
-          text: "⚠️ Active subscription required. Please subscribe at https://dutchkem-prosuite-app.vercel.app/dashboard to use this agent.",
-        });
+
+        if (exchangeCount < MAX_FREE_EXCHANGES) {
+          const response = getPreSubscriptionResponse(AGENT_ID, prompt);
+          await (shoppingAgent.agents[0] as any).answer(ctx, {
+            threadId,
+            promptMessageId: messageId,
+            assistantId: (shoppingAgent.agents[0] as any).agentId ?? "shopping-agent",
+            text: response,
+          });
+          await ctx.runMutation(internal.pre_subscription_handler.savePreSubscriptionExchange, {
+            userId,
+            agentId: AGENT_ID,
+            exchangeCount: exchangeCount + 1,
+          });
+        } else {
+          const upgradePrompt = getUpgradePrompt(AGENT_ID, exchangeCount);
+          await (shoppingAgent.agents[0] as any).answer(ctx, {
+            threadId,
+            promptMessageId: messageId,
+            assistantId: (shoppingAgent.agents[0] as any).agentId ?? "shopping-agent",
+            text: upgradePrompt,
+          });
+        }
         return messageId;
       }
     }

@@ -7,13 +7,16 @@ import { components, internal } from "./_generated/api";
 import { internalAction, mutation, query } from "./_generated/server";
 import { KDP_REPLY } from "./kdp_constants";
 import { buildComposioContext, AGENT_ID_MAP } from "./agent_runtime";
+import { getPreSubscriptionResponse, getUpgradePrompt, getPreSubscriptionCountInternal, savePreSubscriptionExchange } from "./pre_subscription_handler";
+
+const MAX_FREE_EXCHANGES = 3;
+const AGENT_ID = "A1";
 
 export const createThread = mutation({
   args: {},
   returns: v.object({ threadId: v.string() }),
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
-    // Use the first agent in the suite to create the thread
     const { threadId } = await academicAgent.agents[0].createThread(ctx, {
       userId: userId ?? undefined,
     });
@@ -27,27 +30,51 @@ export const sendMessage = mutation({
   handler: async (ctx, { prompt, threadId }) => {
     const userId = await getAuthUserId(ctx);
 
-    // SUBSCRIPTION CHECK — require active plan before AI processing
+    // SUBSCRIPTION CHECK — allow limited free exchanges before gating
     if (userId) {
       const sub = await ctx.runQuery(internal.subscription_guard.checkUserSubscription, { userId });
       if (!sub.active) {
+        const exchangeCount = await ctx.runQuery(internal.pre_subscription_handler.getPreSubscriptionCountInternal, {
+          userId,
+          agentId: AGENT_ID,
+        });
+
         const { messageId } = await academicAgent.agents[0].saveMessage(ctx, {
           threadId,
           prompt,
           userId,
           skipEmbeddings: true,
         });
-        await (academicAgent.agents[0] as any).answer(ctx, {
-          threadId,
-          promptMessageId: messageId,
-          assistantId: (academicAgent.agents[0] as any).agentId ?? "academic-writer",
-          text: "⚠️ Active subscription required. Please subscribe at https://dutchkem-prosuite-app.vercel.app/dashboard to use this agent.",
-        });
+
+        if (exchangeCount < MAX_FREE_EXCHANGES) {
+          // Allow free response and track the exchange
+          const response = getPreSubscriptionResponse(AGENT_ID, prompt);
+          await (academicAgent.agents[0] as any).answer(ctx, {
+            threadId,
+            promptMessageId: messageId,
+            assistantId: (academicAgent.agents[0] as any).agentId ?? "academic-writer",
+            text: response,
+          });
+          await ctx.runMutation(internal.pre_subscription_handler.savePreSubscriptionExchange, {
+            userId,
+            agentId: AGENT_ID,
+            exchangeCount: exchangeCount + 1,
+          });
+        } else {
+          // After free exchanges, show warm upgrade prompt
+          const upgradePrompt = getUpgradePrompt(AGENT_ID, exchangeCount);
+          await (academicAgent.agents[0] as any).answer(ctx, {
+            threadId,
+            promptMessageId: messageId,
+            assistantId: (academicAgent.agents[0] as any).agentId ?? "academic-writer",
+            text: upgradePrompt,
+          });
+        }
         return messageId;
       }
     }
 
-    // COMPOSIO CONTEXT INJECTION — append active toolkits to prompt
+    // COMPOSIO CONTEXT INJECTION
     const composioAgentId = AGENT_ID_MAP["academic_chat"];
     let enhancedPrompt = prompt;
     if (composioAgentId) {
@@ -65,7 +92,6 @@ export const sendMessage = mutation({
         skipEmbeddings: true,
       });
       
-      // Save the fixed assistant response
       await (academicAgent.agents[0] as any).answer(ctx, {
         threadId,
         promptMessageId: messageId,

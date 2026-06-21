@@ -52,32 +52,33 @@ async function getOrCreateTitheWallet(ctx: any) {
 }
 
 /**
- * Get yesterday's platform earnings
+ * Get previous month's total revenue from payment_verifications
  */
-async function getYesterdayEarnings(ctx: any): Promise<number> {
-  const watNow = getWATDate();
-  const startOfYesterday = new Date(watNow);
-  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
-  startOfYesterday.setHours(0, 0, 0, 0);
-  const endOfYesterday = new Date(watNow);
-  endOfYesterday.setDate(endOfYesterday.getDate() - 1);
-  endOfYesterday.setHours(23, 59, 59, 999);
+async function getPreviousMonthRevenue(ctx: any, monthStr: string): Promise<number> {
+  const [year, month] = monthStr.split('-').map(Number);
+  const startOfMonth = new Date(year, month - 1, 1).getTime();
+  const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999).getTime();
 
   const payments = await ctx.db
     .query("payment_verifications")
     .withIndex("by_status_and_verifiedAt", (q: any) =>
-      q.eq("status", "approved").gte("verifiedAt", startOfYesterday.getTime())
+      q.eq("status", "approved").gte("verifiedAt", startOfMonth)
     )
     .collect();
 
-  const yesterdayPayments = payments.filter((p: any) => p.verifiedAt <= endOfYesterday.getTime());
-  const totalRevenue = yesterdayPayments.reduce((acc: number, p: any) => acc + p.amount, 0);
-  return totalRevenue;
+  const monthPayments = payments.filter(
+    (p: any) => p.verifiedAt <= endOfMonth
+  );
+
+  return monthPayments.reduce((acc: number, p: any) => acc + (p.amount || 0), 0);
 }
 
 /**
  * Daily tithe deduction (cron-driven)
- * 10% of yesterday's revenue ÷ remaining days in month
+ * 
+ * New logic: 10% of LAST MONTH's total revenue ÷ days in CURRENT month
+ * Each day, the daily fraction accumulates in the wallet.
+ * At month end, the full balance is transferred.
  */
 export const runDailyTitheDeduction = internalMutation({
   args: {},
@@ -88,62 +89,89 @@ export const runDailyTitheDeduction = internalMutation({
     if (wallet.isPaused) return null;
 
     const watNow = getWATDate();
-    const currentDayOfMonth = watNow.getDate();
     const currentMonthStr = formatMonth(watNow);
+    const daysInMonth = getDaysInMonth(watNow.getFullYear(), watNow.getMonth());
+    const currentDayOfMonth = watNow.getDate();
 
     // Reset wallet on new month
     if (wallet.currentMonth !== currentMonthStr) {
-      const newDaysInMonth = getDaysInMonth(watNow.getFullYear(), watNow.getMonth());
+      // Calculate 10% of previous month's total revenue
+      const prevMonth = new Date(watNow);
+      prevMonth.setMonth(prevMonth.getMonth() - 1);
+      const prevMonthStr = formatMonth(prevMonth);
+      
+      const prevMonthRevenue = await getPreviousMonthRevenue(ctx, prevMonthStr);
+      const monthlyTitheTarget = prevMonthRevenue * (TITHE_PERCENTAGE / 100);
+      const dailyFraction = monthlyTitheTarget / daysInMonth;
+
       await ctx.db.patch(wallet._id, {
         currentMonth: currentMonthStr,
         monthlyEarningsSoFar: 0,
         balance: 0,
-        dailyDeductionAmount: 0,
-        daysInMonth: newDaysInMonth,
+        dailyDeductionAmount: dailyFraction,
+        daysInMonth: daysInMonth,
+        monthlyTitheTarget: monthlyTitheTarget,
+        previousMonthRevenue: prevMonthRevenue,
+      });
+
+      // Log the monthly target
+      await ctx.db.insert("tithe_transactions", {
+        type: "MONTHLY_TARGET_SET",
+        amountNgn: monthlyTitheTarget,
+        balanceBefore: 0,
+        balanceAfter: 0,
+        date: Date.now(),
+        monthYear: currentMonthStr,
+        daysInMonth: daysInMonth,
+        currentDay: currentDayOfMonth,
+        monthlyEarnings: prevMonthRevenue,
+        dailyDeductionAmount: dailyFraction,
+        percentage: TITHE_PERCENTAGE,
+        designatedAccount: DESIGNATED_ACCOUNT,
+        status: "completed",
+        notes: `Monthly target: ${TITHE_PERCENTAGE}% of ₦${prevMonthRevenue.toFixed(2)} = ₦${monthlyTitheTarget.toFixed(2)}, daily: ₦${dailyFraction.toFixed(2)}`,
       });
     }
 
-    // Get yesterday's earnings
-    const yesterdayRevenue = await getYesterdayEarnings(ctx);
-    if (yesterdayRevenue <= 0) return null;
-
+    // Get fresh wallet
     const fresh: any = await ctx.db.get(wallet._id);
     if (!fresh) return null;
 
-    // Calculate tithe: 10% of yesterday's revenue
-    const dailyTitheAmount = yesterdayRevenue * (TITHE_PERCENTAGE / 100);
-    const newMonthlyEarnings = (fresh.monthlyEarningsSoFar || 0) + yesterdayRevenue;
-    const newBalance = (fresh.balance || 0) + dailyTitheAmount;
+    // Use the stored daily fraction (set at month start)
+    const dailyFraction = fresh.dailyDeductionAmount || 0;
+    if (dailyFraction <= 0) return null;
+
+    const newBalance = (fresh.balance || 0) + dailyFraction;
+    const newMonthlyEarnings = (fresh.monthlyEarningsSoFar || 0) + dailyFraction;
 
     // Update wallet
     await ctx.db.patch(fresh._id, {
       balance: newBalance,
-      totalSetAsideLifetime: (fresh.totalSetAsideLifetime || 0) + dailyTitheAmount,
+      totalSetAsideLifetime: (fresh.totalSetAsideLifetime || 0) + dailyFraction,
       lastDeductionDate: Date.now(),
       monthlyEarningsSoFar: newMonthlyEarnings,
-      dailyDeductionAmount: dailyTitheAmount,
     });
 
     // Log tithe transaction
     await ctx.db.insert("tithe_transactions", {
       type: "DAILY_DEDUCTION",
-      amountNgn: dailyTitheAmount,
+      amountNgn: dailyFraction,
       balanceBefore: fresh.balance || 0,
       balanceAfter: newBalance,
       date: Date.now(),
       monthYear: currentMonthStr,
-      daysInMonth: fresh.daysInMonth || 30,
+      daysInMonth: fresh.daysInMonth || daysInMonth,
       currentDay: currentDayOfMonth,
-      monthlyEarnings: newMonthlyEarnings,
-      dailyDeductionAmount: dailyTitheAmount,
+      monthlyEarnings: fresh.monthlyTitheTarget || 0,
+      dailyDeductionAmount: dailyFraction,
       percentage: TITHE_PERCENTAGE,
       designatedAccount: DESIGNATED_ACCOUNT,
       status: "completed",
-      notes: `Daily tithe: ${TITHE_PERCENTAGE}% of ₦${yesterdayRevenue.toFixed(2)} revenue`,
+      notes: `Day ${currentDayOfMonth}/${fresh.daysInMonth}: ₦${dailyFraction.toFixed(2)} accumulated (target: ₦${(fresh.monthlyTitheTarget || 0).toFixed(2)})`,
     });
 
     console.log(
-      `[TITHE] Daily deduction: ₦${dailyTitheAmount.toFixed(2)} (${TITHE_PERCENTAGE}% of ₦${yesterdayRevenue.toFixed(2)} revenue)`
+      `[TITHE] Day ${currentDayOfMonth}/${fresh.daysInMonth}: ₦${dailyFraction.toFixed(2)} accumulated. Wallet: ₦${newBalance.toFixed(2)}`
     );
     return null;
   },
@@ -157,10 +185,11 @@ export const runMonthlyTitheTransfer = internalAction({
   returns: v.any(),
   handler: async (ctx): Promise<any> => {
     const watNow = getWATDate();
-    const tomorrow = new Date(watNow);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    if (tomorrow.getMonth() === watNow.getMonth()) {
-      return { success: true, message: "Not last day of month" };
+    const lastDayOfMonth = getDaysInMonth(watNow.getFullYear(), watNow.getMonth());
+    
+    // Only transfer on the last day of the month
+    if (watNow.getDate() !== lastDayOfMonth) {
+      return { success: true, message: `Not last day of month. Today is day ${watNow.getDate()}, month ends on day ${lastDayOfMonth}.` };
     }
 
     const wallet: any = await ctx.runQuery(internal.tithe_deductions.getTitheWalletInternal);
@@ -365,11 +394,16 @@ export const getTitheStats = query({
         dailyDeductionAmount: 0,
         daysInMonth: getDaysInMonth(new Date().getFullYear(), new Date().getMonth()),
         isPaused: false,
+        monthlyTitheTarget: 0,
+        previousMonthRevenue: 0,
       },
       thisMonth: {
         totalDeducted: thisMonth.reduce((sum, t) => sum + t.amountNgn, 0),
         daysProcessed: thisMonth.length,
         averageDaily: thisMonth.length > 0 ? thisMonth.reduce((sum, t) => sum + t.amountNgn, 0) / thisMonth.length : 0,
+        monthlyTarget: wallet?.monthlyTitheTarget || 0,
+        dailyFraction: wallet?.dailyDeductionAmount || 0,
+        daysRemaining: (wallet?.daysInMonth || 30) - new Date().getDate(),
       },
       allTime: {
         totalDeducted: allTx

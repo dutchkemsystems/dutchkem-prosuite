@@ -593,44 +593,63 @@ export const processDuePosts = internalAction({
     for (const post of duePosts) {
       try {
         await ctx.runMutation(internalAny._markPublishing, { id: post._id });
-        const apiKey = process.env.TRYPOST_API_KEY;
-        const apiUrl = process.env.TRYPOST_API_URL ?? "http://localhost:4000";
+        
+        // Use Composio as the API backbone (MCP server approach)
+        // TryPost routes through Composio for OAuth and platform connections
+        const composioResult = await ctx.runAction(internal.social.postToPlatform, {
+          platform: post.platforms?.[0] || 'twitter',
+          content: post.content,
+          mediaUrls: post.mediaUrls,
+        });
 
-        if (apiKey) {
-          const response = await fetch(`${apiUrl}/api/posts/publish`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-api-key": apiKey,
-            },
-            body: JSON.stringify({
-              content: post.content,
-              mediaUrls: post.mediaUrls,
-              platforms: post.platforms,
-              carouselSlides: post.carouselSlides,
-            }),
-          });
-          if (response.ok) {
-            const result = await response.json();
-            await ctx.runMutation(internalAny._markPublished, {
-              id: post._id,
-              publishedAt: now,
-              result,
-            });
-            published++;
-          } else {
-            await ctx.runMutation(internalAny._markFailed, {
-              id: post._id,
-              error: `TryPost API ${response.status}`,
-            });
-            failed++;
-          }
-        } else {
-          // No TryPost configured — mark as "queued" with note for manual publish
-          await ctx.runMutation(internalAny._markQueued, {
+        if (composioResult?.success) {
+          await ctx.runMutation(internalAny._markPublished, {
             id: post._id,
-            note: "TryPost API key not configured - queued for manual publish",
+            publishedAt: now,
+            result: composioResult,
           });
+          published++;
+        } else {
+          // Fallback to direct TryPost API if Composio fails
+          const apiKey = process.env.TRYPOST_API_KEY;
+          const apiUrl = process.env.TRYPOST_API_URL ?? "http://localhost:4000";
+
+          if (apiKey) {
+            const response = await fetch(`${apiUrl}/api/posts/publish`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-key": apiKey,
+              },
+              body: JSON.stringify({
+                content: post.content,
+                mediaUrls: post.mediaUrls,
+                platforms: post.platforms,
+                carouselSlides: post.carouselSlides,
+              }),
+            });
+            if (response.ok) {
+              const result = await response.json();
+              await ctx.runMutation(internalAny._markPublished, {
+                id: post._id,
+                publishedAt: now,
+                result,
+              });
+              published++;
+            } else {
+              await ctx.runMutation(internalAny._markFailed, {
+                id: post._id,
+                error: `TryPost API ${response.status}`,
+              });
+              failed++;
+            }
+          } else {
+            // No TryPost configured — mark as "queued" with note for manual publish
+            await ctx.runMutation(internalAny._markQueued, {
+              id: post._id,
+              note: "TryPost API key not configured - queued for manual publish",
+            });
+          }
         }
       } catch (e: any) {
         await ctx.runMutation(internalAny._markFailed, {

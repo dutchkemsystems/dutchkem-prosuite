@@ -7,6 +7,7 @@ import { AgentHeader } from '../components/AgentHeader'
 import type { UIMessage } from "@convex-dev/agent"
 import { AgentServices } from '~/components/AgentServices'
 import { CompanyLogo } from '~/components/CompanyLogo'
+import { FileDownloadButtons } from '~/components/dashboard/FileDownloadButtons'
 
 export const Route = createFileRoute('/academic-writer')({
   component: AcademicWriterPage,
@@ -155,6 +156,16 @@ function MessageBubble({ message }: { message: UIMessage }) {
               <span className="inline-block w-1.5 h-4 ml-1 bg-indigo-400 animate-pulse align-middle"></span>
             )}
           </div>
+          {/* Download buttons for assistant messages with content */}
+          {isAssistant && visibleText && visibleText.length > 50 && message.status !== "streaming" && (
+            <div className="mt-3 pt-3 border-t border-slate-700">
+              <FileDownloadButtons
+                content={visibleText}
+                agentType="Academic Writer"
+                title="Academic Output"
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -141,7 +141,7 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
       // Refresh failed → trigger redirect to login
       clearTokens();
       if (typeof window !== "undefined") {
-        window.location.href = "/admin/login";
+        window.location.href = window.location.pathname.startsWith("/admin") ? "/admin/login" : "/auth";
       }
       throw new AuthError("Session expired. Please log in again.", 401);
     }

@@ -6,6 +6,7 @@ import { api } from "../../convex/_generated/api"
 import { AgentHeader } from '../components/AgentHeader'
 import type { UIMessage } from "@convex-dev/agent"
 import { CompanyLogo } from "~/components/CompanyLogo"
+import { FileDownloadButtons } from '~/components/dashboard/FileDownloadButtons'
 
 export const Route = createFileRoute('/business-consultant')({
   component: BusinessConsultantPage,
@@ -159,6 +160,11 @@ function MessageBubble({ message }: { message: UIMessage }) {
               <span className="inline-block w-1.5 h-4 ml-1 bg-blue-400 animate-pulse align-middle"></span>
             )}
           </div>
+          {isAssistant && visibleText && visibleText.length > 50 && message.status !== "streaming" && (
+            <div className="mt-3 pt-3 border-t border-slate-700">
+              <FileDownloadButtons content={visibleText} agentType="Business Advisor" title="Business Output" />
+            </div>
+          )}
         </div>
       </div>
     </div>

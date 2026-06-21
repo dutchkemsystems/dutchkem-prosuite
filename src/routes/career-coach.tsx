@@ -6,6 +6,7 @@ import { api } from "../../convex/_generated/api"
 import { AgentHeader } from '../components/AgentHeader'
 import type { UIMessage } from "@convex-dev/agent"
 import { CompanyLogo } from "~/components/CompanyLogo"
+import { FileDownloadButtons } from '~/components/dashboard/FileDownloadButtons'
 
 export const Route = createFileRoute('/career-coach')({
   component: CareerCoachPage,
@@ -144,21 +145,26 @@ function MessageBubble({ message }: { message: UIMessage }) {
     <div className={`flex ${isAssistant ? 'justify-start' : 'justify-end'} group animate-in fade-in slide-in-from-bottom-2 duration-300`}>
       <div className={`max-w-[85%] md:max-w-[70%] flex gap-3 ${isAssistant ? '' : 'flex-row-reverse'}`}>
         <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-sm font-bold ${
-          isAssistant ? 'bg-gradient-to-br from-teal-500 to-cyan-500 text-white' : 'bg-teal-600 text-white'
+          isAssistant ? 'bg-gradient-to-br from-green-500 to-emerald-500 text-white' : 'bg-green-600 text-white'
         }`}>
           {isAssistant ? '📄' : 'U'}
         </div>
         <div className={`p-4 rounded-2xl ${
           isAssistant 
             ? 'bg-slate-800 text-slate-100 border border-slate-700 shadow-sm' 
-            : 'bg-teal-600 text-white shadow-lg shadow-teal-500/10'
+            : 'bg-green-600 text-white shadow-lg shadow-green-500/10'
         }`}>
           <div className="whitespace-pre-wrap leading-relaxed text-sm">
             {visibleText}
             {message.status === "streaming" && (
-              <span className="inline-block w-1.5 h-4 ml-1 bg-teal-400 animate-pulse align-middle"></span>
+              <span className="inline-block w-1.5 h-4 ml-1 bg-green-400 animate-pulse align-middle"></span>
             )}
           </div>
+          {isAssistant && visibleText && visibleText.length > 50 && message.status !== "streaming" && (
+            <div className="mt-3 pt-3 border-t border-slate-700">
+              <FileDownloadButtons content={visibleText} agentType="Career Coach" title="Career Output" />
+            </div>
+          )}
         </div>
       </div>
     </div>

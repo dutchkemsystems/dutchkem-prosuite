@@ -4,6 +4,9 @@ import { api } from '../../../convex/_generated/api'
 
 type RevenueTab =
   | 'overview'
+  | 'subscriptions'
+  | 'agent_pricing'
+  | 'enterprise_addons'
   | 'credits'
   | 'social'
   | 'marketplace'
@@ -17,6 +20,9 @@ type RevenueTab =
 
 const TABS: { id: RevenueTab; label: string; icon: string }[] = [
   { id: 'overview', label: 'Overview', icon: '📊' },
+  { id: 'subscriptions', label: 'Subscriptions', icon: '💳' },
+  { id: 'agent_pricing', label: 'Agent Pricing', icon: '🤖' },
+  { id: 'enterprise_addons', label: 'Enterprise Add-ons', icon: '🏢' },
   { id: 'credits', label: 'Credits', icon: '💰' },
   { id: 'social', label: 'Social Commerce', icon: '📱' },
   { id: 'marketplace', label: 'Marketplace', icon: '🏪' },
@@ -939,6 +945,384 @@ function AutoEngageTab({ adminToken }: { adminToken: string }) {
   )
 }
 
+// ─── SUBSCRIPTION PLANS TAB ────────────────────────────────────
+
+function SubscriptionsTab({ adminToken }: { adminToken: string }) {
+  const plans = useQuery(api.revenue_growth.getSubscriptionPlans)
+  const stats = useQuery(api.revenue_growth.getSubscriptionChangeStats, adminToken ? { adminToken } : 'skip')
+  const creditExpiry = useQuery(api.revenue_growth.getCreditExpiryConfig)
+  const updatePlan = useMutation(api.revenue_growth.updateSubscriptionPlan)
+  const updateExpiry = useMutation(api.revenue_growth.updateCreditExpiryConfig)
+  const [editingPlan, setEditingPlan] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ monthlyPriceNgn: 0, annualPriceNgn: 0, annualDiscountPercent: 0, creditsIncluded: 0, messageLimitMonthly: 0 })
+  const [toast, setToast] = useState<string | null>(null)
+
+  const showToast = useCallback((msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(null), 3000)
+  }, [])
+
+  const handleEdit = (plan: any) => {
+    setEditingPlan(plan.planId)
+    setEditForm({
+      monthlyPriceNgn: plan.monthlyPriceNgn,
+      annualPriceNgn: plan.annualPriceNgn,
+      annualDiscountPercent: plan.annualDiscountPercent,
+      creditsIncluded: plan.creditsIncluded,
+      messageLimitMonthly: plan.messageLimitMonthly,
+    })
+  }
+
+  const handleSave = async () => {
+    if (!editingPlan) return
+    await updatePlan({ planId: editingPlan, ...editForm, adminToken })
+    setEditingPlan(null)
+    showToast('Plan updated')
+  }
+
+  const handleToggleExpiry = async () => {
+    await updateExpiry({
+      enabled: !creditExpiry?.enabled,
+      expiryDays: creditExpiry?.expiryDays ?? 30,
+      warningDays: creditExpiry?.warningDays ?? 7,
+      adminToken,
+    })
+    showToast(creditExpiry?.enabled ? 'Credit expiry disabled' : 'Credit expiry enabled')
+  }
+
+  return (
+    <div className="space-y-6">
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard icon="📦" value={(plans ?? []).length} label="Active Plans" color="from-blue-500/20 to-blue-600/10" />
+        <StatCard icon="⬆️" value={stats?.upgrades ?? 0} label="Upgrades (30d)" color="from-emerald-500/20 to-emerald-600/10" />
+        <StatCard icon="⬇️" value={stats?.downgrades ?? 0} label="Downgrades (30d)" color="from-orange-500/20 to-orange-600/10" />
+        <StatCard icon="💰" value={formatNgN(stats?.upgradeRevenue ?? 0)} label="Upgrade Revenue" color="from-purple-500/20 to-purple-600/10" />
+      </div>
+
+      {/* Credit Expiry Toggle */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-bold text-white">Credit Expiration</h3>
+          <p className="text-sm text-slate-400 mt-1">Credits expire after {creditExpiry?.expiryDays ?? 30} days (warning at {creditExpiry?.warningDays ?? 7} days)</p>
+        </div>
+        <button
+          onClick={handleToggleExpiry}
+          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${creditExpiry?.enabled ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/5 text-slate-400 border border-white/10'}`}
+        >
+          {creditExpiry?.enabled ? '✓ Enabled' : '○ Disabled'}
+        </button>
+      </div>
+
+      {/* Plans */}
+      <div>
+        <h3 className="text-lg font-bold text-white mb-3">Subscription Plans</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {(plans ?? []).map((plan: any) => (
+            <div key={plan.planId} className={`bg-white/5 border rounded-2xl p-6 transition-all ${editingPlan === plan.planId ? 'border-[#FF6B35]/50' : 'border-white/10 hover:border-white/20'}`}>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-xl font-bold text-white">{plan.name}</h4>
+                <button onClick={() => editingPlan === plan.planId ? setEditingPlan(null) : handleEdit(plan)} className="text-sm text-slate-400 hover:text-white transition-colors">
+                  {editingPlan === plan.planId ? '✕' : '✏️'}
+                </button>
+              </div>
+
+              {editingPlan === plan.planId ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-slate-400">Monthly Price (₦)</label>
+                    <input type="number" value={editForm.monthlyPriceNgn} onChange={(e) => setEditForm({ ...editForm, monthlyPriceNgn: Number(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm mt-1" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400">Annual Price (₦)</label>
+                    <input type="number" value={editForm.annualPriceNgn} onChange={(e) => setEditForm({ ...editForm, annualPriceNgn: Number(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm mt-1" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-xs text-slate-400">Discount %</label>
+                      <input type="number" value={editForm.annualDiscountPercent} onChange={(e) => setEditForm({ ...editForm, annualDiscountPercent: Number(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm mt-1" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-400">Credits</label>
+                      <input type="number" value={editForm.creditsIncluded} onChange={(e) => setEditForm({ ...editForm, creditsIncluded: Number(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm mt-1" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400">Messages/Month (-1=unlimited)</label>
+                    <input type="number" value={editForm.messageLimitMonthly} onChange={(e) => setEditForm({ ...editForm, messageLimitMonthly: Number(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm mt-1" />
+                  </div>
+                  <button onClick={handleSave} className="w-full bg-[#FF6B35] hover:bg-[#FF8255] text-white px-4 py-2 rounded-xl text-sm font-medium transition-all">Save Changes</button>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <div className="text-[#FF6B35] font-black text-3xl">{formatNgN(plan.monthlyPriceNgn)}</div>
+                    <div className="text-xs text-slate-400 mt-1">/month</div>
+                  </div>
+                  <div className="bg-white/5 rounded-xl p-3 mb-4">
+                    <div className="text-sm text-white font-medium">Annual: {formatNgN(plan.annualPriceNgn)}</div>
+                    <div className="text-xs text-emerald-400 mt-1">Save {plan.annualDiscountPercent}% with annual billing</div>
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-400">Credits</span>
+                      <span className="text-white font-bold">{plan.creditsIncluded.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-400">Messages/Month</span>
+                      <span className="text-white font-bold">{plan.messageLimitMonthly === -1 ? 'Unlimited' : plan.messageLimitMonthly}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    {(plan.features ?? []).map((f: string, i: number) => (
+                      <div key={i} className="flex items-center gap-2 text-xs text-slate-300">
+                        <span className="text-emerald-400">✓</span>
+                        <span>{f}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+          {(!plans || plans.length === 0) && (
+            <div className="col-span-3 text-center py-12 text-slate-500">No subscription plans configured. Call bulkSeedAllRevenueGrowth to seed.</div>
+          )}
+        </div>
+      </div>
+
+      {/* Change Stats */}
+      {stats && stats.totalChanges > 0 && (
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+          <h3 className="text-lg font-bold text-white mb-3">Subscription Changes (30 days)</h3>
+          <div className="grid grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-black text-emerald-400">{stats.upgrades}</div>
+              <div className="text-xs text-slate-400">Upgrades</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-black text-orange-400">{stats.downgrades}</div>
+              <div className="text-xs text-slate-400">Downgrades</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-black text-red-400">{stats.cancellations}</div>
+              <div className="text-xs text-slate-400">Cancellations</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-black text-[#FF6B35]">{formatNgN(stats.netRevenueImpact)}</div>
+              <div className="text-xs text-slate-400">Net Impact</div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── AGENT PRICING TAB ────────────────────────────────────────
+
+function AgentPricingTab({ adminToken }: { adminToken: string }) {
+  const tiers = useQuery(api.revenue_growth.getAgentPricingTiers)
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null)
+
+  const agents = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12', 'A13', 'A14', 'A15']
+  const agentNames: Record<string, string> = {
+    A1: 'Academic Writer', A2: 'Business Advisor', A3: 'Content Strategist',
+    A4: 'Career Coach', A5: 'Personal Shopper', A6: 'Exam Specialist',
+    A7: 'Finance Advisor', A8: 'MediaStudio Pro', A9: 'Wellness Coach',
+    A10: 'Home Specialist', A11: 'Language Coach', A12: 'Travel Planner',
+    A13: 'Exam Success', A14: 'Translation Hub', A15: 'Event Planner',
+  }
+
+  const getAgentTiers = (agentId: string) => {
+    return (tiers ?? []).filter((t: any) => t.agentId === agentId)
+  }
+
+  const tierColors: Record<string, string> = {
+    standard: 'from-blue-500/20 to-blue-600/10 border-blue-500/30',
+    premium: 'from-orange-500/20 to-orange-600/10 border-orange-500/30',
+    enterprise: 'from-purple-500/20 to-purple-600/10 border-purple-500/30',
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard icon="🤖" value={agents.length} label="Total Agents" color="from-blue-500/20 to-blue-600/10" />
+        <StatCard icon="📊" value={(tiers ?? []).length} label="Pricing Tiers" color="from-orange-500/20 to-orange-600/10" />
+        <StatCard icon="⭐" value={(tiers ?? []).filter((t: any) => t.tier === 'premium').length} label="Premium Tiers" color="from-emerald-500/20 to-emerald-600/10" />
+        <StatCard icon="🏢" value={(tiers ?? []).filter((t: any) => t.tier === 'enterprise').length} label="Enterprise Tiers" color="from-purple-500/20 to-purple-600/10" />
+      </div>
+
+      <div>
+        <h3 className="text-lg font-bold text-white mb-3">Select Agent</h3>
+        <div className="flex flex-wrap gap-2">
+          {agents.map((agentId) => (
+            <button
+              key={agentId}
+              onClick={() => setSelectedAgent(selectedAgent === agentId ? null : agentId)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${selectedAgent === agentId ? 'bg-[#FF6B35] text-white' : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'}`}
+            >
+              {agentId}: {agentNames[agentId]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Agent Pricing Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {(selectedAgent ? getAgentTiers(selectedAgent) : (tiers ?? []).slice(0, 12)).map((tier: any) => (
+          <div key={tier._id} className={`bg-gradient-to-br ${tierColors[tier.tier]} border rounded-2xl p-5 transition-all hover:scale-[1.02]`}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-white/10 text-white uppercase">{tier.tier}</span>
+              <span className="text-xs text-slate-400">{tier.agentId}</span>
+            </div>
+            <h4 className="text-lg font-bold text-white mb-2">{tier.agentName}</h4>
+            <div className="text-[#FF6B35] font-black text-2xl mb-3">{formatNgN(tier.monthlyPriceNgn)}<span className="text-xs text-slate-400 font-normal">/mo</span></div>
+            <div className="text-sm text-slate-400 mb-3">{tier.creditsPerMessage} credit{tier.creditsPerMessage > 1 ? 's' : ''} per message</div>
+            <div className="space-y-1">
+              {(tier.features ?? []).map((f: string, i: number) => (
+                <div key={i} className="flex items-center gap-2 text-xs text-slate-300">
+                  <span className="text-emerald-400">✓</span>
+                  <span>{f}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        {(!tiers || tiers.length === 0) && (
+          <div className="col-span-3 text-center py-12 text-slate-500">No agent pricing tiers configured. Call bulkSeedAllRevenueGrowth to seed.</div>
+        )}
+      </div>
+
+      {/* Pricing Summary Table */}
+      {tiers && tiers.length > 0 && (
+        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-white/5 text-sm text-slate-400 font-medium">
+            <h3 className="font-bold text-white">Pricing Summary</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/5">
+                  <th className="text-left px-5 py-3 text-slate-400 font-medium">Agent</th>
+                  <th className="text-right px-5 py-3 text-slate-400 font-medium">Standard</th>
+                  <th className="text-right px-5 py-3 text-slate-400 font-medium">Premium</th>
+                  <th className="text-right px-5 py-3 text-slate-400 font-medium">Enterprise</th>
+                </tr>
+              </thead>
+              <tbody>
+                {agents.map((agentId) => {
+                  const agentTiers = getAgentTiers(agentId)
+                  const standard = agentTiers.find((t: any) => t.tier === 'standard')
+                  const premium = agentTiers.find((t: any) => t.tier === 'premium')
+                  const enterprise = agentTiers.find((t: any) => t.tier === 'enterprise')
+                  return (
+                    <tr key={agentId} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                      <td className="px-5 py-3 text-white">{agentId}: {agentNames[agentId]}</td>
+                      <td className="px-5 py-3 text-right text-blue-400 font-bold">{standard ? formatNgN(standard.monthlyPriceNgn) : '—'}</td>
+                      <td className="px-5 py-3 text-right text-orange-400 font-bold">{premium ? formatNgN(premium.monthlyPriceNgn) : '—'}</td>
+                      <td className="px-5 py-3 text-right text-purple-400 font-bold">{enterprise ? formatNgN(enterprise.monthlyPriceNgn) : '—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── ENTERPRISE ADD-ONS TAB ───────────────────────────────────
+
+function EnterpriseAddonsTab({ adminToken }: { adminToken: string }) {
+  const addons = useQuery(api.revenue_growth.getEnterpriseAddons)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+
+  const categories = [
+    { id: 'api_access', label: 'API Access', icon: '🔑' },
+    { id: 'custom_training', label: 'Custom Training', icon: '📚' },
+    { id: 'white_label', label: 'White Label', icon: '🏷️' },
+    { id: 'dedicated_support', label: 'Dedicated Support', icon: '👨‍💼' },
+    { id: 'custom_integration', label: 'Custom Integration', icon: '🔗' },
+  ]
+
+  const filteredAddons = selectedCategory
+    ? (addons ?? []).filter((a: any) => a.category === selectedCategory)
+    : addons
+
+  const categoryColors: Record<string, string> = {
+    api_access: 'from-blue-500/20 to-blue-600/10 border-blue-500/30',
+    custom_training: 'from-emerald-500/20 to-emerald-600/10 border-emerald-500/30',
+    white_label: 'from-purple-500/20 to-purple-600/10 border-purple-500/30',
+    dedicated_support: 'from-orange-500/20 to-orange-600/10 border-orange-500/30',
+    custom_integration: 'from-cyan-500/20 to-cyan-600/10 border-cyan-500/30',
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard icon="🏢" value={(addons ?? []).length} label="Available Add-ons" color="from-blue-500/20 to-blue-600/10" />
+        <StatCard icon="💰" value={formatNgN((addons ?? []).reduce((sum: number, a: any) => sum + (a.priceNgn ?? 0), 0))} label="Total Add-on Value" color="from-emerald-500/20 to-emerald-600/10" />
+        <StatCard icon="📅" value={(addons ?? []).filter((a: any) => a.billingCycle === 'monthly').length} label="Monthly Add-ons" color="from-orange-500/20 to-orange-600/10" />
+        <StatCard icon="🎯" value={(addons ?? []).filter((a: any) => a.billingCycle === 'one_time').length} label="One-time Add-ons" color="from-purple-500/20 to-purple-600/10" />
+      </div>
+
+      <div>
+        <h3 className="text-lg font-bold text-white mb-3">Filter by Category</h3>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setSelectedCategory(null)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${!selectedCategory ? 'bg-[#FF6B35] text-white' : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'}`}
+          >
+            All
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${selectedCategory === cat.id ? 'bg-[#FF6B35] text-white' : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'}`}
+            >
+              {cat.icon} {cat.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {(filteredAddons ?? []).map((addon: any) => (
+          <div key={addon._id} className={`bg-gradient-to-br ${categoryColors[addon.category] ?? 'from-slate-500/20 to-slate-600/10 border-slate-500/30'} border rounded-2xl p-6 transition-all hover:scale-[1.02]`}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-white/10 text-white capitalize">{addon.billingCycle.replace('_', ' ')}</span>
+              <span className="text-xs text-slate-400">{categories.find((c) => c.id === addon.category)?.icon ?? '📦'}</span>
+            </div>
+            <h4 className="text-xl font-bold text-white mb-2">{addon.name}</h4>
+            <p className="text-sm text-slate-400 mb-4">{addon.description}</p>
+            <div className="text-[#FF6B35] font-black text-3xl mb-4">
+              {formatNgN(addon.priceNgn)}
+              {addon.billingCycle === 'monthly' && <span className="text-xs text-slate-400 font-normal">/mo</span>}
+            </div>
+            <div className="space-y-1">
+              {(addon.features ?? []).map((f: string, i: number) => (
+                <div key={i} className="flex items-center gap-2 text-xs text-slate-300">
+                  <span className="text-emerald-400">✓</span>
+                  <span>{f}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        {(!filteredAddons || filteredAddons.length === 0) && (
+          <div className="col-span-3 text-center py-12 text-slate-500">No enterprise add-ons configured. Call bulkSeedAllRevenueGrowth to seed.</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── MAIN COMPONENT ───────────────────────────────────────────
 
 export function RevenueHub({ adminToken }: { adminToken: string }) {
@@ -948,6 +1332,12 @@ export function RevenueHub({ adminToken }: { adminToken: string }) {
     switch (activeTab) {
       case 'overview':
         return <OverviewTab adminToken={adminToken} />
+      case 'subscriptions':
+        return <SubscriptionsTab adminToken={adminToken} />
+      case 'agent_pricing':
+        return <AgentPricingTab adminToken={adminToken} />
+      case 'enterprise_addons':
+        return <EnterpriseAddonsTab adminToken={adminToken} />
       case 'credits':
         return <CreditsTab adminToken={adminToken} />
       case 'social':
@@ -978,7 +1368,7 @@ export function RevenueHub({ adminToken }: { adminToken: string }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-black tracking-tight">Revenue Hub</h1>
-          <p className="text-sm text-slate-400 mt-1">All 10 revenue streams — Prosuite NG+</p>
+          <p className="text-sm text-slate-400 mt-1">All {TABS.length - 1} revenue streams — Prosuite NG+</p>
         </div>
         <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-slate-300">
           {TABS.length - 1} Revenue Features
