@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
 import { api } from "../../convex/_generated/api"
@@ -42,62 +42,17 @@ const AGENT_NAMES: Record<string, string> = {
 
 export function LiveFeed() {
   const [filter, setFilter] = useState('')
-  const [events, setEvents] = useState<Array<ActivityEvent>>([])
   const scrollRef = useRef<HTMLDivElement>(null)
-  const { data: sessions } = useSuspenseQuery(convexQuery(api.admin.getAdminStats, {}))
+  const { data: realEvents } = useSuspenseQuery(convexQuery(api.live_feed.getRecentActivity, { limit: 20 })) as { data: ActivityEvent[] }
 
-  // Simulate real-time events from database
-  useEffect(() => {
-    const generateEvents = () => {
-      const now = Date.now()
-      const clients = ['Adebayo O.', 'Chinelo K.', 'Ibrahim M.', 'Blessing A.', 'Fatima H.', 'Tunde O.', 'Ngozi P.', 'Emeka U.']
-      const agents = Object.keys(AGENT_NAMES)
-      const types: Array<ActivityEvent['type']> = ['login', 'task_started', 'agent_assigned', 'agent_working', 'task_completed', 'download']
-      
-      const newEvents: Array<ActivityEvent> = []
-      for (let i = 0; i < 12; i++) {
-        const type = types[Math.floor(Math.random() * types.length)]
-        const client = clients[Math.floor(Math.random() * clients.length)]
-        const agent = agents[Math.floor(Math.random() * agents.length)]
-        const agentName = AGENT_NAMES[agent]
-        
-        let detail = ''
-        switch (type) {
-          case 'login': detail = `Logged in from Lagos, Nigeria`; break
-          case 'task_started': detail = `Requested ${agentName} service`; break
-          case 'agent_assigned': detail = `${agentName} assigned to task`; break
-          case 'agent_working': detail = `Processing document...`; break
-          case 'task_completed': detail = `Delivered completed file`; break
-          case 'download': detail = `Downloaded output file`; break
-          case 'error': detail = `Retry attempt 2/3`; break
-        }
-
-        newEvents.push({
-          id: `evt_${now}_${i}`,
-          timestamp: now - (i * 30000) - Math.floor(Math.random() * 60000),
-          type,
-          client,
-          agent,
-          detail,
-          status: type === 'task_completed' ? 'completed' : type === 'error' ? 'error' : type === 'agent_working' ? 'working' : 'active',
-        })
-      }
-      setEvents(newEvents.sort((a, b) => b.timestamp - a.timestamp))
-    }
-
-    generateEvents()
-    const interval = setInterval(generateEvents, 5000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const filtered = events.filter(e => 
+  const filtered = (realEvents || []).filter(e => 
     !filter || e.client.toLowerCase().includes(filter.toLowerCase()) || 
     e.detail.toLowerCase().includes(filter.toLowerCase()) ||
     e.type.includes(filter.toLowerCase())
   )
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl animate-in fade-in duration-700">
+    <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl ">
       <div className="p-10 border-b border-slate-800 flex justify-between items-center">
         <div>
           <h2 className="text-xl font-black uppercase tracking-tighter">Live Activity Feed</h2>

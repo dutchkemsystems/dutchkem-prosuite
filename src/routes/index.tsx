@@ -23,7 +23,7 @@ function StatItem({ value, label }: { value: string, label: string }) {
 
 function AgentCard({ icon, title, desc, link, isPopular }: { icon: string, title: string, desc: string, link: string, isPopular?: boolean }) {
   return (
-    <Link to={link} className="group relative p-0.5 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 rounded-[3rem] hover:from-orange-400 hover:to-orange-600 transition-all duration-700 shadow-2xl shadow-slate-200/40 overflow-hidden active:scale-[0.98]">
+    <Link to={link} className="group relative p-0.5 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 rounded-[3rem] hover:from-orange-400 hover:to-orange-600 transition-all duration-300 shadow-2xl shadow-slate-200/40 overflow-hidden active:scale-[0.98]">
       {isPopular && (
         <div className="absolute top-10 right-[-3.5rem] rotate-45 bg-orange-600 text-white text-[9px] font-black py-2 px-16 shadow-2xl z-10 uppercase tracking-[0.3em]">
            POPULAR
@@ -68,7 +68,7 @@ function PriceCard({ title, price, features, isFeatured, savings }: { title: str
   const discountedPrice = discountPercent > 0 ? Math.floor(originalPrice * (1 - discountPercent / 100)) : originalPrice;
 
   return (
-    <div className={`p-0.5 rounded-[3.5rem] relative transition-all duration-700 hover:scale-[1.04] ${
+    <div className={`p-0.5 rounded-[3.5rem] relative transition-all duration-300 hover:scale-[1.04] ${
       isFeatured ? 'bg-gradient-to-br from-orange-500 to-orange-600 shadow-[0_40px_120px_rgba(255,107,53,0.35)]' : 'bg-slate-200 hover:bg-slate-300 shadow-2xl'
     }`}>
       {(savings || discountPercent > 0) && (
@@ -172,7 +172,7 @@ function Home() {
           <div className="absolute bottom-1/4 right-1/4 w-[30rem] h-[30rem] bg-indigo-400/5 rounded-full blur-[120px] animate-float" style={{ animationDelay: '-3s' }}></div>
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative">
-            <div className="inline-flex items-center gap-2 rounded-full px-6 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-orange-600 ring-2 ring-orange-600/10 mb-12 bg-white shadow-xl animate-in fade-in slide-in-from-top-4 duration-700">
+            <div className="inline-flex items-center gap-2 rounded-full px-6 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-orange-600 ring-2 ring-orange-600/10 mb-12 bg-white shadow-xl ">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
@@ -180,17 +180,17 @@ function Home() {
               🔥 15 Expert Agents Live — 24/7
             </div>
             
-            <h1 className="clamp-h1 font-black tracking-[-0.04em] text-slate-950 mb-10 leading-[0.95] animate-in fade-in slide-in-from-bottom-12 duration-1000">
+            <h1 className="clamp-h1 font-black tracking-[-0.04em] text-slate-950 mb-10 leading-[0.95] ">
               Stop <span className="italic font-serif text-slate-400 underline decoration-orange-500/20">Struggling</span>. <br />
               <span className="text-gradient-primary">Start Winning.</span>
             </h1>
             
-            <p className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto mb-16 leading-relaxed font-medium animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-200">
+            <p className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto mb-16 leading-relaxed font-medium  ">
               Transform your business with 15 expert agents that write your essays, 
               optimize your business models, and secure your growth with bank-grade intelligence.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-300">
+            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center  ">
               <Link to="/auth" className="group relative px-12 py-6 bg-slate-950 text-white font-black text-sm uppercase tracking-widest rounded-3xl shadow-2xl hover:scale-105 active:scale-95 transition-all overflow-hidden border-2 border-slate-800">
                 <span className="relative z-10 flex items-center gap-3">Deploy Expert Workforce <span className="group-hover:translate-x-2 transition-transform">→</span></span>
                 <div className="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-orange-600/10 opacity-0 group-hover:opacity-10 transition-opacity"></div>
@@ -203,7 +203,7 @@ function Home() {
             <p className="mt-8 text-[10px] font-black uppercase tracking-[0.4em] text-slate-300">RC: 9489855</p>
 
             {/* Live Stats Ticker */}
-            <div className="mt-20 flex flex-col items-center gap-4 animate-in fade-in duration-1000 delay-500">
+            <div className="mt-20 flex flex-col items-center gap-4 animate-in fade-in duration-1000 ">
                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Real-time Performance</p>
                <div className="flex items-center gap-3 px-6 py-3 bg-slate-900 rounded-2xl text-white font-black text-sm shadow-2xl border border-slate-800">
                   <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
@@ -224,7 +224,7 @@ function Home() {
         <section className="py-20 border-y border-slate-100 bg-white">
           <div className="max-w-7xl mx-auto px-4 text-center">
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-300 mb-12">Authorized Payment Partners</p>
-            <div className="flex flex-wrap justify-center items-center gap-16 md:gap-24 grayscale opacity-30 hover:grayscale-0 hover:opacity-100 transition-all duration-700 font-black text-slate-900 text-2xl tracking-tighter">
+            <div className="flex flex-wrap justify-center items-center gap-16 md:gap-24 grayscale opacity-30 hover:grayscale-0 hover:opacity-100 transition-all duration-300 font-black text-slate-900 text-2xl tracking-tighter">
                <div>PAYSTACK</div>
                <div>KORAPAY</div>
                <div>FLUTTERWAVE</div>

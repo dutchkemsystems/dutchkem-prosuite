@@ -19,6 +19,7 @@ export function PortalClientManagement({ adminToken, organizations }: { adminTok
   ])
   const [bulkProcessing, setBulkProcessing] = useState(false)
   const [bulkResult, setBulkResult] = useState<any>(null)
+  const [bulkFilterType, setBulkFilterType] = useState('all')
 
   // Filters
   const [filterType, setFilterType] = useState('all')
@@ -163,7 +164,7 @@ export function PortalClientManagement({ adminToken, organizations }: { adminTok
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set())
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 ">
       {toast && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-black z-[100] ${toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}`}>
           {toast.message}
@@ -297,6 +298,17 @@ export function PortalClientManagement({ adminToken, organizations }: { adminTok
                   onBlur={(e) => handlePasteBulk(e.target.value)}
                 />
               </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Filter:</span>
+                <select value={bulkFilterType} onChange={(e) => setBulkFilterType(e.target.value)} className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none">
+                  <option value="all" className="bg-[#0a0a0f]">All Types</option>
+                  <option value="individual" className="bg-[#0a0a0f]">Individual</option>
+                  <option value="business" className="bg-[#0a0a0f]">Business</option>
+                  <option value="enterprise" className="bg-[#0a0a0f]">Enterprise</option>
+                  <option value="government" className="bg-[#0a0a0f]">Government</option>
+                </select>
+                <span className="text-[10px] text-slate-500">{bulkRows.filter(r => r.name.trim() || r.email.trim()).length} rows · {validBulkCount} valid</span>
+              </div>
               {/* Table */}
               <div className="border border-white/10 rounded-xl overflow-hidden">
                 <div className="grid grid-cols-12 gap-px bg-white/5 text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -309,32 +321,40 @@ export function PortalClientManagement({ adminToken, organizations }: { adminTok
                   <div className="col-span-1 bg-[#0a0a0f] px-2 py-2">Sub-Admin</div>
                   <div className="col-span-1 bg-[#0a0a0f] px-2 py-2"></div>
                 </div>
-                {bulkRows.map((row, i) => (
-                  <div key={i} className="grid grid-cols-12 gap-px bg-white/5">
-                    <div className="col-span-1 bg-[#0a0a0f] px-2 py-1 text-xs text-slate-500 flex items-center">{i + 1}</div>
-                    <div className="col-span-2 bg-[#0a0a0f] px-1 py-1"><input value={row.name} onChange={(e) => updateBulkRow(i, 'name', e.target.value)} placeholder="Name" className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#FF6B35]/50" /></div>
-                    <div className="col-span-3 bg-[#0a0a0f] px-1 py-1"><input value={row.email} onChange={(e) => updateBulkRow(i, 'email', e.target.value)} placeholder="Email" className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#FF6B35]/50" /></div>
-                    <div className="col-span-2 bg-[#0a0a0f] px-1 py-1"><input value={row.phone} onChange={(e) => updateBulkRow(i, 'phone', e.target.value)} placeholder="Phone" className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#FF6B35]/50" /></div>
-                    <div className="col-span-1 bg-[#0a0a0f] px-1 py-1"><input value={row.company} onChange={(e) => updateBulkRow(i, 'company', e.target.value)} placeholder="Company" className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[10px] text-white focus:outline-none" /></div>
-                    <div className="col-span-1 bg-[#0a0a0f] px-1 py-1">
-                      <select value={row.clientType} onChange={(e) => updateBulkRow(i, 'clientType', e.target.value)} className="w-full px-1 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[10px] text-white focus:outline-none">
-                        <option value="individual" className="bg-[#0a0a0f]">Individual</option>
-                        <option value="business" className="bg-[#0a0a0f]">Business</option>
-                        <option value="enterprise" className="bg-[#0a0a0f]">Enterprise</option>
-                        <option value="government" className="bg-[#0a0a0f]">Govt</option>
-                      </select>
-                    </div>
-                    <div className="col-span-1 bg-[#0a0a0f] px-1 py-1">
-                      <select value={row.assignedSubAdmin} onChange={(e) => updateBulkRow(i, 'assignedSubAdmin', e.target.value)} className="w-full px-1 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[10px] text-white focus:outline-none">
-                        <option value="" className="bg-[#0a0a0f]">None</option>
-                        {subadminList.map((s: any) => <option key={s._id} value={s._id} className="bg-[#0a0a0f]">{s.name}</option>)}
-                      </select>
-                    </div>
-                    <div className="col-span-1 bg-[#0a0a0f] px-1 py-1 flex items-center justify-center">
-                      <button onClick={() => removeBulkRow(i)} className="text-red-400 hover:text-red-300 text-xs">✕</button>
-                    </div>
-                  </div>
-                ))}
+                {bulkRows
+                  .filter((_, i) => {
+                    if (bulkFilterType === 'all') return true
+                    return bulkRows[i]?.clientType === bulkFilterType
+                  })
+                  .map((row, i) => {
+                    const actualIndex = bulkRows.indexOf(row)
+                    return (
+                      <div key={actualIndex} className="grid grid-cols-12 gap-px bg-white/5">
+                        <div className="col-span-1 bg-[#0a0a0f] px-2 py-1 text-xs text-slate-500 flex items-center">{actualIndex + 1}</div>
+                        <div className="col-span-2 bg-[#0a0a0f] px-1 py-1"><input value={row.name} onChange={(e) => updateBulkRow(actualIndex, 'name', e.target.value)} placeholder="Name" className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#FF6B35]/50" /></div>
+                        <div className="col-span-3 bg-[#0a0a0f] px-1 py-1"><input value={row.email} onChange={(e) => updateBulkRow(actualIndex, 'email', e.target.value)} placeholder="Email" className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#FF6B35]/50" /></div>
+                        <div className="col-span-2 bg-[#0a0a0f] px-1 py-1"><input value={row.phone} onChange={(e) => updateBulkRow(actualIndex, 'phone', e.target.value)} placeholder="Phone" className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#FF6B35]/50" /></div>
+                        <div className="col-span-1 bg-[#0a0a0f] px-1 py-1"><input value={row.company} onChange={(e) => updateBulkRow(actualIndex, 'company', e.target.value)} placeholder="Company" className="w-full px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[10px] text-white focus:outline-none" /></div>
+                        <div className="col-span-1 bg-[#0a0a0f] px-1 py-1">
+                          <select value={row.clientType} onChange={(e) => updateBulkRow(actualIndex, 'clientType', e.target.value)} className="w-full px-1 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[10px] text-white focus:outline-none">
+                            <option value="individual" className="bg-[#0a0a0f]">Individual</option>
+                            <option value="business" className="bg-[#0a0a0f]">Business</option>
+                            <option value="enterprise" className="bg-[#0a0a0f]">Enterprise</option>
+                            <option value="government" className="bg-[#0a0a0f]">Govt</option>
+                          </select>
+                        </div>
+                        <div className="col-span-1 bg-[#0a0a0f] px-1 py-1">
+                          <select value={row.assignedSubAdmin} onChange={(e) => updateBulkRow(actualIndex, 'assignedSubAdmin', e.target.value)} className="w-full px-1 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[10px] text-white focus:outline-none">
+                            <option value="" className="bg-[#0a0a0f]">None</option>
+                            {subadminList.map((s: any) => <option key={s._id} value={s._id} className="bg-[#0a0a0f]">{s.name}</option>)}
+                          </select>
+                        </div>
+                        <div className="col-span-1 bg-[#0a0a0f] px-1 py-1 flex items-center justify-center">
+                          <button onClick={() => removeBulkRow(actualIndex)} className="text-red-400 hover:text-red-300 text-xs">✕</button>
+                        </div>
+                      </div>
+                    )
+                  })}
               </div>
               <button onClick={addBulkRow} className="w-full py-2 border border-dashed border-white/10 rounded-xl text-xs text-slate-400 hover:text-white hover:border-[#FF6B35]/50 transition-all">+ Add Row ({bulkRows.length}/100)</button>
               {bulkResult && (

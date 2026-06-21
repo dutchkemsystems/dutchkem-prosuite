@@ -230,7 +230,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 ">
       {toast && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-black max-w-md ${toast.type === 'success' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
           {toast.message}
@@ -373,7 +373,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
                     </div>
                   </div>
                   {expandedOrg === org._id && (
-                    <div className="bg-white/3 border-b border-white/5">
+                    <div className="bg-white/5 border-b border-white/5">
                       <div className="grid grid-cols-6 gap-4 p-4 ml-8 text-[10px] font-black uppercase tracking-widest text-slate-600">
                         <div>Name</div>
                         <div>Email</div>
@@ -388,7 +388,7 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
                         <div className="p-4 ml-8 text-slate-500 text-sm">No users found</div>
                       ) : (
                         (Array.isArray(orgUsers) ? orgUsers : []).map((user: any) => (
-                          <div key={user._id} className="grid grid-cols-6 gap-4 p-4 ml-8 border-t border-white/5 items-center hover:bg-white/3 transition-colors">
+                          <div key={user._id} className="grid grid-cols-6 gap-4 p-4 ml-8 border-t border-white/5 items-center hover:bg-white/5 transition-colors">
                             <div className="text-sm">{user.name}</div>
                             <div className="text-sm text-slate-400">{user.email}</div>
                             <div className="text-sm font-bold capitalize">{user.role}</div>

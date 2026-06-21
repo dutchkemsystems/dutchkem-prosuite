@@ -159,7 +159,7 @@ export function LiveCharts() {
   })()
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700" ref={chartRef} id="live-charts-export">
+    <div className="space-y-8 " ref={chartRef} id="live-charts-export">
       {/* Export Controls */}
       <div className="flex justify-between items-center">
         <div>

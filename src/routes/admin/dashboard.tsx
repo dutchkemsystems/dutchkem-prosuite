@@ -397,7 +397,7 @@ function ManualAgentTaskPanel() {
   };
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-10 ">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-orange-600/5 blur-[80px]"></div>
@@ -522,7 +522,7 @@ function ManualAgentTaskPanel() {
 function TaxDashboardPanel() {
   const { data: taxData } = useSuspenseQuery(convexQuery(api.admin.getTaxWalletStats, {})) as { data: any };
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-10 ">
       <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 blur-[80px]"></div>
         <div className="relative z-10 space-y-8">
@@ -1063,10 +1063,10 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
   }
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700 relative">
+    <div className="space-y-10  relative">
       {toast && (
         <div
-          className={`fixed top-6 right-6 z-50 px-6 py-4 rounded-2xl shadow-2xl font-semibold text-sm animate-in slide-in-from-top-2 ${
+          className={`fixed top-6 right-6 z-50 px-6 py-4 rounded-2xl shadow-2xl font-semibold text-sm  ${
             toast.type === "success"
               ? "bg-emerald-600 text-white"
               : toast.type === "error"
@@ -1455,7 +1455,7 @@ function GuardianWatchPanel() {
   const dash = dashboard ?? {};
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-10 ">
       <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-teal-600/5 blur-[80px]"></div>
         <div className="relative z-10 space-y-10">
@@ -1640,7 +1640,7 @@ function StatsOverview({ data, earnings, uaeStatus }: any) {
   });
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-10 ">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         <MetricCard
           label="Monthly Payout (Est)"
@@ -1804,7 +1804,7 @@ function StatsOverview({ data, earnings, uaeStatus }: any) {
 function RecentTransactions() {
    const { data: txs } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, {})) as { data: any[] };
    return (
-      <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl animate-in fade-in duration-700">
+      <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl ">
          <div className="p-10 border-b border-slate-800 flex justify-between items-center">
             <h2 className="text-xl font-black uppercase tracking-tighter">Live Transaction Ledger</h2>
          </div>
@@ -2046,7 +2046,7 @@ function DailySweepStatusPanel() {
    };
    
    return (
-      <div className="space-y-10 animate-in fade-in duration-700">
+      <div className="space-y-10 ">
          {/* Status Banner */}
          {sweepStatus && (
             <div className={`p-4 rounded-2xl text-center text-sm font-black ${
@@ -2422,7 +2422,7 @@ function SecurityHubPanel({ adminToken }: { adminToken: string }) {
    const geo = geoStats ?? {};
 
    return (
-      <div className="space-y-12 animate-in fade-in duration-700">
+      <div className="space-y-12 ">
          {/* Security Dashboard Header */}
          <div className="bg-gradient-to-br from-indigo-600/20 to-slate-900 border border-indigo-500/20 rounded-[3.5rem] p-12 relative overflow-hidden">
             <div className="relative z-10 space-y-10">
@@ -2551,7 +2551,7 @@ function SecurityBar({ label, value, color }: any) {
 
 function AgentHealthMatrix({ data }: any) {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl animate-in fade-in duration-700">
+    <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl ">
          <div className="p-10 border-b border-slate-800 flex justify-between items-center">
             <h2 className="text-xl font-black uppercase tracking-tighter">Institutional Agent Health Monitor</h2>
             <button className="px-8 py-3 bg-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-700 transition-all border border-slate-700">Sync Cluster</button>
@@ -2593,7 +2593,7 @@ function AgentHealthMatrix({ data }: any) {
 function AuditTrailPanel() {
   const { data: logs } = useSuspenseQuery(convexQuery(api.admin.getAuditLogs, {})) as { data: any[] };
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl animate-in fade-in duration-700">
+    <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl ">
       <div className="p-10 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
         <h2 className="text-xl font-black uppercase tracking-tighter">Immutable Audit Ledger</h2>
         <button className="px-8 py-3 bg-white text-slate-950 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap shadow-xl shadow-white/5">Export CSV (2FA)</button>
@@ -2629,7 +2629,7 @@ function HolidayDiscountsPanel() {
   const refresh = useMutation(api.holidays.refreshActiveDiscounts);
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-10 ">
       <div className="bg-slate-900 border border-slate-800 rounded-[3rem] p-12 shadow-2xl">
         <div className="flex justify-between items-center mb-10">
           <h2 className="text-2xl font-black uppercase tracking-tighter text-white">Holiday Discount Logic</h2>
@@ -2671,7 +2671,7 @@ function AutoUpdatesPanel() {
   };
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-10 ">
       <div className="bg-slate-900 border border-slate-800 rounded-[3rem] p-12 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-orange-600/5 blur-[80px]"></div>
         <div className="flex justify-between items-center mb-12">
@@ -2982,7 +2982,7 @@ function IPWhitelistModal({ onClose, adminId }: { onClose: () => void; adminId: 
 function FreelancerPanel({ data }: { data: any }) {
   const stats = data || { total: 0, pendingApplications: 0, autoApprovedWeek: 0, autoRejectedWeek: 0, totalPaidMonth: 0, avgEarnings: 0 };
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
+    <div className="space-y-8 ">
       <div className="bg-slate-900 border border-slate-800 rounded-[3rem] p-10 shadow-2xl">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-xl font-black uppercase tracking-tighter">Freelancer Management</h2>
@@ -3079,7 +3079,7 @@ function CharityDashboardPanel() {
   const wallet = charityStats?.wallet;
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-10 ">
       {/* Status Banner */}
       {titheStatus && (
         <div className={`p-4 rounded-2xl text-center text-sm font-black ${
@@ -3245,7 +3245,7 @@ function FreelancerMarketplacePanel() {
   const { data: payoutHistory } = useSuspenseQuery(convexQuery(api.marketplace.getPayoutHistory, { limit: 20 })) as { data: any[] };
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-10 ">
       {/* Header */}
       <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-600/5 blur-[80px]"></div>
@@ -3383,7 +3383,7 @@ function CloudMemoryPanel({ adminToken }: { adminToken: string }) {
   };
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-10 ">
       <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-600/5 blur-[80px]"></div>
         <div className="relative z-10 space-y-10">
@@ -3576,7 +3576,7 @@ function VoiceROIPanel() {
   const roi = voiceStats?.roi || 0;
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-10 ">
       {/* Header */}
       <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600/5 blur-[80px]"></div>
@@ -3712,7 +3712,7 @@ function LiveChatsPanel() {
   };
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-10 ">
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
         <MetricCard label="Active Chats" value={chatStats?.active || 0} icon="💬" color="emerald" />
@@ -3799,7 +3799,7 @@ function APICostsPanel() {
   const { data: apiCosts } = useSuspenseQuery(convexQuery(api.api_costs.getApiCostSummary, {})) as { data: any };
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-10 ">
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <MetricCard label="Total API Cost" value={`₦${(apiCosts?.totalCost || 0).toLocaleString()}`} icon="💸" color="red" />
@@ -3835,7 +3835,7 @@ function PlatformAnalyticsPanel() {
   const { data: analytics } = useSuspenseQuery(convexQuery(api.platform_analytics.getPlatformAnalyticsSummary, { timeRange })) as { data: any };
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-10 ">
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
         <MetricCard label="Total Visits" value={(analytics?.totals?.visits || 0).toLocaleString()} icon="👁️" color="blue" />
@@ -3972,7 +3972,7 @@ function SyntheticIntelPanel() {
   const enabledCount = agents?.filter((a: any) => a.syntheticEnabled).length || 0;
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-10 ">
       {/* Status Banner */}
       {status && (
         <div className={`p-4 rounded-2xl text-center text-sm font-black ${
@@ -4339,7 +4339,7 @@ function AdEnginePanel() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6  duration-500">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-black uppercase tracking-tighter text-white">📢 Ad Engine</h2>

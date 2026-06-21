@@ -10,6 +10,9 @@ import { CompanionAgentTab } from '~/components/enterprise/capabilities/Companio
 import { AgenticPaymentsTab } from '~/components/enterprise/capabilities/AgenticPaymentsTab'
 import { EmotionalAITab } from '~/components/enterprise/capabilities/EmotionalAITab'
 import ClientWalletDashboard from '~/components/admin/enterprise/ClientWalletDashboard'
+import { AddonManager } from '~/components/enterprise/AddonManager'
+import { ApiAccessManager } from '~/components/enterprise/ApiAccessManager'
+import { EnterpriseUsageDashboard } from '~/components/enterprise/EnterpriseUsageDashboard'
 
 export const Route = createFileRoute('/enterprise/dashboard')({
   component: EnterpriseDashboard,
@@ -17,6 +20,9 @@ export const Route = createFileRoute('/enterprise/dashboard')({
 
 const tabs = [
   { id: 'overview', icon: '📊', label: 'Overview' },
+  { id: 'addons', icon: '🧩', label: 'Add-ons' },
+  { id: 'api_access', icon: '🔑', label: 'API Access' },
+  { id: 'usage', icon: '📈', label: 'Usage & Billing' },
   { id: 'workflow', icon: '🔄', label: 'Workflows' },
   { id: 'marketplace', icon: '🛒', label: 'Agent Marketplace' },
   { id: 'knowledge', icon: '🧠', label: 'Knowledge Graph' },
@@ -143,7 +149,10 @@ function EnterpriseDashboard() {
 
         {/* Content */}
         <div className="p-6">
-          {activeTab === 'overview' && <OverviewTab org={org} token={token} />}
+          {activeTab === 'overview' && <OverviewTab org={org} token={token} onNavigateTab={setActiveTab} />}
+          {activeTab === 'addons' && <AddonManager orgId={org._id} token={token} email={org.email} />}
+          {activeTab === 'api_access' && <ApiAccessManager orgId={org._id} token={token} />}
+          {activeTab === 'usage' && <EnterpriseUsageDashboard orgId={org._id} token={token} />}
           {activeTab === 'workflow' && <WorkflowViewerTab token={token} />}
           {activeTab === 'marketplace' && <MarketplaceTab token={token} />}
           {activeTab === 'knowledge' && <KnowledgeGraphTab token={token} />}
@@ -157,18 +166,21 @@ function EnterpriseDashboard() {
   )
 }
 
-function OverviewTab({ org, token }: { org: any; token: string }) {
+function OverviewTab({ org, token, onNavigateTab }: { org: any; token: string; onNavigateTab: (tab: string) => void }) {
   const capabilities = [
+    { icon: '🧩', name: 'Add-ons', desc: 'Subscribe to premium add-ons', tab: 'addons', color: 'from-orange-500 to-red-600' },
+    { icon: '🔑', name: 'API Access', desc: 'Manage API keys and access', tab: 'api_access', color: 'from-blue-500 to-cyan-600' },
+    { icon: '📈', name: 'Usage & Billing', desc: 'Monitor usage and transactions', tab: 'usage', color: 'from-emerald-500 to-teal-600' },
     { icon: '🔄', name: 'Workflows', desc: 'View and trigger assigned workflows', tab: 'workflow', color: 'from-violet-500 to-purple-600' },
-    { icon: '🛒', name: 'Agent Marketplace', desc: 'Install pre-built AI agents', tab: 'marketplace', color: 'from-orange-500 to-amber-600' },
-    { icon: '🧠', name: 'Knowledge Graph', desc: 'Traceable, explainable AI decisions', tab: 'knowledge', color: 'from-blue-500 to-indigo-600' },
-    { icon: '🤝', name: 'Companion Agent', desc: 'Real-time guidance for human teams', tab: 'companion', color: 'from-emerald-500 to-green-600' },
-    { icon: '💳', name: 'Agentic Payments', desc: 'Autonomous agent-to-agent commerce', tab: 'payments', color: 'from-amber-500 to-yellow-600' },
+    { icon: '🛒', name: 'Agent Marketplace', desc: 'Install pre-built AI agents', tab: 'marketplace', color: 'from-amber-500 to-yellow-600' },
+    { icon: '🧠', name: 'Knowledge Graph', desc: 'Traceable, explainable AI decisions', tab: 'knowledge', color: 'from-indigo-500 to-blue-600' },
+    { icon: '🤝', name: 'Companion Agent', desc: 'Real-time guidance for human teams', tab: 'companion', color: 'from-green-500 to-emerald-600' },
+    { icon: '💳', name: 'Agentic Payments', desc: 'Autonomous agent-to-agent commerce', tab: 'payments', color: 'from-yellow-500 to-amber-600' },
     { icon: '💖', name: 'Emotional AI', desc: 'Memory, personality, retention', tab: 'emotional', color: 'from-pink-500 to-rose-600' },
   ]
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 ">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-2">Organization</p>
@@ -182,7 +194,7 @@ function OverviewTab({ org, token }: { org: any; token: string }) {
         </div>
         <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-2">Capabilities</p>
-          <p className="text-2xl font-black">6</p>
+          <p className="text-2xl font-black">9</p>
           <p className="text-sm text-slate-400 mt-1">Enterprise modules active</p>
         </div>
       </div>
@@ -193,10 +205,9 @@ function OverviewTab({ org, token }: { org: any; token: string }) {
           <button
             key={cap.tab}
             onClick={() => {
-              const url = new URL(window.location.href)
-              window.dispatchEvent(new CustomEvent('navigate-tab', { detail: cap.tab }))
+              onNavigateTab(cap.tab)
             }}
-            className="group p-6 bg-white/5 border border-white/10 rounded-2xl text-left hover:bg-white/10 hover:border-white/20 transition-all duration-300 hover:scale-[1.02]"
+            className="group p-6 bg-white/5 border border-white/10 rounded-2xl text-left hover:bg-white/10 hover:border-white/20 transition-all duration-300 "
           >
             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mb-4 bg-gradient-to-br ${cap.color} group-hover:scale-110 transition-transform`}>
               {cap.icon}

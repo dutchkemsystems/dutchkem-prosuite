@@ -262,7 +262,7 @@ function DashboardContent() {
           
           {activeTab === "overview" && <Overview data={data} setActiveTab={setActiveTab} setModal={setModal} setShowAgentBrowser={setShowAgentBrowser} setShowCredits={setShowCredits} setShowHistory={setShowHistory} setShowSupport={setShowSupport} />}
           {activeTab === "activity" && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="">
               <AgentBrowser isOpen={true} onClose={() => setActiveTab("overview")} mode="page" agentEnhancement={data.agentEnhancement} />
             </div>
           )}
@@ -275,7 +275,7 @@ function DashboardContent() {
           )}
           {activeTab === "kdp" && (
             <Suspense fallback={<DashboardSpinner />}>
-              <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="space-y-12 ">
                  <KDPProjectHub userId={data.user._id} />
                  {(data.user.subscription?.plan === "quarterly" || data.user.subscription?.plan === "yearly") && (
                    <KDPRoyaltyDashboard userId={data.user._id} />
@@ -284,12 +284,12 @@ function DashboardContent() {
             </Suspense>
           )}
           {activeTab === "credits" && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="">
               <CreditBalance userId={data.user._id} email={data.user.email} />
             </div>
           )}
           {activeTab === "usage" && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="">
               <UsageTracker userId={data.user._id} />
             </div>
           )}
@@ -298,17 +298,17 @@ function DashboardContent() {
           {activeTab === "security" && <Security data={data} tfaMessage={tfaMessage} setTfaMessage={setTfaMessage} toggle2FAAction={toggle2FAAction} newPassword={newPassword} setNewPassword={setNewPassword} passwordMessage={passwordMessage} setPasswordMessage={setPasswordMessage} changePasswordAction={changePasswordAction} />}
           {activeTab === "settings" && <Settings data={data} />}
           {activeTab === "browse-agents" && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="">
               <AgentBrowser isOpen={true} onClose={() => setActiveTab("overview")} mode="page" />
             </div>
           )}
           {activeTab === "history" && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="">
               <HistoryPanel isOpen={true} onClose={() => setActiveTab("overview")} />
             </div>
           )}
           {activeTab === "support" && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="">
               <SupportChat isOpen={true} onClose={() => setActiveTab("overview")} />
             </div>
           )}
@@ -319,7 +319,7 @@ function DashboardContent() {
         {modal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setModal(null)}></div>
-            <div className="relative bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="relative bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-8 shadow-2xl ">
               <button onClick={() => setModal(null)} className="absolute top-6 right-6 text-slate-500 hover:text-white text-xl">✕</button>
               
               {modal === "new-project" && (
@@ -382,7 +382,7 @@ function DashboardContent() {
 
         {showAccessGranted && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-emerald-500/30 rounded-3xl p-8 max-w-md w-full text-center animate-in fade-in zoom-in-95 duration-300">
+            <div className="bg-slate-900 border border-emerald-500/30 rounded-3xl p-8 max-w-md w-full text-center ">
               <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-500 text-4xl mx-auto mb-6 border border-emerald-500/20">✓</div>
               <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Access Granted!</h2>
               <p className="text-slate-400 mb-6 font-medium">Your subscription is now active. You have full access to all 15 AI agents.</p>
@@ -517,7 +517,7 @@ function Header({ user, notifications }: { user: any, notifications: Array<any> 
           )}
 
           {showNotifs && (
-            <div className="absolute right-0 mt-4 w-80 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="absolute right-0 mt-4 w-80 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl z-50 overflow-hidden ">
               <div className="p-4 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center">
                 <h3 className="font-black text-xs uppercase tracking-widest">Notifications</h3>
                 <button className="text-[10px] font-black text-indigo-400 uppercase">Mark all read</button>
@@ -581,7 +581,7 @@ function Overview({ data, setActiveTab, setModal, setShowAgentBrowser, setShowCr
   const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e'];
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 ">
       {/* Flash Sale Banner - Mobile */}
       <div className="md:hidden">
         <FlashSaleBanner />
@@ -855,7 +855,7 @@ function Subscriptions({ data }: { data: any }) {
   const userId = data.user?._id;
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 ">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatCard label="Monthly Spend" value={`₦${monthlySpend.toLocaleString()}`} icon="💳" color="indigo" />
         <StatCard label="Next Renewal" value={nextPayout} icon="📅" color="emerald" />
@@ -901,7 +901,7 @@ function Projects({ data, setActiveTab, setModal, setShowAgentBrowser, setShowCr
 
 function Referrals({ data, payoutMessage, setPayoutMessage, requestReferralPayoutAction }: { data: any; payoutMessage: string; setPayoutMessage: (v: string) => void; requestReferralPayoutAction: any }) {
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 ">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard label="Friends Signed" value={data.referrals.friendsSignedUp} icon="👥" color="indigo" />
         <StatCard label="Total Earned" value={`₦${data.referrals.totalEarned.toLocaleString()}`} icon="💰" color="emerald" />
@@ -977,7 +977,7 @@ function Referrals({ data, payoutMessage, setPayoutMessage, requestReferralPayou
 
 function Security({ data, tfaMessage, setTfaMessage, toggle2FAAction, newPassword, setNewPassword, passwordMessage, setPasswordMessage, changePasswordAction }: { data: any; tfaMessage: string; setTfaMessage: (v: string) => void; toggle2FAAction: any; newPassword: string; setNewPassword: (v: string) => void; passwordMessage: string; setPasswordMessage: (v: string) => void; changePasswordAction: any }) {
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 ">
       <div className="flex justify-between items-center">
         <h3 className="text-xl font-black uppercase tracking-tight">🔐 Security Operations</h3>
         <button className="px-6 py-2 bg-red-600/10 border border-red-600/20 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-600 hover:text-white transition-all">Logout Remote Devices</button>
@@ -1089,7 +1089,7 @@ function Security({ data, tfaMessage, setTfaMessage, toggle2FAAction, newPasswor
 
 function Settings({ data }: { data: any }) {
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 ">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-6">
           <h3 className="text-xl font-bold flex items-center gap-2">👤 Profile Settings</h3>

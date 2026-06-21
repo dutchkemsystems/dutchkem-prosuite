@@ -90,7 +90,7 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
     setSaving(true)
     try {
       if (selectedWorkflow) {
-        const result = await updateWorkflow({ workflowId: selectedWorkflow._id, name: workflowName, description: workflowDesc, token })
+        const result = await updateWorkflow({ workflowId: selectedWorkflow._id, name: workflowName, description: workflowDesc, nodes: builderNodes, edges: builderEdges, token })
         if (result.error) { showToast(result.error, true); return }
         showToast('Workflow updated!')
       } else {
@@ -157,7 +157,7 @@ export function WorkflowBuilderTab({ token }: { token: string }) {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500" key={retryKey}>
+    <div className="space-y-6 " key={retryKey}>
       {(error || success) && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-black ${error ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}`}>
           {error || success}

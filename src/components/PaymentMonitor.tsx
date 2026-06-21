@@ -57,7 +57,7 @@ export function PaymentMonitor() {
   ]
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
+    <div className="space-y-8 ">
       {/* Payment Overview Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard

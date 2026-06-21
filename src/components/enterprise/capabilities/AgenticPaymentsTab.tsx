@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../../convex/_generated/api'
 
@@ -40,9 +40,11 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
     { id: 'scale' as const, name: 'Scale Plan', price: 500000, period: 'month', features: ['Unlimited Users', 'Unlimited Workflows', '24/7 Support', 'Custom Integrations', 'Dedicated Account Manager'] },
   ]
 
-  if (spendingLimitData.spendingLimit !== spendingLimit && spendingLimit === 0) {
-    setSpendingLimit(spendingLimitData.spendingLimit)
-  }
+  useEffect(() => {
+    if (spendingLimitData.spendingLimit !== spendingLimit && spendingLimit === 0) {
+      setSpendingLimit(spendingLimitData.spendingLimit)
+    }
+  }, [spendingLimitData.spendingLimit])
 
   const showToast = (msg: string, isError = false) => {
     if (isError) setError(msg)
@@ -138,7 +140,7 @@ export function AgenticPaymentsTab({ token }: { token: string }) {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 ">
       {(error || success) && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-black ${error ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}`}>
           {error || success}
