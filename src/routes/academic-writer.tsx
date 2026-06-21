@@ -140,7 +140,7 @@ function MessageBubble({ message }: { message: UIMessage }) {
   return (
     <div className={`flex ${isAssistant ? 'justify-start' : 'justify-end'} group animate-in fade-in slide-in-from-bottom-2 duration-300`}>
       <div className={`max-w-[85%] md:max-w-[70%] flex gap-3 ${isAssistant ? '' : 'flex-row-reverse'}`}>
-        <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-sm font-bold ${
+        <div className={`w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center text-base font-bold ${
           isAssistant ? 'bg-gradient-to-br from-orange-500 to-red-500 text-white' : 'bg-indigo-600 text-white'
         }`}>
           {isAssistant ? '🎓' : 'U'}
@@ -150,7 +150,7 @@ function MessageBubble({ message }: { message: UIMessage }) {
             ? 'bg-slate-800 text-slate-100 border border-slate-700 shadow-sm' 
             : 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/10'
         }`}>
-          <div className="whitespace-pre-wrap leading-relaxed text-sm">
+          <div className="whitespace-pre-wrap leading-relaxed text-[15px] leading-7">
             {visibleText}
             {message.status === "streaming" && (
               <span className="inline-block w-1.5 h-4 ml-1 bg-indigo-400 animate-pulse align-middle"></span>
