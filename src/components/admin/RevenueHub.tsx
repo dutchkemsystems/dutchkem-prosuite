@@ -235,24 +235,44 @@ function SocialTab({ adminToken }: { adminToken: string }) {
     setTimeout(() => setToast(null), 3000)
   }, [])
 
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const handleAddRule = async () => {
     if (!newKeywords.trim() || !newResponse.trim()) return
-    const keywords = newKeywords.split(',').map((k) => k.trim()).filter(Boolean)
-    await addDmRule({ triggerKeywords: keywords, responseTemplate: newResponse, adminToken })
-    setNewKeywords('')
-    setNewResponse('')
-    setShowAddRule(false)
-    showToast('DM rule added')
+    setIsSubmitting(true)
+    try {
+      const keywords = newKeywords.split(',').map((k) => k.trim()).filter(Boolean)
+      await addDmRule({ triggerKeywords: keywords, responseTemplate: newResponse, adminToken })
+      setNewKeywords('')
+      setNewResponse('')
+      setShowAddRule(false)
+      showToast('DM rule added')
+    } catch (err) {
+      console.error('[SocialTab] Failed to add DM rule:', err)
+      showToast('Failed to add DM rule', 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleToggle = async (ruleId: string, isActive: boolean) => {
-    await toggleDmRule({ ruleId: ruleId as any, isActive: !isActive, adminToken })
-    showToast(isActive ? 'Rule deactivated' : 'Rule activated')
+    try {
+      await toggleDmRule({ ruleId: ruleId as any, isActive: !isActive, adminToken })
+      showToast(isActive ? 'Rule deactivated' : 'Rule activated')
+    } catch (err) {
+      console.error('[SocialTab] Failed to toggle DM rule:', err)
+      showToast('Failed to toggle rule', 'error')
+    }
   }
 
   const handleDelete = async (ruleId: string) => {
-    await deleteDmRule({ ruleId: ruleId as any, adminToken })
-    showToast('Rule deleted')
+    try {
+      await deleteDmRule({ ruleId: ruleId as any, adminToken })
+      showToast('Rule deleted')
+    } catch (err) {
+      console.error('[SocialTab] Failed to delete DM rule:', err)
+      showToast('Failed to delete rule', 'error')
+    }
   }
 
   return (
@@ -298,7 +318,7 @@ function SocialTab({ adminToken }: { adminToken: string }) {
             />
           </div>
           <div className="flex gap-2">
-            <button onClick={handleAddRule} className="bg-[#FF6B35] hover:bg-[#FF8255] text-white px-4 py-2 rounded-xl text-sm font-medium transition-all">Save Rule</button>
+            <button onClick={handleAddRule} disabled={isSubmitting} className="bg-[#FF6B35] hover:bg-[#FF8255] text-white px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Save Rule'}</button>
             <button onClick={() => setShowAddRule(false)} className="bg-white/5 hover:bg-white/10 text-slate-300 px-4 py-2 rounded-xl text-sm font-medium transition-all">Cancel</button>
           </div>
         </div>
@@ -372,12 +392,22 @@ function MarketplaceTab({ adminToken }: { adminToken: string }) {
     setTimeout(() => setToast(null), 3000)
   }, [])
 
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const handleCreate = async () => {
     if (!form.name || !form.category || !form.agentId) return
-    await createListing({ ...form, adminToken })
-    setForm({ name: '', description: '', category: '', priceNgN: 0, agentId: '', pricingModel: 'one_time' })
-    setShowForm(false)
-    showToast('Listing created')
+    setIsSubmitting(true)
+    try {
+      await createListing({ ...form, adminToken })
+      setForm({ name: '', description: '', category: '', priceNgN: 0, agentId: '', pricingModel: 'one_time' })
+      setShowForm(false)
+      showToast('Listing created')
+    } catch (err) {
+      console.error('[MarketplaceTab] Failed to create listing:', err)
+      showToast('Failed to create listing', 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -423,7 +453,7 @@ function MarketplaceTab({ adminToken }: { adminToken: string }) {
             <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={2} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-[#FF6B35]/50 resize-none" />
           </div>
           <div className="flex gap-2">
-            <button onClick={handleCreate} className="bg-[#FF6B35] hover:bg-[#FF8255] text-white px-4 py-2 rounded-xl text-sm font-medium transition-all">Create</button>
+            <button onClick={handleCreate} disabled={isSubmitting} className="bg-[#FF6B35] hover:bg-[#FF8255] text-white px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-50">{isSubmitting ? 'Creating...' : 'Create'}</button>
             <button onClick={() => setShowForm(false)} className="bg-white/5 hover:bg-white/10 text-slate-300 px-4 py-2 rounded-xl text-sm font-medium transition-all">Cancel</button>
           </div>
         </div>
@@ -467,9 +497,19 @@ function OutcomesTab({ adminToken }: { adminToken: string }) {
     setTimeout(() => setToast(null), 3000)
   }, [])
 
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const handleToggle = async (ruleId: string, isActive: boolean) => {
-    await updateRule({ ruleId: ruleId as any, isActive: !isActive, adminToken })
-    showToast(isActive ? 'Rule deactivated' : 'Rule activated')
+    setIsSubmitting(true)
+    try {
+      await updateRule({ ruleId: ruleId as any, isActive: !isActive, adminToken })
+      showToast(isActive ? 'Rule deactivated' : 'Rule activated')
+    } catch (err) {
+      console.error('[OutcomesTab] Failed to toggle rule:', err)
+      showToast('Failed to toggle rule', 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -528,12 +568,22 @@ function WhiteLabelTab({ adminToken }: { adminToken: string }) {
     setTimeout(() => setToast(null), 3000)
   }, [])
 
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const handleCreate = async () => {
     if (!form.companyName) return
-    await createCustomer({ ...form, adminToken })
-    setForm({ companyName: '', customDomain: '', primaryColor: '#FF6B35', secondaryColor: '#000000', setupFeePaid: 0, monthlyFee: 0 })
-    setShowForm(false)
-    showToast('Client added')
+    setIsSubmitting(true)
+    try {
+      await createCustomer({ ...form, adminToken })
+      setForm({ companyName: '', customDomain: '', primaryColor: '#FF6B35', secondaryColor: '#000000', setupFeePaid: 0, monthlyFee: 0 })
+      setShowForm(false)
+      showToast('Client added')
+    } catch (err) {
+      console.error('[WhiteLabelTab] Failed to create client:', err)
+      showToast('Failed to create client', 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -575,7 +625,7 @@ function WhiteLabelTab({ adminToken }: { adminToken: string }) {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleCreate} className="bg-[#FF6B35] hover:bg-[#FF8255] text-white px-4 py-2 rounded-xl text-sm font-medium transition-all">Create</button>
+            <button onClick={handleCreate} disabled={isSubmitting} className="bg-[#FF6B35] hover:bg-[#FF8255] text-white px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-50">{isSubmitting ? 'Creating...' : 'Create'}</button>
             <button onClick={() => setShowForm(false)} className="bg-white/5 hover:bg-white/10 text-slate-300 px-4 py-2 rounded-xl text-sm font-medium transition-all">Cancel</button>
           </div>
         </div>
@@ -778,15 +828,25 @@ function ApiAccessTab({ adminToken }: { adminToken: string }) {
     setTimeout(() => setToast(null), 3000)
   }, [])
 
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const handleCreate = async () => {
     if (!userId) return
-    const result = await createKey({ userId, tier, adminToken })
-    if (result) {
-      setNewKeyResult({ apiKey: result.apiKey, apiSecret: result.apiSecret })
+    setIsSubmitting(true)
+    try {
+      const result = await createKey({ userId, tier, adminToken })
+      if (result) {
+        setNewKeyResult({ apiKey: result.apiKey, apiSecret: result.apiSecret })
+      }
+      setUserId('')
+      setShowForm(false)
+      showToast('API key generated')
+    } catch (err) {
+      console.error('[ApiAccessTab] Failed to generate API key:', err)
+      showToast('Failed to generate API key', 'error')
+    } finally {
+      setIsSubmitting(false)
     }
-    setUserId('')
-    setShowForm(false)
-    showToast('API key generated')
   }
 
   const tiers = [
@@ -865,8 +925,8 @@ function ApiAccessTab({ adminToken }: { adminToken: string }) {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleCreate} className="bg-[#FF6B35] hover:bg-[#FF8255] text-white px-4 py-2 rounded-xl text-sm font-medium transition-all">Generate</button>
-            <button onClick={() => setShowForm(false)} className="bg-white/5 hover:bg-white/10 text-slate-300 px-4 py-2 rounded-xl text-sm font-medium transition-all">Cancel</button>
+          <button onClick={handleCreate} disabled={isSubmitting} className="bg-[#FF6B35] hover:bg-[#FF8255] text-white px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-50">{isSubmitting ? 'Generating...' : 'Generate'}</button>
+          <button onClick={() => setShowForm(false)} className="bg-white/5 hover:bg-white/10 text-slate-300 px-4 py-2 rounded-xl text-sm font-medium transition-all">Cancel</button>
           </div>
         </div>
       )}
@@ -973,21 +1033,36 @@ function SubscriptionsTab({ adminToken }: { adminToken: string }) {
     })
   }
 
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const handleSave = async () => {
     if (!editingPlan) return
-    await updatePlan({ planId: editingPlan, ...editForm, adminToken })
-    setEditingPlan(null)
-    showToast('Plan updated')
+    setIsSubmitting(true)
+    try {
+      await updatePlan({ planId: editingPlan, ...editForm, adminToken })
+      setEditingPlan(null)
+      showToast('Plan updated')
+    } catch (err) {
+      console.error('[SubscriptionsTab] Failed to update plan:', err)
+      showToast('Failed to update plan', 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleToggleExpiry = async () => {
-    await updateExpiry({
-      enabled: !creditExpiry?.enabled,
-      expiryDays: creditExpiry?.expiryDays ?? 30,
-      warningDays: creditExpiry?.warningDays ?? 7,
-      adminToken,
-    })
-    showToast(creditExpiry?.enabled ? 'Credit expiry disabled' : 'Credit expiry enabled')
+    try {
+      await updateExpiry({
+        enabled: !creditExpiry?.enabled,
+        expiryDays: creditExpiry?.expiryDays ?? 30,
+        warningDays: creditExpiry?.warningDays ?? 7,
+        adminToken,
+      })
+      showToast(creditExpiry?.enabled ? 'Credit expiry disabled' : 'Credit expiry enabled')
+    } catch (err) {
+      console.error('[SubscriptionsTab] Failed to toggle credit expiry:', err)
+      showToast('Failed to toggle credit expiry', 'error')
+    }
   }
 
   return (
@@ -1053,7 +1128,7 @@ function SubscriptionsTab({ adminToken }: { adminToken: string }) {
                     <label className="text-xs text-slate-400">Messages/Month (-1=unlimited)</label>
                     <input type="number" value={editForm.messageLimitMonthly} onChange={(e) => setEditForm({ ...editForm, messageLimitMonthly: Number(e.target.value) })} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm mt-1" />
                   </div>
-                  <button onClick={handleSave} className="w-full bg-[#FF6B35] hover:bg-[#FF8255] text-white px-4 py-2 rounded-xl text-sm font-medium transition-all">Save Changes</button>
+                  <button onClick={handleSave} disabled={isSubmitting} className="w-full bg-[#FF6B35] hover:bg-[#FF8255] text-white px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-50">{isSubmitting ? 'Saving...' : 'Save Changes'}</button>
                 </div>
               ) : (
                 <>
