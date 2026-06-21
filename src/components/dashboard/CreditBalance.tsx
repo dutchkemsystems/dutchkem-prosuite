@@ -11,6 +11,16 @@ export function CreditBalance({ userId, email }: { userId: string; email?: strin
   const expiryConfig = useQuery(api.revenue_growth.getCreditExpiryConfig)
   const expiringCredits = useQuery(api.revenue_growth.getExpiringCredits, userId ? { userId } : 'skip')
   const transactions = useQuery(api.revenue_credits.getCreditTransactions, userId ? { userId, limit: 10 } : 'skip')
+  const initiatePurchase = useAction(api.kora_checkout.initiateCreditPurchase)
+  const setAutoRecharge = useMutation(api.revenue_credits.setAutoRecharge)
+
+  const [showPurchase, setShowPurchase] = useState(false)
+  const [selectedPackage, setSelectedPackage] = useState<string | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+  const [showAutoRechargeSettings, setShowAutoRechargeSettings] = useState(false)
+  const [autoRechargeThreshold, setAutoRechargeThreshold] = useState(credits?.autoRechargeThreshold ?? 50)
+  const [autoRechargeAmount, setAutoRechargeAmount] = useState(credits?.autoRechargeAmount ?? 500)
 
   if (credits === undefined) {
     return (
@@ -27,16 +37,6 @@ export function CreditBalance({ userId, email }: { userId: string; email?: strin
       </div>
     )
   }
-  const initiatePurchase = useAction(api.kora_checkout.initiateCreditPurchase)
-  const setAutoRecharge = useMutation(api.revenue_credits.setAutoRecharge)
-
-  const [showPurchase, setShowPurchase] = useState(false)
-  const [selectedPackage, setSelectedPackage] = useState<string | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
-  const [showAutoRechargeSettings, setShowAutoRechargeSettings] = useState(false)
-  const [autoRechargeThreshold, setAutoRechargeThreshold] = useState(credits?.autoRechargeThreshold ?? 50)
-  const [autoRechargeAmount, setAutoRechargeAmount] = useState(credits?.autoRechargeAmount ?? 500)
 
   const packages = [
     { id: 'starter', credits: 1000, price: 1000, label: 'Starter', icon: '🚀' },
