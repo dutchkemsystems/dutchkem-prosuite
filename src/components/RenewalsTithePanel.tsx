@@ -41,16 +41,16 @@ export function RenewalsTithePanel({ adminToken }: AdminPanelProps) {
 
       <div className="flex flex-wrap gap-2">
         {[
-          { key: "renewals" as const, label: "🔄 Subscriptions", color: "orange" },
-          { key: "tithe" as const, label: "🕊️ Tithe", color: "emerald" },
-          { key: "cac" as const, label: "🏛️ CAC Tax", color: "blue" },
-          { key: "receipts" as const, label: "🧾 Receipts", color: "purple" },
-          { key: "alerts" as const, label: "📊 Usage Alerts", color: "rose" },
+          { key: "renewals" as const, label: "🔄 Subscriptions", activeClass: "bg-orange-500 text-white shadow-lg" },
+          { key: "tithe" as const, label: "🕊️ Tithe", activeClass: "bg-emerald-500 text-white shadow-lg" },
+          { key: "cac" as const, label: "🏛️ CAC Tax", activeClass: "bg-blue-500 text-white shadow-lg" },
+          { key: "receipts" as const, label: "🧾 Receipts", activeClass: "bg-purple-500 text-white shadow-lg" },
+          { key: "alerts" as const, label: "📊 Usage Alerts", activeClass: "bg-rose-500 text-white shadow-lg" },
         ].map((t) => (
           <button
             key={t.key}
             onClick={() => setSubTab(t.key)}
-            className={`px-4 py-2 rounded-2xl font-bold text-sm transition ${subTab === t.key ? `bg-${t.color}-500 text-white shadow-lg` : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
+            className={`px-4 py-2 rounded-2xl font-bold text-sm transition ${subTab === t.key ? t.activeClass : "bg-slate-800 text-slate-300 hover:bg-slate-700"}`}
           >
             {t.label}
           </button>

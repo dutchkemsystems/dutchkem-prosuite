@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
 import {
@@ -9,15 +9,9 @@ import { api } from "../../convex/_generated/api"
 
 export function PaymentMonitor() {
   const [timeframe, setTimeframe] = useState<'today' | 'week' | 'month'>('month')
-  const [refreshKey, setRefreshKey] = useState(0)
   const { data: earnings } = useSuspenseQuery(convexQuery(api.admin.getEarningsSummary, {})) as { data: any }
   const { data: transactions } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, {})) as { data: any }
   const { data: stats } = useSuspenseQuery(convexQuery(api.admin.getAdminStats, {})) as { data: any }
-
-  useEffect(() => {
-    const interval = setInterval(() => setRefreshKey(k => k + 1), 5000)
-    return () => clearInterval(interval)
-  }, [])
 
   const revenueToday = earnings?.today?.revenue || 0
   const revenueWeek = earnings?.week?.revenue || 0

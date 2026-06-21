@@ -7,6 +7,14 @@ type AdminPanelProps = {
   adminToken: string;
 };
 
+const SECTION_TAB_COLORS: Record<string, string> = {
+  overview: "bg-indigo-500 text-white shadow-lg",
+  runs: "bg-blue-500 text-white shadow-lg",
+  alerts: "bg-rose-500 text-white shadow-lg",
+  secrets: "bg-amber-500 text-white shadow-lg",
+  health: "bg-emerald-500 text-white shadow-lg",
+};
+
 export function AutoHealDashboard({ adminToken }: AdminPanelProps) {
   const [section, setSection] = useState<"overview" | "runs" | "alerts" | "secrets" | "health">("overview");
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
@@ -143,18 +151,18 @@ export function AutoHealDashboard({ adminToken }: AdminPanelProps) {
 
       <div className="flex flex-wrap gap-2">
         {[
-          { key: "overview" as const, label: "📊 Overview", color: "indigo" },
-          { key: "runs" as const, label: "🏃 Runs", color: "blue" },
-          { key: "alerts" as const, label: "🔔 Alerts", color: "rose" },
-          { key: "secrets" as const, label: "🔑 Secrets", color: "amber" },
-          { key: "health" as const, label: "🩺 Health", color: "emerald" },
+          { key: "overview" as const, label: "📊 Overview" },
+          { key: "runs" as const, label: "🏃 Runs" },
+          { key: "alerts" as const, label: "🔔 Alerts" },
+          { key: "secrets" as const, label: "🔑 Secrets" },
+          { key: "health" as const, label: "🩺 Health" },
         ].map((t) => (
           <button
             key={t.key}
             onClick={() => setSection(t.key)}
             className={`px-4 py-2 rounded-2xl font-bold text-sm transition ${
               section === t.key
-                ? `bg-${t.color}-500 text-white shadow-lg`
+                ? SECTION_TAB_COLORS[t.key]
                 : "bg-slate-800 text-slate-300 hover:bg-slate-700"
             }`}
           >
@@ -644,6 +652,15 @@ function HealthSection({ healthResults, summary }: { healthResults: any[] | null
   );
 }
 
+const STAT_CARD_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  indigo: { bg: 'from-indigo-500/10 to-indigo-600/5', border: 'border-indigo-500/20', text: 'text-indigo-300' },
+  emerald: { bg: 'from-emerald-500/10 to-emerald-600/5', border: 'border-emerald-500/20', text: 'text-emerald-300' },
+  rose: { bg: 'from-rose-500/10 to-rose-600/5', border: 'border-rose-500/20', text: 'text-rose-300' },
+  blue: { bg: 'from-blue-500/10 to-blue-600/5', border: 'border-blue-500/20', text: 'text-blue-300' },
+  amber: { bg: 'from-amber-500/10 to-amber-600/5', border: 'border-amber-500/20', text: 'text-amber-300' },
+  purple: { bg: 'from-purple-500/10 to-purple-600/5', border: 'border-purple-500/20', text: 'text-purple-300' },
+};
+
 function StatCard({
   label,
   value,
@@ -655,13 +672,14 @@ function StatCard({
   icon: string;
   color: "indigo" | "emerald" | "rose" | "blue" | "amber" | "purple";
 }) {
+  const c = STAT_CARD_COLORS[color] || STAT_CARD_COLORS.indigo;
   return (
-    <div className={`bg-gradient-to-br from-${color}-500/10 to-${color}-600/5 border border-${color}-500/20 rounded-2xl p-4`}>
+    <div className={`bg-gradient-to-br ${c.bg} ${c.border} border rounded-2xl p-4`}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs text-slate-400 uppercase font-bold">{label}</span>
         <span className="text-xl">{icon}</span>
       </div>
-      <div className={`text-2xl font-black text-${color}-300`}>{value}</div>
+      <div className={`text-2xl font-black ${c.text}`}>{value}</div>
     </div>
   );
 }

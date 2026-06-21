@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
 import {
@@ -8,11 +8,8 @@ import {
 import { api } from "../../convex/_generated/api"
 
 const COLORS = ['#FF6B35', '#1E3A8A', '#00A86B', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']
-const AGENT_NAMES = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12', 'A13', 'A14', 'A15']
 
 function downloadAsPDF(elementId: string) {
-  const element = document.getElementById(elementId);
-  if (!element) return;
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
   printWindow.document.write(`
@@ -41,9 +38,6 @@ function downloadAsPDF(elementId: string) {
 }
 
 function downloadAsJPEG(elementId: string) {
-  const element = document.getElementById(elementId);
-  if (!element) return;
-  // Use browser's built-in print-to-PDF as image fallback
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
   printWindow.document.write(`
@@ -66,8 +60,6 @@ function downloadAsJPEG(elementId: string) {
 }
 
 function downloadAsExcel(elementId: string) {
-  const element = document.getElementById(elementId);
-  if (!element) return;
   const rows: Array<Array<string>> = [];
   rows.push(['Dutchkem Ventures ProSuite NG+ - Analytics Report']);
   rows.push([`Generated: ${new Date().toLocaleString()}`]);
@@ -98,7 +90,6 @@ function downloadAsExcel(elementId: string) {
 }
 
 export function LiveCharts() {
-  const [refreshKey, setRefreshKey] = useState(0)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const chartRef = useRef<HTMLDivElement>(null)
   const { data: stats } = useSuspenseQuery(convexQuery(api.admin.getAdminStats, {})) as { data: any };
@@ -106,15 +97,12 @@ export function LiveCharts() {
   const { data: transactions } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, {})) as { data: any };
   const { data: socialStats } = useSuspenseQuery(convexQuery(api.social.getSocialStats, {})) as { data: any };
   const { data: platformAnalytics } = useSuspenseQuery(convexQuery(api.social.getPlatformAnalytics, {})) as { data: any };
+  const { data: agentPerformance } = useSuspenseQuery(convexQuery(api.live_feed.getAgentPerformance, {})) as { data: any };
+  const { data: moneyFlow } = useSuspenseQuery(convexQuery(api.live_feed.getMoneyFlow, {})) as { data: any };
 
   // Extract nested stats - backend returns { stats: { subscribers, ... }, agentHealth, guardianStats }
   const adminStats = stats?.stats || {};
   const totalSubscribers = adminStats?.subscribers || 0;
-
-  useEffect(() => {
-    const interval = setInterval(() => setRefreshKey(k => k + 1), 8000)
-    return () => clearInterval(interval)
-  }, [])
 
   // Use real transaction data for charts
   const hourlyData = (() => {
@@ -133,13 +121,6 @@ export function LiveCharts() {
     return hours;
   })()
 
-  const agentPerformance = AGENT_NAMES.map((name) => ({
-    name,
-    completed: Math.floor(Math.random() * 60) + 10,
-    pending: Math.floor(Math.random() * 10),
-    avgTime: (Math.random() * 20 + 5).toFixed(1),
-  }))
-
   const taskFunnel = [
     { stage: 'Logins', count: totalSubscribers },
     { stage: 'Tasks Started', count: Math.floor(totalSubscribers * 0.68) },
@@ -154,13 +135,20 @@ export function LiveCharts() {
     { name: 'Failed', value: socialStats?.failed || 0, color: '#EF4444' },
   ]
 
-  const agentWorkload = [
+  const agentWorkload = agentPerformance ? (() => {
+    const totalCompleted = agentPerformance.reduce((sum: number, a: any) => sum + a.completed, 0);
+    const totalPending = agentPerformance.reduce((sum: number, a: any) => sum + a.pending, 0);
+    return [
+      { name: 'Working', value: totalCompleted || 65, color: '#FF6B35' },
+      { name: 'Idle', value: totalPending || 35, color: '#334155' },
+    ];
+  })() : [
     { name: 'Working', value: 65, color: '#FF6B35' },
     { name: 'Idle', value: 35, color: '#334155' },
   ]
 
-  // Use real earnings data for revenue trend
-  const revenueData = (() => {
+  // Use real money flow data for revenue trend
+  const revenueData = moneyFlow || (() => {
     const monthlyEarnings = earnings?.month?.share || 0;
     const dailyAvg = monthlyEarnings / 30;
     return Array.from({ length: 30 }, (_, i) => ({
@@ -296,7 +284,7 @@ export function LiveCharts() {
 
         {/* Revenue Trend */}
         <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 shadow-2xl">
-          <h3 className="text-lg font-black uppercase tracking-tighter mb-6">Revenue Trend (30 Days)</h3>
+          <h3 className="text-lg font-black uppercase tracking-tighter mb-6">Money Flow (30 Days)</h3>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={revenueData}>
               <defs>
@@ -310,12 +298,12 @@ export function LiveCharts() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis dataKey="day" tick={{ fill: '#64748b', fontSize: 10 }} interval={4} />
+              <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 10 }} interval={4} />
               <YAxis tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={v => `₦${(v/1000).toFixed(0)}k`} />
               <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', color: '#fff' }} formatter={(v: any) => `₦${(v as number).toLocaleString()}`} />
               <Legend />
-              <Area type="monotone" dataKey="income" stroke="#FF6B35" fill="url(#incomeGrad)" name="Income" strokeWidth={2} />
-              <Area type="monotone" dataKey="expenses" stroke="#EF4444" fill="url(#expenseGrad)" name="Expenses" strokeWidth={2} />
+              <Area type="monotone" dataKey="inflow" stroke="#FF6B35" fill="url(#incomeGrad)" name="Inflow" strokeWidth={2} />
+              <Area type="monotone" dataKey="outflow" stroke="#EF4444" fill="url(#expenseGrad)" name="Outflow" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </div>

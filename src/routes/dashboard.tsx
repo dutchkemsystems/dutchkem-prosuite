@@ -15,6 +15,7 @@ import { FlashSaleBanner } from '~/components/FlashSaleBanner';
 import { UrgencyTriggers } from '~/components/UrgencyTriggers';
 import { ActivityStats, SocialProofFeed } from '~/components/SocialProofFeed';
 import { ClientActivityFeed } from '~/components/ClientActivityFeed';
+import { AnimatedBackground } from '~/components/AnimatedBackground';
 
 import { ClientNotificationPrefs } from '~/components/ClientNotificationPrefs';
 import { ClientPerformanceSummary } from '~/components/ClientPerformanceSummary';
@@ -23,6 +24,9 @@ import { AgentBrowser } from '~/components/dashboard/AgentBrowser';
 import { CreditPackages } from '~/components/dashboard/CreditPackages';
 import { HistoryPanel } from '~/components/dashboard/HistoryPanel';
 import { SupportChat } from '~/components/dashboard/SupportChat';
+import { SubscriptionManager } from '~/components/dashboard/SubscriptionManager';
+import { CreditBalance } from '~/components/dashboard/CreditBalance';
+import { UsageTracker } from '~/components/dashboard/UsageTracker';
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -204,7 +208,8 @@ function DashboardContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row overflow-hidden">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row overflow-hidden relative">
+      <AnimatedBackground variant="dashboard" />
       <InactivityLogout adminMode={false} logoutPath="/auth" />
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800 sticky top-0 z-30">
@@ -231,6 +236,8 @@ function DashboardContent() {
             <TabButton active={activeTab === "overview"} onClick={() => { setActiveTab("overview"); setSidebarOpen(false); }} icon="📊" label="Overview" />
             <TabButton active={activeTab === "activity"} onClick={() => { setActiveTab("activity"); setSidebarOpen(false); }} icon="📡" label="Agent Activity" />
             <TabButton active={activeTab === "subscriptions"} onClick={() => { setActiveTab("subscriptions"); setSidebarOpen(false); }} icon="💳" label="Subscriptions" />
+            <TabButton active={activeTab === "credits"} onClick={() => { setActiveTab("credits"); setSidebarOpen(false); }} icon="💰" label="Credits" />
+            <TabButton active={activeTab === "usage"} onClick={() => { setActiveTab("usage"); setSidebarOpen(false); }} icon="📊" label="Usage" />
             <TabButton active={activeTab === "kdp"} onClick={() => { setActiveTab("kdp"); setSidebarOpen(false); }} icon="📖" label="KDP Publishing" />
             <TabButton active={activeTab === "projects"} onClick={() => { setActiveTab("projects"); setSidebarOpen(false); }} icon="📁" label="Projects" />
             <TabButton active={activeTab === "referrals"} onClick={() => { setActiveTab("referrals"); setSidebarOpen(false); }} icon="🤝" label="Referrals" />
@@ -259,7 +266,13 @@ function DashboardContent() {
               <AgentBrowser isOpen={true} onClose={() => setActiveTab("overview")} mode="page" agentEnhancement={data.agentEnhancement} />
             </div>
           )}
-          {activeTab === "subscriptions" && <Subscriptions data={data} />}
+          {activeTab === "subscriptions" && (
+            <div className="space-y-8">
+              <SubscriptionManager userId={data.user._id} email={data.user.email} />
+              <CreditBalance userId={data.user._id} email={data.user.email} />
+              <UsageTracker userId={data.user._id} />
+            </div>
+          )}
           {activeTab === "kdp" && (
             <Suspense fallback={<DashboardSpinner />}>
               <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -269,6 +282,16 @@ function DashboardContent() {
                  )}
               </div>
             </Suspense>
+          )}
+          {activeTab === "credits" && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <CreditBalance userId={data.user._id} email={data.user.email} />
+            </div>
+          )}
+          {activeTab === "usage" && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <UsageTracker userId={data.user._id} />
+            </div>
           )}
           {activeTab === "projects" && <Projects data={data} setActiveTab={setActiveTab} setModal={setModal} setShowAgentBrowser={setShowAgentBrowser} setShowCredits={setShowCredits} setShowHistory={setShowHistory} setShowSupport={setShowSupport} />}
           {activeTab === "referrals" && <Referrals data={data} payoutMessage={payoutMessage} setPayoutMessage={setPayoutMessage} requestReferralPayoutAction={requestReferralPayoutAction} />}
@@ -406,6 +429,8 @@ function TabButton({ active, onClick, icon, label }: { active: boolean, onClick:
 }
 
 function Header({ user, notifications }: { user: any, notifications: Array<any> }) {
+  const { signOut } = useAuthActions();
+  const navigate = useNavigate();
   const [time, setTime] = useState(new Date().toLocaleTimeString());
   const [showNotifs, setShowNotifs] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -827,6 +852,7 @@ function Subscriptions({ data }: { data: any }) {
     return sum + 12500;
   }, 0);
   const nextPayout = activeSubs.length > 0 ? new Date(Math.min(...activeSubs.map((s: any) => s.endsAt))).toLocaleDateString() : "N/A";
+  const userId = data.user?._id;
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">

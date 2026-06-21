@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "convex/react";
 
 import { api } from "../../convex/_generated/api";
@@ -198,7 +198,7 @@ export function ContentCalendar() {
 
   return (
     <div className="space-y-2">
-      {calendar.map((item) => (
+      {calendar.map((item: any) => (
         <div
           key={item._id}
           className="flex items-center gap-3 rounded-xl border border-white/5 bg-white/5 p-3"

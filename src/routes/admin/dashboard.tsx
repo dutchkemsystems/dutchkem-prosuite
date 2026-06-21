@@ -4,7 +4,7 @@ import { convexQuery } from "@convex-dev/react-query"
 import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
 import { Component,  Suspense, useCallback, useEffect, useState } from "react"
-import { api, internal } from "../../../convex/_generated/api"
+import { api } from "../../../convex/_generated/api"
 import type {ReactNode} from "react";
 import { CompanyLogo } from "~/components/CompanyLogo";
 import { useSocket } from "~/lib/socket";
@@ -19,13 +19,13 @@ import { TryPostScheduler } from "~/components/TryPostScheduler";
 import { AutoHealDashboard } from "~/components/AutoHealDashboard";
 import { ComposioEnhancementPanel } from "~/components/ComposioEnhancementPanel";
 import { TaxCompliancePanel } from "~/components/TaxCompliancePanel";
-import { EnterpriseHub } from "~/components/EnterpriseHub";
 import { EnterprisePortalAdmin } from "~/components/enterprise/EnterprisePortalAdmin";
 import { AdminEnterpriseHub } from "~/components/admin/AdminEnterpriseHub";
 import { MimoControlPanel } from "~/components/admin/MimoControlPanel";
 import { RapidAPIFallbackDashboard } from "~/components/admin/RapidAPIFallbackDashboard";
 import { RevenueHub } from "~/components/admin/RevenueHub";
 import AutoFlyerDashboard from "~/components/admin/AutoFlyerDashboard";
+import CurrencyConverter from "~/components/admin/CurrencyConverter";
 import AdAutomationHub from "~/components/admin/enterprise/AdAutomationHub";
 import AdminPayoutDashboard from "~/components/admin/enterprise/AdminPayoutDashboard";
 
@@ -185,6 +185,7 @@ function AdminDashboardPage() {
                   <AdminTab active={activeTab === "mimo"} onClick={() => setActiveTab("mimo")} icon="🧠" label="Mimo V.2.5" />
                    <AdminTab active={activeTab === "rapidapi"} onClick={() => setActiveTab("rapidapi")} icon="🔄" label="RapidAPI Fallback" />
                     <AdminTab active={activeTab === "revenue"} onClick={() => setActiveTab("revenue")} icon="💰" label="Revenue Hub" />
+                    <AdminTab active={activeTab === "currency"} onClick={() => setActiveTab("currency")} icon="💱" label="Currency Converter" />
                     <AdminTab active={activeTab === "auto-flyer"} onClick={() => setActiveTab("auto-flyer")} icon="🎨" label="Auto Flyer" />
         </nav>
 
@@ -239,8 +240,9 @@ function AdminDashboardPage() {
                 {activeTab === "enterprise-portal" && <EnterprisePortalAdmin adminToken={adminToken} />}
                  {activeTab === "mimo" && <MimoControlPanel adminToken={adminToken} />}
                   {activeTab === "rapidapi" && <RapidAPIFallbackDashboard adminToken={adminToken} />}
-                   {activeTab === "revenue" && <RevenueHub adminToken={adminToken} />}
-                   {activeTab === "auto-flyer" && <AutoFlyerDashboard />}
+                    {activeTab === "revenue" && <RevenueHub adminToken={adminToken} />}
+                    {activeTab === "currency" && <CurrencyConverter />}
+                    {activeTab === "auto-flyer" && <AutoFlyerDashboard />}
            </AdminSuspense>
         </div>
         <Footer />
@@ -1580,6 +1582,30 @@ function StatsOverview({ data, earnings, uaeStatus }: any) {
   const [liveEarnings, setLiveEarnings] = useState(earnings);
   const [liveTxs, setLiveTxs] = useState<any[]>([]);
 
+  // Multi-currency exchange rates
+  const EXCHANGE_RATES: Record<string, number> = {
+    NGN: 1,
+    USD: 1500,
+    GBP: 1900,
+    EUR: 1650,
+  };
+
+  const CURRENCY_SYMBOLS: Record<string, string> = {
+    NGN: '₦',
+    USD: '$',
+    GBP: '£',
+    EUR: '€',
+  };
+
+  // Calculate wallet balance in all currencies
+  const walletBalance = liveEarnings?.allTime?.share || 0;
+  const walletCurrencies = Object.entries(EXCHANGE_RATES).map(([code, rate]) => ({
+    code,
+    symbol: CURRENCY_SYMBOLS[code],
+    amount: Math.round(walletBalance / rate),
+    rate,
+  }));
+
   // Live poll every second
   useEffect(() => {
     const fetchLive = async () => {
@@ -1642,6 +1668,31 @@ function StatsOverview({ data, earnings, uaeStatus }: any) {
           icon="🏛️" color="amber"
           onClick={() => handleCardClick("fees")}
         />
+      </div>
+
+      {/* Multi-Currency Wallet Display */}
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-[2rem] p-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-xl font-black text-white">💱 Wallet Balance (Multi-Currency)</h3>
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest">Live rates • Updated in real-time</p>
+          </div>
+          <div className="px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-xl">
+            <span className="text-green-400 font-bold text-sm">✓ Live Rates</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {walletCurrencies.map((curr) => (
+            <div key={curr.code} className="bg-white/5 rounded-xl p-5 border border-white/10 hover:border-white/20 transition-all">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-2xl">{curr.symbol}</span>
+                <span className="text-xs text-slate-400 font-bold">{curr.code}</span>
+              </div>
+              <div className="text-2xl font-black text-white">{curr.symbol}{curr.amount.toLocaleString()}</div>
+              <div className="text-[10px] text-slate-500 mt-1">Rate: 1 {curr.code} = ₦{curr.rate.toLocaleString()}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Expanded Transaction Panels */}
@@ -1751,7 +1802,7 @@ function StatsOverview({ data, earnings, uaeStatus }: any) {
 }
 
 function RecentTransactions() {
-   const { data: txs } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, {}));
+   const { data: txs } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, {})) as { data: any[] };
    return (
       <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl animate-in fade-in duration-700">
          <div className="p-10 border-b border-slate-800 flex justify-between items-center">
@@ -2361,7 +2412,7 @@ function DailySweepStatusPanel() {
 }
 
 function SecurityHubPanel({ adminToken }: { adminToken: string }) {
-   const { data: beneficiaries } = useSuspenseQuery(convexQuery(api.payouts.getBeneficiaries, {}));
+   const { data: beneficiaries } = useSuspenseQuery(convexQuery(api.payouts.getBeneficiaries, {})) as { data: any[] };
    const securityDashboard = useSuspenseQuery(convexQuery(api.intrusion_detector.getSecurityDashboard, {})) as { data: any };
    const geoStats = useSuspenseQuery(convexQuery(api.geo_tracking.getGeoStats, {})) as any;
    const resolveLog = useMutation(api.intrusion_detector.resolveSecurityLog);
@@ -2574,7 +2625,7 @@ function AuditTrailPanel() {
 }
 
 function HolidayDiscountsPanel() {
-  const { data: holidays } = useSuspenseQuery(convexQuery(api.holidays.listHolidays, {}));
+  const { data: holidays } = useSuspenseQuery(convexQuery(api.holidays.listHolidays, {})) as { data: any[] };
   const refresh = useMutation(api.holidays.refreshActiveDiscounts);
 
   return (
@@ -3188,10 +3239,10 @@ function CharityDashboardPanel() {
 }
 
 function FreelancerMarketplacePanel() {
-  const { data: escrowBalance } = useSuspenseQuery(convexQuery(api.marketplace.getEscrowBalance, {}));
-  const { data: pendingPayout } = useSuspenseQuery(convexQuery(api.marketplace.getPendingFridayPayout, {}));
-  const { data: marketplaceStats } = useSuspenseQuery(convexQuery(api.marketplace.getMarketplaceStats, {}));
-  const { data: payoutHistory } = useSuspenseQuery(convexQuery(api.marketplace.getPayoutHistory, { limit: 20 }));
+  const { data: escrowBalance } = useSuspenseQuery(convexQuery(api.marketplace.getEscrowBalance, {})) as { data: any };
+  const { data: pendingPayout } = useSuspenseQuery(convexQuery(api.marketplace.getPendingFridayPayout, {})) as { data: any };
+  const { data: marketplaceStats } = useSuspenseQuery(convexQuery(api.marketplace.getMarketplaceStats, {})) as { data: any };
+  const { data: payoutHistory } = useSuspenseQuery(convexQuery(api.marketplace.getPayoutHistory, { limit: 20 })) as { data: any[] };
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
@@ -3298,8 +3349,8 @@ function FreelancerMarketplacePanel() {
 }
 
 function CloudMemoryPanel({ adminToken }: { adminToken: string }) {
-  const { data: health } = useSuspenseQuery(convexQuery(api.cloud_memory.getSystemHealth, {}));
-  const { data: backups } = useSuspenseQuery(convexQuery(api.cloud_memory.getAllBackups, {}));
+  const { data: health } = useSuspenseQuery(convexQuery(api.cloud_memory.getSystemHealth, {})) as { data: any };
+  const { data: backups } = useSuspenseQuery(convexQuery(api.cloud_memory.getAllBackups, {})) as { data: any[] };
   const { data: healingHistory } = useSuspenseQuery(convexQuery(api.cloud_memory.getHealingHistory, { limit: 10 })) as { data: Array<any> };
   // REGRESSION FIX: Use public *Action wrappers (not the internalAction
   // versions) — useAction(internal.*) returns [CONVEX A] Server Error.

@@ -47,10 +47,14 @@ export default function AutoFlyerDashboard() {
   const batchGenerate = useAction(api.flyer_posting.batchGenerate);
 
   const handleStartStop = async () => {
-    if (engine?.status === "running") {
-      await stopEngine();
-    } else {
-      await startEngine();
+    try {
+      if (engine?.status === "running") {
+        await stopEngine();
+      } else {
+        await startEngine();
+      }
+    } catch (err) {
+      console.error("Engine toggle failed:", err);
     }
   };
 
@@ -67,7 +71,8 @@ export default function AutoFlyerDashboard() {
   const handleBatchGenerate = async () => {
     setBatchGenerating(true);
     try {
-      await batchGenerate({ count: 2, platforms: ["linkedin", "facebook", "instagram", "twitter"] });
+      const result = await batchGenerate({ count: 2, platforms: ["linkedin", "facebook", "instagram", "threads"] });
+      console.log("Batch generate result:", result);
     } catch (err) {
       console.error("Batch generation failed:", err);
     }
@@ -212,7 +217,7 @@ export default function AutoFlyerDashboard() {
         <h3 className="text-lg font-bold text-white mb-3">Recent Flyers</h3>
         {flyers && flyers.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {flyers.map((flyer: { _id: string; imageUrl: string; headline: string; generationMode: string; createdAt: number }) => (
+            {flyers.map((flyer: { _id: string; imageUrl: string; headline: string; generationMode: string; createdAt: number; platform?: string; status?: string }) => (
               <div
                 key={flyer._id}
                 className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden"

@@ -64,7 +64,7 @@ function PriceCard({ title, price, features, isFeatured, savings }: { title: str
   const { data: discount } = useSuspenseQuery(convexQuery(api.holidays.getActiveDiscount, {}));
   
   const originalPrice = parseInt(price.replace(/,/g, ''));
-  const discountPercent = (discount)?.percent || 0;
+  const discountPercent = (discount as any)?.percent || 0;
   const discountedPrice = discountPercent > 0 ? Math.floor(originalPrice * (1 - discountPercent / 100)) : originalPrice;
 
   return (

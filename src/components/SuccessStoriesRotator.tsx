@@ -43,7 +43,8 @@ export function SuccessStoriesRotator({ intervalMs = 6000 }: { intervalMs?: numb
     ...convexQuery(api.socialProof.getAgentReviews, { agentId: "all", limit: 20 }),
   });
 
-  const reviews = data?.reviews || [];
+  const dataTyped = data as any;
+  const reviews = dataTyped?.reviews || [];
   const stories =
     reviews.length > 0
       ? reviews.map((r: any) => ({
@@ -121,7 +122,8 @@ export function JoinCounter({ baseCount = 10000 }: { baseCount?: number }) {
     ...convexQuery(api.socialProof.getActivityStats, {}),
   });
 
-  const monthUsers = data?.usedThisMonth ? parseInt(String(data.usedThisMonth).replace(/\D/g, ""), 10) || 0 : 0;
+  const dataTyped2 = data as any;
+  const monthUsers = dataTyped2?.usedThisMonth ? parseInt(String(dataTyped2.usedThisMonth).replace(/\D/g, ""), 10) || 0 : 0;
   const displayCount = baseCount + monthUsers;
 
   return (

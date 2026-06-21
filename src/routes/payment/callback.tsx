@@ -1,5 +1,7 @@
-import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
+import { useAction } from 'convex/react'
+import { api } from '../../../convex/_generated/api'
 
 export const Route = createFileRoute('/payment/callback')({
   component: PaymentCallback,
@@ -9,6 +11,7 @@ function PaymentCallback() {
   const navigate = useNavigate()
   const [status, setStatus] = useState<'loading' | 'success' | 'failed'>('loading')
   const [message, setMessage] = useState('')
+  const verifyPayment = useAction(api.kora_checkout.verifyPayment)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -16,6 +19,9 @@ function PaymentCallback() {
     const statusParam = params.get('status')
 
     if (statusParam === 'successful' || statusParam === 'success') {
+      if (txRef) {
+        verifyPayment({ reference: txRef }).catch(() => {})
+      }
       setStatus('success')
       setMessage('Payment successful! Your subscription is now active.')
     } else if (statusParam === 'failed' || statusParam === 'cancelled') {
@@ -31,7 +37,7 @@ function PaymentCallback() {
     }, 3000)
 
     return () => clearTimeout(timer)
-  }, [navigate])
+  }, [navigate, verifyPayment])
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">

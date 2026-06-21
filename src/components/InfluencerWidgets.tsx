@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useQuery } from "convex/react";
 
 import { api } from "../../convex/_generated/api";
@@ -51,7 +51,7 @@ export function InfluencerDashboard() {
               key={tier}
               className="rounded-xl border border-white/5 bg-white/5 p-3 text-center"
             >
-              <div className="text-lg font-black text-white">{count}</div>
+              <div className="text-lg font-black text-white">{String(count)}</div>
               <div className="text-[9px] text-slate-400 capitalize">{tier}</div>
             </div>
           ))}
