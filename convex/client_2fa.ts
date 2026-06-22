@@ -21,7 +21,7 @@ export const generateClientSecret = mutation({
 
 /** Setup 2FA for a client */
 export const setupClient2FA = mutation({
-  args: { userId: v.string(), secret: v.string() },
+  args: { userId: v.id("users"), secret: v.string() },
   returns: v.any(),
   handler: async (ctx, { userId, secret }) => {
     if (!/^[A-Z2-7]{20}$/.test(secret)) {
@@ -36,14 +36,14 @@ export const setupClient2FA = mutation({
     } else {
       await ctx.db.insert("client_2fa", { userId, secret, backupCodes, isEnabled: true });
     }
-    await ctx.db.patch("users", userId as any, { twoFactorEnabled: true, twoFactorSecret: secret });
+    await ctx.db.patch("users", userId, { twoFactorEnabled: true, twoFactorSecret: secret });
     return { backupCodes };
   },
 });
 
 /** Verify TOTP code for client */
 export const verifyClientTOTP = mutation({
-  args: { userId: v.string(), totpCode: v.string() },
+  args: { userId: v.id("users"), totpCode: v.string() },
   returns: v.any(),
   handler: async (ctx, { userId, totpCode }) => {
     const twoFactor = await ctx.db.query("client_2fa").withIndex("by_user", (q: any) => q.eq("userId", userId)).first();
@@ -77,7 +77,7 @@ export const verifyClientTOTP = mutation({
 
 /** Check if client has 2FA enabled */
 export const checkClient2FA = query({
-  args: { userId: v.string() },
+  args: { userId: v.id("users") },
   returns: v.any(),
   handler: async (ctx, { userId }) => {
     const twoFactor = await ctx.db.query("client_2fa").withIndex("by_user", (q: any) => q.eq("userId", userId)).first();

@@ -56,6 +56,7 @@ import type * as chatbot from "../chatbot.js";
 import type * as chatbotLeads from "../chatbotLeads.js";
 import type * as classification from "../classification.js";
 import type * as clientAnalytics from "../clientAnalytics.js";
+import type * as client_2fa from "../client_2fa.js";
 import type * as client_actions from "../client_actions.js";
 import type * as client_history from "../client_history.js";
 import type * as client_kyc from "../client_kyc.js";
@@ -264,6 +265,7 @@ declare const fullApi: ApiFromModules<{
   chatbotLeads: typeof chatbotLeads;
   classification: typeof classification;
   clientAnalytics: typeof clientAnalytics;
+  client_2fa: typeof client_2fa;
   client_actions: typeof client_actions;
   client_history: typeof client_history;
   client_kyc: typeof client_kyc;
