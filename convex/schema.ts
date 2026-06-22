@@ -4515,4 +4515,14 @@ export default defineSchema({
   }).index("by_user", ["userId"])
     .index("by_reference", ["reference"])
     .index("by_status", ["status"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // CLIENT 2FA — TOTP (Google Authenticator) Support
+  // ═══════════════════════════════════════════════════════════════
+  client_2fa: defineTable({
+    userId: v.string(),
+    secret: v.string(),
+    backupCodes: v.array(v.string()),
+    isEnabled: v.boolean(),
+  }).index("by_user", ["userId"]),
 });
