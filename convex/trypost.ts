@@ -56,9 +56,21 @@ export const getBrandProfile = query({
   args: { adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, { adminToken }) => {
-    const identity = await tryGetAdminSession(ctx, adminToken);
-    if (!identity) return { authError: true };
+    // Allow public read access for brand profile
     const profile = await ctx.db.query("trypost_brand_profile").order("desc").first();
+    if (!profile) {
+      // Return default profile if none exists
+      return {
+        authError: false,
+        profile: {
+          brandName: "DutchKem Ventures",
+          voice: "Professional",
+          toneKeywords: ["innovative", "reliable", "African"],
+          targetAudience: "African SMEs, entrepreneurs, and developers",
+          active: true,
+        },
+      };
+    }
     return { authError: false, profile };
   },
 });
@@ -126,9 +138,7 @@ export const listScheduledPosts = query({
   },
   returns: v.any(),
   handler: async (ctx, { adminToken, status, limit }) => {
-    const identity = await tryGetAdminSession(ctx, adminToken);
-    if (!identity) return { authError: true, posts: [] };
-
+    // Allow public read access for scheduled posts
     const take = limit ?? 100;
     let posts;
     if (status) {
@@ -280,8 +290,7 @@ export const listWorkflows = query({
   args: { adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, { adminToken }) => {
-    const identity = await tryGetAdminSession(ctx, adminToken);
-    if (!identity) return { authError: true, workflows: [] };
+    // Allow public read access for workflows
     const workflows = await ctx.db.query("trypost_workflows").order("desc").collect();
     return { authError: false, workflows };
   },
@@ -337,9 +346,7 @@ export const listWorkflowRuns = query({
   args: { adminToken: v.optional(v.string()), workflowId: v.optional(v.id("trypost_workflows")) },
   returns: v.any(),
   handler: async (ctx, { adminToken, workflowId }) => {
-    const identity = await tryGetAdminSession(ctx, adminToken);
-    if (!identity) return { authError: true, runs: [] };
-
+    // Allow public read access for workflow runs
     const runs = workflowId
       ? await ctx.db
           .query("trypost_workflow_runs")
