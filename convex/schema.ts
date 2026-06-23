@@ -451,6 +451,7 @@ export default defineSchema({
 
   social_posts: defineTable({
     agentId: v.string(),
+    adminId: v.optional(v.string()),
     platform: v.string(), // "X", "LinkedIn", "Facebook", etc.
     content: v.string(),
     imageUrl: v.optional(v.string()),
@@ -462,7 +463,8 @@ export default defineSchema({
     anonymous: v.optional(v.boolean()),
   }).index("by_status", ["status"])
     .index("by_scheduled", ["scheduledFor"])
-    .index("by_status_and_scheduled", ["status", "scheduledFor"]),
+    .index("by_status_and_scheduled", ["status", "scheduledFor"])
+    .index("by_admin", ["adminId"]),
 
   // ═══════════════════════════════════════════════════════════════════
   // AD ENGINE — Built on top of existing platform_connections (no Postiz)
@@ -1298,9 +1300,24 @@ export default defineSchema({
     expiresAt: v.optional(v.number()),
     scopes: v.optional(v.string()),
     anonymousByDefault: v.optional(v.boolean()),
+    followersCount: v.optional(v.number()),
   })
     .index("by_admin", ["adminId"])
     .index("by_admin_platform", ["adminId", "platformId"]),
+
+  // TOKEN REFRESH SYSTEM — Auto-refresh OAuth tokens before expiry
+  token_refresh_logs: defineTable({
+    platform: v.string(),
+    adminId: v.optional(v.string()),
+    status: v.union(v.literal("success"), v.literal("failed"), v.literal("skipped")),
+    error: v.optional(v.string()),
+    oldExpiresAt: v.optional(v.number()),
+    newExpiresAt: v.optional(v.number()),
+    timestamp: v.number(),
+  })
+    .index("by_platform", ["platform"])
+    .index("by_status", ["status"])
+    .index("by_timestamp", ["timestamp"]),
 
   referral_codes: defineTable({
     code: v.string(),
@@ -4248,6 +4265,50 @@ export default defineSchema({
     configuredAt: v.number(),
   }).index("by_org", ["orgId"]),
 
+  // ═══════════════════════════════════════════════════════════════════
+  // ENTERPRISE CLIENT PAYMENTS — Payments enterprise collects from customers
+  // ═══════════════════════════════════════════════════════════════════
+  enterprise_client_payments: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    companyId: v.optional(v.string()),
+    customerName: v.string(),
+    customerEmail: v.string(),
+    amount: v.number(),
+    currency: v.string(),
+    description: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("completed"),
+      v.literal("failed"),
+      v.literal("refunded")
+    ),
+    gateway: v.string(),
+    gatewayReference: v.optional(v.string()),
+    invoiceNumber: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_org", ["orgId"])
+    .index("by_status", ["status"])
+    .index("by_org_status", ["orgId", "status"])
+    .index("by_gateway_ref", ["gatewayReference"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ENTERPRISE ORG BANK ACCOUNTS — Bank details for enterprise payouts
+  // ═══════════════════════════════════════════════════════════════════
+  enterprise_org_bank_accounts: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    bankName: v.string(),
+    bankCode: v.string(),
+    accountNumber: v.string(),
+    accountName: v.string(),
+    isDefault: v.boolean(),
+    isVerified: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_org", ["orgId"]),
+
   enterprise_org_subadmins: defineTable({
     orgId: v.id("enterprise_organizations"),
     userId: v.id("enterprise_org_users"),
@@ -4525,4 +4586,41 @@ export default defineSchema({
     backupCodes: v.array(v.string()),
     isEnabled: v.boolean(),
   }).index("by_user", ["userId"]),
+
+  // ═══════════════════════════════════════════════════════════════
+  // CRON JOB TRACKING — Mimo V.2.5 Cron Manager
+  // ═══════════════════════════════════════════════════════════════
+  cron_jobs: defineTable({
+    name: v.string(),
+    schedule: v.string(), // cron expression or interval
+    scheduleType: v.union(v.literal("cron"), v.literal("interval")),
+    functionPath: v.string(), // e.g. "internal.tax.runDailyTaxDeduction"
+    isEnabled: v.boolean(),
+    category: v.string(), // "financial", "security", "social", "healing", etc.
+    description: v.optional(v.string()),
+    lastRunAt: v.optional(v.number()),
+    lastRunStatus: v.optional(v.union(v.literal("success"), v.literal("failed"), v.literal("running"))),
+    lastRunDurationMs: v.optional(v.number()),
+    totalRuns: v.number(),
+    successCount: v.number(),
+    failureCount: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_name", ["name"])
+    .index("by_category", ["category"])
+    .index("by_enabled", ["isEnabled"]),
+
+  cron_executions: defineTable({
+    cronJobId: v.id("cron_jobs"),
+    cronJobName: v.string(),
+    status: v.union(v.literal("success"), v.literal("failed"), v.literal("running")),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+    durationMs: v.optional(v.number()),
+    triggeredBy: v.union(v.literal("schedule"), v.literal("manual")),
+    result: v.optional(v.any()),
+    error: v.optional(v.string()),
+  }).index("by_cron_job", ["cronJobId"])
+    .index("by_status", ["status"])
+    .index("by_started_at", ["startedAt"]),
 });
