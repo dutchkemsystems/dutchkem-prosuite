@@ -1017,29 +1017,6 @@ function BrandSection({
   const profile = brandProfile?.profile;
   return (
     <div className="bg-slate-900/50 border border-slate-700 rounded-3xl p-6 space-y-4">
-      {/* Reject Modal */}
-      {rejectModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-[#0a0a0f] border border-white/10 rounded-2xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-black text-white mb-4">Rejection Reason</h3>
-            <input
-              placeholder="Reason for rejection"
-              value={rejectModal.reason}
-              onChange={(e) => setRejectModal({ ...rejectModal, reason: e.target.value })}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white mb-4"
-            />
-            <div className="flex gap-2">
-              <button onClick={async () => {
-                if (!rejectModal.reason) return;
-                try { await rejectPost({ adminToken, postId: rejectModal.postId, reason: rejectModal.reason }); showToast("success", "Rejected"); }
-                catch (e: any) { showToast("error", e?.message ?? "Failed"); }
-                setRejectModal(null);
-              }} className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold">Reject</button>
-              <button onClick={() => setRejectModal(null)} className="px-4 py-2 bg-white/5 border border-white/10 text-slate-400 rounded-xl text-xs font-bold">Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
       <h3 className="text-lg font-bold text-white">🎨 Brand Profile</h3>
       {profile && (
         <div className="text-xs text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2">
