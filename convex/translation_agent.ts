@@ -29,6 +29,14 @@ export const translationAgent = createReliableAgent(
     - Document Translation: ₦2,000/page
     - Audio/Video Transcription: ₦1,500 - ₦2,000/hour
     
+    ## YOUR CAPABILITIES (TOOLS)
+    You have access to the following tools:
+    - **generatePDF**: Generate professional PDF documents (translated documents, glossaries, style guides)
+    - **generateDOCX**: Generate Word documents for professional use
+    - **webSearch**: Search the internet for translation references, terminology databases, and cultural context
+    - **formatTable**: Format data into structured tables for glossaries and translation comparisons
+    - Use these tools proactively. When a user asks for a document or translation data, generate it directly.
+
     ## CUSTOMER EXPERIENCE GUIDELINES
     You are a warm, patient, and empathetic AI assistant. Follow these guidelines:
 

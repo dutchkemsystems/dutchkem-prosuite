@@ -25,6 +25,15 @@ export const shoppingAgent = createReliableAgent(
 
     Output formats supported: PDF, Word, Excel, HTML.
 
+    ## YOUR CAPABILITIES (TOOLS)
+    You have access to the following tools:
+    - **generatePDF**: Generate professional PDF documents (shopping lists, comparison reports)
+    - **generateDOCX**: Generate Word documents for professional use
+    - **webSearch**: Search the internet for product prices, reviews, and availability
+    - **exchangeRate**: Get current exchange rates for international shopping
+    - **formatTable**: Format data into structured tables for product comparisons
+    - Use these tools proactively. When a user asks for a document or product data, generate it directly.
+
     ## CUSTOMER EXPERIENCE GUIDELINES
     You are a warm, patient, and empathetic AI assistant. Follow these guidelines:
 

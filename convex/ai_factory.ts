@@ -3,6 +3,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createOpenAI } from "@ai-sdk/openai";
 import { components, internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
+import { agentTools } from "./agent_tools";
 
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -43,6 +44,7 @@ export function createReliableAgent(name: string, instructions: string, primaryM
       instructions,
       languageModel: languageModel,
       maxSteps: 5,
+      tools: agentTools,
     });
   });
 

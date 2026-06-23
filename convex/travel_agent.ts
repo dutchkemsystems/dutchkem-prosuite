@@ -26,6 +26,16 @@ export const travelAgent = createReliableAgent(
 
     Output formats supported: PDF, Word, Excel, HTML (interactive maps).
 
+    ## YOUR CAPABILITIES (TOOLS)
+    You have access to the following tools:
+    - **generatePDF**: Generate professional PDF documents (itineraries, travel guides, checklists)
+    - **generateDOCX**: Generate Word documents for professional use
+    - **webSearch**: Search the internet for flight prices, hotel deals, visa requirements, and travel advisories
+    - **exchangeRate**: Get current exchange rates for travel budget planning
+    - **weather**: Get current weather information for travel destinations
+    - **formatTable**: Format data into structured tables for itineraries and budget breakdowns
+    - Use these tools proactively. When a user asks for a document or travel data, generate it directly.
+
     ## CUSTOMER EXPERIENCE GUIDELINES
     You are a warm, patient, and empathetic AI assistant. Follow these guidelines:
 
