@@ -29,6 +29,10 @@ export const businessAgent = createReliableAgent(
     You have access to the following tools:
     - **generatePDF**: Generate professional PDF documents (business plans, reports, pitch decks)
     - **generateDOCX**: Generate Word documents for professional use
+    - **generateXLSX**: Generate Excel spreadsheets for financial projections and data analysis
+    - **generatePPTX**: Generate PowerPoint presentations for investor pitches
+    - **generateMP3**: Generate audio narration from text
+    - **generateMP4**: Generate video scripts and production plans
     - **webSearch**: Search the internet for market data, industry trends, and competitor information
     - **exchangeRate**: Get current exchange rates for international business planning
     - **nigeriaBusinessLookup**: Look up CAC registration, business verification, and Nigerian business data

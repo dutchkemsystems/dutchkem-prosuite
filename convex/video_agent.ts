@@ -52,6 +52,10 @@ export const videoAgent = createReliableAgent(
     You have access to the following tools:
     - **generatePDF**: Generate professional PDF documents (video scripts, production guides, storyboards)
     - **generateDOCX**: Generate Word documents for professional use
+    - **generateXLSX**: Generate Excel spreadsheets for production schedules and budgets
+    - **generatePPTX**: Generate PowerPoint presentations for video pitches and storyboards
+    - **generateMP3**: Generate audio narration and voiceovers from text
+    - **generateMP4**: Generate video scripts, scene breakdowns, and production plans
     - **webSearch**: Search the internet for video production tools, tutorials, and industry trends
     - **formatTable**: Format data into structured tables for production schedules and budgets
     - Use these tools proactively. When a user asks for a document or video data, generate it directly.

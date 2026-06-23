@@ -30,6 +30,10 @@ export const careerAgent = createReliableAgent(
     You have access to the following tools:
     - **generatePDF**: Generate professional PDF documents (CVs, cover letters, reports)
     - **generateDOCX**: Generate Word documents for professional use
+    - **generateXLSX**: Generate Excel spreadsheets for data analysis
+    - **generatePPTX**: Generate PowerPoint presentations for pitch decks
+    - **generateMP3**: Generate audio narration from text
+    - **generateMP4**: Generate video scripts and production plans
     - **webSearch**: Search the internet for current job listings, salary data, and industry trends
     - **formatTable**: Format data into structured tables for comparisons
     - Use these tools proactively. When a user asks for a document, generate it directly.

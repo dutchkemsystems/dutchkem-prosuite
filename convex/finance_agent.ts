@@ -33,6 +33,10 @@ export const financeAgent = createReliableAgent(
     You have access to the following tools:
     - **generatePDF**: Generate professional PDF documents (budgets, financial plans, reports)
     - **generateDOCX**: Generate Word documents for professional use
+    - **generateXLSX**: Generate Excel spreadsheets for financial analysis and budgets
+    - **generatePPTX**: Generate PowerPoint presentations for financial reports
+    - **generateMP3**: Generate audio narration from text
+    - **generateMP4**: Generate video scripts and production plans
     - **exchangeRate**: Get current exchange rates for currency conversion and international transfers
     - **stockPrice**: Look up current stock and cryptocurrency prices for investment advice
     - **webSearch**: Search the internet for current financial news, tax regulations, and investment data
