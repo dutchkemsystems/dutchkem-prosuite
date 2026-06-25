@@ -174,6 +174,7 @@ import type * as marketplace from "../marketplace.js";
 import type * as mimo_core from "../mimo_core.js";
 import type * as mobile_optimization from "../mobile_optimization.js";
 import type * as model_recovery from "../model_recovery.js";
+import type * as model_toggle from "../model_toggle.js";
 import type * as multi_language from "../multi_language.js";
 import type * as opensource_generator from "../opensource_generator.js";
 import type * as orchestration from "../orchestration.js";
@@ -440,6 +441,7 @@ declare const fullApi: ApiFromModules<{
   mimo_core: typeof mimo_core;
   mobile_optimization: typeof mobile_optimization;
   model_recovery: typeof model_recovery;
+  model_toggle: typeof model_toggle;
   multi_language: typeof multi_language;
   opensource_generator: typeof opensource_generator;
   orchestration: typeof orchestration;
