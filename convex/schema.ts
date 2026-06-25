@@ -4982,4 +4982,23 @@ export default defineSchema({
     performedBy: v.optional(v.string()),
     timestamp: v.number(),
   }).index("by_model", ["modelName"]).index("by_timestamp", ["timestamp"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // AI MODEL USAGE ANALYTICS
+  // ═══════════════════════════════════════════════════════════════════
+  ai_model_usage: defineTable({
+    modelName: v.string(),
+    taskType: v.string(),
+    input: v.string(),
+    agentId: v.optional(v.string()),
+    success: v.boolean(),
+    responseTimeMs: v.number(),
+    errorMessage: v.optional(v.string()),
+    tokenCount: v.optional(v.number()),
+    timestamp: v.number(),
+  }).index("by_model", ["modelName"])
+    .index("by_timestamp", ["timestamp"])
+    .index("by_task", ["taskType"])
+    .index("by_success", ["success"])
+    .index("by_model_timestamp", ["modelName", "timestamp"]),
 });

@@ -32,6 +32,7 @@ import { WhatsAppHub } from "~/components/admin/WhatsAppHub";
 import AdminPayoutDashboard from "~/components/admin/enterprise/AdminPayoutDashboard";
 import { EnterprisePaymentsReadOnly } from "~/components/admin/EnterprisePaymentsReadOnly";
 import { ModelTogglePanel } from "~/components/admin/ModelTogglePanel";
+import { ModelAnalyticsPanel } from "~/components/admin/ModelAnalyticsPanel";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -227,6 +228,7 @@ function AdminDashboardPage() {
                   <AdminTab active={activeTab === "whatsapp"} onClick={() => setActiveTab("whatsapp")} icon="📱" label="WhatsApp" onClose={() => setSidebarOpen(false)} />
                   <AdminTab active={activeTab === "enterprise-payments"} onClick={() => setActiveTab("enterprise-payments")} icon="💳" label="Enterprise Payments" onClose={() => setSidebarOpen(false)} />
                   <AdminTab active={activeTab === "ai-models"} onClick={() => setActiveTab("ai-models")} icon="🤖" label="AI Model Toggle" onClose={() => setSidebarOpen(false)} />
+                  <AdminTab active={activeTab === "ai-analytics"} onClick={() => setActiveTab("ai-analytics")} icon="📊" label="AI Analytics" onClose={() => setSidebarOpen(false)} />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -287,6 +289,7 @@ function AdminDashboardPage() {
                      {activeTab === "whatsapp" && <WhatsAppHub adminToken={adminToken} />}
                       {activeTab === "enterprise-payments" && <EnterprisePaymentsReadOnly adminToken={adminToken} />}
                       {activeTab === "ai-models" && <ModelTogglePanel adminToken={adminToken} />}
+                      {activeTab === "ai-analytics" && <ModelAnalyticsPanel adminToken={adminToken} />}
            </AdminSuspense>
         </div>
         <Footer />

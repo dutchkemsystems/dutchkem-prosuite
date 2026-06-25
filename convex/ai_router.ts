@@ -133,6 +133,8 @@ export const routeRequest = action({
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { error: "Unauthorized" };
 
+    const startTime = Date.now();
+
     // Detect task
     const task = await ctx.runAction(internal.ai_router.detectTask, {
       input: args.input,
@@ -141,6 +143,7 @@ export const routeRequest = action({
 
     // Route to appropriate provider (respecting model toggles)
     let result: any;
+    let usedProvider = task.provider;
     const primaryEnabled = await ctx.runQuery(internal.model_toggle.checkModel, { modelName: task.provider });
     if (primaryEnabled) {
       try {
@@ -155,11 +158,11 @@ export const routeRequest = action({
       }
     }
 
-    // Fallback sequence — only try enabled models (priority: groq → openrouter → mimo → nvidia → aiml)
+    // Fallback sequence — only try enabled models
     if (!result) {
       const fallbackOrder = ['groq', 'openrouter', 'mimo', 'nvidia', 'aiml'];
       for (const provider of fallbackOrder) {
-        if (provider === task.provider) continue; // Already tried
+        if (provider === task.provider) continue;
         const isEnabled = await ctx.runQuery(internal.model_toggle.checkModel, { modelName: provider });
         if (!isEnabled) continue;
         try {
@@ -169,6 +172,7 @@ export const routeRequest = action({
             input: args.input,
             systemPrompt: args.systemPrompt,
           });
+          usedProvider = provider;
           break;
         } catch (e) {
           continue;
@@ -176,25 +180,38 @@ export const routeRequest = action({
       }
     }
 
-    if (!result) {
-      return { error: "All AI providers are currently disabled or unavailable. Contact your administrator." };
-    }
+    const responseTimeMs = Date.now() - startTime;
+    const success = !!result?.content;
 
-    // Log routing
+    // Log usage to analytics
+    await ctx.runMutation(internal.model_analytics.logUsage, {
+      modelName: usedProvider,
+      taskType: task.type,
+      input: args.input.substring(0, 200),
+      agentId: args.agentId || "",
+      success,
+      responseTimeMs,
+      errorMessage: success ? undefined : result?.error || "All providers failed",
+      tokenCount: result?.content ? Math.ceil(result.content.length / 4) : 0,
+    });
+
+    // Log routing (legacy)
     await ctx.runMutation(internal.ai_router.logRouting, {
       input: args.input.substring(0, 100),
       task: task.type,
-      provider: task.provider,
-      model: task.model,
+      provider: usedProvider,
+      model: result?.model || task.model,
       confidence: task.confidence,
-      success: !!result?.content,
+      success,
     });
 
     return {
-      success: !!result?.content,
-      content: result?.content || 'No response generated',
+      success,
+      content: result?.content || (success ? '' : "All AI providers are currently disabled or unavailable. Contact your administrator."),
       task: task.type,
+      provider: usedProvider,
       confidence: task.confidence,
+      responseTimeMs,
     };
   },
 });
