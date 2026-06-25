@@ -15,26 +15,32 @@ import { ApiAccessManager } from '~/components/enterprise/ApiAccessManager'
 import { EnterpriseUsageDashboard } from '~/components/enterprise/EnterpriseUsageDashboard'
 import { SubscriptionRenewal } from '~/components/enterprise/SubscriptionRenewal'
 import { ClientPaymentsTab } from '~/components/enterprise/capabilities/ClientPaymentsTab'
+import { OrdersTab, CustomersTab, ReportingTab, QRCodesTab, InvoicesTab, ReceiptsTab, AppointmentsTab, BusinessHoursTab, MarketingTab, TestimonialsTab, SurveysTab, LandingPagesTab, WhatsAppCommerceTab, ClientPortalTab } from '~/components/enterprise/EnterpriseFeatures'
 
 export const Route = createFileRoute('/enterprise/dashboard')({
   component: EnterpriseDashboard,
 })
 
-const tabs = [
-  { id: 'overview', icon: '📊', label: 'Overview' },
-  { id: 'subscription', icon: '💳', label: 'Subscription' },
-  { id: 'addons', icon: '🧩', label: 'Add-ons' },
-  { id: 'api_access', icon: '🔑', label: 'API Access' },
-  { id: 'usage', icon: '📈', label: 'Usage & Billing' },
-  { id: 'workflow', icon: '🔄', label: 'Workflows' },
-  { id: 'marketplace', icon: '🛒', label: 'Agent Marketplace' },
-  { id: 'knowledge', icon: '🧠', label: 'Knowledge Graph' },
-  { id: 'companion', icon: '🤝', label: 'Companion Agent' },
-  { id: 'payments', icon: '💳', label: 'Agentic Payments' },
-  { id: 'emotional', icon: '💖', label: 'Emotional AI' },
-  { id: 'wallet', icon: '💰', label: 'My Wallet' },
-  { id: 'client_payments', icon: '💳', label: 'Client Payments' },
-]
+// Feature tab map — must match IDs in enterprise_features.ts
+const FEATURE_TABS: Record<string, { id: string; icon: string; label: string; component: any }> = {
+  orders: { id: 'orders', icon: '📦', label: 'Orders', component: OrdersTab },
+  customers: { id: 'customers', icon: '👥', label: 'Customers', component: CustomersTab },
+  reports: { id: 'reports', icon: '📊', label: 'Analytics', component: ReportingTab },
+  invoices: { id: 'invoices', icon: '📄', label: 'Invoices', component: InvoicesTab },
+  receipts: { id: 'receipts', icon: '🧾', label: 'Receipts', component: ReceiptsTab },
+  qrcodes: { id: 'qrcodes', icon: '📱', label: 'QR Codes', component: QRCodesTab },
+  appointments: { id: 'appointments', icon: '📅', label: 'Appointments', component: AppointmentsTab },
+  marketing: { id: 'marketing', icon: '📣', label: 'SMS Marketing', component: MarketingTab },
+  email_marketing: { id: 'email_marketing', icon: '✉️', label: 'Email Marketing', component: MarketingTab },
+  business_hours: { id: 'business_hours', icon: '🕐', label: 'Business Hours', component: BusinessHoursTab },
+  ecommerce: { id: 'ecommerce', icon: '🛒', label: 'E-commerce', component: null },
+  whatsapp: { id: 'whatsapp', icon: '💬', label: 'WhatsApp Store', component: WhatsAppCommerceTab },
+  telegram: { id: 'telegram', icon: '🤖', label: 'Telegram Commerce', component: null },
+  landing_pages: { id: 'landing_pages', icon: '🌐', label: 'Landing Pages', component: LandingPagesTab },
+  surveys: { id: 'surveys', icon: '📋', label: 'Surveys', component: SurveysTab },
+  testimonials: { id: 'testimonials', icon: '⭐', label: 'Testimonials', component: TestimonialsTab },
+  client_portal: { id: 'client_portal', icon: '🔐', label: 'Client Portal', component: ClientPortalTab },
+}
 
 function EnterpriseDashboard() {
   const navigate = useNavigate()
@@ -48,9 +54,10 @@ function EnterpriseDashboard() {
     setToken(t)
   }, [navigate])
 
-  const org = useQuery(
-    api.enterprise_auth.getOrgDetails,
-    token ? { token } : 'skip'
+  const org = useQuery(api.enterprise_auth.getOrgDetails, token ? { token } : 'skip')
+  const featureConfig = useQuery(
+    api.enterprise_features.getConfig,
+    org ? { orgId: org._id } : 'skip'
   )
 
   const handleLogout = async () => {
@@ -71,11 +78,41 @@ function EnterpriseDashboard() {
     ? Math.max(0, Math.ceil((org.trialEndsAt - Date.now()) / (1000 * 60 * 60 * 24)))
     : null
 
+  // Get enabled feature IDs from admin config
+  const enabledFeatures: string[] = featureConfig?.features || []
+
+  // Build sidebar tabs — always show core tabs, then add enabled feature tabs
+  const coreTabs = [
+    { id: 'overview', icon: '📊', label: 'Overview' },
+    { id: 'subscription', icon: '💳', label: 'Subscription' },
+    { id: 'addons', icon: '🧩', label: 'Add-ons' },
+    { id: 'api_access', icon: '🔑', label: 'API Access' },
+    { id: 'usage', icon: '📈', label: 'Usage & Billing' },
+    { id: 'workflow', icon: '🔄', label: 'Workflows' },
+    { id: 'marketplace', icon: '🛒', label: 'Agent Marketplace' },
+    { id: 'knowledge', icon: '🧠', label: 'Knowledge Graph' },
+    { id: 'companion', icon: '🤝', label: 'Companion Agent' },
+    { id: 'payments', icon: '💳', label: 'Agentic Payments' },
+    { id: 'emotional', icon: '💖', label: 'Emotional AI' },
+    { id: 'wallet', icon: '💰', label: 'My Wallet' },
+    { id: 'client_payments', icon: '💳', label: 'Client Payments' },
+  ]
+
+  // Add feature tabs that admin has deployed
+  const featureTabs = enabledFeatures
+    .filter((f) => FEATURE_TABS[f])
+    .map((f) => ({
+      id: `feat_${f}`,
+      icon: FEATURE_TABS[f].icon,
+      label: FEATURE_TABS[f].label,
+      featureId: f,
+    }))
+
+  const allTabs = [...coreTabs, ...featureTabs]
+
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col md:flex-row">
-      {/* Sidebar */}
       <aside className="w-full md:w-72 bg-slate-900 border-r border-slate-800 flex flex-col">
-        {/* Header */}
         <div className="p-6 border-b border-slate-800">
           <div className="flex items-center gap-3 mb-4">
             <CompanyLogo className="w-10 h-10" />
@@ -89,11 +126,15 @@ function EnterpriseDashboard() {
               ⏳ {trialDaysLeft} days left in trial
             </div>
           )}
+          {featureTabs.length > 0 && (
+            <div className="mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+              <p className="text-[10px] text-emerald-400 font-bold">🚀 {featureTabs.length} business features deployed</p>
+            </div>
+          )}
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {tabs.map(tab => (
+          {allTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -105,36 +146,28 @@ function EnterpriseDashboard() {
             >
               <span className="text-lg">{tab.icon}</span>
               <span>{tab.label}</span>
+              {'featureId' in tab && (
+                <span className="ml-auto w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+              )}
             </button>
           ))}
         </nav>
 
-        {/* Footer */}
         <div className="p-4 border-t border-slate-800 space-y-2">
-          <button
-            onClick={() => navigate({ to: '/' })}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-400 hover:bg-slate-800 hover:text-white transition-all"
-          >
-            <span>🏠</span>
-            <span>Back to Home</span>
+          <button onClick={() => navigate({ to: '/' })} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
+            <span>🏠</span><span>Back to Home</span>
           </button>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-red-400 hover:bg-red-500/10 transition-all"
-          >
-            <span>🚪</span>
-            <span>Sign Out</span>
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-red-400 hover:bg-red-500/10 transition-all">
+            <span>🚪</span><span>Sign Out</span>
           </button>
         </div>
       </aside>
 
-      {/* Main */}
       <main className="flex-1 overflow-y-auto">
-        {/* Top bar */}
         <header className="sticky top-0 z-10 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800 px-6 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-black tracking-tight">
-              {tabs.find(t => t.id === activeTab)?.icon} {tabs.find(t => t.id === activeTab)?.label}
+              {allTabs.find(t => t.id === activeTab)?.icon} {allTabs.find(t => t.id === activeTab)?.label}
             </h1>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
               {org.industry ? `${org.industry} · ` : ''}{org.email}
@@ -151,9 +184,9 @@ function EnterpriseDashboard() {
           </div>
         </header>
 
-        {/* Content */}
         <div className="p-6">
-          {activeTab === 'overview' && <OverviewTab org={org} token={token} onNavigateTab={setActiveTab} />}
+          {/* Core tabs */}
+          {activeTab === 'overview' && <OverviewTab org={org} token={token} onNavigateTab={setActiveTab} enabledFeatures={enabledFeatures} />}
           {activeTab === 'subscription' && <SubscriptionRenewal org={org} token={token} />}
           {activeTab === 'addons' && <AddonManager orgId={org._id} token={token} email={org.email} />}
           {activeTab === 'api_access' && <ApiAccessManager orgId={org._id} token={token} />}
@@ -166,97 +199,100 @@ function EnterpriseDashboard() {
           {activeTab === 'emotional' && <EmotionalAITab token={token} />}
           {activeTab === 'wallet' && <ClientWalletDashboard />}
           {activeTab === 'client_payments' && <ClientPaymentsTab token={token} />}
+
+          {/* Dynamic feature tabs — rendered from admin-configured feature list */}
+          {featureTabs.map((tab) => {
+            if (tab.id !== activeTab) return null
+            const featureData = FEATURE_TABS[tab.featureId]
+            if (!featureData?.component) {
+              return (
+                <div key={tab.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center">
+                  <span className="text-4xl">{featureData.icon}</span>
+                  <p className="text-sm font-bold mt-4">{featureData.label}</p>
+                  <p className="text-xs text-slate-400 mt-1">Feature module — contact admin for setup</p>
+                </div>
+              )
+            }
+            const Component = featureData.component
+            return <Component key={tab.id} token={token} />
+          })}
         </div>
       </main>
     </div>
   )
 }
 
-function OverviewTab({ org, token, onNavigateTab }: { org: any; token: string; onNavigateTab: (tab: string) => void }) {
+function OverviewTab({ org, token, onNavigateTab, enabledFeatures }: { org: any; token: string; onNavigateTab: (tab: string) => void; enabledFeatures: string[] }) {
+  const companies = useQuery(api.enterprise_features.getSeededCompanies, {})
+
   const capabilities = [
     { icon: '🧩', name: 'Add-ons', desc: 'Subscribe to premium add-ons', tab: 'addons', color: 'from-orange-500 to-red-600' },
     { icon: '🔑', name: 'API Access', desc: 'Manage API keys and access', tab: 'api_access', color: 'from-blue-500 to-cyan-600' },
     { icon: '📈', name: 'Usage & Billing', desc: 'Monitor usage and transactions', tab: 'usage', color: 'from-emerald-500 to-teal-600' },
-    { icon: '🔄', name: 'Workflows', desc: 'View and trigger assigned workflows', tab: 'workflow', color: 'from-violet-500 to-purple-600' },
-    { icon: '🛒', name: 'Agent Marketplace', desc: 'Install pre-built AI agents', tab: 'marketplace', color: 'from-amber-500 to-yellow-600' },
-    { icon: '🧠', name: 'Knowledge Graph', desc: 'Traceable, explainable AI decisions', tab: 'knowledge', color: 'from-indigo-500 to-blue-600' },
-    { icon: '🤝', name: 'Companion Agent', desc: 'Real-time guidance for human teams', tab: 'companion', color: 'from-green-500 to-emerald-600' },
-    { icon: '💳', name: 'Agentic Payments', desc: 'Autonomous agent-to-agent commerce', tab: 'payments', color: 'from-yellow-500 to-amber-600' },
-    { icon: '💖', name: 'Emotional AI', desc: 'Memory, personality, retention', tab: 'emotional', color: 'from-pink-500 to-rose-600' },
   ]
+
+  // Show enabled feature cards in overview
+  const featureCards = enabledFeatures.map((f) => {
+    const ft = FEATURE_TABS[f]
+    if (!ft) return null
+    return { icon: ft.icon, name: ft.label, desc: 'Deployed feature', tab: `feat_${f}`, color: 'from-orange-500 to-amber-600' }
+  }).filter(Boolean)
 
   const daysLeft = org.subscriptionEndsAt
     ? Math.max(0, Math.ceil((org.subscriptionEndsAt - Date.now()) / (1000 * 60 * 60 * 24)))
     : null
   const isExpired = daysLeft !== null && daysLeft === 0
-  const isExpiring = daysLeft !== null && daysLeft <= 7 && daysLeft > 0
 
   return (
-    <div className="space-y-8 ">
-      {/* Subscription Alert */}
-      {(isExpired || isExpiring) && (
-        <button
-          onClick={() => onNavigateTab('subscription')}
-          className={`w-full p-4 rounded-2xl border text-left transition-all hover:scale-[1.01] ${
-            isExpired ? 'bg-red-500/10 border-red-500/30 hover:bg-red-500/15' : 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className={`font-black text-sm ${isExpired ? 'text-red-400' : 'text-amber-400'}`}>
-                {isExpired ? '⚠️ Subscription Expired' : `⏰ Subscription Expiring in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`}
-              </p>
-              <p className="text-xs text-slate-400 mt-1">Click to renew and continue using enterprise features</p>
-            </div>
-            <span className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest ${
-              isExpired ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
-            }`}>
-              Renew Now →
-            </span>
-          </div>
+    <div className="space-y-8">
+      {(isExpired) && (
+        <button onClick={() => onNavigateTab('subscription')} className="w-full p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-center hover:bg-red-500/20 transition-all">
+          <p className="text-red-400 font-black text-sm">⚠️ Your subscription has expired</p>
+          <p className="text-red-400 text-xs mt-1">Click to renew →</p>
         </button>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-2">Organization</p>
-          <p className="text-2xl font-black">{org.name}</p>
-          <p className="text-sm text-slate-400 mt-1">{org.email}</p>
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-gradient-to-br from-orange-500/20 to-orange-600/10 rounded-2xl p-5 border border-orange-500/20">
+          <p className="text-3xl font-black text-orange-400">{enabledFeatures.length}</p>
+          <p className="text-xs text-slate-400 mt-1">Business Features</p>
         </div>
-        <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-2">Plan</p>
-          <p className="text-2xl font-black capitalize">{org.plan}</p>
-          <p className="text-sm text-slate-400 mt-1">
-            {daysLeft !== null ? (isExpired ? 'Expired' : `${daysLeft} days remaining`) : org.status}
-          </p>
+        <div className="bg-gradient-to-br from-blue-500/20 to-blue-600/10 rounded-2xl p-5 border border-blue-500/20">
+          <p className="text-3xl font-black text-blue-400">{org.plan}</p>
+          <p className="text-xs text-slate-400 mt-1">Current Plan</p>
         </div>
-        <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-2">Capabilities</p>
-          <p className="text-2xl font-black">9</p>
-          <p className="text-sm text-slate-400 mt-1">Enterprise modules active</p>
+        <div className="bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 rounded-2xl p-5 border border-emerald-500/20">
+          <p className="text-3xl font-black text-emerald-400">{companies?.length || 300}</p>
+          <p className="text-xs text-slate-400 mt-1">Company Types</p>
         </div>
       </div>
 
-      <h2 className="text-lg font-black tracking-tight">Enterprise Capabilities</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {capabilities.map((cap) => (
-          <button
-            key={cap.tab}
-            onClick={() => {
-              onNavigateTab(cap.tab)
-            }}
-            className="group p-6 bg-white/5 border border-white/10 rounded-2xl text-left hover:bg-white/10 hover:border-white/20 transition-all duration-300 "
-          >
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mb-4 bg-gradient-to-br ${cap.color} group-hover:scale-110 transition-transform`}>
-              {cap.icon}
-            </div>
-            <h3 className="font-black text-lg mb-1">{cap.name}</h3>
-            <p className="text-sm text-slate-400">{cap.desc}</p>
-            <p className="text-xs text-orange-400 font-bold mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-              Open Module →
-            </p>
-          </button>
-        ))}
+      {featureCards.length > 0 && (
+        <div>
+          <h3 className="text-sm font-black mb-3">🚀 Deployed Business Features</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {featureCards.map((card, i) => (
+              <button key={i} onClick={() => onNavigateTab(card!.tab)} className={`bg-gradient-to-br ${card!.color} rounded-2xl p-5 text-left hover:scale-[1.02] transition-all border border-white/10`}>
+                <span className="text-2xl">{card!.icon}</span>
+                <p className="text-white font-black text-sm mt-3">{card!.name}</p>
+                <p className="text-white/60 text-xs mt-1">{card!.desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <h3 className="text-sm font-black mb-3">Core Platform</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {capabilities.map((cap, i) => (
+            <button key={i} onClick={() => onNavigateTab(cap.tab)} className={`bg-gradient-to-br ${cap.color} rounded-2xl p-5 text-left hover:scale-[1.02] transition-all border border-white/10`}>
+              <span className="text-2xl">{cap.icon}</span>
+              <p className="text-white font-black text-sm mt-3">{cap.name}</p>
+              <p className="text-white/60 text-xs mt-1">{cap.desc}</p>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )

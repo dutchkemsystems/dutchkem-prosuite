@@ -4,7 +4,7 @@ import { api } from '../../../convex/_generated/api'
 
 // ═══════════════════════════════════════════════════════════════════
 // ENTERPRISE PORTAL — Features Deployment Panel
-// Deploy/revoke features per company from Enterprise Portal
+// Deploy/revoke features per real enterprise organization
 // ═══════════════════════════════════════════════════════════════════
 
 const ALL_FEATURES = [
@@ -27,50 +27,47 @@ const ALL_FEATURES = [
   { id: 'client_portal', name: 'Client Portal', icon: '🔐', desc: 'White-label client access', module: 'client_portal' },
 ]
 
-const COMPANY_SEARCHABLE: Record<string, string> = {
-  S1: "Local Service Business", S2: "E-commerce Store", S3: "Marketing Agency", S4: "Real Estate Agency", S5: "SaaS Startup",
-  M1: "Manufacturing Corp", M2: "Healthcare Provider", M3: "Financial Services", M4: "Logistics & Supply Chain", M5: "Enterprise Tech",
-  H1: "Global Banking", H2: "Int'l Manufacturing", H3: "Worldwide E-commerce", H4: "Global Healthcare", H5: "Multi-National Telecom",
-  H6: "Global Logistics", H7: "Int'l Energy Corp", H8: "Worldwide Retail", H9: "Global Tech", H10: "Mega Government",
-}
-
 export function AdminFeaturesPanel({ adminToken }: { adminToken: string }) {
-  const [selectedCompany, setSelectedCompany] = useState('')
+  const [selectedOrg, setSelectedOrg] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFeature, setActiveFeature] = useState<string | null>(null)
 
-  const seededCompanies = useQuery(api.enterprise_features.getSeededCompanies, {})
+  // Get REAL organizations (the ones that enterprise clients actually log into)
+  const orgs = useQuery(api.admin_enterprise.listOrganizations, { adminToken })
+
+  // Get feature config for the selected REAL org (using its Convex _id)
   const featureConfig = useQuery(
     api.enterprise_features.getConfig,
-    selectedCompany ? { orgId: selectedCompany } : 'skip'
+    selectedOrg ? { orgId: selectedOrg } : 'skip'
   )
   const saveConfig = useMutation(api.enterprise_features.saveConfig)
 
   const enabledFeatures = featureConfig?.features || []
 
-  const filteredCompanies = (seededCompanies || []).filter((c: any) => {
+  const filteredOrgs = (orgs || []).filter((o: any) => {
     if (!searchQuery) return true
     const q = searchQuery.toLowerCase()
-    return c.id.toLowerCase().includes(q) ||
-           (COMPANY_SEARCHABLE[c.id] || '').toLowerCase().includes(q)
+    return o.name.toLowerCase().includes(q) || o.email?.toLowerCase().includes(q)
   })
 
+  const selectedOrgData = (orgs || []).find((o: any) => o._id === selectedOrg)
+
   const handleToggle = async (featureId: string) => {
-    if (!selectedCompany) return
+    if (!selectedOrg) return
     const updated = enabledFeatures.includes(featureId)
       ? enabledFeatures.filter((f: string) => f !== featureId)
       : [...enabledFeatures, featureId]
-    await saveConfig({ orgId: selectedCompany, features: updated, adminToken })
+    await saveConfig({ orgId: selectedOrg, features: updated, adminToken })
   }
 
   const handleEnableAll = async () => {
-    if (!selectedCompany) return
-    await saveConfig({ orgId: selectedCompany, features: ALL_FEATURES.map(f => f.id), adminToken })
+    if (!selectedOrg) return
+    await saveConfig({ orgId: selectedOrg, features: ALL_FEATURES.map(f => f.id), adminToken })
   }
 
   const handleDisableAll = async () => {
-    if (!selectedCompany) return
-    await saveConfig({ orgId: selectedCompany, features: [], adminToken })
+    if (!selectedOrg) return
+    await saveConfig({ orgId: selectedOrg, features: [], adminToken })
   }
 
   const activeFeatureData = ALL_FEATURES.find(f => f.id === activeFeature)
@@ -81,62 +78,75 @@ export function AdminFeaturesPanel({ adminToken }: { adminToken: string }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-black">🚀 Feature Deployment</h2>
-          <p className="text-xs text-slate-400 mt-1">Deploy, grant, revoke features to any enterprise client</p>
+          <p className="text-xs text-slate-400 mt-1">Deploy, grant, revoke features to enterprise clients</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-500">{seededCompanies?.length || 0} companies</span>
+          <span className="text-xs text-slate-500">{orgs?.length || 0} organizations</span>
           <span className="text-xs text-slate-500">•</span>
-          <span className="text-xs text-slate-500">{ALL_FEATURES.length} features available</span>
+          <span className="text-xs text-slate-500">{ALL_FEATURES.length} features</span>
         </div>
       </div>
 
+      {/* No orgs warning */}
+      {orgs && orgs.length === 0 && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 text-center">
+          <p className="text-3xl mb-2">🏢</p>
+          <p className="text-sm font-bold text-amber-400">No enterprise organizations created yet</p>
+          <p className="text-xs text-slate-400 mt-1">Go to <strong>Enterprise Portal → Organizations</strong> to create an organization first, then deploy features to it here.</p>
+        </div>
+      )}
+
       <div className="flex gap-6">
-        {/* Company List */}
+        {/* Organization List */}
         <div className="w-80 shrink-0">
           <input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search 300 company types..."
+            placeholder="Search organizations..."
             className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 mb-3"
           />
           <div className="space-y-1 max-h-[500px] overflow-y-auto pr-2">
-            {filteredCompanies.map((c: any) => (
+            {filteredOrgs.map((o: any) => (
               <button
-                key={c.id}
-                onClick={() => setSelectedCompany(c.id)}
+                key={o._id}
+                onClick={() => { setSelectedOrg(o._id); setActiveFeature(null) }}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left transition-all ${
-                  selectedCompany === c.id
+                  selectedOrg === o._id
                     ? 'bg-orange-500/10 border border-orange-500/30 text-orange-400'
                     : 'bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300'
                 }`}
               >
                 <div className="min-w-0">
-                  <p className="text-xs font-bold truncate">{COMPANY_SEARCHABLE[c.id] || c.id}</p>
-                  <p className="text-[10px] text-slate-500">{c.id} • {c.featureCount}/{ALL_FEATURES.length}</p>
+                  <p className="text-xs font-bold truncate">{o.name}</p>
+                  <p className="text-[10px] text-slate-500">{o.industry || 'No industry'} • {o.plan || 'trial'}</p>
                 </div>
-                <div className="w-8 h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0">
-                  <div className="h-full bg-orange-500 rounded-full" style={{ width: `${(c.featureCount / ALL_FEATURES.length) * 100}%` }} />
-                </div>
+                <span className={`w-2 h-2 rounded-full shrink-0 ${
+                  o.status === 'active' ? 'bg-emerald-400' :
+                  o.status === 'trial' ? 'bg-amber-400' : 'bg-red-400'
+                }`} />
               </button>
             ))}
+            {filteredOrgs.length === 0 && orgs && orgs.length > 0 && (
+              <p className="text-xs text-slate-500 text-center py-4">No matching organizations</p>
+            )}
           </div>
         </div>
 
         {/* Feature Panel */}
         <div className="flex-1">
-          {!selectedCompany ? (
+          {!selectedOrg ? (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center">
-              <p className="text-5xl mb-4">🏢</p>
-              <p className="text-sm font-bold text-slate-400">Select a company from the list to manage its features</p>
-              <p className="text-xs text-slate-500 mt-2">300 company types across 30 industries</p>
+              <p className="text-5xl mb-4">🚀</p>
+              <p className="text-sm font-bold text-slate-400">Select an organization to deploy features</p>
+              <p className="text-xs text-slate-500 mt-2">Features deployed here appear in the client's dashboard</p>
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Company Header */}
+              {/* Org Header */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center justify-between">
                 <div>
-                  <h3 className="font-black text-lg">{COMPANY_SEARCHABLE[selectedCompany] || selectedCompany}</h3>
-                  <p className="text-xs text-slate-400">ID: {selectedCompany} • {enabledFeatures.length}/{ALL_FEATURES.length} features enabled</p>
+                  <h3 className="font-black text-lg">{selectedOrgData?.name || selectedOrg}</h3>
+                  <p className="text-xs text-slate-400">{selectedOrgData?.email} • {enabledFeatures.length}/{ALL_FEATURES.length} features enabled</p>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={handleEnableAll} className="px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-xl text-xs font-bold hover:bg-emerald-500/20 transition-all">Enable All</button>
@@ -188,7 +198,7 @@ export function AdminFeaturesPanel({ adminToken }: { adminToken: string }) {
                       <code className="text-[11px] text-orange-400">convex/{activeFeatureData.module}.ts</code>
                     </div>
                     <div className="bg-slate-800 rounded-xl p-3 mb-4">
-                      <p className="text-[10px] text-slate-500">Status</p>
+                      <p className="text-[10px] text-slate-500">Status for {selectedOrgData?.name}</p>
                       <p className={`text-xs font-bold ${enabledFeatures.includes(activeFeatureData.id) ? 'text-emerald-400' : 'text-slate-500'}`}>
                         {enabledFeatures.includes(activeFeatureData.id) ? '✅ Deployed' : '❌ Not Deployed'}
                       </p>
