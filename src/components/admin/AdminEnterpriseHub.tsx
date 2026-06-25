@@ -12,6 +12,7 @@ import { AutonomousOverview } from '~/components/admin/enterprise/AutonomousOver
 import { MonitoringDashboard } from '~/components/admin/enterprise/MonitoringDashboard'
 import { SLAComplianceDashboard } from '~/components/admin/enterprise/SLAComplianceDashboard'
 import { SupportTicketDashboard } from '~/components/admin/enterprise/SupportTicketDashboard'
+import { AdminFeaturesPanel } from '~/components/admin/AdminFeaturesPanel'
 
 const TABS = [
   { id: 'autonomous', label: 'Autonomous', icon: '🧬' },
@@ -24,6 +25,7 @@ const TABS = [
   { id: 'monitoring', label: 'Monitoring', icon: '📊' },
   { id: 'sla', label: 'SLA & Compliance', icon: '🛡️' },
   { id: 'support', label: '24/7 Support', icon: '🎧' },
+  { id: 'feature-deploy', label: 'Deploy Features', icon: '🚀' },
 ] as const
 
 type TabId = typeof TABS[number]['id']
@@ -69,6 +71,8 @@ export function AdminEnterpriseHub({ adminToken }: { adminToken: string }) {
         return <SLAComplianceDashboard adminToken={adminToken} />
       case 'support':
         return <SupportTicketDashboard adminToken={adminToken} />
+      case 'feature-deploy':
+        return <AdminFeaturesPanel adminToken={adminToken} />
       default:
         return null
     }

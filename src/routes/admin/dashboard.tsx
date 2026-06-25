@@ -31,7 +31,6 @@ import { AdDesignerPanel } from "~/components/admin/AdDesignerPanel";
 import { WhatsAppHub } from "~/components/admin/WhatsAppHub";
 import AdminPayoutDashboard from "~/components/admin/enterprise/AdminPayoutDashboard";
 import { EnterprisePaymentsReadOnly } from "~/components/admin/EnterprisePaymentsReadOnly";
-import { AdminFeaturesPanel } from "~/components/admin/AdminFeaturesPanel";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -218,7 +217,6 @@ function AdminDashboardPage() {
                <AdminTab active={activeTab === "tax-compliance"} onClick={() => setActiveTab("tax-compliance")} icon="📋" label="Tax Compliance" onClose={() => setSidebarOpen(false)} />
                  <AdminTab active={activeTab === "enterprise"} onClick={() => setActiveTab("enterprise")} icon="🏢" label="Enterprise Hub" onClose={() => setSidebarOpen(false)} />
                   <AdminTab active={activeTab === "enterprise-portal"} onClick={() => setActiveTab("enterprise-portal")} icon="🌐" label="Enterprise Portal" onClose={() => setSidebarOpen(false)} />
-                  <AdminTab active={activeTab === "feature-deploy"} onClick={() => setActiveTab("feature-deploy")} icon="🚀" label="Deploy Features" onClose={() => setSidebarOpen(false)} />
                   <AdminTab active={activeTab === "mimo"} onClick={() => setActiveTab("mimo")} icon="🧠" label="Mimo V.2.5" onClose={() => setSidebarOpen(false)} />
                    <AdminTab active={activeTab === "rapidapi"} onClick={() => setActiveTab("rapidapi")} icon="🔄" label="RapidAPI Fallback" onClose={() => setSidebarOpen(false)} />
                     <AdminTab active={activeTab === "revenue"} onClick={() => setActiveTab("revenue")} icon="💰" label="Revenue Hub" onClose={() => setSidebarOpen(false)} />
@@ -278,7 +276,6 @@ function AdminDashboardPage() {
                {activeTab === "tax-compliance" && <TaxCompliancePanel adminToken={adminToken} />}
                  {activeTab === "enterprise" && <AdminEnterpriseHub adminToken={adminToken} />}
                  {activeTab === "enterprise-portal" && <EnterprisePortalAdmin adminToken={adminToken} />}
-                 {activeTab === "feature-deploy" && <AdminFeaturesPanel adminToken={adminToken} />}
                  {activeTab === "mimo" && <MimoControlPanel adminToken={adminToken} />}
                   {activeTab === "rapidapi" && <RapidAPIFallbackDashboard adminToken={adminToken} />}
                     {activeTab === "revenue" && <RevenueHub adminToken={adminToken} />}
