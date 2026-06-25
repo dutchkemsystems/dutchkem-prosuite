@@ -4,10 +4,12 @@ import { api } from '../../../convex/_generated/api'
 import { PortalCompanyManagement } from '~/components/admin/enterprise/PortalCompanyManagement'
 import { PortalSubAdminManagement } from '~/components/admin/enterprise/PortalSubAdminManagement'
 import { PortalClientManagement } from '~/components/admin/enterprise/PortalClientManagement'
+import { AdminFeaturesPanel } from '~/components/admin/AdminFeaturesPanel'
 
 const PORTAL_TABS = [
   { id: 'overview', label: 'Organizations', icon: '🏢' },
   { id: 'companies', label: 'Company Types', icon: '🏭' },
+  { id: 'features', label: 'Deploy Features', icon: '🚀' },
   { id: 'subadmins', label: 'Sub-Admins', icon: '👥' },
   { id: 'clients', label: 'Clients', icon: '👤' },
 ] as const
@@ -71,6 +73,8 @@ export function EnterprisePortalAdmin({ adminToken }: { adminToken: string }) {
     switch (activeTab) {
       case 'companies':
         return <PortalCompanyManagement adminToken={effectiveToken} organizations={organizations} />
+      case 'features':
+        return <AdminFeaturesPanel adminToken={effectiveToken} />
       case 'subadmins':
         return <PortalSubAdminManagement adminToken={effectiveToken} organizations={organizations} />
       case 'clients':
