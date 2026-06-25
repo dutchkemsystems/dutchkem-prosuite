@@ -17,8 +17,7 @@ export const recordAnalytics = mutation({
   returns: v.any(),
   handler: async (ctx, args) => {
     const existing = await ctx.db.query("ad_analytics")
-      .withIndex("by_ad", (q) => q.eq("adId", args.adId))
-      .filter((q) => q.eq(q.field("date"), args.date))
+      .withIndex("by_ad_date", (q) => q.eq("adId", args.adId).eq("date", args.date))
       .first();
 
     if (existing) {
@@ -42,8 +41,7 @@ export const snapshotCampaign = mutation({
     if (!identity) return { authError: true };
 
     const analytics = await ctx.db.query("ad_analytics")
-      .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId))
-      .filter((q) => q.eq(q.field("date"), args.date))
+      .withIndex("by_campaign_date", (q) => q.eq("campaignId", args.campaignId).eq("date", args.date))
       .collect();
 
     const totals = analytics.reduce((acc, a) => ({
@@ -68,8 +66,7 @@ export const snapshotCampaign = mutation({
     }
 
     const existing = await ctx.db.query("ad_performance_snapshots")
-      .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId))
-      .filter((q) => q.eq(q.field("date"), args.date))
+      .withIndex("by_campaign_date", (q) => q.eq("campaignId", args.campaignId).eq("date", args.date))
       .first();
 
     const snapshotData = {

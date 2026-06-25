@@ -16,7 +16,9 @@ export const schedulePost = mutation({
     scheduledFor: v.number(),
     imageUrl: v.optional(v.string()),
     anonymous: v.optional(v.boolean()),
+    adminId: v.optional(v.string()),
   },
+  returns: v.object({ postId: v.id("social_posts"), status: v.string() }),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
@@ -24,6 +26,7 @@ export const schedulePost = mutation({
 
     const postId = await ctx.db.insert("social_posts", {
       agentId: identity.subject,
+      adminId: args.adminId,
       platform: args.platform,
       content: args.content,
       imageUrl: args.imageUrl,
@@ -46,6 +49,7 @@ export const editScheduledPost = mutation({
     scheduledFor: v.optional(v.number()),
     imageUrl: v.optional(v.string()),
   },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
@@ -72,6 +76,7 @@ export const editScheduledPost = mutation({
 // ═══════════════════════════════════════════════════════════════════
 export const cancelScheduledPost = mutation({
   args: { postId: v.id("social_posts") },
+  returns: v.object({ success: v.boolean() }),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
@@ -90,6 +95,21 @@ export const cancelScheduledPost = mutation({
 // ═══════════════════════════════════════════════════════════════════
 export const getScheduledPosts = query({
   args: {},
+  returns: v.array(v.object({
+    _id: v.id("social_posts"),
+    _creationTime: v.number(),
+    agentId: v.string(),
+    adminId: v.optional(v.string()),
+    platform: v.string(),
+    content: v.string(),
+    imageUrl: v.optional(v.string()),
+    status: v.string(),
+    scheduledFor: v.number(),
+    postedAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+    externalId: v.optional(v.string()),
+    anonymous: v.optional(v.boolean()),
+  })),
   handler: async (ctx) => {
     const posts = await ctx.db
       .query("social_posts")
@@ -105,6 +125,21 @@ export const getScheduledPosts = query({
 // ═══════════════════════════════════════════════════════════════════
 export const getDueScheduledPosts = internalQuery({
   args: {},
+  returns: v.array(v.object({
+    _id: v.id("social_posts"),
+    _creationTime: v.number(),
+    agentId: v.string(),
+    adminId: v.optional(v.string()),
+    platform: v.string(),
+    content: v.string(),
+    imageUrl: v.optional(v.string()),
+    status: v.string(),
+    scheduledFor: v.number(),
+    postedAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+    externalId: v.optional(v.string()),
+    anonymous: v.optional(v.boolean()),
+  })),
   handler: async (ctx) => {
     const now = Date.now();
     return await ctx.db
@@ -126,6 +161,7 @@ export const markScheduledPostResult = internalMutation({
     externalId: v.optional(v.string()),
     error: v.optional(v.string()),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch("social_posts", args.postId, {
       status: args.success ? "posted" : "failed",
@@ -147,10 +183,18 @@ export const processScheduledPosts = internalAction({
 
     const results: Array<any> = [];
     for (const post of due) {
-      // Get the connection for this platform
-      const conn: any = await ctx.runQuery(internal.scheduledPosts.getConnectionForPlatformScheduled, {
-        platform: post.platform,
-      });
+      // Use stored adminId, fallback to querying any connection for this platform
+      let conn: any = null;
+      if (post.adminId) {
+        conn = await ctx.runQuery(internal.scheduledPosts.getConnectionForPlatformScheduled, {
+          platform: post.platform,
+          adminId: post.adminId,
+        });
+      } else {
+        conn = await ctx.runQuery(internal.scheduledPosts.getAnyConnectionForPlatform, {
+          platform: post.platform,
+        });
+      }
 
       if (!conn || !conn.isConnected || !conn.accessToken) {
         await ctx.runMutation(internal.scheduledPosts.markScheduledPostResult, {
@@ -167,6 +211,7 @@ export const processScheduledPosts = internalAction({
           platform: post.platform,
           accessToken: conn.accessToken,
           content: post.content,
+          imageUrl: post.imageUrl,
         });
 
         await ctx.runMutation(internal.scheduledPosts.markScheduledPostResult, {
@@ -195,12 +240,30 @@ export const processScheduledPosts = internalAction({
 // INTERNAL: Get connection for a platform (for scheduled post processing)
 // ═══════════════════════════════════════════════════════════════════
 export const getConnectionForPlatformScheduled = internalQuery({
-  args: { platform: v.string() },
+  args: { platform: v.string(), adminId: v.string() },
+  returns: v.any(),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("platform_connections")
-      .withIndex("by_admin_platform", (q) => q.eq("adminId", "system").eq("platformId", args.platform))
+      .withIndex("by_admin_platform", (q) =>
+        q.eq("adminId", args.adminId).eq("platformId", args.platform)
+      )
       .first();
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// INTERNAL: Fallback - find any connected admin for a platform
+// ═══════════════════════════════════════════════════════════════════
+export const getAnyConnectionForPlatform = internalQuery({
+  args: { platform: v.string() },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const connections = await ctx.db
+      .query("platform_connections")
+      .withIndex("by_admin", (q) => q.eq("adminId", "system"))
+      .collect();
+    return connections.find((c) => c.platformId === args.platform && c.isConnected) || null;
   },
 });
 
@@ -209,6 +272,7 @@ export const getConnectionForPlatformScheduled = internalQuery({
 // ═══════════════════════════════════════════════════════════════════
 export const runScheduledPostsNow = action({
   args: {},
+  returns: v.any(),
   handler: async (ctx): Promise<any> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");

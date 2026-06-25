@@ -1,5 +1,7 @@
-﻿import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useState } from "react";
+import { useMutation } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 
 import { api } from "../../convex/_generated/api";
 
@@ -9,7 +11,7 @@ import { api } from "../../convex/_generated/api";
 
 // Featured Testimonials Carousel
 export function FeaturedTestimonials() {
-  const testimonials = useQuery(api.testimonials.getFeaturedTestimonials, { limit: 5 });
+  const { data: testimonials } = useSuspenseQuery(convexQuery(api.testimonials.getFeaturedTestimonials, { limit: 5 }));
 
   if (!testimonials || testimonials.length === 0) return null;
 
@@ -77,11 +79,11 @@ export function FeaturedTestimonials() {
 export function TestimonialGrid() {
   const [filter, setFilter] = useState({ service: "", rating: 0 });
 
-  const testimonials = useQuery(api.testimonials.getTestimonials, {
+  const { data: testimonials } = useSuspenseQuery(convexQuery(api.testimonials.getTestimonials, {
       service: filter.service || undefined,
       rating: filter.rating || undefined,
       limit: 20,
-    });
+    }));
 
   if (!testimonials) return null;
 
@@ -243,7 +245,7 @@ export function TestimonialForm({ service }: { service: string }) {
 
 // Testimonial Stats (Admin)
 export function TestimonialStats() {
-  const stats = useQuery(api.testimonials.getTestimonialStats, {});
+  const { data: stats } = useSuspenseQuery(convexQuery(api.testimonials.getTestimonialStats, {}));
 
   if (!stats) return null;
 

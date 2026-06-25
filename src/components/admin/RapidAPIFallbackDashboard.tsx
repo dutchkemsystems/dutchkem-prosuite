@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { useQuery, useAction, useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 import { api } from '../../../convex/_generated/api';
 
 export function RapidAPIFallbackDashboard({ adminToken }: { adminToken: string }) {
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
-  const data = useQuery(api.rapidapi.getRapidAPIStatus, { adminToken });
-  const postingConfig = useQuery(api.rapidapi.getPostingConfig, { adminToken });
+  const { data } = useSuspenseQuery(convexQuery(api.rapidapi.getRapidAPIStatus, { adminToken }));
+  const { data: postingConfig } = useSuspenseQuery(convexQuery(api.rapidapi.getPostingConfig, { adminToken }));
   const testConn = useAction(api.rapidapi.testConnection);
   const postToAll = useAction(api.rapidapi.postToAllPlatforms);
   const setConfig = useMutation(api.rapidapi.setPostingConfig);

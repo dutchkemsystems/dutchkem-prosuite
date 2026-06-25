@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useQuery } from 'convex/react'
+import { useSuspenseQuery } from '@tanstack/react-query'
+import { convexQuery } from '@convex-dev/react-query'
 import { api } from '../../../convex/_generated/api'
 import { AdminWorkflowBuilder } from '~/components/admin/enterprise/AdminWorkflowBuilder'
 import { AdminMarketplace } from '~/components/admin/enterprise/AdminMarketplace'
@@ -30,10 +31,10 @@ type TabId = typeof TABS[number]['id']
 export function AdminEnterpriseHub({ adminToken }: { adminToken: string }) {
   const [activeTab, setActiveTab] = useState<TabId>('autonomous')
 
-  const stats = useQuery(api.admin_enterprise_hub.getHubStats, {})
-  const agentList = useQuery(api.admin_enterprise_hub.listAgents, {})
-  const orgList = useQuery(api.admin_enterprise.listOrganizations, { adminToken })
-  const autonomousMetrics = useQuery(api.enterprise_autonomous.getAutonomousMetrics, {})
+  const { data: stats } = useSuspenseQuery(convexQuery(api.admin_enterprise_hub.getHubStats, {}))
+  const { data: agentList } = useSuspenseQuery(convexQuery(api.admin_enterprise_hub.listAgents, {}))
+  const { data: orgList } = useSuspenseQuery(convexQuery(api.admin_enterprise.listOrganizations, { adminToken }))
+  const { data: autonomousMetrics } = useSuspenseQuery(convexQuery(api.enterprise_autonomous.getAutonomousMetrics, {}))
 
   const agents = agentList || []
   const organizations = orgList || []

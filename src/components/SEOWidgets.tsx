@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 
 import { api } from "../../convex/_generated/api";
 
@@ -8,7 +9,7 @@ import { api } from "../../convex/_generated/api";
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function SEODashboard() {
-  const seoData = useQuery(api.seoEngine.getSEODashboard, {});
+  const { data: seoData } = useSuspenseQuery(convexQuery(api.seoEngine.getSEODashboard, {}));
 
   if (!seoData) return null;
 
@@ -184,7 +185,7 @@ export function SEOAnalyzer({ content, contentType, targetKeywords, onAnalysis }
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function ContentCalendar() {
-  const calendar = useQuery(api.seoEngine.getContentCalendar, {});
+  const { data: calendar } = useSuspenseQuery(convexQuery(api.seoEngine.getContentCalendar, {}));
 
   if (!calendar || calendar.length === 0) {
     return (

@@ -1,4 +1,5 @@
-﻿import { useQuery } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 
 import { api } from "../../convex/_generated/api";
 
@@ -12,7 +13,7 @@ interface CrossSellCardProps {
 }
 
 export function CrossSellCard({ planId, onDismiss }: CrossSellCardProps) {
-  const crossSells = useQuery(api.crossSell.getCrossSells, { planId });
+  const { data: crossSells } = useSuspenseQuery(convexQuery(api.crossSell.getCrossSells, { planId }));
 
   if (!crossSells || crossSells.length === 0) return null;
 
@@ -57,7 +58,7 @@ export function CrossSellCard({ planId, onDismiss }: CrossSellCardProps) {
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function TrendingServices() {
-  const trending = useQuery(api.crossSell.getTrendingServices, {});
+  const { data: trending } = useSuspenseQuery(convexQuery(api.crossSell.getTrendingServices, {}));
 
   if (!trending || trending.length === 0) return null;
 
@@ -98,7 +99,7 @@ export function TrendingServices() {
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function PersonalizedRecommendations() {
-  const recommendations = useQuery(api.crossSell.getRecommendations, {});
+  const { data: recommendations } = useSuspenseQuery(convexQuery(api.crossSell.getRecommendations, {}));
 
   if (!recommendations || recommendations.length === 0) return null;
 

@@ -8,12 +8,21 @@ async function main() {
   console.log('  2FA FLOW END-TO-END TEST — ' + new Date().toISOString());
   console.log('═══════════════════════════════════════════════════════════════\n');
 
-  // 1. Get a real user ID
+  // 1. Get a real user ID from the admin session
   console.log('🔐 Step 1: Get real user ID');
   const login = await client.mutation(api.admin_auth.adminLogin, { email: 'admin@dutchkem.com', password: 'XeHtkj6y%JdFAFe#', deviceId: '2fa-test' });
-  const dash = await client.query(api.dashboard.getDashboardData, {});
-  const userId = dash.user._id || 'test-user';
+  
+  // Get admin user's actual ID from the admin profile
+  const profile = await client.query(api.admin.getAdminProfile, { adminToken: login.token });
+  const userId = profile?._id;
   console.log('  User ID:', userId);
+  
+  if (!userId) {
+    console.log('  ❌ Cannot get user ID. Trying alternative...');
+    // Try to find the user via the admin session validation
+    const sessionCheck = await client.query(api.auth_helpers.checkAdminSession, { adminToken: login.token });
+    console.log('  Session:', JSON.stringify(sessionCheck));
+  }
 
   // 2. Generate 2FA secret
   console.log('\n🔑 Step 2: Generate 2FA secret');

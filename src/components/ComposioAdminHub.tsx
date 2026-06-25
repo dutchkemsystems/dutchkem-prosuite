@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { useMutation } from "convex/react";
 import { useNavigate } from "@tanstack/react-router";
@@ -50,22 +50,13 @@ export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const statusQuery = useQuery({
-    ...convexQuery(api.composioHub.getComposioStatus, { adminToken }),
-    retry: 1,
-  });
-  const logsQuery = useQuery({
-    ...convexQuery(api.composioHub.getComposioActionLogs, { adminToken, limit: 50 }),
-    retry: 1,
-  });
-  const statsQuery = useQuery({
-    ...convexQuery(api.composioHub.getComposioStats, { adminToken }),
-    retry: 1,
-  });
+  const { data: statusQuery } = useSuspenseQuery(convexQuery(api.composioHub.getComposioStatus, { adminToken }));
+  const { data: logsQuery } = useSuspenseQuery(convexQuery(api.composioHub.getComposioActionLogs, { adminToken, limit: 50 }));
+  const { data: statsQuery } = useSuspenseQuery(convexQuery(api.composioHub.getComposioStats, { adminToken }));
 
-  const status = (statusQuery.data as any) ?? EMPTY_STATUS;
-  const logs = (logsQuery.data as Array<any>) ?? EMPTY_LOGS;
-  const stats = (statsQuery.data as any) ?? EMPTY_STATS;
+  const status = (statusQuery as any) ?? EMPTY_STATUS;
+  const logs = (logsQuery as Array<any>) ?? EMPTY_LOGS;
+  const stats = (statsQuery as any) ?? EMPTY_STATS;
 
   const togglePlatform = useMutation(api.composioHub.togglePlatform);
   const setPlatformMode = useMutation(api.composioHub.setPlatformMode);
@@ -73,9 +64,7 @@ export function ComposioAdminHub({ adminToken }: ComposioAdminHubProps) {
   const setAgentPlatforms = useMutation(api.composioHub.setAgentPlatforms);
 
   const refetchAll = () => {
-    statusQuery.refetch();
-    logsQuery.refetch();
-    statsQuery.refetch();
+    window.location.reload();
   };
 
   const handleTogglePlatform = async (platformId: string, enabled: boolean) => {

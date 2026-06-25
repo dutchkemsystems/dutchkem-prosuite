@@ -27,7 +27,10 @@ import { RevenueHub } from "~/components/admin/RevenueHub";
 import AutoFlyerDashboard from "~/components/admin/AutoFlyerDashboard";
 import CurrencyConverter from "~/components/admin/CurrencyConverter";
 import AdAutomationHub from "~/components/admin/enterprise/AdAutomationHub";
+import { AdDesignerPanel } from "~/components/admin/AdDesignerPanel";
+import { WhatsAppHub } from "~/components/admin/WhatsAppHub";
 import AdminPayoutDashboard from "~/components/admin/enterprise/AdminPayoutDashboard";
+import { EnterprisePaymentsReadOnly } from "~/components/admin/EnterprisePaymentsReadOnly";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -81,6 +84,7 @@ function AdminDashboardPage() {
   const { signOut: authSignOut } = useAuthActions();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Check for admin session
   const [adminToken, setAdminToken] = useState<string | null>(null);
@@ -128,14 +132,48 @@ function AdminDashboardPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row overflow-hidden font-sans">
       <InactivityLogout adminMode={true} logoutPath="/admin/login" />
-      <aside className="w-full md:w-80 bg-slate-900 border-r border-slate-800 flex-shrink-0 z-20 flex flex-col shadow-2xl">
-        <div className="p-8 border-b border-slate-800 bg-red-600/5">
-          <div className="flex items-center gap-4 mb-2">
-            <CompanyLogo className="w-12 h-12" />
-            <div>
-              <h2 className="font-black text-lg tracking-tighter uppercase leading-tight text-white">Dutchkem Ventures</h2>
-              <p className="text-[10px] text-red-500 font-black uppercase tracking-widest leading-none">RC: 9489855 • TIN: 2512403526652</p>
+
+      {/* Mobile Header */}
+      <div className="md:hidden flex items-center justify-between p-4 bg-slate-900 border-b border-slate-800 sticky top-0 z-30">
+        <div className="flex items-center gap-3">
+          <CompanyLogo className="w-10 h-10" />
+          <span className="font-black text-xs tracking-tighter uppercase text-white">Admin</span>
+        </div>
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="w-12 h-12 flex items-center justify-center rounded-xl bg-slate-800 text-white"
+          aria-label="Toggle menu"
+        >
+          {sidebarOpen ? '✕' : '☰'}
+        </button>
+      </div>
+
+      {/* Mobile Sidebar Overlay */}
+      <div
+        className={`fixed inset-0 z-40 md:hidden transition-all duration-300 ${sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        onClick={() => setSidebarOpen(false)}
+      >
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      </div>
+
+      {/* Sidebar */}
+      <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:static top-0 left-0 h-full md:h-auto w-80 md:w-80 bg-slate-900 border-r border-slate-800 flex-shrink-0 z-50 flex flex-col shadow-2xl transition-transform duration-300 md:transition-none`}>
+        <div className="p-6 md:p-8 border-b border-slate-800 bg-red-600/5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <CompanyLogo className="w-12 h-12" />
+              <div>
+                <h2 className="font-black text-lg tracking-tighter uppercase leading-tight text-white">Dutchkem Ventures</h2>
+                <p className="text-[10px] text-red-500 font-black uppercase tracking-widest leading-none">RC: 9489855 • TIN: 2512403526652</p>
+              </div>
             </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="md:hidden w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-800 text-slate-400"
+              aria-label="Close menu"
+            >
+              ✕
+            </button>
           </div>
           <div className="mt-4 p-3 bg-black/20 rounded-xl border border-white/5">
              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Command Center v4.0</p>
@@ -144,46 +182,49 @@ function AdminDashboardPage() {
         </div>
         
         <nav className="p-4 space-y-1 flex-grow overflow-y-auto custom-scrollbar">
-          <AdminTab active={activeTab === "overview"} onClick={() => setActiveTab("overview")} icon="📊" label="Overview" />
-          <AdminTab active={activeTab === "live-feed"} onClick={() => setActiveTab("live-feed")} icon="📡" label="Live Feed" />
-          <AdminTab active={activeTab === "live-charts"} onClick={() => setActiveTab("live-charts")} icon="📈" label="Live Charts" />
-          <AdminTab active={activeTab === "payments"} onClick={() => setActiveTab("payments")} icon="💳" label="Payments" />
-          <AdminTab active={activeTab === "manual-task"} onClick={() => setActiveTab("manual-task")} icon="⚡" label="Manual Task" />
-          <AdminTab active={activeTab === "social"} onClick={() => setActiveTab("social")} icon="📣" label="Social Engine" />
-          <AdminTab active={activeTab === "guardian"} onClick={() => setActiveTab("guardian")} icon="🛡️" label="Guardian Watch" />
-          <AdminTab active={activeTab === "tax"} onClick={() => setActiveTab("tax")} icon="🏛️" label="Tax Wallet" />
-          <AdminTab active={activeTab === "payouts"} onClick={() => setActiveTab("payouts")} icon="🏦" label="Secure Sweeps" />
-          <AdminTab active={activeTab === "security"} onClick={() => setActiveTab("security")} icon="🔐" label="Encryption Hub" />
-          <AdminTab active={activeTab === "agents"} onClick={() => setActiveTab("agents")} icon="🤖" label="Agent Health" />
-          <AdminTab active={activeTab === "discounts"} onClick={() => setActiveTab("discounts")} icon="📅" label="Holiday Logic" />
-          <AdminTab active={activeTab === "updates"} onClick={() => setActiveTab("updates")} icon="🔄" label="Service Evolution" />
-          <AdminTab active={activeTab === "freelancers"} onClick={() => setActiveTab("freelancers")} icon="👥" label="Freelancers" />
-          <AdminTab active={activeTab === "audit"} onClick={() => setActiveTab("audit")} icon="📜" label="Audit Trail" />
-           <AdminTab active={activeTab === "charity"} onClick={() => setActiveTab("charity")} icon="🕊️" label="Charity / Tithe" />
-           <AdminTab active={activeTab === "marketplace"} onClick={() => setActiveTab("marketplace")} icon="🏪" label="Freelancer Marketplace" />
-           <AdminTab active={activeTab === "cloud-memory"} onClick={() => setActiveTab("cloud-memory")} icon="☁️" label="Cloud Memory" />
-           <AdminTab active={activeTab === "voice-roi"} onClick={() => setActiveTab("voice-roi")} icon="🎙️" label="Voice ROI" />
-           <AdminTab active={activeTab === "live-chats"} onClick={() => setActiveTab("live-chats")} icon="💬" label="Live Chats" />
-           <AdminTab active={activeTab === "api-costs"} onClick={() => setActiveTab("api-costs")} icon="🔌" label="API Costs" />
-           <AdminTab active={activeTab === "platform-analytics"} onClick={() => setActiveTab("platform-analytics")} icon="📊" label="Platform Analytics" />
-           <AdminTab active={activeTab === "synthetic"} onClick={() => setActiveTab("synthetic")} icon="🤖" label="Synthetic AI" />
-            <AdminTab active={activeTab === "ad-engine"} onClick={() => setActiveTab("ad-engine")} icon="📢" label="Ad Engine" />
-            <AdminTab active={activeTab === "ad-automation"} onClick={() => setActiveTab("ad-automation")} icon="🚀" label="Ad Automation" />
-            <AdminTab active={activeTab === "kyc-payouts"} onClick={() => setActiveTab("kyc-payouts")} icon="💸" label="KYC & Payouts" />
-              <AdminTab active={activeTab === "composio-hub"} onClick={() => setActiveTab("composio-hub")} icon="🔗" label="Composio Hub" />
-              <AdminTab active={activeTab === "composio-obs"} onClick={() => setActiveTab("composio-obs")} icon="🔌" label="Composio Max" />
-              <AdminTab active={activeTab === "trypost"} onClick={() => setActiveTab("trypost")} icon="📅" label="TryPost" />
-              <AdminTab active={activeTab === "auto-heal"} onClick={() => setActiveTab("auto-heal")} icon="🛡️" label="Auto-Heal" />
-              <AdminTab active={activeTab === "renewals-tithe"} onClick={() => setActiveTab("renewals-tithe")} icon="🔄" label="Renewals & Tithe" />
-               <AdminTab active={activeTab === "composio-enhance"} onClick={() => setActiveTab("composio-enhance")} icon="🔧" label="Composio Enhance" />
-               <AdminTab active={activeTab === "tax-compliance"} onClick={() => setActiveTab("tax-compliance")} icon="📋" label="Tax Compliance" />
-                 <AdminTab active={activeTab === "enterprise"} onClick={() => setActiveTab("enterprise")} icon="🏢" label="Enterprise Hub" />
-                 <AdminTab active={activeTab === "enterprise-portal"} onClick={() => setActiveTab("enterprise-portal")} icon="🌐" label="Enterprise Portal" />
-                  <AdminTab active={activeTab === "mimo"} onClick={() => setActiveTab("mimo")} icon="🧠" label="Mimo V.2.5" />
-                   <AdminTab active={activeTab === "rapidapi"} onClick={() => setActiveTab("rapidapi")} icon="🔄" label="RapidAPI Fallback" />
-                    <AdminTab active={activeTab === "revenue"} onClick={() => setActiveTab("revenue")} icon="💰" label="Revenue Hub" />
-                    <AdminTab active={activeTab === "currency"} onClick={() => setActiveTab("currency")} icon="💱" label="Currency Converter" />
-                    <AdminTab active={activeTab === "auto-flyer"} onClick={() => setActiveTab("auto-flyer")} icon="🎨" label="Auto Flyer" />
+<AdminTab active={activeTab === "overview"} onClick={() => setActiveTab("overview")} icon="📊" label="Overview" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "live-feed"} onClick={() => setActiveTab("live-feed")} icon="📡" label="Live Feed" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "live-charts"} onClick={() => setActiveTab("live-charts")} icon="📈" label="Live Charts" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "payments"} onClick={() => setActiveTab("payments")} icon="💳" label="Payments" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "manual-task"} onClick={() => setActiveTab("manual-task")} icon="⚡" label="Manual Task" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "social"} onClick={() => setActiveTab("social")} icon="📣" label="Social Engine" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "guardian"} onClick={() => setActiveTab("guardian")} icon="🛡️" label="Guardian Watch" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "tax"} onClick={() => setActiveTab("tax")} icon="🏛️" label="Tax Wallet" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "payouts"} onClick={() => setActiveTab("payouts")} icon="🏦" label="Secure Sweeps" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "security"} onClick={() => setActiveTab("security")} icon="🔐" label="Encryption Hub" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "agents"} onClick={() => setActiveTab("agents")} icon="🤖" label="Agent Health" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "discounts"} onClick={() => setActiveTab("discounts")} icon="📅" label="Holiday Logic" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "updates"} onClick={() => setActiveTab("updates")} icon="🔄" label="Service Evolution" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "freelancers"} onClick={() => setActiveTab("freelancers")} icon="👥" label="Freelancers" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "audit"} onClick={() => setActiveTab("audit")} icon="📜" label="Audit Trail" onClose={() => setSidebarOpen(false)} />
+           <AdminTab active={activeTab === "charity"} onClick={() => setActiveTab("charity")} icon="🕊️" label="Charity / Tithe" onClose={() => setSidebarOpen(false)} />
+           <AdminTab active={activeTab === "marketplace"} onClick={() => setActiveTab("marketplace")} icon="🏪" label="Freelancer Marketplace" onClose={() => setSidebarOpen(false)} />
+           <AdminTab active={activeTab === "cloud-memory"} onClick={() => setActiveTab("cloud-memory")} icon="☁️" label="Cloud Memory" onClose={() => setSidebarOpen(false)} />
+           <AdminTab active={activeTab === "voice-roi"} onClick={() => setActiveTab("voice-roi")} icon="🎙️" label="Voice ROI" onClose={() => setSidebarOpen(false)} />
+           <AdminTab active={activeTab === "live-chats"} onClick={() => setActiveTab("live-chats")} icon="💬" label="Live Chats" onClose={() => setSidebarOpen(false)} />
+           <AdminTab active={activeTab === "api-costs"} onClick={() => setActiveTab("api-costs")} icon="🔌" label="API Costs" onClose={() => setSidebarOpen(false)} />
+           <AdminTab active={activeTab === "platform-analytics"} onClick={() => setActiveTab("platform-analytics")} icon="📊" label="Platform Analytics" onClose={() => setSidebarOpen(false)} />
+           <AdminTab active={activeTab === "synthetic"} onClick={() => setActiveTab("synthetic")} icon="🤖" label="Synthetic AI" onClose={() => setSidebarOpen(false)} />
+            <AdminTab active={activeTab === "ad-engine"} onClick={() => setActiveTab("ad-engine")} icon="📢" label="Ad Engine" onClose={() => setSidebarOpen(false)} />
+            <AdminTab active={activeTab === "ad-automation"} onClick={() => setActiveTab("ad-automation")} icon="🚀" label="Ad Automation" onClose={() => setSidebarOpen(false)} />
+            <AdminTab active={activeTab === "kyc-payouts"} onClick={() => setActiveTab("kyc-payouts")} icon="💸" label="KYC & Payouts" onClose={() => setSidebarOpen(false)} />
+              <AdminTab active={activeTab === "composio-hub"} onClick={() => setActiveTab("composio-hub")} icon="🔗" label="Composio Hub" onClose={() => setSidebarOpen(false)} />
+              <AdminTab active={activeTab === "composio-obs"} onClick={() => setActiveTab("composio-obs")} icon="🔌" label="Composio Max" onClose={() => setSidebarOpen(false)} />
+              <AdminTab active={activeTab === "trypost"} onClick={() => setActiveTab("trypost")} icon="📅" label="TryPost" onClose={() => setSidebarOpen(false)} />
+              <AdminTab active={activeTab === "auto-heal"} onClick={() => setActiveTab("auto-heal")} icon="🛡️" label="Auto-Heal" onClose={() => setSidebarOpen(false)} />
+              <AdminTab active={activeTab === "renewals-tithe"} onClick={() => setActiveTab("renewals-tithe")} icon="🔄" label="Renewals & Tithe" onClose={() => setSidebarOpen(false)} />
+               <AdminTab active={activeTab === "composio-enhance"} onClick={() => setActiveTab("composio-enhance")} icon="🔧" label="Composio Enhance" onClose={() => setSidebarOpen(false)} />
+               <AdminTab active={activeTab === "tax-compliance"} onClick={() => setActiveTab("tax-compliance")} icon="📋" label="Tax Compliance" onClose={() => setSidebarOpen(false)} />
+                 <AdminTab active={activeTab === "enterprise"} onClick={() => setActiveTab("enterprise")} icon="🏢" label="Enterprise Hub" onClose={() => setSidebarOpen(false)} />
+                 <AdminTab active={activeTab === "enterprise-portal"} onClick={() => setActiveTab("enterprise-portal")} icon="🌐" label="Enterprise Portal" onClose={() => setSidebarOpen(false)} />
+                  <AdminTab active={activeTab === "mimo"} onClick={() => setActiveTab("mimo")} icon="🧠" label="Mimo V.2.5" onClose={() => setSidebarOpen(false)} />
+                   <AdminTab active={activeTab === "rapidapi"} onClick={() => setActiveTab("rapidapi")} icon="🔄" label="RapidAPI Fallback" onClose={() => setSidebarOpen(false)} />
+                    <AdminTab active={activeTab === "revenue"} onClick={() => setActiveTab("revenue")} icon="💰" label="Revenue Hub" onClose={() => setSidebarOpen(false)} />
+                    <AdminTab active={activeTab === "currency"} onClick={() => setActiveTab("currency")} icon="💱" label="Currency Converter" onClose={() => setSidebarOpen(false)} />
+                     <AdminTab active={activeTab === "auto-flyer"} onClick={() => setActiveTab("auto-flyer")} icon="🎨" label="Auto Flyer" onClose={() => setSidebarOpen(false)} />
+                     <AdminTab active={activeTab === "ad-designer"} onClick={() => setActiveTab("ad-designer")} icon="🖼️" label="Ad Designer" onClose={() => setSidebarOpen(false)} />
+                     <AdminTab active={activeTab === "whatsapp"} onClick={() => setActiveTab("whatsapp")} icon="📱" label="WhatsApp" onClose={() => setSidebarOpen(false)} />
+                     <AdminTab active={activeTab === "enterprise-payments"} onClick={() => setActiveTab("enterprise-payments")} icon="💳" label="Enterprise Payments" onClose={() => setSidebarOpen(false)} />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -239,7 +280,10 @@ function AdminDashboardPage() {
                   {activeTab === "rapidapi" && <RapidAPIFallbackDashboard adminToken={adminToken} />}
                     {activeTab === "revenue" && <RevenueHub adminToken={adminToken} />}
                     {activeTab === "currency" && <CurrencyConverter />}
-                    {activeTab === "auto-flyer" && <AutoFlyerDashboard />}
+                     {activeTab === "auto-flyer" && <AutoFlyerDashboard />}
+                     {activeTab === "ad-designer" && <AdDesignerPanel adminToken={adminToken} />}
+                     {activeTab === "whatsapp" && <WhatsAppHub adminToken={adminToken} />}
+                     {activeTab === "enterprise-payments" && <EnterprisePaymentsReadOnly adminToken={adminToken} />}
            </AdminSuspense>
         </div>
         <Footer />
@@ -574,7 +618,7 @@ function SocialEnginePanel({ adminToken }: { adminToken: string }) {
   // so providerStatus was always null, so the dashboard ALWAYS fell back to
   // direct OAuth instead of using Composio as primary.
   // Now using useQuery (which goes to /api/query) so the value actually loads.
-  const providerStatus = useQuery(api.social.getOAuthProviderStatus, {});
+  const { data: providerStatus } = useSuspenseQuery(convexQuery(api.social.getOAuthProviderStatus, {}));
   const disconnectPlatform = useMutation(api.social.disconnectPlatform);
   const disconnectAllPlatforms = useMutation(api.social.disconnectAllPlatforms);
   const updatePostingSettings = useMutation(api.social.updatePostingSettings);
@@ -1645,9 +1689,9 @@ return (
 );
 }
 
-function AdminTab({ active, onClick, icon, label }: any) {
+function AdminTab({ active, onClick, icon, label, onClose }: any) {
   return (
-    <button onClick={onClick} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all group ${
+    <button onClick={() => { onClick(); if (onClose) onClose(); }} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all group ${
       active ? 'bg-orange-600 text-white shadow-2xl shadow-orange-600/20' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-200'
     }`}>
       <span className={`text-xl transition-transform group-hover:scale-125 ${active ? 'scale-110' : ''}`}>{icon}</span> {label}
@@ -2647,6 +2691,7 @@ function SecurityBar({ label, value, color }: any) {
 }
 
 function AgentHealthMatrix({ data }: any) {
+  const agentHealth = data?.agentHealth || [];
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl ">
          <div className="p-10 border-b border-slate-800 flex justify-between items-center">
@@ -2666,20 +2711,26 @@ function AgentHealthMatrix({ data }: any) {
                   </tr>
                </thead>
                <tbody className="divide-y divide-slate-800 text-[11px]">
-                  {data.agentHealth.map((h: any, i: number) => (
-                     <tr key={h.modelName} className="hover:bg-slate-800/30 transition-colors">
-                        <td className="px-10 py-6 font-black text-white">A{i+1} — HUB</td>
-                        <td className="px-10 py-6 font-mono text-[10px] text-slate-400">{h.modelName.slice(0,30)}...</td>
-                        <td className="px-10 py-6">
-                           <span className={`px-2 py-1 rounded text-[8px] font-black uppercase border ${h.status === 'healthy' ? 'text-emerald-500 border-emerald-500/20 bg-emerald-500/5' : 'text-red-500 border-red-500/20 bg-red-500/5'}`}>
-                              {h.status}
-                           </span>
-                        </td>
-                        <td className="px-10 py-6 font-bold text-white">{h.avgResponseTime}s</td>
-                        <td className="px-10 py-6 text-slate-400 font-bold">{h.requestsToday.toLocaleString()}</td>
-                        <td className="px-10 py-6 text-right"><span className="text-[10px] font-black text-indigo-500 bg-indigo-500/10 px-3 py-1 rounded-lg">{h.fallbackTriggered}</span></td>
-                     </tr>
-                  ))}
+                  {agentHealth.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-10 py-12 text-center text-slate-500 text-sm">No agent health data available</td>
+                    </tr>
+                  ) : (
+                    agentHealth.map((h: any, i: number) => (
+                      <tr key={h.modelName} className="hover:bg-slate-800/30 transition-colors">
+                         <td className="px-10 py-6 font-black text-white">A{i+1} — HUB</td>
+                         <td className="px-10 py-6 font-mono text-[10px] text-slate-400">{h.modelName.slice(0,30)}...</td>
+                         <td className="px-10 py-6">
+                            <span className={`px-2 py-1 rounded text-[8px] font-black uppercase border ${h.status === 'healthy' ? 'text-emerald-500 border-emerald-500/20 bg-emerald-500/5' : 'text-red-500 border-red-500/20 bg-red-500/5'}`}>
+                               {h.status}
+                            </span>
+                         </td>
+                         <td className="px-10 py-6 font-bold text-white">{h.avgResponseTime}s</td>
+                         <td className="px-10 py-6 text-slate-400 font-bold">{h.requestsToday.toLocaleString()}</td>
+                         <td className="px-10 py-6 text-right"><span className="text-[10px] font-black text-indigo-500 bg-indigo-500/10 px-3 py-1 rounded-lg">{h.fallbackTriggered}</span></td>
+                      </tr>
+                    ))
+                  )}
                </tbody>
             </table>
          </div>

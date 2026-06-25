@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
 
 type AdminPanelProps = { adminToken: string };
@@ -13,12 +15,12 @@ export function TaxCompliancePanel({ adminToken }: AdminPanelProps) {
 
   const showToast = (type: "success" | "error", msg: string) => { setToast({ type, msg }); setTimeout(() => setToast(null), 4000); };
 
-  const dashboard = useQuery(api.tax.getTaxComplianceDashboard, { adminToken }) as any;
-  const categories = useQuery(api.tax.getExpenseCategories, {}) as any;
-  const expenses = useQuery(api.tax.listBusinessExpenses, {}) as any;
-  const expenseSummary = useQuery(api.tax.getExpenseSummary, {}) as any;
-  const schedule = useQuery(api.tax.getTaxPaymentSchedule, {}) as any;
-  const calculations = useQuery(api.tax.getTaxCalculations, {}) as any;
+  const { data: dashboard } = useSuspenseQuery(convexQuery(api.tax.getTaxComplianceDashboard, { adminToken }));
+  const { data: categories } = useSuspenseQuery(convexQuery(api.tax.getExpenseCategories, {}));
+  const { data: expenses } = useSuspenseQuery(convexQuery(api.tax.listBusinessExpenses, {}));
+  const { data: expenseSummary } = useSuspenseQuery(convexQuery(api.tax.getExpenseSummary, {}));
+  const { data: schedule } = useSuspenseQuery(convexQuery(api.tax.getTaxPaymentSchedule, {}));
+  const { data: calculations } = useSuspenseQuery(convexQuery(api.tax.getTaxCalculations, {}));
 
   const addExpense = useMutation(api.tax.addBusinessExpense);
   const verifyExpense = useMutation(api.tax.verifyExpense);

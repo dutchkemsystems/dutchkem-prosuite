@@ -36,6 +36,7 @@ function manualBase64(input: string): string {
 }
 
 const DASHBOARD_URL = process.env.DASHBOARD_URL || "https://dutchkem-prosuite-app.vercel.app/admin/dashboard";
+const LOCATION_ORIGIN = process.env.CONVEX_SITE_URL || "https://dutchkem-prosuite-app.vercel.app";
 
 // ═══════════════════════════════════════════════════════════════════
 // OTP RATE LIMITING (5 requests per hour per phone number)
@@ -294,9 +295,23 @@ http.route({
     const platformNames: Record<string, string> = { x: "X (Twitter)", linkedin: "LinkedIn", facebook: "Facebook", instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube", pinterest: "Pinterest", reddit: "Reddit", threads: "Threads", telegram: "Telegram", discord: "Discord", bluesky: "Bluesky" };
     const platformName = platformNames[platform] || platform;
 
-    const successHtml = (username: string) => `<!DOCTYPE html><html><head><title>Connected to ${platformName}</title><style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:linear-gradient(135deg,#059669,#047857);margin:0}.c{text-align:center;background:white;padding:40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)}.icon{font-size:64px;margin-bottom:20px}h2{color:#065f46;margin:0 0 10px}p{color:#666;margin:0 0 20px}.badge{background:#d1fae5;color:#065f46;padding:8px 16px;border-radius:30px;font-size:14px;display:inline-flex;align-items:center;gap:8px}button{background:#059669;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-size:16px;font-weight:600;margin-top:20px}</style></head><body><div class="c"><div class="icon">SUCCESS</div><h2>Connected Successfully!</h2><p><strong>${platformName}</strong> is now connected.</p><div class="badge">Ready for posting</div><br><button onclick="closeAndNotify()">Done</button></div><script>function closeAndNotify(){try{var r={type:'social_connection_success',platformId:'${platform}',username:'${username}'};if(window.opener){window.opener.postMessage(r,'*');}try{localStorage.setItem('oauth_result',JSON.stringify(r));}catch(e){}try{window.close();}catch(e){}try{window.open('','_self').close();}catch(e){}setTimeout(function(){window.location.href='${DASHBOARD_URL}?connected=${platform}';},500);}catch(e){window.location.href='${DASHBOARD_URL}?connected=${platform}';}}setTimeout(closeAndNotify,2000);</script></body></html>`;
+    function escapeHtml(str: string): string {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+    }
 
-    const errorHtml = (msg: string) => `<!DOCTYPE html><html><head><title>Connection Failed</title><style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#fee2e2;margin:0}.c{text-align:center;background:white;padding:40px;border-radius:20px;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.15)}h2{color:#dc2626;margin:0 0 10px}p{color:#666;margin:0 0 20px;font-size:14px}button{background:#dc2626;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-size:16px}</style></head><body><div class="c"><h2>Connection Failed</h2><p>${msg}</p><button onclick="if(window.opener){window.close();}else{window.location.href='${DASHBOARD_URL}';}">Close</button></div></body></html>`;
+    const successHtml = (username: string) => {
+      const safePlatform = escapeHtml(platform);
+      const safeUsername = escapeHtml(username);
+      const safePlatformName = escapeHtml(platformName);
+      const safeDashboardUrl = escapeHtml(DASHBOARD_URL);
+      return `<!DOCTYPE html><html><head><title>Connected to ${safePlatformName}</title><style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:linear-gradient(135deg,#059669,#047857);margin:0}.c{text-align:center;background:white;padding:40px;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)}.icon{font-size:64px;margin-bottom:20px}h2{color:#065f46;margin:0 0 10px}p{color:#666;margin:0 0 20px}.badge{background:#d1fae5;color:#065f46;padding:8px 16px;border-radius:30px;font-size:14px;display:inline-flex;align-items:center;gap:8px}button{background:#059669;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-size:16px;font-weight:600;margin-top:20px}</style></head><body><div class="c"><div class="icon">SUCCESS</div><h2>Connected Successfully!</h2><p><strong>${safePlatformName}</strong> is now connected.</p><div class="badge">Ready for posting</div><br><button onclick="closeAndNotify()">Done</button></div><script>function closeAndNotify(){try{var r={type:'social_connection_success',platformId:'${safePlatform}',username:'${safeUsername}'};if(window.opener){window.opener.postMessage(r,LOCATION_ORIGIN);}try{localStorage.setItem('oauth_result',JSON.stringify(r));}catch(e){}try{window.close();}catch(e){}try{window.open('','_self').close();}catch(e){}setTimeout(function(){window.location.href='${safeDashboardUrl}?connected=${safePlatform}';},500);}catch(e){window.location.href='${safeDashboardUrl}?connected=${safePlatform}';}}setTimeout(closeAndNotify,2000);</script></body></html>`;
+    };
+
+    const errorHtml = (msg: string) => {
+      const safeMsg = escapeHtml(msg);
+      const safeDashboardUrl = escapeHtml(DASHBOARD_URL);
+      return `<!DOCTYPE html><html><head><title>Connection Failed</title><style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;background:#fee2e2;margin:0}.c{text-align:center;background:white;padding:40px;border-radius:20px;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.15)}h2{color:#dc2626;margin:0 0 10px}p{color:#666;margin:0 0 20px;font-size:14px}button{background:#dc2626;color:white;border:none;padding:10px 24px;border-radius:30px;cursor:pointer;font-size:16px}</style></head><body><div class="c"><h2>Connection Failed</h2><p>${safeMsg}</p><button onclick="if(window.opener){window.close();}else{window.location.href='${safeDashboardUrl}';}">Close</button></div></body></html>`;
+    };
 
     try {
       if (error) return new Response(errorHtml(error === "access_denied" ? "You denied access." : error), { status: 200, headers: { "Content-Type": "text/html" } });
@@ -442,7 +457,16 @@ http.route({
     const status = url.searchParams.get("status") || "INITIATED";
     const platform = url.searchParams.get("platform") || url.searchParams.get("toolkit") || "";
 
-    const html = (ok: boolean, title: string, msg: string, badge?: string) => `<!DOCTYPE html><html><head><title>${title}</title><meta charset="utf-8"><style>body{font-family:system-ui,-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:${ok ? "linear-gradient(135deg,#059669,#047857)" : "linear-gradient(135deg,#dc2626,#b91c1c)"};margin:0;color:#fff}.c{text-align:center;background:rgba(255,255,255,.95);padding:48px 56px;border-radius:24px;box-shadow:0 25px 80px rgba(0,0,0,.3);max-width:480px;color:#1e293b}.icon{font-size:72px;margin-bottom:16px}h2{margin:0 0 8px;font-size:24px;font-weight:800}p{color:#475569;margin:0 0 24px;line-height:1.5;font-size:15px}.badge{background:${ok ? "#d1fae5" : "#fee2e2"};color:${ok ? "#065f46" : "#991b1b"};padding:10px 20px;border-radius:999px;font-size:13px;font-weight:700;display:inline-block;margin-bottom:16px}button{background:${ok ? "#059669" : "#dc2626"};color:white;border:none;padding:14px 32px;border-radius:999px;cursor:pointer;font-size:15px;font-weight:700;margin-top:8px}</style></head><body><div class="c"><div class="icon">${ok ? "OK" : "ERROR"}</div><h2>${title}</h2><p>${msg}</p>${badge ? `<div class="badge">${badge}</div>` : ""}<br><button onclick="finish()">Close</button></div><script>function finish(){try{var r1={type:'social_connection_success',provider:'composio',platformId:'${platform}',connectedAccountId:'${connectedAccountId}'};var r2={type:'composio_connection_complete',connectedAccountId:'${connectedAccountId}',status:'${status}'};if(window.opener){window.opener.postMessage(r1,'*');window.opener.postMessage(r2,'*');}try{localStorage.setItem('oauth_result',JSON.stringify(r1));localStorage.setItem('composio_result',JSON.stringify(r2));}catch(e){}try{window.close();}catch(e){}try{window.open('','_self').close();}catch(e){}setTimeout(function(){window.location.href='${DASHBOARD_URL}?connected=${platform}';},500);}catch(e){window.location.href='${DASHBOARD_URL}?connected=${platform}';}}setTimeout(finish,2000);</script></body></html>`;
+    const html = (ok: boolean, title: string, msg: string, badge?: string) => {
+      const safeTitle = escapeHtml(title);
+      const safeMsg = escapeHtml(msg);
+      const safeBadge = badge ? escapeHtml(badge) : undefined;
+      const safePlatform = escapeHtml(platform);
+      const safeConnectedAccountId = escapeHtml(connectedAccountId);
+      const safeStatus = escapeHtml(status);
+      const safeDashboardUrl = escapeHtml(DASHBOARD_URL);
+      return `<!DOCTYPE html><html><head><title>${safeTitle}</title><meta charset="utf-8"><style>body{font-family:system-ui,-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:${ok ? "linear-gradient(135deg,#059669,#047857)" : "linear-gradient(135deg,#dc2626,#b91c1c)"};margin:0;color:#fff}.c{text-align:center;background:rgba(255,255,255,.95);padding:48px 56px;border-radius:24px;box-shadow:0 25px 80px rgba(0,0,0,.3);max-width:480px;color:#1e293b}.icon{font-size:72px;margin-bottom:16px}h2{margin:0 0 8px;font-size:24px;font-weight:800}p{color:#475569;margin:0 0 24px;line-height:1.5;font-size:15px}.badge{background:${ok ? "#d1fae5" : "#fee2e2"};color:${ok ? "#065f46" : "#991b1b"};padding:10px 20px;border-radius:999px;font-size:13px;font-weight:700;display:inline-block;margin-bottom:16px}button{background:${ok ? "#059669" : "#dc2626"};color:white;border:none;padding:14px 32px;border-radius:999px;cursor:pointer;font-size:15px;font-weight:700;margin-top:8px}</style></head><body><div class="c"><div class="icon">${ok ? "OK" : "ERROR"}</div><h2>${safeTitle}</h2><p>${safeMsg}</p>${safeBadge ? `<div class="badge">${safeBadge}</div>` : ""}<br><button onclick="finish()">Close</button></div><script>function finish(){try{var r1={type:'social_connection_success',provider:'composio',platformId:'${safePlatform}',connectedAccountId:'${safeConnectedAccountId}'};var r2={type:'composio_connection_complete',connectedAccountId:'${safeConnectedAccountId}',status:'${safeStatus}'};if(window.opener){window.opener.postMessage(r1,LOCATION_ORIGIN);window.opener.postMessage(r2,LOCATION_ORIGIN);}try{localStorage.setItem('oauth_result',JSON.stringify(r1));localStorage.setItem('composio_result',JSON.stringify(r2));}catch(e){}try{window.close();}catch(e){}try{window.open('','_self').close();}catch(e){}setTimeout(function(){window.location.href='${safeDashboardUrl}?connected=${safePlatform}';},500);}catch(e){window.location.href='${safeDashboardUrl}?connected=${safePlatform}';}}setTimeout(finish,2000);</script></body></html>`;
+    };
 
     if (!connectedAccountId) return new Response(html(false, "Composio: Missing Account ID", "No connected_account_id was returned from Composio. Please try again."), { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } });
 
@@ -459,6 +483,68 @@ http.route({
   path: "/kora-webhook",
   method: "POST",
   handler: koraWebhook,
+});
+
+// ========== ENTERPRISE CLIENT PAYMENT WEBHOOK ==========
+http.route({
+  path: "/api/webhooks/enterprise-payment",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const body = await req.json();
+
+      // Kora Pay webhook
+      if (body.event === "charge.success") {
+        const invoiceNumber = body.data?.reference || body.data?.metadata?.invoice_number;
+        if (invoiceNumber) {
+          await ctx.runMutation(internal.enterprise_client_payments.confirmPayment, {
+            invoiceNumber,
+            gatewayReference: body.data?.reference,
+            metadata: body.data,
+          });
+        }
+      }
+
+      // Stripe webhook
+      if (body.type === "checkout.session.completed") {
+        const invoiceNumber = body.data?.object?.metadata?.invoice_number;
+        if (invoiceNumber) {
+          await ctx.runMutation(internal.enterprise_client_payments.confirmPayment, {
+            invoiceNumber,
+            gatewayReference: body.data?.object?.id,
+            metadata: body.data?.object,
+          });
+        }
+      }
+
+      // Flutterwave webhook
+      if (body.event === "charge.completed") {
+        const invoiceNumber = body.data?.tx_ref;
+        if (invoiceNumber) {
+          await ctx.runMutation(internal.enterprise_client_payments.confirmPayment, {
+            invoiceNumber,
+            gatewayReference: body.data?.transaction_id,
+            metadata: body.data,
+          });
+        }
+      }
+
+      // Handle failures
+      if (body.event === "charge.failed" || body.type === "checkout.session.expired") {
+        const invoiceNumber = body.data?.reference || body.data?.metadata?.invoice_number || body.data?.tx_ref;
+        if (invoiceNumber) {
+          await ctx.runMutation(internal.enterprise_client_payments.failPayment, {
+            invoiceNumber,
+            reason: body.data?.message || "Payment failed",
+          });
+        }
+      }
+
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+    } catch (e: any) {
+      return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+    }
+  }),
 });
 
 // ========== KORA PAY DISBURSEMENT CALLBACK ==========

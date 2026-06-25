@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useQuery, useMutation, useAction } from "convex/react";
+import { useMutation, useAction } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 import { api } from '../../../convex/_generated/api';
 import type { Id } from '../../../convex/_generated/dataModel';
 
@@ -31,11 +33,11 @@ export default function AutoFlyerDashboard() {
   const [generatingFor, setGeneratingFor] = useState<string | null>(null);
   const [batchGenerating, setBatchGenerating] = useState(false);
 
-  const engine = useQuery(api.flyer_engine.getEngineStatus);
-  const stats = useQuery(api.flyer_engine.getFlyerStats);
-  const flyers = useQuery(api.flyer_engine.listGeneratedFlyers, { limit: 20 });
-  const logs = useQuery(api.flyer_engine.getPostingLogs, { limit: 30 });
-  const queueItems = useQuery(api.flyer_engine.getQueueItems, { limit: 20 });
+  const { data: engine } = useSuspenseQuery(convexQuery(api.flyer_engine.getEngineStatus));
+  const { data: stats } = useSuspenseQuery(convexQuery(api.flyer_engine.getFlyerStats));
+  const { data: flyers } = useSuspenseQuery(convexQuery(api.flyer_engine.listGeneratedFlyers, { limit: 20 }));
+  const { data: logs } = useSuspenseQuery(convexQuery(api.flyer_engine.getPostingLogs, { limit: 30 }));
+  const { data: queueItems } = useSuspenseQuery(convexQuery(api.flyer_engine.getQueueItems, { limit: 20 }));
 
   const startEngine = useMutation(api.flyer_engine.startEngine);
   const stopEngine = useMutation(api.flyer_engine.stopEngine);
@@ -71,8 +73,7 @@ export default function AutoFlyerDashboard() {
   const handleBatchGenerate = async () => {
     setBatchGenerating(true);
     try {
-      const result = await batchGenerate({ count: 2, platforms: ["linkedin", "facebook", "instagram", "threads"] });
-      console.log("Batch generate result:", result);
+      await batchGenerate({ count: 2, platforms: ["linkedin", "facebook", "instagram", "threads"] });
     } catch (err) {
       console.error("Batch generation failed:", err);
     }

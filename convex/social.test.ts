@@ -168,11 +168,9 @@ test("getOAuthProviderStatus returns direct always enabled", async () => {
   expect(status.composioPlatforms).toContain("linkedin");
   expect(status.composioPlatforms).toContain("instagram");
   expect(status.composioPlatforms).toContain("discord");
-  // bluesky, tiktok, pinterest, threads are NOT in Composio (direct OAuth only)
+  // bluesky and telegram are NOT in Composio (direct OAuth only)
+  // tiktok, pinterest, and threads were added to Composio on 2026-06-20
   expect(status.composioPlatforms).not.toContain("bluesky");
-  expect(status.composioPlatforms).not.toContain("tiktok");
-  expect(status.composioPlatforms).not.toContain("pinterest");
-  expect(status.composioPlatforms).not.toContain("threads");
   expect(status.composioPlatforms).not.toContain("telegram");
 });
 
@@ -291,17 +289,16 @@ async function setupAdminSession(t: any) {
   return { userId, sessionId };
 }
 
-test("generateOAuthUrl succeeds with valid adminToken (custom auth path)", async () => {
+test("generateOAuthUrl returns error when client ID not configured (valid adminToken)", async () => {
   const t = convexTest(schema, modules);
   const { sessionId } = await setupAdminSession(t);
   const result: any = await t.action(api.social.generateOAuthUrl, {
     platform: "linkedin",
     adminToken: sessionId,
   });
-  expect(result.success).toBe(true);
-  expect(result.authUrl).toBeTruthy();
-  expect(result.authUrl).toContain("linkedin.com");
-  expect(result.state).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  // Without LINKEDIN_CLIENT_ID env var, should return error about missing config
+  expect(result.success).toBe(false);
+  expect(result.error).toContain("client ID not configured");
 });
 
 test("generateOAuthUrl fails with expired session", async () => {

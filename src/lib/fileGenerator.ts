@@ -740,7 +740,7 @@ export async function generateMP4(file: FileContent): Promise<Blob> {
     const hfVideo = await generateWithHuggingFaceFree(file);
     if (hfVideo) return hfVideo;
   } catch (e) {
-    console.log('Hugging Face API limit reached, trying alternative...');
+    // Hugging Face API limit reached, trying alternative
   }
   
   // Tier 2: Try Replicate Free Tier
@@ -748,7 +748,7 @@ export async function generateMP4(file: FileContent): Promise<Blob> {
     const replicateVideo = await generateWithReplicateFree(file);
     if (replicateVideo) return replicateVideo;
   } catch (e) {
-    console.log('Replicate free tier exhausted, using canvas fallback...');
+    // Replicate free tier exhausted, using canvas fallback
   }
   
   // Tier 3: Canvas slideshow with transitions (always works, CPU-only)
@@ -849,7 +849,7 @@ async function generateWithHuggingFaceFree(file: FileContent): Promise<Blob | nu
         if (blob.size > 1000) return blob; // Valid video should be > 1KB
       }
     } catch (e) {
-      console.log(`Model ${model} failed, trying next...`);
+      // Model failed, trying next
     }
   }
   
@@ -909,7 +909,7 @@ async function generateWithReplicateFree(file: FileContent): Promise<Blob | null
         return await videoResponse.blob();
       }
     } catch (e) {
-      console.log(`Replicate model ${model} failed, trying next...`);
+      // Replicate model failed, trying next
     }
   }
   

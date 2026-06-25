@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from 'convex/react'
+import { useSuspenseQuery } from '@tanstack/react-query'
+import { convexQuery } from '@convex-dev/react-query'
 import { api } from '../../../convex/_generated/api'
 
 export default function CurrencyConverter() {
@@ -7,7 +9,7 @@ export default function CurrencyConverter() {
   const [fromCurrency, setFromCurrency] = useState('NGN')
   const [toCurrency, setToCurrency] = useState('USD')
 
-  const currencies = useQuery(api.payment_improvements.getSupportedCurrencies, {})
+  const { data: currencies } = useSuspenseQuery(convexQuery(api.payment_improvements.getSupportedCurrencies, {}))
   const conversion = useQuery(
     api.payment_improvements.convertCurrency,
     amount > 0 ? { amount, from: fromCurrency, to: toCurrency } : 'skip'

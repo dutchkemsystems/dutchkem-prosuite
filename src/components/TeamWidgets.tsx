@@ -1,5 +1,7 @@
-﻿import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useState } from "react";
+import { useMutation } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 
 import { api } from "../../convex/_generated/api";
 
@@ -8,7 +10,7 @@ import { api } from "../../convex/_generated/api";
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function TeamDashboard() {
-  const teams = useQuery(api.teamAccounts.getUserTeams, {});
+  const { data: teams } = useSuspenseQuery(convexQuery(api.teamAccounts.getUserTeams, {}));
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
 
   if (!teams) return null;
@@ -69,7 +71,7 @@ interface TeamMembersProps {
 }
 
 export function TeamMembers({ teamId }: TeamMembersProps) {
-  const teamDetails = useQuery(api.teamAccounts.getTeamDetails, { teamId: teamId as any });
+  const { data: teamDetails } = useSuspenseQuery(convexQuery(api.teamAccounts.getTeamDetails, { teamId: teamId as any }));
 
   if (!teamDetails) return null;
 
@@ -157,7 +159,7 @@ export function TeamMembers({ teamId }: TeamMembersProps) {
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function TeamPlans() {
-  const plans = useQuery(api.teamAccounts.getTeamPlans, {});
+  const { data: plans } = useSuspenseQuery(convexQuery(api.teamAccounts.getTeamPlans, {}));
 
   if (!plans) return null;
 

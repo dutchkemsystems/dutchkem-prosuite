@@ -560,4 +560,28 @@ crons.interval(
   {}
 );
 
+// 🔄 Refresh expired social platform tokens (every 6 hours)
+crons.interval(
+  "refresh social platform tokens",
+  { hours: 6 },
+  internal.social.refreshExpiredTokens,
+  {}
+);
+
+// 🔄 Proactive token refresh (every 30 minutes - refreshes 1 hour before expiry)
+crons.interval(
+  "proactive token refresh",
+  { minutes: 30 },
+  internal.token_refresh_proactive.proactiveRefreshTokens,
+  {}
+);
+
+// 📊 Refresh follower counts for connected platforms (every 12 hours)
+crons.interval(
+  "refresh social follower counts",
+  { hours: 12 },
+  internal.social.refreshFollowerCounts,
+  {}
+);
+
 export default crons;

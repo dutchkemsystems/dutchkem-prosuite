@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
 
 type AdminPanelProps = {
@@ -29,15 +31,15 @@ export function ComposioObservability({ adminToken }: AdminPanelProps) {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const stats = useQuery(api.composioEnhanced.getToolCatalogStats, { adminToken });
-  const observability = useQuery(api.composioEnhanced.getObservability, { adminToken, period });
-  const toolkits = useQuery(api.composioEnhanced.getPopularToolkits, {});
-  const triggers = useQuery(api.composioEnhanced.listTriggers, { adminToken });
-  const triggerEvents = useQuery(api.composioEnhanced.getTriggerEvents, { adminToken, limit: 20 });
-  const webhooks = useQuery(api.composioEnhanced.listWebhooks, { adminToken });
-  const customTools = useQuery(api.composioEnhanced.listCustomTools, { adminToken });
-  const sessions = useQuery(api.composioEnhanced.listSessions, { adminToken });
-  const toolkitDetails = useQuery(api.composioEnhanced.getToolkitDetails, { adminToken });
+  const { data: stats } = useSuspenseQuery(convexQuery(api.composioEnhanced.getToolCatalogStats, { adminToken }));
+  const { data: observability } = useSuspenseQuery(convexQuery(api.composioEnhanced.getObservability, { adminToken, period }));
+  const { data: toolkits } = useSuspenseQuery(convexQuery(api.composioEnhanced.getPopularToolkits, {}));
+  const { data: triggers } = useSuspenseQuery(convexQuery(api.composioEnhanced.listTriggers, { adminToken }));
+  const { data: triggerEvents } = useSuspenseQuery(convexQuery(api.composioEnhanced.getTriggerEvents, { adminToken, limit: 20 }));
+  const { data: webhooks } = useSuspenseQuery(convexQuery(api.composioEnhanced.listWebhooks, { adminToken }));
+  const { data: customTools } = useSuspenseQuery(convexQuery(api.composioEnhanced.listCustomTools, { adminToken }));
+  const { data: sessions } = useSuspenseQuery(convexQuery(api.composioEnhanced.listSessions, { adminToken }));
+  const { data: toolkitDetails } = useSuspenseQuery(convexQuery(api.composioEnhanced.getToolkitDetails, { adminToken }));
   const executeTool = useAction(api.composioEnhanced.executeToolByName);
 
   const toggleTrigger = useMutation(api.composioEnhanced.toggleTrigger);

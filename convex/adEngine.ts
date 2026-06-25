@@ -100,6 +100,8 @@ export const toggleAutoPost = mutation({
 // CAMPAIGN MANAGEMENT
 // ═══════════════════════════════════════════════════════════════════
 
+const SUPPORTED_PLATFORMS = ["x", "linkedin", "facebook", "instagram", "tiktok", "youtube", "pinterest", "reddit", "threads", "discord", "bluesky"];
+
 export const createCampaign = mutation({
   args: {
     name: v.string(),
@@ -116,6 +118,24 @@ export const createCampaign = mutation({
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
+
+    // Validate platform
+    if (!SUPPORTED_PLATFORMS.includes(args.platform)) {
+      throw new Error(`Invalid platform: ${args.platform}. Supported: ${SUPPORTED_PLATFORMS.join(", ")}`);
+    }
+
+    // Validate budget amounts
+    if (args.budget !== undefined && args.budget < 0) {
+      throw new Error("Budget cannot be negative");
+    }
+    if (args.dailyBudget !== undefined && args.dailyBudget < 0) {
+      throw new Error("Daily budget cannot be negative");
+    }
+
+    // Validate dates
+    if (args.endDate !== undefined && args.endDate < args.startDate) {
+      throw new Error("End date must be after start date");
+    }
 
     const campaignId = await ctx.db.insert("ad_campaigns", {
       name: args.name,
@@ -327,39 +347,148 @@ export const deleteAd = mutation({
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// FLYER GENERATION (AI-assisted — lightweight, deterministic)
+// FLYER GENERATION (AI-assisted — enhanced with multiple variants)
 // ═══════════════════════════════════════════════════════════════════
+
+const HEADLINE_TEMPLATES = [
+  "Don't Miss Out: {topic}",
+  "Transform Your {topic} Today",
+  "The Secret to Better {topic}",
+  "{topic} — Revolutionized",
+  "Unlock the Power of {topic}",
+];
+
+const CTA_OPTIONS = [
+  "Learn More →", "Get Started Now", "Try Free Today", "Discover More",
+  "See How It Works", "Start Your Journey", "Join Now", "Explore Now",
+];
+
+const COLOR_SCHEMES = [
+  { primary: "#1e3a8a", secondary: "#3b82f6", accent: "#f59e0b" },
+  { primary: "#059669", secondary: "#10b981", accent: "#f97316" },
+  { primary: "#dc2626", secondary: "#ef4444", accent: "#06b6d4" },
+  { primary: "#7c3aed", secondary: "#8b5cf6", accent: "#ec4899" },
+  { primary: "#ea580c", secondary: "#f97316", accent: "#8b5cf6" },
+];
 
 export const generateFlyer = action({
   args: {
     prompt: v.string(),
     style: v.optional(v.string()),
     colorScheme: v.optional(v.string()),
+    platform: v.optional(v.string()),
+    variants: v.optional(v.number()),
     adminToken: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{ flyerId: any; headline: string; body: string; cta: string; colorScheme: string }> => {
+  handler: async (ctx, args): Promise<{ flyers: Array<{ flyerId: any; headline: string; body: string; cta: string; colorScheme: any; imageUrl?: string }>; count: number }> => {
     const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
 
-    // Generate copy based on prompt (deterministic, no external API call needed)
-    const words = args.prompt.split(" ").filter(Boolean);
-    const headline = words.slice(0, 5).join(" ") || "Amazing Offer";
-    const body = args.prompt.length > 100 ? args.prompt.substring(0, 200) : args.prompt;
-    const cta = "Learn More →";
-    const colorScheme = args.colorScheme || ["#1e3a8a", "#059669", "#dc2626", "#7c3aed"][words.length % 4];
+    const variantCount = Math.min(args.variants || 3, 5);
+    const flyers: Array<{ flyerId: any; headline: string; body: string; cta: string; colorScheme: any; imageUrl?: string }> = [];
 
-    const flyerId = await ctx.runMutation(internal.adEngine.saveFlyerRecord, {
-      prompt: args.prompt,
-      style: args.style || "modern",
-      colorScheme,
-      headline,
-      body,
-      cta,
-    });
+    for (let i = 0; i < variantCount; i++) {
+      // Generate unique headline for each variant
+      const template = HEADLINE_TEMPLATES[i % HEADLINE_TEMPLATES.length];
+      const topic = args.prompt.split(" ").slice(0, 3).join(" ");
+      const headline = template.replace("{topic}", topic);
 
-    return { flyerId, headline, body, cta, colorScheme };
+      // Generate body copy with platform-specific length
+      let body = args.prompt;
+      if (args.platform === "x" || args.platform === "threads") {
+        body = args.prompt.substring(0, 200);
+      } else if (args.platform === "linkedin") {
+        body = args.prompt.substring(0, 300);
+      }
+
+      // Select CTA and color scheme
+      const cta = CTA_OPTIONS[i % CTA_OPTIONS.length];
+      const colorScheme = args.colorScheme 
+        ? { primary: args.colorScheme, secondary: args.colorScheme, accent: args.colorScheme }
+        : COLOR_SCHEMES[i % COLOR_SCHEMES.length];
+
+      const flyerId = await ctx.runMutation(internal.adEngine.saveFlyerRecord, {
+        prompt: args.prompt,
+        style: args.style || "modern",
+        colorScheme: JSON.stringify(colorScheme),
+        headline,
+        body,
+        cta,
+        variantIndex: i,
+        platform: args.platform || "universal",
+      });
+
+      flyers.push({ flyerId, headline, body, cta, colorScheme });
+    }
+
+    return { flyers, count: flyers.length };
   },
 });
+
+export const generateSmartFlyer = action({
+  args: {
+    adminToken: v.string(),
+    campaignId: v.id("ad_campaigns"),
+    platform: v.string(),
+    goal: v.optional(v.string()),
+    targetAudience: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
+    if (!session) return { authError: true };
+
+    // Get campaign details
+    const campaign = await ctx.runQuery(internal.adEngine.getCampaignById, { campaignId: args.campaignId });
+    if (!campaign) return { error: "Campaign not found" };
+
+    // Get platform-specific best practices
+    const platformTips = getPlatformTips(args.platform);
+
+    // Generate smart prompt based on campaign context
+    const smartPrompt = `Create a ${args.platform} ad for: ${campaign.name || "campaign"}.
+Goal: ${args.goal || campaign.goals || "drive engagement"}.
+Target: ${args.targetAudience || campaign.targetAudience || "general audience"}.
+${platformTips}`;
+
+    // Generate multiple variants
+    const result = await ctx.runAction(internal.adEngine.generateFlyer, {
+      prompt: smartPrompt,
+      platform: args.platform,
+      variants: 3,
+      adminToken: args.adminToken,
+    });
+
+    return {
+      success: true,
+      flyers: result.flyers,
+      platformTips,
+      campaignName: campaign.name,
+    };
+  },
+});
+
+export const getCampaignById = internalQuery({
+  args: { campaignId: v.id("ad_campaigns") },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    return await ctx.db.get("ad_campaigns", args.campaignId);
+  },
+});
+
+function getPlatformTips(platform: string): string {
+  const tips: Record<string, string> = {
+    x: "Keep it under 280 characters. Use hashtags sparingly. Include a compelling image.",
+    linkedin: "Professional tone. Use bullet points. Include industry insights.",
+    facebook: "Tell a story. Use emojis. Ask questions to drive engagement.",
+    instagram: "Visual-first. Use relevant hashtags. Create carousel posts.",
+    tiktok: "Short, punchy hooks. Trending sounds. Authentic feel.",
+    youtube: "Eye-catching thumbnail. Clear value proposition in first 5 seconds.",
+    pinterest: "Vertical images. Text overlay. How-to content performs well.",
+    threads: "Conversational tone. Join trending conversations. Be authentic.",
+  };
+  return tips[platform] || "Create compelling, platform-appropriate content.";
+}
 
 export const saveFlyerRecord = internalMutation({
   args: {
@@ -408,12 +537,15 @@ export const executeAdPost = action({
     const identity = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!identity) return { success: false, error: "Not authenticated" };
 
-    const ad: any = await ctx.runQuery(internal.adEngine.getAdById, { adId: args.adId });
+    const ad = await ctx.runQuery(internal.adEngine.getAdById, { adId: args.adId });
     if (!ad) return { success: false, error: "Ad not found" };
     if (ad.status === "posted") return { success: false, error: "Ad already posted" };
 
-    // Look up connection from existing platform_connections (no Postiz)
-    const conn: any = await ctx.runQuery(internal.adEngine.getConnectionForAd, { platform: ad.platform });
+    // Look up connection using the authenticated admin's ID
+    const conn = await ctx.runQuery(internal.adEngine.getConnectionForAd, { 
+      platform: ad.platform, 
+      adminId: identity._id 
+    });
     if (!conn || !conn.isConnected || !conn.accessToken) {
       await ctx.runMutation(internal.adEngine.markAdFailed, {
         adId: args.adId,
@@ -423,7 +555,7 @@ export const executeAdPost = action({
     }
 
     try {
-      const result: any = await ctx.runAction(internal.autoPosting.postToOnePlatform, {
+      const result = await ctx.runAction(internal.autoPosting.postToOnePlatform, {
         platform: ad.platform,
         accessToken: conn.accessToken,
         content: ad.content,
@@ -464,12 +596,21 @@ export const getAdById = internalQuery({
 });
 
 export const getConnectionForAd = internalQuery({
-  args: { platform: v.string() },
+  args: { platform: v.string(), adminId: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const targetAdmin = args.adminId || "system";
+    let conn = await ctx.db
       .query("platform_connections")
-      .withIndex("by_admin_platform", (q) => q.eq("adminId", "system").eq("platformId", args.platform))
+      .withIndex("by_admin_platform", (q) => q.eq("adminId", targetAdmin).eq("platformId", args.platform))
       .first();
+    // Fallback to system if no connection found for specified admin
+    if (!conn && targetAdmin !== "system") {
+      conn = await ctx.db
+        .query("platform_connections")
+        .withIndex("by_admin_platform", (q) => q.eq("adminId", "system").eq("platformId", args.platform))
+        .first();
+    }
+    return conn;
   },
 });
 
@@ -505,58 +646,49 @@ export const getDueAds = internalQuery({
 
 export const processScheduledAds = internalAction({
   args: {},
-  handler: async (ctx): Promise<{ processed: number; results: Array<any> }> => {
+  handler: async (ctx): Promise<{ processed: number; results: Array<{ adId: string; success: boolean; error?: string; postId?: string }> }> => {
     const due = await ctx.runQuery(internal.adEngine.getDueAds);
-    const results: Array<any> = [];
+    const results: Array<{ adId: string; success: boolean; error?: string; postId?: string }> = [];
+    
     for (const ad of due) {
-      const result: any = await ctx.runAction(internal.adEngine.executeAdInternal, { adId: ad._id });
-      results.push({ adId: ad._id, ...result });
+      const conn = await ctx.runQuery(internal.adEngine.getConnectionForAd, { platform: ad.platform });
+      if (!conn || !conn.isConnected || !conn.accessToken) {
+        await ctx.runMutation(internal.adEngine.markAdFailed, {
+          adId: ad._id,
+          error: `Platform ${ad.platform} not connected`,
+        });
+        results.push({ adId: ad._id, success: false, error: "not connected" });
+        continue;
+      }
+
+      try {
+        const result = await ctx.runAction(internal.autoPosting.postToOnePlatform, {
+          platform: ad.platform,
+          accessToken: conn.accessToken,
+          content: ad.content,
+        });
+        if (result.success) {
+          await ctx.runMutation(internal.adEngine.markAdPosted, {
+            adId: ad._id,
+            externalId: result.postId,
+          });
+          results.push({ adId: ad._id, success: true, postId: result.postId });
+        } else {
+          await ctx.runMutation(internal.adEngine.markAdFailed, {
+            adId: ad._id,
+            error: result.error,
+          });
+          results.push({ adId: ad._id, success: false, error: result.error });
+        }
+      } catch (err: any) {
+        await ctx.runMutation(internal.adEngine.markAdFailed, {
+          adId: ad._id,
+          error: err?.message || String(err),
+        });
+        results.push({ adId: ad._id, success: false, error: err?.message });
+      }
     }
     return { processed: results.length, results };
-  },
-});
-
-export const executeAdInternal = internalAction({
-  args: { adId: v.id("ad_ads") },
-  handler: async (ctx, args): Promise<{ success: boolean; error?: string; postId?: string }> => {
-    const ad: any = await ctx.runQuery(internal.adEngine.getAdById, { adId: args.adId });
-    if (!ad) return { success: false, error: "Ad not found" };
-
-    const conn: any = await ctx.runQuery(internal.adEngine.getConnectionForAd, { platform: ad.platform });
-    if (!conn || !conn.isConnected || !conn.accessToken) {
-      await ctx.runMutation(internal.adEngine.markAdFailed, {
-        adId: args.adId,
-        error: `Platform ${ad.platform} not connected`,
-      });
-      return { success: false, error: "not connected" };
-    }
-
-    try {
-      const result: any = await ctx.runAction(internal.autoPosting.postToOnePlatform, {
-        platform: ad.platform,
-        accessToken: conn.accessToken,
-        content: ad.content,
-      });
-      if (result.success) {
-        await ctx.runMutation(internal.adEngine.markAdPosted, {
-          adId: args.adId,
-          externalId: result.postId,
-        });
-        return { success: true, postId: result.postId };
-      } else {
-        await ctx.runMutation(internal.adEngine.markAdFailed, {
-          adId: args.adId,
-          error: result.error,
-        });
-        return { success: false, error: result.error };
-      }
-    } catch (err: any) {
-      await ctx.runMutation(internal.adEngine.markAdFailed, {
-        adId: args.adId,
-        error: err?.message || String(err),
-      });
-      return { success: false, error: err?.message };
-    }
   },
 });
 
@@ -594,20 +726,45 @@ export const getAdAnalytics = query({
   },
 });
 
+const IMPRESSION_RATE_LIMIT_MS = 1000; // 1 second between impressions from same source
+const CLICK_RATE_LIMIT_MS = 5000; // 5 seconds between clicks from same source
+
 export const recordAdImpression = mutation({
-  args: { adId: v.id("ad_ads") },
+  args: { adId: v.id("ad_ads"), source: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const ad = await ctx.db.get("ad_ads", args.adId);
-    if (!ad) return;
-    await ctx.db.patch("ad_ads", args.adId, { impressions: (ad.impressions || 0) + 1 });
+    if (!ad) return { success: false, error: "Ad not found" };
+
+    // Rate limit check using ad's lastImpressionAt field
+    const now = Date.now();
+    if (ad.lastImpressionAt && (now - ad.lastImpressionAt) < IMPRESSION_RATE_LIMIT_MS) {
+      return { success: false, error: "Rate limited" };
+    }
+
+    await ctx.db.patch("ad_ads", args.adId, { 
+      impressions: (ad.impressions || 0) + 1,
+      lastImpressionAt: now,
+    });
+    return { success: true };
   },
 });
 
 export const recordAdClick = mutation({
-  args: { adId: v.id("ad_ads") },
+  args: { adId: v.id("ad_ads"), source: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const ad = await ctx.db.get("ad_ads", args.adId);
-    if (!ad) return;
-    await ctx.db.patch("ad_ads", args.adId, { clicks: (ad.clicks || 0) + 1 });
+    if (!ad) return { success: false, error: "Ad not found" };
+
+    // Rate limit check using ad's lastClickAt field
+    const now = Date.now();
+    if (ad.lastClickAt && (now - ad.lastClickAt) < CLICK_RATE_LIMIT_MS) {
+      return { success: false, error: "Rate limited" };
+    }
+
+    await ctx.db.patch("ad_ads", args.adId, { 
+      clicks: (ad.clicks || 0) + 1,
+      lastClickAt: now,
+    });
+    return { success: true };
   },
 });

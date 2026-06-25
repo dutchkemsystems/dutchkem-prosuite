@@ -3,7 +3,7 @@
 // Additive: reads from existing agent_reviews table
 
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
 
@@ -39,9 +39,7 @@ const FALLBACK_STORIES = [
 ];
 
 export function SuccessStoriesRotator({ intervalMs = 6000 }: { intervalMs?: number }) {
-  const { data } = useQuery({
-    ...convexQuery(api.socialProof.getAgentReviews, { agentId: "all", limit: 20 }),
-  });
+  const { data } = useSuspenseQuery(convexQuery(api.socialProof.getAgentReviews, { agentId: "all", limit: 20 }));
 
   const dataTyped = data as any;
   const reviews = dataTyped?.reviews || [];
@@ -118,9 +116,7 @@ export function SuccessStoriesRotator({ intervalMs = 6000 }: { intervalMs?: numb
 }
 
 export function JoinCounter({ baseCount = 10000 }: { baseCount?: number }) {
-  const { data } = useQuery({
-    ...convexQuery(api.socialProof.getActivityStats, {}),
-  });
+  const { data } = useSuspenseQuery(convexQuery(api.socialProof.getActivityStats, {}));
 
   const dataTyped2 = data as any;
   const monthUsers = dataTyped2?.usedThisMonth ? parseInt(String(dataTyped2.usedThisMonth).replace(/\D/g, ""), 10) || 0 : 0;

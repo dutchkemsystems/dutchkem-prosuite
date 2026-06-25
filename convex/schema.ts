@@ -513,6 +513,8 @@ export default defineSchema({
     impressions: v.number(),
     clicks: v.number(),
     engagements: v.number(),
+    lastImpressionAt: v.optional(v.number()),
+    lastClickAt: v.optional(v.number()),
     createdAt: v.number(),
   }).index("by_campaign", ["campaignId"])
     .index("by_status", ["status"])
@@ -545,7 +547,9 @@ export default defineSchema({
     spend: v.number(),
   }).index("by_ad", ["adId"])
     .index("by_campaign", ["campaignId"])
-    .index("by_date", ["date"]),
+    .index("by_date", ["date"])
+    .index("by_ad_date", ["adId", "date"])
+    .index("by_campaign_date", ["campaignId", "date"]),
 
   // ═══════════════════════════════════════════════════════════════════
   // AD AUTOMATION — Enterprise-Grade Campaign Management
@@ -559,11 +563,32 @@ export default defineSchema({
     currentDailyBudget: v.number(),
     priority: v.number(), // 1=highest — budget shifts here first
     autoOptimize: v.boolean(),
+    alertThresholdPercent: v.optional(v.number()), // e.g., 80 = alert at 80% spend
     lastOptimizedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_campaign", ["campaignId"])
     .index("by_platform", ["platform"]),
+
+  ad_budget_alerts: defineTable({
+    campaignId: v.id("ad_campaigns"),
+    platform: v.string(),
+    ruleId: v.id("ad_budget_rules"),
+    alertType: v.union(
+      v.literal("threshold_reached"),
+      v.literal("budget_exceeded"),
+      v.literal("auto_paused"),
+      v.literal("optimization_applied")
+    ),
+    message: v.string(),
+    currentSpend: v.number(),
+    budgetLimit: v.number(),
+    percentUsed: v.number(),
+    acknowledged: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_campaign", ["campaignId"])
+    .index("by_acknowledged", ["acknowledged"])
+    .index("by_createdAt", ["createdAt"]),
 
   ad_ab_tests: defineTable({
     campaignId: v.id("ad_campaigns"),
@@ -696,7 +721,8 @@ export default defineSchema({
     platformBreakdown: v.any(), // { linkedin: { impressions, clicks, spend }, ... }
     createdAt: v.number(),
   }).index("by_campaign", ["campaignId"])
-    .index("by_date", ["date"]),
+    .index("by_date", ["date"])
+    .index("by_campaign_date", ["campaignId", "date"]),
 
   // ═══════════════════════════════════════════════════════════════════
   // AD ORCHESTRATOR — Unified automation system tables
@@ -742,6 +768,133 @@ export default defineSchema({
     timestamp: v.number(),
   }).index("by_timestamp", ["timestamp"])
     .index("by_content", ["contentId"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // CONVERSION TRACKING — UTM parameters and conversion events
+  // ═══════════════════════════════════════════════════════════════════
+
+  ad_tracking_urls: defineTable({
+    adId: v.id("ad_ads"),
+    campaignId: v.id("ad_campaigns"),
+    platform: v.string(),
+    destinationUrl: v.string(),
+    trackingUrl: v.string(),
+    utmParams: v.object({
+      source: v.string(),
+      medium: v.string(),
+      campaign: v.string(),
+      content: v.string(),
+      term: v.string(),
+    }),
+    clicks: v.number(),
+    conversions: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_ad", ["adId"])
+    .index("by_campaign", ["campaignId"]),
+
+  ad_conversions: defineTable({
+    adId: v.id("ad_ads"),
+    campaignId: v.id("ad_campaigns"),
+    platform: v.string(),
+    conversionType: v.union(v.literal("click"), v.literal("lead"), v.literal("signup"), v.literal("purchase"), v.literal("custom")),
+    value: v.number(),
+    currency: v.string(),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+  }).index("by_ad", ["adId"])
+    .index("by_campaign", ["campaignId"])
+    .index("by_type", ["conversionType"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SCHEDULING INTELLIGENCE — Best time to post analysis
+  // ═══════════════════════════════════════════════════════════════════
+
+  ad_scheduling_recommendations: defineTable({
+    campaignId: v.id("ad_campaigns"),
+    platform: v.string(),
+    recommendations: v.array(v.object({
+      hour: v.number(),
+      day: v.number(),
+      dayName: v.string(),
+      score: v.number(),
+      historicalCTR: v.number(),
+      platformDefault: v.number(),
+      recommendation: v.string(),
+      localTime: v.string(),
+      timezone: v.string(),
+    })),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_campaign", ["campaignId"])
+    .index("by_campaign_platform", ["campaignId", "platform"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // WEBHOOKS — Real-time analytics from platforms
+  // ═══════════════════════════════════════════════════════════════════
+
+  ad_webhook_configs: defineTable({
+    platform: v.string(),
+    campaignId: v.id("ad_campaigns"),
+    callbackUrl: v.string(),
+    events: v.array(v.string()),
+    secret: v.string(),
+    isActive: v.boolean(),
+    lastReceivedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_platform_campaign", ["platform", "campaignId"]),
+
+  ad_webhook_events: defineTable({
+    platform: v.string(),
+    eventType: v.string(),
+    data: v.any(),
+    resourceId: v.optional(v.string()),
+    processedAt: v.number(),
+    createdAt: v.number(),
+  }).index("by_platform", ["platform"])
+    .index("by_eventType", ["eventType"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ALERTS — Email/Push notifications
+  // ═══════════════════════════════════════════════════════════════════
+
+  ad_alert_emails: defineTable({
+    campaignId: v.id("ad_campaigns"),
+    platform: v.string(),
+    alertType: v.string(),
+    email: v.string(),
+    subject: v.string(),
+    resendId: v.optional(v.string()),
+    sentAt: v.number(),
+    createdAt: v.number(),
+  }).index("by_campaign", ["campaignId"])
+    .index("by_sentAt", ["sentAt"]),
+
+  ad_alert_preferences: defineTable({
+    userId: v.string(),
+    emailEnabled: v.boolean(),
+    pushEnabled: v.boolean(),
+    thresholdPercent: v.number(),
+    quietHoursStart: v.optional(v.number()),
+    quietHoursEnd: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // BATCH OPERATIONS — Bulk ad scheduling and import/export
+  // ═══════════════════════════════════════════════════════════════════
+
+  ad_batch_operations: defineTable({
+    campaignId: v.id("ad_campaigns"),
+    totalAds: v.number(),
+    successCount: v.number(),
+    failCount: v.number(),
+    results: v.array(v.any()),
+    operatedBy: v.string(),
+    createdAt: v.number(),
+  }).index("by_campaign", ["campaignId"]),
 
   // ═══════════════════════════════════════════════════════════════════
   // KYC VERIFICATION — Mandatory before any client payout
@@ -4449,6 +4602,15 @@ export default defineSchema({
   }).index("by_story", ["storyId"])
     .index("by_status", ["status"]),
 
+  video_backups: defineTable({
+    backupId: v.string(),
+    productionCount: v.number(),
+    totalSize: v.number(),
+    status: v.union(v.literal("completed"), v.literal("failed")),
+    createdAt: v.number(),
+  }).index("by_backupId", ["backupId"])
+    .index("by_created", ["createdAt"]),
+
   // ═══════════════════════════════════════════════════════════════
   // ENTERPRISE BILLING SYSTEM
   // ═══════════════════════════════════════════════════════════════
@@ -4623,4 +4785,139 @@ export default defineSchema({
   }).index("by_cron_job", ["cronJobId"])
     .index("by_status", ["status"])
     .index("by_started_at", ["startedAt"]),
+
+  products: defineTable({
+    name: v.string(),
+    description: v.string(),
+    price: v.number(),
+    currency: v.optional(v.string()),
+    category: v.string(),
+    productType: v.string(),
+    imageUrl: v.optional(v.string()),
+    stock: v.optional(v.number()),
+    salesCount: v.optional(v.number()),
+    isPublished: v.optional(v.boolean()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_category", ["category"]),
+
+  appointment_slots: defineTable({
+    title: v.string(),
+    description: v.optional(v.string()),
+    date: v.string(),
+    startTime: v.string(),
+    endTime: v.string(),
+    durationMinutes: v.number(),
+    maxBookings: v.number(),
+    currentBookings: v.number(),
+    location: v.string(),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_date", ["date"]).index("by_active", ["isActive"]),
+
+  appointment_bookings: defineTable({
+    slotId: v.id("appointment_slots"),
+    clientName: v.string(),
+    clientEmail: v.string(),
+    clientPhone: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    date: v.string(),
+    startTime: v.string(),
+    endTime: v.string(),
+    location: v.string(),
+    status: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
+  }).index("by_date", ["date"]).index("by_slot", ["slotId"]),
+
+  sms_campaigns: defineTable({
+    name: v.string(),
+    message: v.string(),
+    messageVariantB: v.optional(v.string()),
+    recipients: v.array(v.string()),
+    recipientCount: v.number(),
+    scheduledTime: v.optional(v.string()),
+    status: v.string(),
+    isAbTest: v.optional(v.boolean()),
+    splitPercentage: v.optional(v.number()),
+    sentCount: v.number(),
+    deliveredCount: v.number(),
+    failedCount: v.number(),
+    clickCount: v.number(),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  }),
+
+  email_campaigns: defineTable({
+    name: v.string(),
+    subject: v.string(),
+    body: v.string(),
+    recipients: v.array(v.string()),
+    recipientCount: v.number(),
+    scheduledTime: v.optional(v.string()),
+    status: v.string(),
+    campaignType: v.optional(v.string()),
+    sentCount: v.number(),
+    openCount: v.number(),
+    clickCount: v.number(),
+    bounceCount: v.number(),
+    createdAt: v.number(),
+  }),
+
+  business_hours: defineTable({
+    schedule: v.any(),
+    timezone: v.string(),
+    closedMessage: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }),
+
+  customers: defineTable({
+    name: v.string(),
+    email: v.string(),
+    phone: v.optional(v.string()),
+    shippingAddress: v.optional(v.string()),
+    totalOrders: v.number(),
+    totalSpent: v.number(),
+    lastOrderAt: v.number(),
+    loyaltyPoints: v.number(),
+    tags: v.array(v.string()),
+    notes: v.optional(v.string()),
+    source: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_email", ["email"]).index("by_name", ["name"]),
+
+  orders: defineTable({
+    orderNumber: v.string(),
+    customerId: v.id("customers"),
+    customerName: v.string(),
+    customerEmail: v.string(),
+    customerPhone: v.optional(v.string()),
+    items: v.array(v.object({
+      productId: v.optional(v.string()),
+      name: v.string(),
+      quantity: v.number(),
+      unitPrice: v.number(),
+    })),
+    itemCount: v.number(),
+    subtotal: v.number(),
+    tax: v.number(),
+    discount: v.number(),
+    total: v.number(),
+    currency: v.string(),
+    shippingAddress: v.optional(v.string()),
+    status: v.string(),
+    paymentStatus: v.string(),
+    fulfillmentStatus: v.string(),
+    notes: v.optional(v.string()),
+    timeline: v.array(v.object({
+      status: v.string(),
+      note: v.string(),
+      timestamp: v.number(),
+    })),
+    cancelledAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_status", ["status"]).index("by_customer", ["customerId"]).index("by_order_number", ["orderNumber"]),
 });

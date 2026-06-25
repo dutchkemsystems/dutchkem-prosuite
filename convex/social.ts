@@ -375,14 +375,6 @@ export async function postToPlatformHandler(ctx: any, args: any): Promise<any> {
     adminId,
   });
   
-  // If no connection found for this admin, try the known connected admin
-  if (!connection || !connection.isConnected) {
-    connection = await ctx.runQuery(internal.social.getConnectionForPlatform, {
-      platform: args.platform,
-      adminId: "qs78rg7f0atw8s794tpwqnndnn87g9f5",
-    });
-  }
-  
   // Final fallback: try system
   if (!connection || !connection.isConnected) {
     connection = await ctx.runQuery(internal.social.getConnectionForPlatform, {
@@ -482,15 +474,10 @@ export const getConnectedPlatforms = action({
     
     let dbPlatforms: any = await ctx.runQuery(internal.social.getPlatformsFromDb, { adminId });
     
-    // If no connections found for this admin, try all connections
+    // If no connections found for this admin, try system
     const connectedCount = dbPlatforms.filter((p: any) => p.isConnected).length;
     if (connectedCount === 0) {
       dbPlatforms = await ctx.runQuery(internal.social.getPlatformsFromDb, { adminId: "system" });
-      const systemCount = dbPlatforms.filter((p: any) => p.isConnected).length;
-      if (systemCount === 0) {
-        // Try with the known admin ID from diagnostics
-        dbPlatforms = await ctx.runQuery(internal.social.getPlatformsFromDb, { adminId: "qs78rg7f0atw8s794tpwqnndnn87g9f5" });
-      }
     }
     
     return {

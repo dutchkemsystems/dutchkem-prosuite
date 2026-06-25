@@ -9,10 +9,11 @@ import { internal } from "./_generated/api";
 // ═══════════════════════════════════════════════════════════════════
 // TEMPLATE CONFIG — what to post for each trigger
 // ═══════════════════════════════════════════════════════════════════
-const TRIGGER_TEMPLATES: Record<string, { template: string; platforms: Array<string> }> = {
+const TRIGGER_TEMPLATES: Record<string, { template: string; platforms: Array<string>; imageUrl?: string }> = {
   registration: {
     template: "🎉 Welcome {userName} to Dutchkem Pro Suite! They've just unlocked AI-powered agents for business, finance, content, and more. #NewUser #AI",
     platforms: ["x", "linkedin", "facebook"],
+    imageUrl: "https://dutchkem-prosuite-app.vercel.app/social/welcome-banner.png",
   },
   project_completed: {
     template: "✅ New success story: {userName} just completed a project with the {agentName} agent. Output delivered, client happy. #Success #AIAgents",
@@ -29,6 +30,7 @@ const TRIGGER_TEMPLATES: Record<string, { template: string; platforms: Array<str
   flash_sale: {
     template: "🔥 FLASH SALE LIVE: {saleName} — limited time only. Don't miss out on premium AI agents at unbeatable prices. #FlashSale #LimitedTime",
     platforms: ["x", "linkedin", "facebook", "instagram", "tiktok"],
+    imageUrl: "https://dutchkem-prosuite-app.vercel.app/social/flash-sale-banner.png",
   },
   payment_completed: {
     template: "💳 New subscription: {userName} just upgraded to {planName}. Welcome to the next level of AI productivity. #NewSubscriber",
@@ -39,14 +41,14 @@ const TRIGGER_TEMPLATES: Record<string, { template: string; platforms: Array<str
 // ═══════════════════════════════════════════════════════════════════
 // INTERNAL: Build a post from a trigger
 // ═══════════════════════════════════════════════════════════════════
-function buildPost(trigger: string, vars: Record<string, string>): { content: string; platforms: Array<string> } | null {
+function buildPost(trigger: string, vars: Record<string, string>): { content: string; platforms: Array<string>; imageUrl?: string } | null {
   const tpl = TRIGGER_TEMPLATES[trigger];
   if (!tpl) return null;
   let content = tpl.template;
   for (const [key, val] of Object.entries(vars)) {
-    content = content.replace(new RegExp(`{${key}}`, "g"), val);
+    content = content.replace(new RegExp(`\\{${key}\\}`, "g"), val);
   }
-  return { content, platforms: tpl.platforms };
+  return { content, platforms: tpl.platforms, imageUrl: tpl.imageUrl };
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -110,6 +112,7 @@ export const fireAutoPost = internalAction({
           platform: conn.platformId,
           accessToken: conn.accessToken,
           content: post.content,
+          imageUrl: post.imageUrl,
         });
 
         await ctx.runMutation(internal.autoPosting.logAutoPost, {
@@ -147,6 +150,8 @@ export const postToOnePlatform = internalAction({
     platform: v.string(),
     accessToken: v.string(),
     content: v.string(),
+    imageUrl: v.optional(v.string()),
+    channelId: v.optional(v.string()),
   },
   handler: async (_ctx, args): Promise<{ success: boolean; postId?: string; error?: string }> => {
     try {
@@ -186,6 +191,69 @@ export const postToOnePlatform = internalAction({
           res = await fetch(`https://graph.facebook.com/v19.0/me/feed?message=${encodeURIComponent(content)}&access_token=${accessToken}`, { method: "POST" });
           data = await res.json();
           return res.ok ? { success: true, postId: data.id } : { success: false, error: data.error?.message || "Facebook post failed" };
+        case "instagram":
+          // Instagram requires an image URL
+          const instagramImageUrl = args.imageUrl || content;
+          res = await fetch(`https://graph.facebook.com/v19.0/me/media?image_url=${encodeURIComponent(instagramImageUrl)}&access_token=${accessToken}`, { method: "POST" });
+          data = await res.json();
+          if (!data.id) return { success: false, error: data.error?.message || "Instagram media creation failed" };
+          const containerId = data.id;
+          res = await fetch(`https://graph.facebook.com/v19.0/me/media_publish?creation_id=${containerId}&access_token=${accessToken}`, { method: "POST" });
+          data = await res.json();
+          return res.ok ? { success: true, postId: data.id } : { success: false, error: data.error?.message || "Instagram publish failed" };
+        case "youtube":
+          return { success: false, error: "YouTube posting requires video content. Use the video production agent." };
+        case "tiktok":
+          res = await fetch("https://open.tiktokapis.com/v2/post/publish/inbox/video/init/", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ post_info: { title: content.substring(0, 150), privacy_level: "PUBLIC_TO_EVERYONE" }, source_info: { source: "FILE_UPLOAD" } }),
+          });
+          data = await res.json();
+          return data.data?.upload_url ? { success: true, postId: data.data?.publish_id || "tiktok_init" } : { success: false, error: data.meta?.error_message || "TikTok init failed" };
+        case "pinterest":
+          res = await fetch("https://api.pinterest.com/v5/pins", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ title: content.substring(0, 100), description: content, board_id: "me", link: "" }),
+          });
+          data = await res.json();
+          return res.ok ? { success: true, postId: data.id } : { success: false, error: data.message || "Pinterest post failed" };
+        case "threads":
+          res = await fetch("https://graph.threads.net/v1.0/me/threads", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ media_type: "TEXT", text: content }),
+          });
+          data = await res.json();
+          if (!data.id) return { success: false, error: data.error?.message || "Threads container failed" };
+          res = await fetch(`https://graph.threads.net/v1.0/${data.id}/publish`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          data = await res.json();
+          return data.id ? { success: true, postId: data.id } : { success: false, error: data.error?.message || "Threads publish failed" };
+        case "bluesky":
+          const [identifier, appPassword] = accessToken.split(":");
+          if (!identifier || !appPassword) return { success: false, error: "Bluesky requires identifier:appPassword format" };
+          res = await fetch("https://bsky.social/xrpc/com.atproto.server.createSession", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier, password: appPassword }),
+          });
+          data = await res.json();
+          if (!data.accessJwt) return { success: false, error: "Bluesky auth failed" };
+          res = await fetch("https://bsky.social/xrpc/com.atproto.repo.createRecord", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${data.accessJwt}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              repo: data.did,
+              collection: "app.bsky.feed.post",
+              record: { text: content, createdAt: new Date().toISOString(), $type: "app.bsky.feed.post" },
+            }),
+          });
+          data = await res.json();
+          return data.uri ? { success: true, postId: data.uri } : { success: false, error: data.error || "Bluesky post failed" };
         case "reddit":
           res = await fetch("https://oauth.reddit.com/api/submit", {
             method: "POST",
@@ -194,7 +262,8 @@ export const postToOnePlatform = internalAction({
           });
           return res.ok ? { success: true, postId: "reddit_post" } : { success: false, error: "Reddit post failed" };
         case "discord":
-          res = await fetch("https://discord.com/api/v10/channels/@me/messages", {
+          const discordChannelId = args.channelId || "general";
+          res = await fetch(`https://discord.com/api/v10/channels/${discordChannelId}/messages`, {
             method: "POST",
             headers: { Authorization: `Bot ${accessToken}`, "Content-Type": "application/json" },
             body: JSON.stringify({ content }),

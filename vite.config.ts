@@ -14,10 +14,14 @@ export default defineConfig({
     viteReact(),
   ],
   build: {
-    target: 'esnext',
+    target: 'es2015',
     minify: 'esbuild',
     sourcemap: false,
     chunkSizeWarningLimit: 1000,
     outDir: 'dist/client',
+  },
+  esbuild: {
+    target: 'es2015',
+    legalComments: 'none',
   },
 })

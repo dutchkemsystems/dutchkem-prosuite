@@ -401,7 +401,9 @@ function FacebookLeadsPanel() {
 // Feature 7: Report Builder Panel
 function ReportBuilderPanel() {
   const [reportName, setReportName] = useState("");
+  const [generating, setGenerating] = useState<string | null>(null);
   const reports = useSuspenseQuery(convexQuery(api.reports.getReports, {})) as any;
+  const triggerGenerateReport = useAction(api.reports.triggerGenerateReport);
 
   const metricTypes = ["revenue", "subscriptions", "agent_usage", "users", "performance"] as const;
 
@@ -445,10 +447,19 @@ function ReportBuilderPanel() {
                 </p>
               </div>
               <button
-                onClick={() => { /* TODO: Implement report generation via triggerGenerateReport */ alert("Report generation triggered. Check the Reports tab for results."); }}
-                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded"
+                onClick={async () => {
+                  setGenerating(report._id);
+                  try {
+                    await triggerGenerateReport({ reportId: report._id });
+                  } catch (e) {
+                    console.error("Report generation failed:", e);
+                  }
+                  setGenerating(null);
+                }}
+                disabled={generating === report._id}
+                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded disabled:opacity-50"
               >
-                Generate
+                {generating === report._id ? "Generating..." : "Generate"}
               </button>
             </div>
           ))}

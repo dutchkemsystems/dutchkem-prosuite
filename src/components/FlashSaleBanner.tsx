@@ -1,5 +1,6 @@
-﻿import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useEffect, useState } from "react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
 
 interface FlashSale {
@@ -19,7 +20,7 @@ interface Countdown {
 }
 
 export function FlashSaleBanner() {
-  const flashSales = useQuery(api.flashSales.getActiveFlashSales, {});
+  const { data: flashSales } = useSuspenseQuery(convexQuery(api.flashSales.getActiveFlashSales, {}));
   const [countdowns, setCountdowns] = useState<Record<string, Countdown>>({});
 
   useEffect(() => {

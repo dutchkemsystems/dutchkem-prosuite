@@ -2,7 +2,7 @@
 // Live activity feed for the client dashboard
 // Additive: reads from existing social_activities table
 
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
 
@@ -52,9 +52,7 @@ function timeAgo(ts: number): string {
 }
 
 export function SocialProofFeed({ limit = 10 }: { limit?: number }) {
-  const { data: activities } = useQuery({
-    ...convexQuery(api.socialProof.getRecentActivity, {}),
-  }) as { data: Array<any> };
+  const { data: activities } = useSuspenseQuery(convexQuery(api.socialProof.getRecentActivity, {}));
 
   if (!activities || activities.length === 0) {
     return (
@@ -98,11 +96,9 @@ export function SocialProofFeed({ limit = 10 }: { limit?: number }) {
 }
 
 export function ActiveViewersCounter({ agentId }: { agentId: string }) {
-  const { data } = useQuery({
-    ...convexQuery(api.socialProof.getActiveViewers, { agentId }),
-  }) as { data: any };
+  const { data } = useSuspenseQuery(convexQuery(api.socialProof.getActiveViewers, { agentId }));
 
-  const count = data?.count || 0;
+  const count = (data as any)?.count || 0;
   if (count === 0) return null;
 
   return (
@@ -117,9 +113,7 @@ export function ActiveViewersCounter({ agentId }: { agentId: string }) {
 }
 
 export function ActivityStats() {
-  const { data } = useQuery({
-    ...convexQuery(api.socialProof.getActivityStats, {}),
-  }) as { data: any };
+  const { data } = useSuspenseQuery(convexQuery(api.socialProof.getActivityStats, {}));
 
   if (!data) return null;
 

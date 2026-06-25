@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 
@@ -26,9 +28,9 @@ export function AutoHealDashboard({ adminToken }: AdminPanelProps) {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const summary = useQuery(api.auto_heal.getSummary, { adminToken });
-  const runs = useQuery(api.auto_heal.listRuns, { adminToken, limit: 25 });
-  const alerts = useQuery(api.auto_heal.listAlerts, { adminToken, dismissed: false, limit: 50 });
+  const { data: summary } = useSuspenseQuery(convexQuery(api.auto_heal.getSummary, { adminToken }));
+  const { data: runs } = useSuspenseQuery(convexQuery(api.auto_heal.listRuns, { adminToken, limit: 25 }));
+  const { data: alerts } = useSuspenseQuery(convexQuery(api.auto_heal.listAlerts, { adminToken, dismissed: false, limit: 50 }));
 
   const dismissAlert = useMutation(api.auto_heal.dismissAlert);
   const markSecretResolved = useMutation(api.auto_heal.markSecretResolved);

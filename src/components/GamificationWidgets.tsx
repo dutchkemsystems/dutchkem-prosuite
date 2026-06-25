@@ -1,5 +1,6 @@
-﻿import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useEffect, useState } from "react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 
 import { api } from "../../convex/_generated/api";
 
@@ -8,7 +9,7 @@ import { api } from "../../convex/_generated/api";
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function GamificationProfile() {
-  const profile = useQuery(api.gamification.getUserProfile, {});
+  const { data: profile } = useSuspenseQuery(convexQuery(api.gamification.getUserProfile, {}));
 
   if (!profile) return null;
 
@@ -89,8 +90,8 @@ const RARITY_COLORS = {
 };
 
 export function AchievementsList() {
-  const achievements = useQuery(api.gamification.getAchievements, {});
-  const allAchievements = useQuery(api.gamification.getAllAchievements, {});
+  const { data: achievements } = useSuspenseQuery(convexQuery(api.gamification.getAchievements, {}));
+  const { data: allAchievements } = useSuspenseQuery(convexQuery(api.gamification.getAllAchievements, {}));
 
   if (!achievements || !allAchievements) return null;
 
@@ -141,7 +142,7 @@ export function AchievementsList() {
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function PointsHistory() {
-  const history = useQuery(api.gamification.getPointHistory, { limit: 10 });
+  const { data: history } = useSuspenseQuery(convexQuery(api.gamification.getPointHistory, { limit: 10 }));
 
   if (!history || history.length === 0) return null;
 
@@ -199,7 +200,7 @@ export function PointsHistory() {
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function Leaderboard() {
-  const leaderboard = useQuery(api.gamification.getLeaderboard, { limit: 10 });
+  const { data: leaderboard } = useSuspenseQuery(convexQuery(api.gamification.getLeaderboard, { limit: 10 }));
 
   if (!leaderboard || leaderboard.length === 0) return null;
 

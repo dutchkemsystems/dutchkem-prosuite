@@ -31,6 +31,7 @@ function RootComponent() {
   const location = useLocation()
   const isDashboard = location.pathname.startsWith('/dashboard') || 
                       location.pathname.startsWith('/admin') ||
+                      location.pathname.startsWith('/enterprise') ||
                       [
                         '/academic-writer', '/business-consultant', '/content-writer', 
                         '/career-coach', '/personal-shopper', '/exam-prep', 

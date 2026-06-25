@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 import { api, internal } from "../../convex/_generated/api";
 
 type AdminPanelProps = {
@@ -79,9 +81,9 @@ export function RenewalsTithePanel({ adminToken }: AdminPanelProps) {
 }
 
 function RenewalsSection({ showToast, openPasskeyModal, adminToken }: { showToast: (t: "success" | "error", m: string) => void; openPasskeyModal: (m: any) => void; adminToken: string }) {
-  const configs: any = useQuery(api.subscription_renewal.getAllConfigs, {});
-  const history: any = useQuery(api.subscription_renewal.getRenewalHistory, { limit: 20 });
-  const stats: any = useQuery(api.subscription_renewal.getRenewalStats, {});
+  const { data: configs } = useSuspenseQuery(convexQuery(api.subscription_renewal.getAllConfigs, {}));
+  const { data: history } = useSuspenseQuery(convexQuery(api.subscription_renewal.getRenewalHistory, { limit: 20 }));
+  const { data: stats } = useSuspenseQuery(convexQuery(api.subscription_renewal.getRenewalStats, {}));
   const seedDefaults: any = useMutation(api.subscription_renewal.seedDefaultConfigsPublic);
 
   const handleSeed = async () => {
@@ -159,8 +161,8 @@ function RenewalsSection({ showToast, openPasskeyModal, adminToken }: { showToas
 }
 
 function TitheSection({ showToast, openPasskeyModal }: { showToast: (t: "success" | "error", m: string) => void; openPasskeyModal: (m: any) => void }) {
-  const history: any = useQuery(api.tithe_deductions.getTitheHistory, { limit: 30 });
-  const stats: any = useQuery(api.tithe_deductions.getTitheStats, {});
+  const { data: history } = useSuspenseQuery(convexQuery(api.tithe_deductions.getTitheHistory, { limit: 30 }));
+  const { data: stats } = useSuspenseQuery(convexQuery(api.tithe_deductions.getTitheStats, {}));
 
   return (
     <div className="space-y-4">
@@ -200,8 +202,8 @@ function TitheSection({ showToast, openPasskeyModal }: { showToast: (t: "success
 }
 
 function CACSection({ showToast, openPasskeyModal }: { showToast: (t: "success" | "error", m: string) => void; openPasskeyModal: (m: any) => void }) {
-  const history: any = useQuery(api.cac_deductions.getCacHistory, { limit: 30 });
-  const stats: any = useQuery(api.cac_deductions.getCacStats, {});
+  const { data: history } = useSuspenseQuery(convexQuery(api.cac_deductions.getCacHistory, { limit: 30 }));
+  const { data: stats } = useSuspenseQuery(convexQuery(api.cac_deductions.getCacStats, {}));
 
   return (
     <div className="space-y-4">
@@ -241,8 +243,8 @@ function CACSection({ showToast, openPasskeyModal }: { showToast: (t: "success" 
 }
 
 function ReceiptsSection({ showToast }: { showToast: (t: "success" | "error", m: string) => void }) {
-  const receipts: any = useQuery(api.receipts_v2.getAllReceipts, { limit: 50 });
-  const stats: any = useQuery(api.receipts_v2.getReceiptStats, {});
+  const { data: receipts } = useSuspenseQuery(convexQuery(api.receipts_v2.getAllReceipts, { limit: 50 }));
+  const { data: stats } = useSuspenseQuery(convexQuery(api.receipts_v2.getReceiptStats, {}));
 
   const downloadHtml = (r: any) => {
     try {
@@ -296,8 +298,8 @@ function ReceiptsSection({ showToast }: { showToast: (t: "success" | "error", m:
 }
 
 function UsageAlertsSection({ showToast }: { showToast: (t: "success" | "error", m: string) => void }) {
-  const alerts: any = useQuery(api.usage_alerts.getActiveAlerts, {});
-  const summary: any = useQuery(api.usage_alerts.getUsageSummary, {});
+  const { data: alerts } = useSuspenseQuery(convexQuery(api.usage_alerts.getActiveAlerts, {}));
+  const { data: summary } = useSuspenseQuery(convexQuery(api.usage_alerts.getUsageSummary, {}));
   const acknowledge: any = useMutation(api.usage_alerts.acknowledgeAlert);
 
   const handleAck = async (id: string) => {

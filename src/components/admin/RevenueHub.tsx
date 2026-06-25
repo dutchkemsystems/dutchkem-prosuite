@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react'
-import { useQuery, useMutation } from 'convex/react'
+import { useMutation } from 'convex/react'
+import { useSuspenseQuery } from '@tanstack/react-query'
+import { convexQuery } from '@convex-dev/react-query'
 import { api } from '../../../convex/_generated/api'
 
 type RevenueTab =
@@ -80,14 +82,14 @@ function formatDate(ts: number): string {
 // ─── OVERVIEW TAB ─────────────────────────────────────────────
 
 function OverviewTab({ adminToken }: { adminToken: string }) {
-  const creditStats = useQuery(api.revenue_credits.getCreditStats, adminToken ? { adminToken } : 'skip')
-  const socialStats = useQuery(api.revenue_social.getConversationStats, adminToken ? { adminToken } : 'skip')
-  const listingStats = useQuery(api.revenue_marketplace.getListingStats, adminToken ? { adminToken } : 'skip')
-  const outcomeStats = useQuery(api.revenue_outcomes.getOutcomeStats, adminToken ? { adminToken } : 'skip')
-  const whiteLabelStats = useQuery(api.revenue_outcomes.getWhiteLabelStats, adminToken ? { adminToken } : 'skip')
-  const analyticsOverview = useQuery(api.revenue_outcomes.getAnalyticsOverview, adminToken ? { adminToken } : 'skip')
-  const consultingStats = useQuery(api.revenue_outcomes.getConsultingStats, adminToken ? { adminToken } : 'skip')
-  const apiKeys = useQuery(api.revenue_outcomes.getApiKeys, adminToken ? { adminToken } : 'skip')
+  const { data: creditStats } = useSuspenseQuery(convexQuery(api.revenue_credits.getCreditStats, adminToken ? { adminToken } : 'skip'))
+  const { data: socialStats } = useSuspenseQuery(convexQuery(api.revenue_social.getConversationStats, adminToken ? { adminToken } : 'skip'))
+  const { data: listingStats } = useSuspenseQuery(convexQuery(api.revenue_marketplace.getListingStats, adminToken ? { adminToken } : 'skip'))
+  const { data: outcomeStats } = useSuspenseQuery(convexQuery(api.revenue_outcomes.getOutcomeStats, adminToken ? { adminToken } : 'skip'))
+  const { data: whiteLabelStats } = useSuspenseQuery(convexQuery(api.revenue_outcomes.getWhiteLabelStats, adminToken ? { adminToken } : 'skip'))
+  const { data: analyticsOverview } = useSuspenseQuery(convexQuery(api.revenue_outcomes.getAnalyticsOverview, adminToken ? { adminToken } : 'skip'))
+  const { data: consultingStats } = useSuspenseQuery(convexQuery(api.revenue_outcomes.getConsultingStats, adminToken ? { adminToken } : 'skip'))
+  const { data: apiKeys } = useSuspenseQuery(convexQuery(api.revenue_outcomes.getApiKeys, adminToken ? { adminToken } : 'skip'))
 
   const creditSales = creditStats?.recentPurchases ?? 0
   const marketplaceSales = listingStats?.totalRevenue ?? 0
@@ -126,10 +128,10 @@ function OverviewTab({ adminToken }: { adminToken: string }) {
 // ─── CREDITS TAB ──────────────────────────────────────────────
 
 function CreditsTab({ adminToken }: { adminToken: string }) {
-  const stats = useQuery(api.revenue_credits.getCreditStats, adminToken ? { adminToken } : 'skip')
-  const plans = useQuery(api.revenue_credits.getCreditPlans)
-  const costs = useQuery(api.revenue_credits.getCreditCosts)
-  const purchases = useQuery(api.revenue_credits.getAllPurchases, adminToken ? { adminToken } : 'skip')
+  const { data: stats } = useSuspenseQuery(convexQuery(api.revenue_credits.getCreditStats, adminToken ? { adminToken } : 'skip'))
+  const { data: plans } = useSuspenseQuery(convexQuery(api.revenue_credits.getCreditPlans))
+  const { data: costs } = useSuspenseQuery(convexQuery(api.revenue_credits.getCreditCosts))
+  const { data: purchases } = useSuspenseQuery(convexQuery(api.revenue_credits.getAllPurchases, adminToken ? { adminToken } : 'skip'))
 
   const planList = [
     { id: 'starter', name: 'Starter', price: '₦5,000', credits: '500 credits', bonus: '+0 bonus', icon: '🚀' },
@@ -218,9 +220,9 @@ function CreditsTab({ adminToken }: { adminToken: string }) {
 // ─── SOCIAL COMMERCE TAB ──────────────────────────────────────
 
 function SocialTab({ adminToken }: { adminToken: string }) {
-  const stats = useQuery(api.revenue_social.getConversationStats, adminToken ? { adminToken } : 'skip')
-  const dmRules = useQuery(api.revenue_social.getDmRules, adminToken ? { adminToken } : 'skip')
-  const conversations = useQuery(api.revenue_social.getConversations, adminToken ? { adminToken } : 'skip')
+  const { data: stats } = useSuspenseQuery(convexQuery(api.revenue_social.getConversationStats, adminToken ? { adminToken } : 'skip'))
+  const { data: dmRules } = useSuspenseQuery(convexQuery(api.revenue_social.getDmRules, adminToken ? { adminToken } : 'skip'))
+  const { data: conversations } = useSuspenseQuery(convexQuery(api.revenue_social.getConversations, adminToken ? { adminToken } : 'skip'))
   const toggleDmRule = useMutation(api.revenue_social.toggleDmRule)
   const deleteDmRule = useMutation(api.revenue_social.deleteDmRule)
   const addDmRule = useMutation(api.revenue_social.addDmRule)
@@ -379,8 +381,8 @@ function SocialTab({ adminToken }: { adminToken: string }) {
 // ─── MARKETPLACE TAB ──────────────────────────────────────────
 
 function MarketplaceTab({ adminToken }: { adminToken: string }) {
-  const stats = useQuery(api.revenue_marketplace.getListingStats, adminToken ? { adminToken } : 'skip')
-  const listings = useQuery(api.revenue_marketplace.getListings, adminToken ? { adminToken } : 'skip')
+  const { data: stats } = useSuspenseQuery(convexQuery(api.revenue_marketplace.getListingStats, adminToken ? { adminToken } : 'skip'))
+  const { data: listings } = useSuspenseQuery(convexQuery(api.revenue_marketplace.getListings, adminToken ? { adminToken } : 'skip'))
   const createListing = useMutation(api.revenue_marketplace.createListing)
 
   const [showForm, setShowForm] = useState(false)
@@ -487,8 +489,8 @@ function MarketplaceTab({ adminToken }: { adminToken: string }) {
 // ─── OUTCOME PRICING TAB ──────────────────────────────────────
 
 function OutcomesTab({ adminToken }: { adminToken: string }) {
-  const rules = useQuery(api.revenue_outcomes.getOutcomeRules, adminToken ? { adminToken } : 'skip')
-  const stats = useQuery(api.revenue_outcomes.getOutcomeStats, adminToken ? { adminToken } : 'skip')
+  const { data: rules } = useSuspenseQuery(convexQuery(api.revenue_outcomes.getOutcomeRules, adminToken ? { adminToken } : 'skip'))
+  const { data: stats } = useSuspenseQuery(convexQuery(api.revenue_outcomes.getOutcomeStats, adminToken ? { adminToken } : 'skip'))
   const updateRule = useMutation(api.revenue_outcomes.updateOutcomeRule)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -555,8 +557,8 @@ function OutcomesTab({ adminToken }: { adminToken: string }) {
 // ─── WHITE LABEL TAB ──────────────────────────────────────────
 
 function WhiteLabelTab({ adminToken }: { adminToken: string }) {
-  const stats = useQuery(api.revenue_outcomes.getWhiteLabelStats, adminToken ? { adminToken } : 'skip')
-  const customers = useQuery(api.revenue_outcomes.getWhiteLabelCustomers, adminToken ? { adminToken } : 'skip')
+  const { data: stats } = useSuspenseQuery(convexQuery(api.revenue_outcomes.getWhiteLabelStats, adminToken ? { adminToken } : 'skip'))
+  const { data: customers } = useSuspenseQuery(convexQuery(api.revenue_outcomes.getWhiteLabelCustomers, adminToken ? { adminToken } : 'skip'))
   const createCustomer = useMutation(api.revenue_outcomes.createWhiteLabelCustomer)
 
   const [showForm, setShowForm] = useState(false)
@@ -659,8 +661,8 @@ function WhiteLabelTab({ adminToken }: { adminToken: string }) {
 // ─── ANALYTICS TAB ────────────────────────────────────────────
 
 function AnalyticsTab({ adminToken }: { adminToken: string }) {
-  const overview = useQuery(api.revenue_outcomes.getAnalyticsOverview, adminToken ? { adminToken } : 'skip')
-  const metrics = useQuery(api.revenue_outcomes.getAllAgentMetrics, adminToken ? { adminToken } : 'skip')
+  const { data: overview } = useSuspenseQuery(convexQuery(api.revenue_outcomes.getAnalyticsOverview, adminToken ? { adminToken } : 'skip'))
+  const { data: metrics } = useSuspenseQuery(convexQuery(api.revenue_outcomes.getAllAgentMetrics, adminToken ? { adminToken } : 'skip'))
 
   return (
     <div className="space-y-6">
@@ -746,8 +748,8 @@ function CommerceTab() {
 // ─── CONSULTING TAB ───────────────────────────────────────────
 
 function ConsultingTab({ adminToken }: { adminToken: string }) {
-  const stats = useQuery(api.revenue_outcomes.getConsultingStats, adminToken ? { adminToken } : 'skip')
-  const bookings = useQuery(api.revenue_outcomes.getConsultingBookings, adminToken ? { adminToken } : 'skip')
+  const { data: stats } = useSuspenseQuery(convexQuery(api.revenue_outcomes.getConsultingStats, adminToken ? { adminToken } : 'skip'))
+  const { data: bookings } = useSuspenseQuery(convexQuery(api.revenue_outcomes.getConsultingBookings, adminToken ? { adminToken } : 'skip'))
 
   const services = [
     { name: 'Setup & Configuration', price: formatNgN(200000), icon: '⚙️' },
@@ -814,7 +816,7 @@ function ConsultingTab({ adminToken }: { adminToken: string }) {
 // ─── API ACCESS TAB ───────────────────────────────────────────
 
 function ApiAccessTab({ adminToken }: { adminToken: string }) {
-  const apiKeys = useQuery(api.revenue_outcomes.getApiKeys, adminToken ? { adminToken } : 'skip')
+  const { data: apiKeys } = useSuspenseQuery(convexQuery(api.revenue_outcomes.getApiKeys, adminToken ? { adminToken } : 'skip'))
   const createKey = useMutation(api.revenue_outcomes.createApiKey)
 
   const [toast, setToast] = useState<string | null>(null)
@@ -959,7 +961,7 @@ function ApiAccessTab({ adminToken }: { adminToken: string }) {
 // ─── AUTO-ENGAGE TAB ──────────────────────────────────────────
 
 function AutoEngageTab({ adminToken }: { adminToken: string }) {
-  const logs = useQuery(api.revenue_social.getEngagementLogs, adminToken ? { adminToken, limit: 100 } : 'skip')
+  const { data: logs } = useSuspenseQuery(convexQuery(api.revenue_social.getEngagementLogs, adminToken ? { adminToken, limit: 100 } : 'skip'))
 
   const totalEngagements = (logs ?? []).length
   const buyingIntent = (logs ?? []).filter((l: any) => (l.buyingIntent ?? 0) >= 40).length
@@ -1008,9 +1010,9 @@ function AutoEngageTab({ adminToken }: { adminToken: string }) {
 // ─── SUBSCRIPTION PLANS TAB ────────────────────────────────────
 
 function SubscriptionsTab({ adminToken }: { adminToken: string }) {
-  const plans = useQuery(api.revenue_growth.getSubscriptionPlans)
-  const stats = useQuery(api.revenue_growth.getSubscriptionChangeStats, adminToken ? { adminToken } : 'skip')
-  const creditExpiry = useQuery(api.revenue_growth.getCreditExpiryConfig)
+  const { data: plans } = useSuspenseQuery(convexQuery(api.revenue_growth.getSubscriptionPlans))
+  const { data: stats } = useSuspenseQuery(convexQuery(api.revenue_growth.getSubscriptionChangeStats, adminToken ? { adminToken } : 'skip'))
+  const { data: creditExpiry } = useSuspenseQuery(convexQuery(api.revenue_growth.getCreditExpiryConfig))
   const updatePlan = useMutation(api.revenue_growth.updateSubscriptionPlan)
   const updateExpiry = useMutation(api.revenue_growth.updateCreditExpiryConfig)
   const [editingPlan, setEditingPlan] = useState<string | null>(null)
@@ -1199,7 +1201,7 @@ function SubscriptionsTab({ adminToken }: { adminToken: string }) {
 // ─── AGENT PRICING TAB ────────────────────────────────────────
 
 function AgentPricingTab({ adminToken }: { adminToken: string }) {
-  const tiers = useQuery(api.revenue_growth.getAgentPricingTiers)
+  const { data: tiers } = useSuspenseQuery(convexQuery(api.revenue_growth.getAgentPricingTiers))
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null)
 
   const agents = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12', 'A13', 'A14', 'A15']
@@ -1314,7 +1316,7 @@ function AgentPricingTab({ adminToken }: { adminToken: string }) {
 // ─── ENTERPRISE ADD-ONS TAB ───────────────────────────────────
 
 function EnterpriseAddonsTab({ adminToken }: { adminToken: string }) {
-  const addons = useQuery(api.revenue_growth.getEnterpriseAddons)
+  const { data: addons } = useSuspenseQuery(convexQuery(api.revenue_growth.getEnterpriseAddons))
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
   const categories = [

@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
 
 type AdminPanelProps = {
@@ -15,8 +17,8 @@ export function ComposioEnhancementPanel({ adminToken }: AdminPanelProps) {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const agentSettings = useQuery(api.composioEnhancement.getAllAgentSettings, { adminToken });
-  const logs = useQuery(api.composioEnhancement.getEnhancementLogs, { adminToken, limit: 30 });
+  const { data: agentSettings } = useSuspenseQuery(convexQuery(api.composioEnhancement.getAllAgentSettings, { adminToken }));
+  const { data: logs } = useSuspenseQuery(convexQuery(api.composioEnhancement.getEnhancementLogs, { adminToken, limit: 30 }));
 
   const toggleAgent = useMutation(api.composioEnhancement.toggleAgent);
   const enableAll = useMutation(api.composioEnhancement.enableAllAgents);

@@ -1,5 +1,7 @@
-﻿import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useEffect, useRef, useState } from "react";
+import { useMutation } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 
 import { api } from "../../convex/_generated/api";
 
@@ -236,8 +238,8 @@ export function ChatbotWidget({
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function ChatbotAdminPanel() {
-  const stats = useQuery(api.chatbotLeads.getChatbotStats, {});
-  const conversations = useQuery(api.chatbotLeads.getConversations, {});
+  const { data: stats } = useSuspenseQuery(convexQuery(api.chatbotLeads.getChatbotStats, {}));
+  const { data: conversations } = useSuspenseQuery(convexQuery(api.chatbotLeads.getConversations, {}));
 
   if (!stats || !conversations) return null;
 

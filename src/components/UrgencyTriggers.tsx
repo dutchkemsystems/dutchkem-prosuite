@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 
 import { api } from "../../convex/_generated/api";
 
@@ -16,7 +17,7 @@ interface UrgencyData {
 }
 
 export function UrgencyTriggers({ planId, planName }: UrgencyProps) {
-  const urgencyData = useQuery(api.flashSales.getUrgencyStats, { planId });
+  const { data: urgencyData } = useSuspenseQuery(convexQuery(api.flashSales.getUrgencyStats, { planId }));
   const [viewerCount, setViewerCount] = useState(0);
 
   // Simulate fluctuating viewer count
@@ -94,7 +95,7 @@ export function UrgencyTriggers({ planId, planName }: UrgencyProps) {
 
 // Compact version for inline use
 export function UrgencyBadge({ planId }: { planId: string }) {
-  const urgencyData = useQuery(api.flashSales.getUrgencyStats, { planId });
+  const { data: urgencyData } = useSuspenseQuery(convexQuery(api.flashSales.getUrgencyStats, { planId }));
 
   if (!urgencyData) return null;
 

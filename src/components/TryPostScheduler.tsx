@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useMutation } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 
@@ -57,19 +59,19 @@ export function TryPostScheduler({ adminToken }: AdminPanelProps) {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const platforms = useQuery(api.trypost.getSupportedPlatforms, {});
-  const brandProfile = useQuery(api.trypost.getBrandProfile, { adminToken });
-  const scheduled = useQuery(api.trypost.listScheduledPosts, { adminToken, limit: 50 });
-  const workflows = useQuery(api.trypost.listWorkflows, { adminToken });
-  const carousels = useQuery(api.trypost.listCarousels, { adminToken });
-  const analytics = useQuery(api.trypost.getAnalytics, { adminToken, period: "7d" });
-  const schedule = useQuery(api.trypost.getPostingSchedule, { adminToken });
-  const bestTimes = useQuery(api.trypost.getBestPostingTimes, { adminToken });
-  const trending = useQuery(api.trypost.getTrendingTopics, { adminToken });
-  const templates = useQuery(api.trypost.listTemplates, { adminToken });
-  const media = useQuery(api.trypost.listMedia, { adminToken });
-  const pendingApprovals = useQuery(api.trypost.listPendingApprovals, { adminToken });
-  const categories = useQuery(api.trypost.listCategories, { adminToken });
+  const { data: platforms } = useSuspenseQuery(convexQuery(api.trypost.getSupportedPlatforms, {}));
+  const { data: brandProfile } = useSuspenseQuery(convexQuery(api.trypost.getBrandProfile, { adminToken }));
+  const { data: scheduled } = useSuspenseQuery(convexQuery(api.trypost.listScheduledPosts, { adminToken, limit: 50 }));
+  const { data: workflows } = useSuspenseQuery(convexQuery(api.trypost.listWorkflows, { adminToken }));
+  const { data: carousels } = useSuspenseQuery(convexQuery(api.trypost.listCarousels, { adminToken }));
+  const { data: analytics } = useSuspenseQuery(convexQuery(api.trypost.getAnalytics, { adminToken, period: "7d" }));
+  const { data: schedule } = useSuspenseQuery(convexQuery(api.trypost.getPostingSchedule, { adminToken }));
+  const { data: bestTimes } = useSuspenseQuery(convexQuery(api.trypost.getBestPostingTimes, { adminToken }));
+  const { data: trending } = useSuspenseQuery(convexQuery(api.trypost.getTrendingTopics, { adminToken }));
+  const { data: templates } = useSuspenseQuery(convexQuery(api.trypost.listTemplates, { adminToken }));
+  const { data: media } = useSuspenseQuery(convexQuery(api.trypost.listMedia, { adminToken }));
+  const { data: pendingApprovals } = useSuspenseQuery(convexQuery(api.trypost.listPendingApprovals, { adminToken }));
+  const { data: categories } = useSuspenseQuery(convexQuery(api.trypost.listCategories, { adminToken }));
 
   const upsertBrand = useMutation(api.trypost.upsertBrandProfile);
   const schedulePost = useMutation(api.trypost.schedulePost);
@@ -89,7 +91,7 @@ export function TryPostScheduler({ adminToken }: AdminPanelProps) {
   const approvePost = useMutation(api.trypost.approvePost);
   const rejectPost = useMutation(api.trypost.rejectPost);
   const addComment = useMutation(api.trypost.addComment);
-  const exportPosts = useQuery(api.trypost.exportPosts, { adminToken });
+  const { data: exportPosts } = useSuspenseQuery(convexQuery(api.trypost.exportPosts, { adminToken }));
 
   const [v3Modal, setV3Modal] = useState<null | "caption" | "hashtags" | "besttime" | "media" | "templates" | "trending" | "approvals" | "export">(null);
   const [v3Result, setV3Result] = useState<any>(null);
@@ -949,6 +951,42 @@ export function TryPostScheduler({ adminToken }: AdminPanelProps) {
                 </div>
               ))
             )}
+          </div>
+        </Modal>
+      )}
+
+      {rejectModal && (
+        <Modal title="❌ Reject Post" onClose={() => setRejectModal(null)}>
+          <div className="space-y-3">
+            <div className="text-xs text-slate-400">Post ID: {rejectModal.postId}</div>
+            <textarea
+              value={rejectModal.reason}
+              onChange={(e) => setRejectModal({ ...rejectModal, reason: e.target.value })}
+              placeholder="Reason for rejection..."
+              className="w-full bg-slate-800 text-white rounded-xl px-3 py-2 text-sm"
+              rows={3}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setRejectModal(null)}
+                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 rounded-xl text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!rejectModal.reason) { showToast("error", "Reason required"); return; }
+                  try {
+                    await rejectPost({ adminToken, postId: rejectModal.postId, reason: rejectModal.reason });
+                    showToast("success", "Rejected");
+                    setRejectModal(null);
+                  } catch (e: any) { showToast("error", e?.message ?? "Failed"); }
+                }}
+                className="flex-1 bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 rounded-xl text-sm"
+              >
+                Confirm Reject
+              </button>
+            </div>
           </div>
         </Modal>
       )}

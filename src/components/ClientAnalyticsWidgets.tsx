@@ -1,5 +1,6 @@
-﻿import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useState } from "react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 
 import { api } from "../../convex/_generated/api";
 
@@ -9,7 +10,7 @@ import { api } from "../../convex/_generated/api";
 
 export function ClientAnalyticsDashboard() {
   const [period, setPeriod] = useState<"7d" | "30d" | "90d">("7d");
-  const analytics = useQuery(api.clientAnalytics.getUserAnalytics, { period });
+  const { data: analytics } = useSuspenseQuery(convexQuery(api.clientAnalytics.getUserAnalytics, { period }));
 
   if (!analytics) return null;
 

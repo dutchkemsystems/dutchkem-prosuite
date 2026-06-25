@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { convexQuery } from "@convex-dev/react-query";
 
 import { api } from "../../convex/_generated/api";
 
@@ -8,9 +9,9 @@ import { api } from "../../convex/_generated/api";
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function InfluencerDashboard() {
-  const stats = useQuery(api.influencerRecruitment.getCampaignStats, {});
-  const influencers = useQuery(api.influencerRecruitment.getInfluencers, {});
-  const campaigns = useQuery(api.influencerRecruitment.getCampaigns, {});
+  const { data: stats } = useSuspenseQuery(convexQuery(api.influencerRecruitment.getCampaignStats, {}));
+  const { data: influencers } = useSuspenseQuery(convexQuery(api.influencerRecruitment.getInfluencers, {}));
+  const { data: campaigns } = useSuspenseQuery(convexQuery(api.influencerRecruitment.getCampaigns, {}));
 
   if (!stats || !influencers || !campaigns) return null;
 
@@ -104,10 +105,10 @@ export function InfluencerDashboard() {
 export function InfluencerList() {
   const [filter, setFilter] = useState({ tier: "", platform: "" });
 
-  const influencers = useQuery(api.influencerRecruitment.getInfluencers, {
+  const { data: influencers } = useSuspenseQuery(convexQuery(api.influencerRecruitment.getInfluencers, {
       tier: filter.tier || undefined,
       platform: filter.platform || undefined,
-    });
+    }));
 
   if (!influencers) return null;
 
@@ -213,7 +214,7 @@ export function InfluencerList() {
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function CampaignList() {
-  const campaigns = useQuery(api.influencerRecruitment.getCampaigns, {});
+  const { data: campaigns } = useSuspenseQuery(convexQuery(api.influencerRecruitment.getCampaigns, {}));
 
   if (!campaigns || campaigns.length === 0) {
     return (
