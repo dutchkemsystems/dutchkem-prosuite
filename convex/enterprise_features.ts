@@ -68,3 +68,16 @@ export const getAllConfigs = query({
     return await ctx.db.query("enterprise_feature_configs").take(100);
   },
 });
+
+export const getSeededCompanies = query({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const configs = await ctx.db.query("enterprise_feature_configs").take(500);
+    return configs.map((c: any) => ({
+      id: c.orgId,
+      features: c.features,
+      featureCount: c.features.length,
+    }));
+  },
+});
