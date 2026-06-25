@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { action, query, mutation } from "./_generated/server";
+import { api } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
 // E-COMMERCE STOREFRONT
@@ -51,16 +52,55 @@ export const createOrder = action({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const orderNumber = `ORD-${Date.now()}`;
-    const paymentUrl = `https://dutchkem-prosuite-app.vercel.app/pay?ref=${orderNumber}`;
+    // Get product details
+    const product = await ctx.runQuery(api.ecommerce.getProducts, {});
+    const found = (product || []).find((p: any) => p._id === args.productId);
+    if (!found) return { success: false, error: "Product not found" };
+
+    // Delegate to order_management for persistence
+    const result = await ctx.runMutation(api.order_management.createOrder, {
+      customerName: args.customerName,
+      customerEmail: args.customerEmail,
+      customerPhone: args.customerPhone,
+      shippingAddress: args.shippingAddress,
+      items: [{
+        productId: args.productId,
+        name: found.name,
+        quantity: args.quantity,
+        unitPrice: found.price,
+      }],
+      currency: found.currency || "NGN",
+      adminToken: args.adminToken,
+    });
+
+    // Increment product sales count
+    await ctx.runMutation(api.ecommerce.updateProductSales, {
+      productId: args.productId,
+      quantity: args.quantity,
+    });
 
     return {
-      success: true,
-      orderNumber,
-      paymentUrl,
-      quantity: args.quantity,
-      message: `Order ${orderNumber} created. Payment link generated.`,
+      success: result.success,
+      orderId: result.orderId,
+      orderNumber: result.orderNumber,
+      paymentUrl: result.paymentUrl,
+      total: result.total,
     };
+  },
+});
+
+export const updateProductSales = mutation({
+  args: { productId: v.string(), quantity: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const product = await ctx.db.get(args.productId as any);
+    if (product) {
+      await ctx.db.patch(args.productId as any, {
+        salesCount: ((product as any).salesCount || 0) + args.quantity,
+        stock: Math.max(0, ((product as any).stock || 0) - args.quantity),
+        updatedAt: Date.now(),
+      });
+    }
   },
 });
 

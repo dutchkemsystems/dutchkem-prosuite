@@ -228,17 +228,38 @@ export const createDripSequence = action({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
+    const now = new Date();
+    const totalDelayDays = args.emails.reduce((max, e) => Math.max(max, e.delayDays), 0);
+
+    const emails = args.emails.map((e, i) => {
+      const sendDate = new Date(now.getTime() + e.delayDays * 86400000);
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;background:#ffffff;">
+<div style="background:linear-gradient(135deg,#FF6B35,#F7931E);padding:30px;text-align:center;">
+<h1 style="color:#fff;margin:0;font-size:22px;">${e.subject}</h1></div>
+<div style="padding:30px;color:#333;line-height:1.6;font-size:15px;">${e.body}</div>
+<div style="text-align:center;padding:20px 30px 30px;"><a href="https://dutchkem-prosuite-app.vercel.app/auth" style="display:inline-block;background:#FF6B35;color:#fff;padding:14px 30px;border-radius:6px;text-decoration:none;font-weight:600;">Get Started</a></div>
+<div style="background:#f9f9f9;padding:15px 30px;text-align:center;border-top:1px solid #eee;">
+<p style="color:#999;font-size:11px;margin:0;">DutchKem Prosuite · Step ${i + 1} of ${args.emails.length}</p></div></div></body></html>`;
+
+      return {
+        step: i + 1,
+        delayDays: e.delayDays,
+        subject: e.subject,
+        bodyPreview: e.body.substring(0, 100),
+        sendDate: sendDate.toLocaleDateString("en-NG"),
+        html,
+      };
+    });
+
     return {
       success: true,
       sequenceName: args.name,
       trigger: args.trigger,
       emailCount: args.emails.length,
-      schedule: args.emails.map((e, i) => ({
-        step: i + 1,
-        delay: `${e.delayDays} days`,
-        subject: e.subject,
-      })),
-      message: `Drip sequence "${args.name}" created with ${args.emails.length} emails, triggered by: ${args.trigger}`,
+      totalDurationDays: totalDelayDays,
+      emails,
+      message: `Drip sequence "${args.name}" with ${args.emails.length} emails over ${totalDelayDays} days. First email: ${args.emails[0].subject}`,
     };
   },
 });
