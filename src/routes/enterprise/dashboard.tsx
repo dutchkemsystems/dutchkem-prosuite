@@ -15,7 +15,6 @@ import { ApiAccessManager } from '~/components/enterprise/ApiAccessManager'
 import { EnterpriseUsageDashboard } from '~/components/enterprise/EnterpriseUsageDashboard'
 import { SubscriptionRenewal } from '~/components/enterprise/SubscriptionRenewal'
 import { ClientPaymentsTab } from '~/components/enterprise/capabilities/ClientPaymentsTab'
-import { OrdersTab, CustomersTab, ReportingTab, QRCodesTab, InvoicesTab, ReceiptsTab, AppointmentsTab, BusinessHoursTab, MarketingTab, TestimonialsTab, SurveysTab, LandingPagesTab, WhatsAppCommerceTab, ClientPortalTab } from '~/components/enterprise/EnterpriseFeatures'
 
 export const Route = createFileRoute('/enterprise/dashboard')({
   component: EnterpriseDashboard,
@@ -35,20 +34,6 @@ const tabs = [
   { id: 'emotional', icon: '💖', label: 'Emotional AI' },
   { id: 'wallet', icon: '💰', label: 'My Wallet' },
   { id: 'client_payments', icon: '💳', label: 'Client Payments' },
-  { id: 'orders', icon: '📦', label: 'Orders' },
-  { id: 'customers', icon: '👥', label: 'Customers' },
-  { id: 'reports', icon: '📊', label: 'Analytics & Reports' },
-  { id: 'invoices', icon: '📄', label: 'Invoices' },
-  { id: 'receipts', icon: '🧾', label: 'Receipts' },
-  { id: 'qrcodes', icon: '📱', label: 'QR Codes' },
-  { id: 'appointments', icon: '📅', label: 'Appointments' },
-  { id: 'marketing', icon: '📣', label: 'SMS Marketing' },
-  { id: 'business_hours', icon: '🕐', label: 'Business Hours' },
-  { id: 'testimonials', icon: '⭐', label: 'Testimonials' },
-  { id: 'surveys', icon: '📋', label: 'Surveys & Feedback' },
-  { id: 'landing_pages', icon: '🌐', label: 'Landing Pages' },
-  { id: 'whatsapp_store', icon: '💬', label: 'WhatsApp Store' },
-  { id: 'client_portal', icon: '🔐', label: 'Client Portal' },
 ]
 
 function EnterpriseDashboard() {
@@ -181,20 +166,6 @@ function EnterpriseDashboard() {
           {activeTab === 'emotional' && <EmotionalAITab token={token} />}
           {activeTab === 'wallet' && <ClientWalletDashboard />}
           {activeTab === 'client_payments' && <ClientPaymentsTab token={token} />}
-          {activeTab === 'orders' && <OrdersTab token={token} />}
-          {activeTab === 'customers' && <CustomersTab token={token} />}
-          {activeTab === 'reports' && <ReportingTab token={token} />}
-          {activeTab === 'invoices' && <InvoicesTab token={token} />}
-          {activeTab === 'receipts' && <ReceiptsTab token={token} />}
-          {activeTab === 'qrcodes' && <QRCodesTab token={token} />}
-          {activeTab === 'appointments' && <AppointmentsTab token={token} />}
-          {activeTab === 'marketing' && <MarketingTab token={token} />}
-          {activeTab === 'business_hours' && <BusinessHoursTab token={token} />}
-          {activeTab === 'testimonials' && <TestimonialsTab token={token} />}
-          {activeTab === 'surveys' && <SurveysTab token={token} />}
-          {activeTab === 'landing_pages' && <LandingPagesTab token={token} />}
-          {activeTab === 'whatsapp_store' && <WhatsAppCommerceTab token={token} />}
-          {activeTab === 'client_portal' && <ClientPortalTab token={token} />}
         </div>
       </main>
     </div>

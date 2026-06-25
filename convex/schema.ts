@@ -4951,4 +4951,11 @@ export default defineSchema({
     rating: v.optional(v.number()),
     createdAt: v.number(),
   }).index("by_survey", ["surveyId"]),
+
+  enterprise_feature_configs: defineTable({
+    orgId: v.string(),
+    features: v.array(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_org", ["orgId"]),
 });
