@@ -1,337 +1,546 @@
-import { useState, useRef, useEffect } from 'react'
-import { Link } from '@tanstack/react-router'
+import { useState } from 'react'
+import { useQuery, useMutation, useAction } from 'convex/react'
+import { api } from '../../../convex/_generated/api'
 
-const features = [
-  {
-    icon: '🏪',
-    title: 'Agent Marketplace',
-    subtitle: 'Buy & Sell AI Templates',
-    description: 'A curated marketplace where developers publish, monetize, and distribute pre-trained AI agent templates. Companies deploy production-ready agents in minutes, not months.',
-    stats: ['2,400+ Templates', '$2.1M GMV', '450+ Creators'],
-    color: 'from-orange-500 to-amber-500',
-    bgGlow: 'bg-orange-500/10',
-    detailed: {
-      headline: 'Deploy AI Agents in Minutes, Not Months',
-      body: 'Our Agent Marketplace connects you with 2,400+ pre-trained AI agent templates built by 450+ expert creators. Browse by industry, capability, or use case. Each template includes documentation, integration guides, and performance benchmarks. Deploy directly to your workspace with one click — no ML expertise required.',
-      chartData: [
-        { label: 'Time to Deploy', before: '6-12 months', after: '< 5 minutes', improvement: '99.9%' },
-        { label: 'Development Cost', before: '$150,000+', after: '₦25,000/mo', improvement: '98%' },
-        { label: 'Success Rate', before: '23%', after: '94%', improvement: '309%' },
-        { label: 'Maintenance', before: 'Full team', after: 'Automated', improvement: '100%' },
-      ],
-      roi: 'Companies using marketplace agents report 340% faster time-to-value and 67% lower total cost of ownership compared to building from scratch.',
-      clients: '450+ creators have published agents used by 12,000+ businesses across 30 industries.',
-    },
-  },
-  {
-    icon: '🧠',
-    title: 'Knowledge Graph',
-    subtitle: 'Explainable AI Decisions',
-    description: 'Every AI decision is traceable through our Knowledge Graph. Audit trails, causal reasoning chains, and compliance-ready documentation for regulated industries.',
-    stats: ['99.7% Traceability', 'SOC 2 Type II', 'Real-time Auditing'],
-    color: 'from-indigo-500 to-violet-500',
-    bgGlow: 'bg-indigo-500/10',
-    detailed: {
-      headline: 'Every AI Decision, Fully Explainable',
-      body: 'Our Knowledge Graph maps every decision, reasoning chain, and data point across your AI agents. When an agent makes a recommendation, you see exactly why — the data sources, the reasoning path, the confidence level, and the alternative options considered. SOC 2 Type II certified with real-time audit logging for regulated industries.',
-      chartData: [
-        { label: 'Decision Traceability', before: '60%', after: '99.7%', improvement: '66%' },
-        { label: 'Audit Prep Time', before: '40 hours/quarter', after: '2 hours/quarter', improvement: '95%' },
-        { label: 'Compliance Score', before: '72%', after: '99%', improvement: '38%' },
-        { label: 'Incident Resolution', before: '48 hours', after: '< 1 hour', improvement: '98%' },
-      ],
-      roi: 'Organizations using our Knowledge Graph reduce compliance costs by 78% and pass 100% of regulatory audits on first attempt.',
-      clients: 'Trusted by financial institutions, healthcare providers, and government agencies across Nigeria and West Africa.',
-    },
-  },
-  {
-    icon: '🤝',
-    title: 'Companion Agent',
-    subtitle: 'Human-AI Collaboration',
-    description: 'A real-time collaborative agent that adapts to your work style. It learns your preferences, anticipates your needs, and evolves alongside your team.',
-    stats: ['2ms Response', 'Context-Aware', 'Personality Learning'],
-    color: 'from-cyan-500 to-teal-500',
-    bgGlow: 'bg-cyan-500/10',
-    detailed: {
-      headline: 'Your AI Teammate That Learns and Adapts',
-      body: 'The Companion Agent is not just a chatbot — it\'s a collaborative partner. It learns your communication style, remembers your preferences, anticipates your needs based on context, and evolves alongside your team. With 2ms response times and deep context awareness, it feels like working with a senior colleague who never sleeps.',
-      chartData: [
-        { label: 'Response Time', before: '3-5 seconds', after: '2ms', improvement: '99.9%' },
-        { label: 'Task Completion', before: '67%', after: '94%', improvement: '40%' },
-        { label: 'User Satisfaction', before: '3.2/5', after: '4.8/5', improvement: '50%' },
-        { label: 'Productivity Gain', before: 'Baseline', after: '+180%', improvement: '180%' },
-      ],
-      roi: 'Teams using Companion Agents report 180% productivity improvement and 95% user satisfaction within 30 days of deployment.',
-      clients: 'Deployed across 8,000+ workspaces with 95% retention rate — users never go back to working without it.',
-    },
-  },
-  {
-    icon: '💳',
-    title: 'Agentic Payments',
-    subtitle: 'Autonomous Transactions',
-    description: 'Agents autonomously negotiate, transact, and settle payments with other agents. Built-in escrow, fraud detection, and multi-currency support for global commerce.',
-    stats: ['₦50M+ Processed', '< 3s Settlement', 'Bank-Grade Security'],
-    color: 'from-emerald-500 to-green-500',
-    bgGlow: 'bg-emerald-500/10',
-    detailed: {
-      headline: 'Autonomous Agent-to-Agent Payments',
-      body: 'Enable your AI agents to negotiate, transact, and settle payments autonomously. Built-in escrow protects both parties, fraud detection prevents abuse, and multi-currency support enables global commerce. Agents can handle procurement, vendor payments, subscription management, and revenue sharing — all without human intervention.',
-      chartData: [
-        { label: 'Transaction Speed', before: '2-3 days', after: '< 3 seconds', improvement: '99.9%' },
-        { label: 'Fraud Detection', before: '78%', after: '99.7%', improvement: '28%' },
-        { label: 'Processing Cost', before: '₦2,500/txn', after: '₦45/txn', improvement: '98%' },
-        { label: 'Settlement Rate', before: '94%', after: '99.9%', improvement: '6%' },
-      ],
-      roi: 'Businesses using Agentic Payments process ₦50M+ monthly with 98% cost reduction and zero fraud incidents.',
-      clients: 'Integrated with Kora Pay, PalmPay, and 12+ Nigerian banks for seamless settlement.',
-    },
-  },
-  {
-    icon: '🔗',
-    title: 'Multi-Agent Orchestration',
-    subtitle: 'Complex Workflow Automation',
-    description: 'Deploy teams of specialized agents that collaborate on complex tasks. From research to execution, agents hand off work seamlessly across your organization.',
-    stats: ['15 Expert Agents', 'Parallel Execution', 'Auto-Failover'],
-    color: 'from-rose-500 to-pink-500',
-    bgGlow: 'bg-rose-500/10',
-    detailed: {
-      headline: '15 Expert Agents Working as One Team',
-      body: 'Our Multi-Agent Orchestration engine coordinates 15 specialized agents across your organization. Research agents gather data, analysis agents process it, content agents create deliverables, and execution agents take action — all running in parallel with automatic failover. Complex workflows that took weeks now complete in hours.',
-      chartData: [
-        { label: 'Workflow Speed', before: '2-4 weeks', after: '2-4 hours', improvement: '99%' },
-        { label: 'Error Rate', before: '15%', after: '0.3%', improvement: '98%' },
-        { label: 'Parallel Capacity', before: '1 task', after: '15 tasks', improvement: '1400%' },
-        { label: 'Failover Time', before: 'Manual', after: '< 100ms', improvement: '100%' },
-      ],
-      roi: 'Organizations automating with Multi-Agent Orchestration complete 12x more work with 67% fewer errors.',
-      clients: '15 expert agents covering Academic, Business, Content, Career, Finance, Wellness, and 9 more domains.',
-    },
-  },
-  {
-    icon: '💜',
-    title: 'Emotional AI',
-    subtitle: 'Memory, Personality & Retention',
-    description: 'Agents with persistent memory, emotional intelligence, and personality traits. They remember past interactions, adapt tone, and build lasting relationships with users.',
-    stats: ['95% Retention', 'Personality Engine', 'Sentiment Analysis'],
-    color: 'from-violet-500 to-purple-500',
-    bgGlow: 'bg-violet-500/10',
-    detailed: {
-      headline: 'AI That Remembers, Understands, and Cares',
-      body: 'Emotional AI gives your agents persistent memory, emotional intelligence, and unique personality traits. They remember every interaction, adapt their tone to the user\'s emotional state, and build genuine relationships over time. Sentiment analysis detects frustration, excitement, or confusion in real-time — enabling agents to respond with empathy and precision.',
-      chartData: [
-        { label: 'User Retention', before: '45%', after: '95%', improvement: '111%' },
-        { label: 'Sentiment Accuracy', before: '62%', after: '97%', improvement: '56%' },
-        { label: 'Relationship Depth', before: 'Transactional', after: 'Personalized', improvement: 'Qualitative' },
-        { label: 'CSAT Score', before: '3.1/5', after: '4.9/5', improvement: '58%' },
-      ],
-      roi: 'Businesses using Emotional AI see 95% user retention — 2x the industry average — and 4.9/5 customer satisfaction.',
-      clients: 'Personality Engine powers 8,000+ user relationships across customer service, coaching, and education.',
-    },
-  },
-]
+// ═══════════════════════════════════════════════════════════════════
+// ENTERPRISE BUILT-IN FEATURES — Orders, CRM, Reports, QR, etc.
+// ═══════════════════════════════════════════════════════════════════
 
-function FeatureDetailModal({ feature, onClose }: { feature: typeof features[0], onClose: () => void }) {
-  const [isVisible, setIsVisible] = useState(false)
+const fmt = (n: number, c = 'NGN') => `${c} ${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`
 
-  useEffect(() => {
-    requestAnimationFrame(() => setIsVisible(true))
-    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', handleEsc)
-    return () => window.removeEventListener('keydown', handleEsc)
-  }, [onClose])
-
-  return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`} onClick={onClose}>
-      <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" />
-      <div
-        className={`relative bg-white rounded-[2rem] max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl transition-all duration-500 ${isVisible ? 'scale-100 translate-y-0' : 'scale-95 translate-y-8'}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className={`p-10 bg-gradient-to-r ${feature.color} text-white relative overflow-hidden`}>
-          <button onClick={onClose} className="absolute top-6 right-6 w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors text-lg font-bold">✕</button>
-          <div className="text-5xl mb-4">{feature.icon}</div>
-          <p className="text-xs font-black uppercase tracking-[0.3em] opacity-80 mb-2">{feature.subtitle}</p>
-          <h2 className="text-3xl font-black tracking-tight">{feature.detailed.headline}</h2>
-        </div>
-
-        {/* Body */}
-        <div className="p-10 space-y-8">
-          <p className="text-slate-600 leading-relaxed text-lg">{feature.detailed.body}</p>
-
-          {/* Stats Chart */}
-          <div>
-            <h3 className="text-sm font-black text-slate-950 uppercase tracking-widest mb-4">Performance Impact</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {feature.detailed.chartData.map((item, i) => (
-                <div key={i} className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
-                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">{item.label}</div>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-center">
-                      <div className="text-[10px] text-slate-400 uppercase mb-1">Before</div>
-                      <div className="text-sm font-bold text-slate-500">{item.before}</div>
-                    </div>
-                    <div className="text-lg text-slate-300">→</div>
-                    <div className="text-center">
-                      <div className="text-[10px] text-slate-400 uppercase mb-1">After</div>
-                      <div className="text-sm font-bold text-slate-950">{item.after}</div>
-                    </div>
-                    <div className={`px-3 py-1 rounded-full text-xs font-black ${feature.color} text-white`}>
-                      {item.improvement}
-                    </div>
-                  </div>
-                  {/* Progress bar */}
-                  <div className="w-full bg-slate-200 rounded-full h-2 mt-3">
-                    <div className={`bg-gradient-to-r ${feature.color} h-2 rounded-full transition-all duration-1000`} style={{ width: '100%' }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ROI */}
-          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl p-6">
-            <div className="flex items-start gap-3">
-              <span className="text-2xl">📈</span>
-              <div>
-                <h4 className="text-sm font-black text-emerald-800 uppercase tracking-wider mb-2">Return on Investment</h4>
-                <p className="text-sm text-emerald-700 leading-relaxed">{feature.detailed.roi}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Client Trust */}
-          <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6">
-            <div className="flex items-start gap-3">
-              <span className="text-2xl">🏢</span>
-              <div>
-                <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-2">Trusted By</h4>
-                <p className="text-sm text-slate-600 leading-relaxed">{feature.detailed.clients}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Enterprise Login CTA */}
-          <div className="text-center pt-4">
-            <Link
-              to="/enterprise/login"
-              className={`inline-block px-10 py-5 bg-gradient-to-r ${feature.color} text-white rounded-2xl font-black text-sm uppercase tracking-[0.2em] hover:scale-105 active:scale-95 transition-all shadow-xl`}
-            >
-              Get Started → Enterprise Login
-            </Link>
-            <p className="text-xs text-slate-400 mt-3">Already have an account? Enterprise Login →</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function FeatureCard({ feature, index, onClick }: { feature: typeof features[0], index: number, onClick: () => void }) {
-  const [isHovered, setIsHovered] = useState(false)
-  const [isVisible, setIsVisible] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setIsVisible(true) },
-      { threshold: 0.1 }
-    )
-    if (ref.current) observer.observe(ref.current)
-    return () => observer.disconnect()
-  }, [])
-
-  return (
-    <div
-      ref={ref}
-      className={`group relative transition-all duration-700 cursor-pointer ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}
-      style={{ transitionDelay: `${index * 100}ms` }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onClick={onClick}
-    >
-      <div className={`relative p-1 rounded-[2.5rem] transition-all duration-500 ${isHovered ? 'bg-gradient-to-br ' + feature.color + ' shadow-2xl scale-[1.02]' : 'bg-slate-200 hover:bg-slate-300'}`}>
-        <div className="bg-white p-10 rounded-[2.4rem] h-full relative overflow-hidden">
-          {/* Glow effect */}
-          <div className={`absolute -top-20 -right-20 w-40 h-40 ${feature.bgGlow} rounded-full blur-[60px] transition-opacity duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'}`} />
-
-          {/* Icon */}
-          <div className={`w-20 h-20 rounded-[1.5rem] flex items-center justify-center text-4xl mb-8 transition-all duration-500 ${isHovered ? 'scale-110 rotate-3' : ''} bg-gradient-to-br ${feature.color} bg-opacity-10`}>
-            {feature.icon}
-          </div>
-
-          {/* Content */}
-          <p className={`text-[10px] font-black uppercase tracking-[0.3em] mb-3 bg-gradient-to-r ${feature.color} bg-clip-text text-transparent`}>
-            {feature.subtitle}
-          </p>
-          <h3 className="text-2xl font-black text-slate-950 mb-4 tracking-tighter group-hover:text-slate-900 transition-colors">
-            {feature.title}
-          </h3>
-          <p className="text-slate-500 font-medium leading-relaxed mb-8 text-sm">
-            {feature.description}
-          </p>
-
-          {/* Stats */}
-          <div className="flex flex-wrap gap-2">
-            {feature.stats.map((stat, i) => (
-              <span key={i} className="px-3 py-1.5 bg-slate-100 rounded-full text-[10px] font-black text-slate-600 uppercase tracking-wider">
-                {stat}
-              </span>
-            ))}
-          </div>
-
-          {/* Hover arrow */}
-          <div className={`absolute bottom-10 right-10 transition-all duration-300 ${isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4'}`}>
-            <div className="w-10 h-10 bg-slate-950 rounded-full flex items-center justify-center text-white text-sm">→</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
+// ─── LANDING PAGE SECTION (used by index.tsx) ───
 export function EnterpriseFeatures() {
-  const [selectedFeature, setSelectedFeature] = useState<typeof features[0] | null>(null)
-
+  const features = [
+    { icon: '📦', name: 'Order Management', desc: 'Full order lifecycle from creation to delivery' },
+    { icon: '👥', name: 'Customer Database', desc: 'CRM with tags, loyalty, and import' },
+    { icon: '📊', name: 'Analytics & Reports', desc: 'Sales, customers, inventory, dashboard' },
+    { icon: '📄', name: 'Invoices & Receipts', desc: 'Professional HTML invoices and receipts' },
+    { icon: '📱', name: 'QR Codes', desc: 'Payment links, business cards, products' },
+    { icon: '📅', name: 'Appointments', desc: 'Booking slots, scheduling, reminders' },
+    { icon: '📣', name: 'SMS Marketing', desc: 'Bulk campaigns with AI message generation' },
+    { icon: '🕐', name: 'Business Hours', desc: 'Auto-reply outside hours, timezone support' },
+    { icon: '🛒', name: 'E-commerce', desc: 'Product listings, storefront, orders' },
+  ]
   return (
-    <section id="enterprise-features" className="py-32 bg-slate-50 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.02] pointer-events-none" />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Header */}
-        <div className="text-center mb-24">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-full text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 mb-8">
-            Enterprise Capabilities
-          </div>
-          <h2 className="text-4xl md:text-6xl font-black text-slate-950 mb-6 tracking-tighter">
-            Built for the <span className="bg-gradient-to-r from-orange-500 to-indigo-600 bg-clip-text text-transparent">Future</span>
-          </h2>
-          <p className="text-lg text-slate-500 max-w-2xl mx-auto font-medium">
-            Six enterprise-grade modules that transform how organizations leverage AI.
-            Click any card to see detailed performance metrics and ROI data.
-          </p>
-        </div>
-
-        {/* Feature Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {features.map((feature, index) => (
-            <FeatureCard
-              key={index}
-              feature={feature}
-              index={index}
-              onClick={() => setSelectedFeature(feature)}
-            />
+    <section className="py-20 bg-slate-900">
+      <div className="max-w-6xl mx-auto px-6 text-center">
+        <h2 className="text-3xl font-black text-white mb-3">Built-in Enterprise Features</h2>
+        <p className="text-slate-400 mb-10">Everything your business needs, included by default</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {features.map(f => (
+            <div key={f.name} className="bg-slate-800 border border-slate-700 rounded-2xl p-5 text-left hover:border-orange-500/50 transition-all">
+              <span className="text-2xl">{f.icon}</span>
+              <p className="text-white font-bold text-sm mt-3">{f.name}</p>
+              <p className="text-slate-400 text-xs mt-1">{f.desc}</p>
+            </div>
           ))}
         </div>
       </div>
-
-      {/* Detail Modal */}
-      {selectedFeature && (
-        <FeatureDetailModal
-          feature={selectedFeature}
-          onClose={() => setSelectedFeature(null)}
-        />
-      )}
     </section>
+  )
+}
+
+// ─── ORDERS TAB ───
+export function OrdersTab({ token }: { token: string }) {
+  const [filter, setFilter] = useState('')
+  const orders = useQuery(api.order_management.getOrders, filter ? { status: filter } : {})
+  const updateStatus = useMutation(api.order_management.updateOrderStatus)
+
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-2 flex-wrap">
+        {['', 'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'completed', 'cancelled'].map(s => (
+          <button key={s} onClick={() => setFilter(s)}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${filter === s ? 'bg-orange-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}>
+            {s || 'All'}
+          </button>
+        ))}
+      </div>
+      <div className="grid gap-3">
+        {(orders || []).map((o: any) => (
+          <div key={o._id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="font-black text-sm">{o.orderNumber}</p>
+                <p className="text-xs text-slate-400 mt-1">{o.customerName} · {o.customerEmail}</p>
+                <p className="text-xs text-slate-500 mt-1">{o.itemCount} items · {new Date(o.createdAt).toLocaleDateString('en-NG')}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-black text-orange-400">{fmt(o.total, o.currency)}</p>
+                <span className={`inline-block mt-1 px-3 py-1 rounded-full text-[10px] font-bold ${
+                  o.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' :
+                  o.status === 'cancelled' ? 'bg-red-500/10 text-red-400' :
+                  o.status === 'shipped' ? 'bg-blue-500/10 text-blue-400' :
+                  'bg-orange-500/10 text-orange-400'
+                }`}>{o.status}</span>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3 flex-wrap">
+              {o.status === 'pending' && (
+                <button onClick={() => updateStatus({ orderId: o._id, status: 'confirmed', adminToken: token })}
+                  className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg text-[11px] font-bold hover:bg-emerald-500/20">Confirm</button>
+              )}
+              {o.status === 'confirmed' && (
+                <button onClick={() => updateStatus({ orderId: o._id, status: 'processing', adminToken: token })}
+                  className="px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-lg text-[11px] font-bold hover:bg-blue-500/20">Process</button>
+              )}
+              {o.status === 'processing' && (
+                <button onClick={() => updateStatus({ orderId: o._id, status: 'shipped', adminToken: token })}
+                  className="px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-lg text-[11px] font-bold hover:bg-blue-500/20">Ship</button>
+              )}
+              {o.status === 'shipped' && (
+                <button onClick={() => updateStatus({ orderId: o._id, status: 'delivered', adminToken: token })}
+                  className="px-3 py-1.5 bg-purple-500/10 text-purple-400 rounded-lg text-[11px] font-bold hover:bg-purple-500/20">Deliver</button>
+              )}
+              {!['completed', 'cancelled', 'delivered'].includes(o.status) && (
+                <button onClick={() => updateStatus({ orderId: o._id, status: 'cancelled', adminToken: token })}
+                  className="px-3 py-1.5 bg-red-500/10 text-red-400 rounded-lg text-[11px] font-bold hover:bg-red-500/20">Cancel</button>
+              )}
+            </div>
+          </div>
+        ))}
+        {(!orders || orders.length === 0) && <p className="text-slate-500 text-sm text-center py-10">No orders yet</p>}
+      </div>
+    </div>
+  )
+}
+
+// ─── CUSTOMERS TAB ───
+export function CustomersTab({ token }: { token: string }) {
+  const [search, setSearch] = useState('')
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm] = useState({ name: '', email: '', phone: '', tags: '' })
+  const customers = useQuery(api.customer_database.getCustomers, search ? { search } : {})
+  const addCustomer = useMutation(api.customer_database.addCustomer)
+  const addTag = useMutation(api.customer_database.addCustomerTag)
+
+  const handleAdd = async () => {
+    if (!form.name || !form.email) return
+    await addCustomer({
+      name: form.name, email: form.email, phone: form.phone,
+      tags: form.tags ? form.tags.split(',').map(t => t.trim()) : [],
+      source: 'enterprise', adminToken: token,
+    })
+    setForm({ name: '', email: '', phone: '', tags: '' })
+    setShowAdd(false)
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-3">
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search customers..."
+          className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+        <button onClick={() => setShowAdd(!showAdd)}
+          className="px-5 py-3 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600">+ Add</button>
+      </div>
+      {showAdd && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+          <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Name"
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          <input value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="Email"
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="Phone"
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          <input value={form.tags} onChange={e => setForm({...form, tags: e.target.value})} placeholder="Tags (comma separated)"
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          <button onClick={handleAdd} className="px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold">Save Customer</button>
+        </div>
+      )}
+      <div className="grid gap-3">
+        {(customers || []).map((c: any) => (
+          <div key={c._id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+            <div className="flex justify-between">
+              <div>
+                <p className="font-black text-sm">{c.name}</p>
+                <p className="text-xs text-slate-400">{c.email} {c.phone ? `· ${c.phone}` : ''}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-slate-500">{c.totalOrders} orders</p>
+                <p className="text-xs text-orange-400 font-bold">{fmt(c.totalSpent)}</p>
+              </div>
+            </div>
+            <div className="flex gap-1.5 mt-2 flex-wrap">
+              {(c.tags || []).map((t: string) => (
+                <span key={t} className="px-2 py-0.5 bg-orange-500/10 text-orange-400 rounded-full text-[10px] font-bold">{t}</span>
+              ))}
+              {c.loyaltyPoints > 0 && (
+                <span className="px-2 py-0.5 bg-yellow-500/10 text-yellow-400 rounded-full text-[10px] font-bold">⭐ {c.loyaltyPoints} pts</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── REPORTING TAB ───
+export function ReportingTab({ token }: { token: string }) {
+  const dashboard = useQuery(api.reporting.getDashboardSummary)
+  const sales = useQuery(api.reporting.getSalesReport, {})
+  const customerReport = useQuery(api.reporting.getCustomerReport)
+
+  return (
+    <div className="space-y-6">
+      {dashboard && (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatCard label="Revenue (30d)" value={fmt(dashboard.revenue.last30Days)} color="text-orange-400" />
+            <StatCard label="Orders (30d)" value={dashboard.orders.last30Days.toString()} color="text-blue-400" />
+            <StatCard label="New Customers (30d)" value={dashboard.customers.newLast30Days.toString()} color="text-emerald-400" />
+            <StatCard label="Growth" value={`${dashboard.revenue.growthPercent}%`} color="text-purple-400" />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatCard label="All-Time Revenue" value={fmt(dashboard.revenue.allTime)} color="text-orange-400" />
+            <StatCard label="Total Orders" value={dashboard.orders.total.toString()} color="text-blue-400" />
+            <StatCard label="Total Customers" value={dashboard.customers.total.toString()} color="text-emerald-400" />
+            <StatCard label="Total Products" value={dashboard.products.total.toString()} color="text-purple-400" />
+          </div>
+          {dashboard.alerts.length > 0 && (
+            <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-5">
+              <p className="text-sm font-bold text-red-400 mb-2">⚠️ Alerts</p>
+              {dashboard.alerts.map((a: string, i: number) => (
+                <p key={i} className="text-xs text-slate-400">{a}</p>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      {sales && sales.topItems.length > 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <p className="text-sm font-bold mb-3">Top Selling Items</p>
+          {sales.topItems.map((item: any, i: number) => (
+            <div key={i} className="flex justify-between py-2 border-b border-slate-800 last:border-0">
+              <span className="text-xs text-slate-300">{item.name}</span>
+              <span className="text-xs text-orange-400 font-bold">{item.count} sold · {fmt(item.revenue)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {customerReport && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <p className="text-sm font-bold mb-3">Customer Tiers</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatCard label="VIP (500K+)" value={customerReport.tiers.vip.count.toString()} color="text-yellow-400" />
+            <StatCard label="Premium (100K+)" value={customerReport.tiers.premium.count.toString()} color="text-orange-400" />
+            <StatCard label="Regular (10K+)" value={customerReport.tiers.regular.count.toString()} color="text-blue-400" />
+            <StatCard label="New (<10K)" value={customerReport.tiers.newCustomers.count.toString()} color="text-slate-400" />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── QR CODES TAB ───
+export function QRCodesTab({ token }: { token: string }) {
+  const [data, setData] = useState('')
+  const [type, setType] = useState('link')
+  const [result, setResult] = useState<any>(null)
+  const generateQR = useAction(api.qr_generator.generateQRCode)
+
+  const handleGenerate = async () => {
+    if (!data) return
+    const res = await generateQR({ data, type, size: 300, adminToken: token })
+    setResult(res)
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div className="flex gap-2 flex-wrap">
+          {['link', 'url', 'phone', 'email', 'wifi', 'payment'].map(t => (
+            <button key={t} onClick={() => setType(t)}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold ${type === t ? 'bg-orange-500 text-white' : 'bg-slate-800 text-slate-400'}`}>{t}</button>
+          ))}
+        </div>
+        <input value={data} onChange={e => setData(e.target.value)}
+          placeholder={type === 'link' ? 'https://example.com' : type === 'phone' ? '+234...' : 'Enter data...'}
+          className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white" />
+        <button onClick={handleGenerate}
+          className="px-5 py-3 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600">Generate QR Code</button>
+      </div>
+      {result?.svg && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center">
+          <div dangerouslySetInnerHTML={{ __html: result.svg }} className="inline-block" />
+          <p className="text-xs text-slate-400 mt-3">Type: {result.type} · Size: {result.size}px</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── INVOICES TAB ───
+export function InvoicesTab({ token }: { token: string }) {
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ to: '', toEmail: '', items: [{ description: '', quantity: 1, rate: 0 }], tax: 0, discount: 0 })
+  const [invoice, setInvoice] = useState<any>(null)
+  const createInvoice = useAction(api.invoice_generator.createInvoice)
+
+  const handleCreate = async () => {
+    const res = await createInvoice({
+      from: 'DutchKem Prosuite', fromEmail: 'billing@dutchkem.com', fromAddress: 'Lagos, Nigeria',
+      to: form.to, toEmail: form.toEmail, toAddress: '',
+      items: form.items.filter(i => i.description),
+      tax: form.tax, discount: form.discount, adminToken: token,
+    })
+    setInvoice(res)
+    setShowForm(false)
+  }
+
+  return (
+    <div className="space-y-6">
+      <button onClick={() => setShowForm(!showForm)}
+        className="px-5 py-3 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600">+ Create Invoice</button>
+      {showForm && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+          <input value={form.to} onChange={e => setForm({...form, to: e.target.value})} placeholder="Client Name"
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          <input value={form.toEmail} onChange={e => setForm({...form, toEmail: e.target.value})} placeholder="Client Email"
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          {form.items.map((item, i) => (
+            <div key={i} className="grid grid-cols-3 gap-2">
+              <input value={item.description} onChange={e => { const items = [...form.items]; items[i].description = e.target.value; setForm({...form, items}) }} placeholder="Description"
+                className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+              <input type="number" value={item.quantity} onChange={e => { const items = [...form.items]; items[i].quantity = +e.target.value; setForm({...form, items}) }} placeholder="Qty"
+                className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+              <input type="number" value={item.rate} onChange={e => { const items = [...form.items]; items[i].rate = +e.target.value; setForm({...form, items}) }} placeholder="Rate"
+                className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            </div>
+          ))}
+          <div className="grid grid-cols-2 gap-2">
+            <input type="number" value={form.tax} onChange={e => setForm({...form, tax: +e.target.value})} placeholder="Tax %"
+              className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            <input type="number" value={form.discount} onChange={e => setForm({...form, discount: +e.target.value})} placeholder="Discount %"
+              className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+          </div>
+          <button onClick={handleCreate} className="px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold">Generate Invoice</button>
+        </div>
+      )}
+      {invoice?.html && (
+        <div className="bg-white rounded-2xl overflow-hidden">
+          <iframe srcDoc={invoice.html} className="w-full h-[600px] border-0" title="Invoice" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── RECEIPTS TAB ───
+export function ReceiptsTab({ token }: { token: string }) {
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ customerName: '', customerEmail: '', paymentMethod: 'Bank Transfer', items: [{ description: '', quantity: 1, unitPrice: 0 }], tax: 0 })
+  const [receipt, setReceipt] = useState<any>(null)
+  const generateReceipt = useAction(api.receipt_generator.generateReceipt)
+
+  const handleCreate = async () => {
+    const res = await generateReceipt({
+      businessName: 'DutchKem Prosuite', businessEmail: 'billing@dutchkem.com',
+      customerName: form.customerName, customerEmail: form.customerEmail,
+      items: form.items.filter(i => i.description),
+      paymentMethod: form.paymentMethod, tax: form.tax, adminToken: token,
+    })
+    setReceipt(res)
+    setShowForm(false)
+  }
+
+  return (
+    <div className="space-y-6">
+      <button onClick={() => setShowForm(!showForm)}
+        className="px-5 py-3 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600">+ Generate Receipt</button>
+      {showForm && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+          <input value={form.customerName} onChange={e => setForm({...form, customerName: e.target.value})} placeholder="Customer Name"
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          <input value={form.customerEmail} onChange={e => setForm({...form, customerEmail: e.target.value})} placeholder="Customer Email"
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          <select value={form.paymentMethod} onChange={e => setForm({...form, paymentMethod: e.target.value})}
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white">
+            <option>Bank Transfer</option><option>Cash</option><option>Card</option><option>USSD</option><option>Mobile Money</option>
+          </select>
+          {form.items.map((item, i) => (
+            <div key={i} className="grid grid-cols-3 gap-2">
+              <input value={item.description} onChange={e => { const items = [...form.items]; items[i].description = e.target.value; setForm({...form, items}) }} placeholder="Item"
+                className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+              <input type="number" value={item.quantity} onChange={e => { const items = [...form.items]; items[i].quantity = +e.target.value; setForm({...form, items}) }} placeholder="Qty"
+                className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+              <input type="number" value={item.unitPrice} onChange={e => { const items = [...form.items]; items[i].unitPrice = +e.target.value; setForm({...form, items}) }} placeholder="Price"
+                className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            </div>
+          ))}
+          <button onClick={handleCreate} className="px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold">Generate Receipt</button>
+        </div>
+      )}
+      {receipt?.html && (
+        <div className="bg-white rounded-2xl overflow-hidden">
+          <iframe srcDoc={receipt.html} className="w-full h-[600px] border-0" title="Receipt" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── APPOINTMENTS TAB ───
+export function AppointmentsTab({ token }: { token: string }) {
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ title: '', date: '', startTime: '09:00', endTime: '10:00', durationMinutes: 60 })
+  const slots = useQuery(api.appointment_booking.getAvailableSlots, {})
+  const createSlot = useMutation(api.appointment_booking.createBookingSlot)
+
+  const handleCreate = async () => {
+    if (!form.title || !form.date) return
+    await createSlot({ ...form, maxBookings: 1, location: 'Online', adminToken: token })
+    setForm({ title: '', date: '', startTime: '09:00', endTime: '10:00', durationMinutes: 60 })
+    setShowForm(false)
+  }
+
+  return (
+    <div className="space-y-6">
+      <button onClick={() => setShowForm(!showForm)}
+        className="px-5 py-3 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600">+ Create Slot</button>
+      {showForm && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+          <input value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Title (e.g. Consultation)"
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          <input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})}
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          <div className="grid grid-cols-2 gap-2">
+            <div><label className="text-xs text-slate-500">Start</label>
+              <input type="time" value={form.startTime} onChange={e => setForm({...form, startTime: e.target.value})}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" /></div>
+            <div><label className="text-xs text-slate-500">End</label>
+              <input type="time" value={form.endTime} onChange={e => setForm({...form, endTime: e.target.value})}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" /></div>
+          </div>
+          <button onClick={handleCreate} className="px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold">Create Slot</button>
+        </div>
+      )}
+      <div className="grid gap-3">
+        {(slots || []).map((s: any) => (
+          <div key={s._id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex justify-between items-center">
+            <div>
+              <p className="font-black text-sm">{s.title}</p>
+              <p className="text-xs text-slate-400">{s.date} · {s.startTime} - {s.endTime}</p>
+            </div>
+            <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-[10px] font-bold">
+              {s.currentBookings}/{s.maxBookings} booked
+            </span>
+          </div>
+        ))}
+        {(!slots || slots.length === 0) && <p className="text-slate-500 text-sm text-center py-10">No appointment slots</p>}
+      </div>
+    </div>
+  )
+}
+
+// ─── BUSINESS HOURS TAB ───
+export function BusinessHoursTab({ token }: { token: string }) {
+  const schedule = useQuery(api.business_hours.getSchedule)
+  const setSchedule = useMutation(api.business_hours.setSchedule)
+  const [localSchedule, setLocalSchedule] = useState<any>(null)
+  const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+
+  const s = localSchedule || schedule?.schedule || {}
+
+  const handleSave = async () => {
+    await setSchedule({ schedule: s, timezone: 'Africa/Lagos', adminToken: token })
+    setLocalSchedule(null)
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+        {days.map(day => (
+          <div key={day} className="flex items-center gap-3">
+            <span className="w-24 text-xs font-bold capitalize">{day}</span>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={s[day]?.enabled ?? (day !== 'sunday')}
+                onChange={e => {
+                  const newS = { ...s, [day]: { ...(s[day] || { open: '08:00', close: '18:00' }), enabled: e.target.checked } }
+                  setLocalSchedule(newS)
+                }} className="accent-orange-500" />
+              <span className="text-[10px] text-slate-500">Open</span>
+            </label>
+            <input type="time" value={s[day]?.open || '08:00'}
+              onChange={e => { const newS = { ...s, [day]: { ...(s[day] || {}), open: e.target.value } }; setLocalSchedule(newS) }}
+              className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white" disabled={!s[day]?.enabled} />
+            <span className="text-xs text-slate-500">to</span>
+            <input type="time" value={s[day]?.close || '18:00'}
+              onChange={e => { const newS = { ...s, [day]: { ...(s[day] || {}), close: e.target.value } }; setLocalSchedule(newS) }}
+              className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white" disabled={!s[day]?.enabled} />
+          </div>
+        ))}
+        <button onClick={handleSave}
+          className="px-5 py-3 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600">Save Schedule</button>
+      </div>
+    </div>
+  )
+}
+
+// ─── MARKETING TAB ───
+export function MarketingTab({ token }: { token: string }) {
+  const [campaignName, setCampaignName] = useState('')
+  const [message, setMessage] = useState('')
+  const [recipients, setRecipients] = useState('')
+  const [result, setResult] = useState<any>(null)
+  const campaigns = useQuery(api.sms_marketing.getCampaigns)
+  const createCampaign = useMutation(api.sms_marketing.createCampaign)
+  const generateMessage = useAction(api.sms_marketing.generateCampaignMessage)
+
+  const handleCreate = async () => {
+    if (!campaignName || !message || !recipients) return
+    const phoneList = recipients.split(',').map(r => r.trim()).filter(Boolean)
+    await createCampaign({
+      name: campaignName, message, recipients: phoneList,
+      adminToken: token,
+    })
+    setCampaignName(''); setMessage(''); setRecipients('')
+  }
+
+  const handleGenerate = async () => {
+    const res = await generateMessage({ product: 'DutchKem Prosuite', offer: 'Special offer', tone: 'professional', adminToken: token })
+    setMessage(res.message)
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+        <p className="text-sm font-bold">Create SMS Campaign</p>
+        <input value={campaignName} onChange={e => setCampaignName(e.target.value)} placeholder="Campaign name"
+          className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+        <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="SMS message..." rows={3}
+          className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white resize-none" />
+        <input value={recipients} onChange={e => setRecipients(e.target.value)} placeholder="Phone numbers (comma separated)"
+          className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+        <div className="flex gap-2">
+          <button onClick={handleGenerate} className="px-4 py-2 bg-slate-700 text-white rounded-xl text-xs font-bold hover:bg-slate-600">AI Generate</button>
+          <button onClick={handleCreate} className="px-5 py-2 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600">Create Campaign</button>
+        </div>
+      </div>
+      {(campaigns || []).length > 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <p className="text-sm font-bold mb-3">Recent Campaigns</p>
+          {campaigns.map((c: any) => (
+            <div key={c._id} className="flex justify-between py-2 border-b border-slate-800 last:border-0">
+              <div>
+                <p className="text-xs font-bold">{c.name}</p>
+                <p className="text-[10px] text-slate-500">{c.recipientCount} recipients · {c.sentCount} sent</p>
+              </div>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${c.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-orange-500/10 text-orange-400'}`}>{c.status}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── SHARED ───
+function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <p className={`text-xl font-black ${color}`}>{value}</p>
+      <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">{label}</p>
+    </div>
   )
 }

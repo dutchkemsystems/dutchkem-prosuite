@@ -13,6 +13,9 @@ import ClientWalletDashboard from '~/components/admin/enterprise/ClientWalletDas
 import { AddonManager } from '~/components/enterprise/AddonManager'
 import { ApiAccessManager } from '~/components/enterprise/ApiAccessManager'
 import { EnterpriseUsageDashboard } from '~/components/enterprise/EnterpriseUsageDashboard'
+import { SubscriptionRenewal } from '~/components/enterprise/SubscriptionRenewal'
+import { ClientPaymentsTab } from '~/components/enterprise/capabilities/ClientPaymentsTab'
+import { OrdersTab, CustomersTab, ReportingTab, QRCodesTab, InvoicesTab, ReceiptsTab, AppointmentsTab, BusinessHoursTab, MarketingTab } from '~/components/enterprise/EnterpriseFeatures'
 
 export const Route = createFileRoute('/enterprise/dashboard')({
   component: EnterpriseDashboard,
@@ -20,6 +23,7 @@ export const Route = createFileRoute('/enterprise/dashboard')({
 
 const tabs = [
   { id: 'overview', icon: '📊', label: 'Overview' },
+  { id: 'subscription', icon: '💳', label: 'Subscription' },
   { id: 'addons', icon: '🧩', label: 'Add-ons' },
   { id: 'api_access', icon: '🔑', label: 'API Access' },
   { id: 'usage', icon: '📈', label: 'Usage & Billing' },
@@ -30,6 +34,16 @@ const tabs = [
   { id: 'payments', icon: '💳', label: 'Agentic Payments' },
   { id: 'emotional', icon: '💖', label: 'Emotional AI' },
   { id: 'wallet', icon: '💰', label: 'My Wallet' },
+  { id: 'client_payments', icon: '💳', label: 'Client Payments' },
+  { id: 'orders', icon: '📦', label: 'Orders' },
+  { id: 'customers', icon: '👥', label: 'Customers' },
+  { id: 'reports', icon: '📊', label: 'Analytics & Reports' },
+  { id: 'invoices', icon: '📄', label: 'Invoices' },
+  { id: 'receipts', icon: '🧾', label: 'Receipts' },
+  { id: 'qrcodes', icon: '📱', label: 'QR Codes' },
+  { id: 'appointments', icon: '📅', label: 'Appointments' },
+  { id: 'marketing', icon: '📣', label: 'SMS Marketing' },
+  { id: 'business_hours', icon: '🕐', label: 'Business Hours' },
 ]
 
 function EnterpriseDashboard() {
@@ -150,6 +164,7 @@ function EnterpriseDashboard() {
         {/* Content */}
         <div className="p-6">
           {activeTab === 'overview' && <OverviewTab org={org} token={token} onNavigateTab={setActiveTab} />}
+          {activeTab === 'subscription' && <SubscriptionRenewal org={org} token={token} />}
           {activeTab === 'addons' && <AddonManager orgId={org._id} token={token} email={org.email} />}
           {activeTab === 'api_access' && <ApiAccessManager orgId={org._id} token={token} />}
           {activeTab === 'usage' && <EnterpriseUsageDashboard orgId={org._id} token={token} />}
@@ -160,6 +175,16 @@ function EnterpriseDashboard() {
           {activeTab === 'payments' && <AgenticPaymentsTab token={token} />}
           {activeTab === 'emotional' && <EmotionalAITab token={token} />}
           {activeTab === 'wallet' && <ClientWalletDashboard />}
+          {activeTab === 'client_payments' && <ClientPaymentsTab token={token} />}
+          {activeTab === 'orders' && <OrdersTab token={token} />}
+          {activeTab === 'customers' && <CustomersTab token={token} />}
+          {activeTab === 'reports' && <ReportingTab token={token} />}
+          {activeTab === 'invoices' && <InvoicesTab token={token} />}
+          {activeTab === 'receipts' && <ReceiptsTab token={token} />}
+          {activeTab === 'qrcodes' && <QRCodesTab token={token} />}
+          {activeTab === 'appointments' && <AppointmentsTab token={token} />}
+          {activeTab === 'marketing' && <MarketingTab token={token} />}
+          {activeTab === 'business_hours' && <BusinessHoursTab token={token} />}
         </div>
       </main>
     </div>
@@ -179,8 +204,38 @@ function OverviewTab({ org, token, onNavigateTab }: { org: any; token: string; o
     { icon: '💖', name: 'Emotional AI', desc: 'Memory, personality, retention', tab: 'emotional', color: 'from-pink-500 to-rose-600' },
   ]
 
+  const daysLeft = org.subscriptionEndsAt
+    ? Math.max(0, Math.ceil((org.subscriptionEndsAt - Date.now()) / (1000 * 60 * 60 * 24)))
+    : null
+  const isExpired = daysLeft !== null && daysLeft === 0
+  const isExpiring = daysLeft !== null && daysLeft <= 7 && daysLeft > 0
+
   return (
     <div className="space-y-8 ">
+      {/* Subscription Alert */}
+      {(isExpired || isExpiring) && (
+        <button
+          onClick={() => onNavigateTab('subscription')}
+          className={`w-full p-4 rounded-2xl border text-left transition-all hover:scale-[1.01] ${
+            isExpired ? 'bg-red-500/10 border-red-500/30 hover:bg-red-500/15' : 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className={`font-black text-sm ${isExpired ? 'text-red-400' : 'text-amber-400'}`}>
+                {isExpired ? '⚠️ Subscription Expired' : `⏰ Subscription Expiring in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`}
+              </p>
+              <p className="text-xs text-slate-400 mt-1">Click to renew and continue using enterprise features</p>
+            </div>
+            <span className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest ${
+              isExpired ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+            }`}>
+              Renew Now →
+            </span>
+          </div>
+        </button>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-2">Organization</p>
@@ -190,7 +245,9 @@ function OverviewTab({ org, token, onNavigateTab }: { org: any; token: string; o
         <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-2">Plan</p>
           <p className="text-2xl font-black capitalize">{org.plan}</p>
-          <p className="text-sm text-slate-400 mt-1 capitalize">{org.status} status</p>
+          <p className="text-sm text-slate-400 mt-1">
+            {daysLeft !== null ? (isExpired ? 'Expired' : `${daysLeft} days remaining`) : org.status}
+          </p>
         </div>
         <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-2">Capabilities</p>
