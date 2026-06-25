@@ -3,8 +3,8 @@ import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 
 // ═══════════════════════════════════════════════════════════════════
-// ENTERPRISE PORTAL — Features Deployment Panel
-// Deploy/revoke features per real enterprise organization
+// ENTERPRISE PORTAL — Feature Deployment Panel
+// Shows ALL companies (seeded 300 + real orgs) and deploys features
 // ═══════════════════════════════════════════════════════════════════
 
 const ALL_FEATURES = [
@@ -28,125 +28,141 @@ const ALL_FEATURES = [
 ]
 
 export function AdminFeaturesPanel({ adminToken }: { adminToken: string }) {
-  const [selectedOrg, setSelectedOrg] = useState('')
+  const [selectedId, setSelectedId] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFeature, setActiveFeature] = useState<string | null>(null)
+  const [view, setView] = useState<'seeded' | 'real'>('seeded')
 
-  // Get REAL organizations (the ones that enterprise clients actually log into)
-  const orgs = useQuery(api.admin_enterprise.listOrganizations, { adminToken })
+  // Both data sources
+  const seededCompanies = useQuery(api.enterprise_features.getSeededCompanies, {})
+  const realOrgs = useQuery(api.admin_enterprise.listOrganizations, { adminToken })
 
-  // Get feature config for the selected REAL org (using its Convex _id)
+  // Feature config for selected entity
   const featureConfig = useQuery(
     api.enterprise_features.getConfig,
-    selectedOrg ? { orgId: selectedOrg } : 'skip'
+    selectedId ? { orgId: selectedId } : 'skip'
   )
   const saveConfig = useMutation(api.enterprise_features.saveConfig)
 
   const enabledFeatures = featureConfig?.features || []
 
-  const filteredOrgs = (orgs || []).filter((o: any) => {
+  // Build combined list
+  const companyList = view === 'seeded'
+    ? (seededCompanies || []).map((c: any) => ({
+        id: c.id, name: c.id, featureCount: c.featureCount, type: 'seeded' as const,
+      }))
+    : (realOrgs || []).map((o: any) => ({
+        id: o._id, name: o.name, featureCount: 0, type: 'real' as const,
+        industry: o.industry, plan: o.plan, status: o.status,
+      }))
+
+  const filtered = companyList.filter((c) => {
     if (!searchQuery) return true
-    const q = searchQuery.toLowerCase()
-    return o.name.toLowerCase().includes(q) || o.email?.toLowerCase().includes(q)
+    return c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           c.name.toLowerCase().includes(searchQuery.toLowerCase())
   })
 
-  const selectedOrgData = (orgs || []).find((o: any) => o._id === selectedOrg)
-
   const handleToggle = async (featureId: string) => {
-    if (!selectedOrg) return
+    if (!selectedId) return
     const updated = enabledFeatures.includes(featureId)
       ? enabledFeatures.filter((f: string) => f !== featureId)
       : [...enabledFeatures, featureId]
-    await saveConfig({ orgId: selectedOrg, features: updated, adminToken })
+    await saveConfig({ orgId: selectedId, features: updated, adminToken })
   }
 
   const handleEnableAll = async () => {
-    if (!selectedOrg) return
-    await saveConfig({ orgId: selectedOrg, features: ALL_FEATURES.map(f => f.id), adminToken })
+    if (!selectedId) return
+    await saveConfig({ orgId: selectedId, features: ALL_FEATURES.map(f => f.id), adminToken })
   }
 
   const handleDisableAll = async () => {
-    if (!selectedOrg) return
-    await saveConfig({ orgId: selectedOrg, features: [], adminToken })
+    if (!selectedId) return
+    await saveConfig({ orgId: selectedId, features: [], adminToken })
   }
 
   const activeFeatureData = ALL_FEATURES.find(f => f.id === activeFeature)
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-black">🚀 Feature Deployment</h2>
           <p className="text-xs text-slate-400 mt-1">Deploy, grant, revoke features to enterprise clients</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-500">{orgs?.length || 0} organizations</span>
+          <span className="text-xs text-slate-500">{seededCompanies?.length || 0} company types</span>
           <span className="text-xs text-slate-500">•</span>
-          <span className="text-xs text-slate-500">{ALL_FEATURES.length} features</span>
+          <span className="text-xs text-slate-500">{realOrgs?.length || 0} live orgs</span>
         </div>
       </div>
 
-      {/* No orgs warning */}
-      {orgs && orgs.length === 0 && (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 text-center">
-          <p className="text-3xl mb-2">🏢</p>
-          <p className="text-sm font-bold text-amber-400">No enterprise organizations created yet</p>
-          <p className="text-xs text-slate-400 mt-1">Go to <strong>Enterprise Portal → Organizations</strong> to create an organization first, then deploy features to it here.</p>
-        </div>
-      )}
-
       <div className="flex gap-6">
-        {/* Organization List */}
-        <div className="w-80 shrink-0">
+        {/* Left: Company List */}
+        <div className="w-80 shrink-0 space-y-3">
+          {/* Toggle between seeded / real */}
+          <div className="flex gap-1 bg-slate-800 rounded-xl p-1">
+            <button onClick={() => { setView('seeded'); setSelectedId(''); setActiveFeature(null) }}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${view === 'seeded' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white'}`}>
+              Company Types ({seededCompanies?.length || 0})
+            </button>
+            <button onClick={() => { setView('real'); setSelectedId(''); setActiveFeature(null) }}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${view === 'real' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white'}`}>
+              Live Orgs ({realOrgs?.length || 0})
+            </button>
+          </div>
+
           <input
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search organizations..."
-            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 mb-3"
+            placeholder={view === 'seeded' ? "Search 300 company types..." : "Search organizations..."}
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500"
           />
+
           <div className="space-y-1 max-h-[500px] overflow-y-auto pr-2">
-            {filteredOrgs.map((o: any) => (
+            {filtered.map((c) => (
               <button
-                key={o._id}
-                onClick={() => { setSelectedOrg(o._id); setActiveFeature(null) }}
+                key={c.id}
+                onClick={() => { setSelectedId(c.id); setActiveFeature(null) }}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left transition-all ${
-                  selectedOrg === o._id
+                  selectedId === c.id
                     ? 'bg-orange-500/10 border border-orange-500/30 text-orange-400'
                     : 'bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300'
                 }`}
               >
                 <div className="min-w-0">
-                  <p className="text-xs font-bold truncate">{o.name}</p>
-                  <p className="text-[10px] text-slate-500">{o.industry || 'No industry'} • {o.plan || 'trial'}</p>
+                  <p className="text-xs font-bold truncate">{c.name}</p>
+                  <p className="text-[10px] text-slate-500">{c.id} • {c.featureCount || enabledFeatures.length}/{ALL_FEATURES.length}</p>
                 </div>
-                <span className={`w-2 h-2 rounded-full shrink-0 ${
-                  o.status === 'active' ? 'bg-emerald-400' :
-                  o.status === 'trial' ? 'bg-amber-400' : 'bg-red-400'
-                }`} />
+                <div className="w-8 h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0">
+                  <div className="h-full bg-orange-500 rounded-full" style={{ width: `${(c.featureCount / ALL_FEATURES.length) * 100}%` }} />
+                </div>
               </button>
             ))}
-            {filteredOrgs.length === 0 && orgs && orgs.length > 0 && (
-              <p className="text-xs text-slate-500 text-center py-4">No matching organizations</p>
-            )}
           </div>
         </div>
 
-        {/* Feature Panel */}
+        {/* Right: Feature Panel */}
         <div className="flex-1">
-          {!selectedOrg ? (
+          {!selectedId ? (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center">
               <p className="text-5xl mb-4">🚀</p>
-              <p className="text-sm font-bold text-slate-400">Select an organization to deploy features</p>
-              <p className="text-xs text-slate-500 mt-2">Features deployed here appear in the client's dashboard</p>
+              <p className="text-sm font-bold text-slate-400">
+                {view === 'seeded'
+                  ? 'Select a company type to deploy features'
+                  : 'Select an organization to deploy features'}
+              </p>
+              <p className="text-xs text-slate-500 mt-2">
+                {view === 'seeded'
+                  ? 'Features deployed here appear in the client dashboard for matching company types'
+                  : 'Features deployed here appear in the client dashboard for this organization'}
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Org Header */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center justify-between">
                 <div>
-                  <h3 className="font-black text-lg">{selectedOrgData?.name || selectedOrg}</h3>
-                  <p className="text-xs text-slate-400">{selectedOrgData?.email} • {enabledFeatures.length}/{ALL_FEATURES.length} features enabled</p>
+                  <h3 className="font-black text-lg">{selectedId}</h3>
+                  <p className="text-xs text-slate-400">{enabledFeatures.length}/{ALL_FEATURES.length} features enabled • orgId: {selectedId}</p>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={handleEnableAll} className="px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-xl text-xs font-bold hover:bg-emerald-500/20 transition-all">Enable All</button>
@@ -155,29 +171,22 @@ export function AdminFeaturesPanel({ adminToken }: { adminToken: string }) {
               </div>
 
               <div className="flex gap-6">
-                {/* Feature List */}
                 <div className="flex-1 space-y-1.5">
                   {ALL_FEATURES.map(f => {
                     const isEnabled = enabledFeatures.includes(f.id)
                     return (
-                      <div
-                        key={f.id}
-                        onClick={() => setActiveFeature(f.id)}
+                      <div key={f.id} onClick={() => setActiveFeature(f.id)}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all ${
-                          activeFeature === f.id
-                            ? 'bg-orange-500/10 border border-orange-500/30'
-                            : 'bg-slate-900 border border-slate-800 hover:border-slate-700'
-                        }`}
-                      >
+                          activeFeature === f.id ? 'bg-orange-500/10 border border-orange-500/30'
+                          : 'bg-slate-900 border border-slate-800 hover:border-slate-700'
+                        }`}>
                         <span className="text-lg">{f.icon}</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold">{f.name}</p>
                           <p className="text-[10px] text-slate-500 truncate">{f.desc}</p>
                         </div>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleToggle(f.id) }}
-                          className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${isEnabled ? 'bg-orange-500' : 'bg-slate-700'}`}
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); handleToggle(f.id) }}
+                          className={`w-10 h-5 rounded-full transition-all relative shrink-0 ${isEnabled ? 'bg-orange-500' : 'bg-slate-700'}`}>
                           <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${isEnabled ? 'left-5' : 'left-0.5'}`} />
                         </button>
                       </div>
@@ -185,7 +194,6 @@ export function AdminFeaturesPanel({ adminToken }: { adminToken: string }) {
                   })}
                 </div>
 
-                {/* Feature Detail */}
                 {activeFeatureData && (
                   <div className="w-72 shrink-0 bg-slate-900 border border-slate-800 rounded-2xl p-5">
                     <div className="text-center mb-4">
@@ -198,19 +206,17 @@ export function AdminFeaturesPanel({ adminToken }: { adminToken: string }) {
                       <code className="text-[11px] text-orange-400">convex/{activeFeatureData.module}.ts</code>
                     </div>
                     <div className="bg-slate-800 rounded-xl p-3 mb-4">
-                      <p className="text-[10px] text-slate-500">Status for {selectedOrgData?.name}</p>
+                      <p className="text-[10px] text-slate-500">Status</p>
                       <p className={`text-xs font-bold ${enabledFeatures.includes(activeFeatureData.id) ? 'text-emerald-400' : 'text-slate-500'}`}>
                         {enabledFeatures.includes(activeFeatureData.id) ? '✅ Deployed' : '❌ Not Deployed'}
                       </p>
                     </div>
-                    <button
-                      onClick={() => handleToggle(activeFeatureData.id)}
+                    <button onClick={() => handleToggle(activeFeatureData.id)}
                       className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all ${
                         enabledFeatures.includes(activeFeatureData.id)
                           ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20'
                           : 'bg-orange-500 text-white hover:bg-orange-600'
-                      }`}
-                    >
+                      }`}>
                       {enabledFeatures.includes(activeFeatureData.id) ? 'Revoke Feature' : 'Deploy Feature'}
                     </button>
                   </div>
