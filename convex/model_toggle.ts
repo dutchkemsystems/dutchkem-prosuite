@@ -32,8 +32,8 @@ const MODEL_CONFIGS = [
     modelName: "mimo",
     displayName: "MiMo-V2.5",
     icon: "🚀",
-    providerType: "agentic",
-    description: "Autonomous agents, 1M context, long-horizon tasks",
+    providerType: "agentic+multi",
+    description: "agentic autonomous agents + multi-modal design & audio generation",
   },
   {
     modelName: "nvidia",
@@ -53,12 +53,25 @@ export const seedModels = mutation({
   returns: v.any(),
   handler: async (ctx) => {
     let seeded = 0;
+    let updated = 0;
     for (const config of MODEL_CONFIGS) {
       const existing = await ctx.db
         .query("ai_model_status")
         .withIndex("by_model", (q) => q.eq("modelName", config.modelName))
         .first();
-      if (!existing) {
+      if (existing) {
+        // Update if providerType or description changed
+        if (existing.providerType !== config.providerType || existing.description !== config.description) {
+          await ctx.db.patch(existing._id, {
+            providerType: config.providerType,
+            description: config.description,
+            displayName: config.displayName,
+            icon: config.icon,
+            updatedAt: Date.now(),
+          });
+          updated++;
+        }
+      } else {
         await ctx.db.insert("ai_model_status", {
           ...config,
           isEnabled: true,
@@ -68,7 +81,7 @@ export const seedModels = mutation({
         seeded++;
       }
     }
-    return { success: true, seeded, total: MODEL_CONFIGS.length };
+    return { success: true, seeded, updated, total: MODEL_CONFIGS.length };
   },
 });
 

@@ -31,8 +31,8 @@ const TASK_PATTERNS: Record<string, { keywords: string[]; provider: string; mode
   },
   design: {
     keywords: ['image', 'design', 'flyer', 'poster', 'logo', 'banner', 'visual', 'graphic', 'brochure', 'catalog', 'business card'],
-    provider: 'aiml',
-    model: 'stabilityai/stable-diffusion-xl',
+    provider: 'mimo',
+    model: 'mimo-v2.5',
   },
   analysis: {
     keywords: ['analyze', 'summary', 'extract', 'insight', 'trend', 'compare', 'evaluate', 'report', 'dashboard', 'metrics', 'KPI', 'ROI'],
@@ -46,8 +46,8 @@ const TASK_PATTERNS: Record<string, { keywords: string[]; provider: string; mode
   },
   audio: {
     keywords: ['audio', 'voice', 'speak', 'transcribe', 'speech', 'text to speech', 'podcast', 'voiceover', 'narration'],
-    provider: 'aiml',
-    model: 'elevenlabs/tts',
+    provider: 'mimo',
+    model: 'mimo-v2.5',
   },
   video: {
     keywords: ['video', 'movie', 'clip', 'animation', 'cinematic', 'reel', 'short', 'promo', 'advertisement', 'commercial'],
@@ -155,9 +155,9 @@ export const routeRequest = action({
       }
     }
 
-    // Fallback sequence — only try enabled models
+    // Fallback sequence — only try enabled models (priority: groq → openrouter → mimo → nvidia → aiml)
     if (!result) {
-      const fallbackOrder = ['groq', 'openrouter', 'nvidia', 'mimo', 'aiml'];
+      const fallbackOrder = ['groq', 'openrouter', 'mimo', 'nvidia', 'aiml'];
       for (const provider of fallbackOrder) {
         if (provider === task.provider) continue; // Already tried
         const isEnabled = await ctx.runQuery(internal.model_toggle.checkModel, { modelName: provider });
