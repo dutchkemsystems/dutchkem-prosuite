@@ -139,23 +139,33 @@ export const routeRequest = action({
       agentId: args.agentId,
     });
 
-    // Route to appropriate provider
+    // Route to appropriate provider (respecting model toggles)
     let result: any;
-    try {
-      result = await ctx.runAction(internal.ai_router.callProvider, {
-        provider: task.provider,
-        model: task.model,
-        input: args.input,
-        systemPrompt: args.systemPrompt,
-      });
-    } catch (error: any) {
-      // Fallback sequence
-      const fallbackOrder = ['groq', 'openrouter'];
+    const primaryEnabled = await ctx.runQuery(internal.model_toggle.checkModel, { modelName: task.provider });
+    if (primaryEnabled) {
+      try {
+        result = await ctx.runAction(internal.ai_router.callProvider, {
+          provider: task.provider,
+          model: task.model,
+          input: args.input,
+          systemPrompt: args.systemPrompt,
+        });
+      } catch (error: any) {
+        console.log(`Primary provider ${task.provider} failed, trying fallbacks...`);
+      }
+    }
+
+    // Fallback sequence — only try enabled models
+    if (!result) {
+      const fallbackOrder = ['groq', 'openrouter', 'nvidia', 'mimo', 'aiml'];
       for (const provider of fallbackOrder) {
+        if (provider === task.provider) continue; // Already tried
+        const isEnabled = await ctx.runQuery(internal.model_toggle.checkModel, { modelName: provider });
+        if (!isEnabled) continue;
         try {
           result = await ctx.runAction(internal.ai_router.callProvider, {
             provider,
-            model: 'llama3-70b-8192',
+            model: provider === 'groq' ? 'llama3-70b-8192' : 'nvidia/llama-3.3-70b-instruct:free',
             input: args.input,
             systemPrompt: args.systemPrompt,
           });
@@ -164,6 +174,10 @@ export const routeRequest = action({
           continue;
         }
       }
+    }
+
+    if (!result) {
+      return { error: "All AI providers are currently disabled or unavailable. Contact your administrator." };
     }
 
     // Log routing

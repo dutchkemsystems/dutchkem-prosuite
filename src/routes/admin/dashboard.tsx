@@ -31,6 +31,7 @@ import { AdDesignerPanel } from "~/components/admin/AdDesignerPanel";
 import { WhatsAppHub } from "~/components/admin/WhatsAppHub";
 import AdminPayoutDashboard from "~/components/admin/enterprise/AdminPayoutDashboard";
 import { EnterprisePaymentsReadOnly } from "~/components/admin/EnterprisePaymentsReadOnly";
+import { ModelTogglePanel } from "~/components/admin/ModelTogglePanel";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -223,8 +224,9 @@ function AdminDashboardPage() {
                     <AdminTab active={activeTab === "currency"} onClick={() => setActiveTab("currency")} icon="💱" label="Currency Converter" onClose={() => setSidebarOpen(false)} />
                      <AdminTab active={activeTab === "auto-flyer"} onClick={() => setActiveTab("auto-flyer")} icon="🎨" label="Auto Flyer" onClose={() => setSidebarOpen(false)} />
                      <AdminTab active={activeTab === "ad-designer"} onClick={() => setActiveTab("ad-designer")} icon="🖼️" label="Ad Designer" onClose={() => setSidebarOpen(false)} />
-                     <AdminTab active={activeTab === "whatsapp"} onClick={() => setActiveTab("whatsapp")} icon="📱" label="WhatsApp" onClose={() => setSidebarOpen(false)} />
-                     <AdminTab active={activeTab === "enterprise-payments"} onClick={() => setActiveTab("enterprise-payments")} icon="💳" label="Enterprise Payments" onClose={() => setSidebarOpen(false)} />
+                  <AdminTab active={activeTab === "whatsapp"} onClick={() => setActiveTab("whatsapp")} icon="📱" label="WhatsApp" onClose={() => setSidebarOpen(false)} />
+                  <AdminTab active={activeTab === "enterprise-payments"} onClick={() => setActiveTab("enterprise-payments")} icon="💳" label="Enterprise Payments" onClose={() => setSidebarOpen(false)} />
+                  <AdminTab active={activeTab === "ai-models"} onClick={() => setActiveTab("ai-models")} icon="🤖" label="AI Model Toggle" onClose={() => setSidebarOpen(false)} />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -283,7 +285,8 @@ function AdminDashboardPage() {
                      {activeTab === "auto-flyer" && <AutoFlyerDashboard />}
                      {activeTab === "ad-designer" && <AdDesignerPanel adminToken={adminToken} />}
                      {activeTab === "whatsapp" && <WhatsAppHub adminToken={adminToken} />}
-                     {activeTab === "enterprise-payments" && <EnterprisePaymentsReadOnly adminToken={adminToken} />}
+                      {activeTab === "enterprise-payments" && <EnterprisePaymentsReadOnly adminToken={adminToken} />}
+                      {activeTab === "ai-models" && <ModelTogglePanel adminToken={adminToken} />}
            </AdminSuspense>
         </div>
         <Footer />

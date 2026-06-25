@@ -4958,4 +4958,28 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_org", ["orgId"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // AI MODEL TOGGLE SYSTEM
+  // ═══════════════════════════════════════════════════════════════════
+  ai_model_status: defineTable({
+    modelName: v.string(),
+    displayName: v.string(),
+    isEnabled: v.boolean(),
+    icon: v.string(),
+    providerType: v.string(),
+    description: v.string(),
+    lastToggledAt: v.optional(v.number()),
+    toggledBy: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_model", ["modelName"]),
+
+  ai_model_toggle_logs: defineTable({
+    modelName: v.string(),
+    action: v.string(),
+    enabled: v.boolean(),
+    performedBy: v.optional(v.string()),
+    timestamp: v.number(),
+  }).index("by_model", ["modelName"]).index("by_timestamp", ["timestamp"]),
 });
