@@ -4920,4 +4920,35 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_status", ["status"]).index("by_customer", ["customerId"]).index("by_order_number", ["orderNumber"]),
+
+  telegram_carts: defineTable({
+    userId: v.string(),
+    items: v.array(v.object({
+      productId: v.string(),
+      name: v.string(),
+      price: v.number(),
+      quantity: v.number(),
+    })),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  surveys: defineTable({
+    name: v.string(),
+    type: v.string(),
+    questions: v.array(v.any()),
+    responseCount: v.number(),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  }),
+
+  survey_responses: defineTable({
+    surveyId: v.id("surveys"),
+    respondentName: v.string(),
+    respondentEmail: v.optional(v.string()),
+    answers: v.array(v.any()),
+    testimonial: v.optional(v.string()),
+    rating: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_survey", ["surveyId"]),
 });

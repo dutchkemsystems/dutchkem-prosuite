@@ -535,6 +535,193 @@ export function MarketingTab({ token }: { token: string }) {
   )
 }
 
+// ─── TESTIMONIALS TAB ───
+export function TestimonialsTab({ token }: { token: string }) {
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm] = useState({ name: '', role: '', company: '', text: '', rating: 5 })
+  const testimonials = useQuery(api.social_proof.getTestimonials, {})
+  const addTestimonial = useMutation(api.social_proof.addTestimonial)
+
+  const handleAdd = async () => {
+    if (!form.name || !form.text) return
+    await addTestimonial({ ...form, isPublished: true, adminToken: token })
+    setForm({ name: '', role: '', company: '', text: '', rating: 5 })
+    setShowAdd(false)
+  }
+
+  return (
+    <div className="space-y-6">
+      <button onClick={() => setShowAdd(!showAdd)} className="px-5 py-3 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600">+ Add Testimonial</button>
+      {showAdd && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Name" className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+            <input value={form.role} onChange={e => setForm({...form, role: e.target.value})} placeholder="Role" className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          </div>
+          <input value={form.company} onChange={e => setForm({...form, company: e.target.value})} placeholder="Company" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          <textarea value={form.text} onChange={e => setForm({...form, text: e.target.value})} placeholder="Testimonial text..." rows={3} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white resize-none" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400">Rating:</span>
+            {[1,2,3,4,5].map(r => (
+              <button key={r} onClick={() => setForm({...form, rating: r})} className={`text-lg ${r <= form.rating ? 'text-yellow-400' : 'text-slate-600'}`}>★</button>
+            ))}
+          </div>
+          <button onClick={handleAdd} className="px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold">Save</button>
+        </div>
+      )}
+      <div className="grid gap-3">
+        {(testimonials || []).map((t: any) => (
+          <div key={t._id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-yellow-400">{"★".repeat(t.rating)}</span>
+              <span className="text-slate-600">{"★".repeat(5 - t.rating)}</span>
+            </div>
+            <p className="text-sm text-slate-300 italic mb-3">"{t.text}"</p>
+            <p className="text-xs font-bold">{t.name}{t.role ? `, ${t.role}` : ""}{t.company ? ` at ${t.company}` : ""}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── SURVEYS TAB ───
+export function SurveysTab({ token }: { token: string }) {
+  const [showCreate, setShowCreate] = useState(false)
+  const [form, setForm] = useState({ name: '', type: 'csat', questions: [{ question: 'How satisfied are you?', type: 'rating', required: true }] })
+  const surveys = useQuery(api.survey_commerce.getActiveSurveys, {})
+  const createSurvey = useMutation(api.survey_commerce.createSurvey)
+
+  const handleCreate = async () => {
+    if (!form.name) return
+    await createSurvey({ ...form, adminToken: token })
+    setForm({ name: '', type: 'csat', questions: [{ question: 'How satisfied are you?', type: 'rating', required: true }] })
+    setShowCreate(false)
+  }
+
+  return (
+    <div className="space-y-6">
+      <button onClick={() => setShowCreate(!showCreate)} className="px-5 py-3 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600">+ Create Survey</button>
+      {showCreate && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+          <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Survey name" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white">
+            <option value="nps">NPS (Net Promoter Score)</option>
+            <option value="csat">CSAT (Customer Satisfaction)</option>
+            <option value="feedback">General Feedback</option>
+          </select>
+          <button onClick={handleCreate} className="px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold">Create Survey</button>
+        </div>
+      )}
+      <div className="grid gap-3">
+        {(surveys || []).map((s: any) => (
+          <div key={s._id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex justify-between items-center">
+            <div>
+              <p className="font-black text-sm">{s.name}</p>
+              <p className="text-xs text-slate-400">{s.type.toUpperCase()} · {s.questions?.length || 0} questions</p>
+            </div>
+            <span className="px-3 py-1 bg-blue-500/10 text-blue-400 rounded-full text-[10px] font-bold">{s.responseCount} responses</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── LANDING PAGES TAB ───
+export function LandingPagesTab({ token }: { token: string }) {
+  const [showCreate, setShowCreate] = useState(false)
+  const [form, setForm] = useState({ title: '', subtitle: '', ctaText: 'Get Started' })
+  const [result, setResult] = useState<any>(null)
+  const generatePage = useAction(api.landing_page.generateLandingPage)
+
+  const handleGenerate = async () => {
+    if (!form.title) return
+    const res = await generatePage({ ...form, businessName: 'DutchKem Prosuite', adminToken: token })
+    setResult(res)
+    setShowCreate(false)
+  }
+
+  return (
+    <div className="space-y-6">
+      <button onClick={() => setShowCreate(!showCreate)} className="px-5 py-3 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600">+ Generate Landing Page</button>
+      {showCreate && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+          <input value={form.title} onChange={e => setForm({...form, title: e.target.value})} placeholder="Headline" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          <input value={form.subtitle} onChange={e => setForm({...form, subtitle: e.target.value})} placeholder="Subheadline" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          <input value={form.ctaText} onChange={e => setForm({...form, ctaText: e.target.value})} placeholder="CTA button text" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          <button onClick={handleGenerate} className="px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-bold">Generate Page</button>
+        </div>
+      )}
+      {result?.html && (
+        <div className="bg-white rounded-2xl overflow-hidden">
+          <iframe srcDoc={result.html} className="w-full h-[500px] border-0 rounded-2xl" title="Landing Page" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── WHATSAPP COMMERCE TAB ───
+export function WhatsAppCommerceTab({ token }: { token: string }) {
+  const [number, setNumber] = useState('')
+  const [result, setResult] = useState<any>(null)
+  const sendCatalog = useAction(api.whatsapp_commerce.sendWhatsAppCatalog)
+  const generatePage = useAction(api.whatsapp_commerce.generateWhatsAppCatalogPage)
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <p className="text-sm font-bold">WhatsApp Store Commands</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-slate-800 rounded-xl p-3"><p className="text-xs text-orange-400 font-bold">/shop</p><p className="text-[10px] text-slate-400">Browse products</p></div>
+          <div className="bg-slate-800 rounded-xl p-3"><p className="text-xs text-orange-400 font-bold">order [num] [qty]</p><p className="text-[10px] text-slate-400">Place an order</p></div>
+          <div className="bg-slate-800 rounded-xl p-3"><p className="text-xs text-orange-400 font-bold">/cart</p><p className="text-[10px] text-slate-400">View cart</p></div>
+          <div className="bg-slate-800 rounded-xl p-3"><p className="text-xs text-orange-400 font-bold">/pay</p><p className="text-[10px] text-slate-400">Checkout</p></div>
+        </div>
+        <div className="flex gap-2">
+          <input value={number} onChange={e => setNumber(e.target.value)} placeholder="WhatsApp number (e.g. +234...)" className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white" />
+          <button onClick={async () => { if (number) { const res = await sendCatalog({ phoneNumber: number, adminToken: token }); setResult(res) } }} className="px-5 py-2.5 bg-green-600 text-white rounded-xl text-sm font-bold">Send Catalog</button>
+        </div>
+        <button onClick={async () => { const res = await generatePage({ businessName: 'DutchKem Prosuite', whatsappNumber: number || '2348121161202' }); setResult(res) }} className="px-5 py-2.5 bg-slate-700 text-white rounded-xl text-sm font-bold">Generate Store Page</button>
+      </div>
+      {result?.html && (
+        <div className="bg-white rounded-2xl overflow-hidden">
+          <iframe srcDoc={result.html} className="w-full h-[500px] border-0 rounded-2xl" title="WhatsApp Store" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── CLIENT PORTAL TAB ───
+export function ClientPortalTab({ token }: { token: string }) {
+  const customers = useQuery(api.customer_database.getCustomers, {})
+  const orders = useQuery(api.order_management.getOrders, {})
+
+  return (
+    <div className="space-y-6">
+      <p className="text-sm text-slate-400">Client portal for managing customer access and project tracking.</p>
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard label="Total Clients" value={(customers || []).length.toString()} color="text-blue-400" />
+        <StatCard label="Total Projects" value={(orders || []).length.toString()} color="text-orange-400" />
+      </div>
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <p className="text-sm font-bold mb-3">Recent Clients</p>
+        {(customers || []).slice(0, 5).map((c: any) => (
+          <div key={c._id} className="flex justify-between py-2 border-b border-slate-800 last:border-0">
+            <div>
+              <p className="text-xs font-bold">{c.name}</p>
+              <p className="text-[10px] text-slate-500">{c.email}</p>
+            </div>
+            <span className="text-xs text-orange-400 font-bold">{c.totalOrders} orders</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── SHARED ───
 function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (

@@ -15,7 +15,7 @@ import { ApiAccessManager } from '~/components/enterprise/ApiAccessManager'
 import { EnterpriseUsageDashboard } from '~/components/enterprise/EnterpriseUsageDashboard'
 import { SubscriptionRenewal } from '~/components/enterprise/SubscriptionRenewal'
 import { ClientPaymentsTab } from '~/components/enterprise/capabilities/ClientPaymentsTab'
-import { OrdersTab, CustomersTab, ReportingTab, QRCodesTab, InvoicesTab, ReceiptsTab, AppointmentsTab, BusinessHoursTab, MarketingTab } from '~/components/enterprise/EnterpriseFeatures'
+import { OrdersTab, CustomersTab, ReportingTab, QRCodesTab, InvoicesTab, ReceiptsTab, AppointmentsTab, BusinessHoursTab, MarketingTab, TestimonialsTab, SurveysTab, LandingPagesTab, WhatsAppCommerceTab, ClientPortalTab } from '~/components/enterprise/EnterpriseFeatures'
 
 export const Route = createFileRoute('/enterprise/dashboard')({
   component: EnterpriseDashboard,
@@ -44,6 +44,11 @@ const tabs = [
   { id: 'appointments', icon: '📅', label: 'Appointments' },
   { id: 'marketing', icon: '📣', label: 'SMS Marketing' },
   { id: 'business_hours', icon: '🕐', label: 'Business Hours' },
+  { id: 'testimonials', icon: '⭐', label: 'Testimonials' },
+  { id: 'surveys', icon: '📋', label: 'Surveys & Feedback' },
+  { id: 'landing_pages', icon: '🌐', label: 'Landing Pages' },
+  { id: 'whatsapp_store', icon: '💬', label: 'WhatsApp Store' },
+  { id: 'client_portal', icon: '🔐', label: 'Client Portal' },
 ]
 
 function EnterpriseDashboard() {
@@ -185,6 +190,11 @@ function EnterpriseDashboard() {
           {activeTab === 'appointments' && <AppointmentsTab token={token} />}
           {activeTab === 'marketing' && <MarketingTab token={token} />}
           {activeTab === 'business_hours' && <BusinessHoursTab token={token} />}
+          {activeTab === 'testimonials' && <TestimonialsTab token={token} />}
+          {activeTab === 'surveys' && <SurveysTab token={token} />}
+          {activeTab === 'landing_pages' && <LandingPagesTab token={token} />}
+          {activeTab === 'whatsapp_store' && <WhatsAppCommerceTab token={token} />}
+          {activeTab === 'client_portal' && <ClientPortalTab token={token} />}
         </div>
       </main>
     </div>
