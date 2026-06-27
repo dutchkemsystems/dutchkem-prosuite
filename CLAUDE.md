@@ -3,6 +3,34 @@ description: Guidelines and best practices for building Convex projects, includi
 globs: **/*.ts,**/*.tsx,**/*.js,**/*.jsx
 ---
 
+# CLAUDE.md — Dutchkem Ventures ProSuite NG+
+
+> **Read `AGENTS.md` first for project-specific rules.** This file covers Convex-specific coding patterns.
+
+## Quick Reference
+
+- **Project:** Dutchkem Ventures ProSuite NG+ — AI platform with 15 agents
+- **Backend:** Convex serverless (NOT Express/Node.js)
+- **Frontend:** React 19 + TanStack Router + Vite 8 + Tailwind 4
+- **Primary AI:** OpenRouter (Llama 3.3 70B Instruct)
+- **Payments:** Kora Pay (Nigerian gateway)
+- **Deploy:** `npx convex deploy --typecheck=disable` then `vercel deploy --prod --yes --force`
+
+## Critical Convex Rules (Project-Specific)
+
+1. **`fetch()` ONLY in `action` functions.** Never in `query` or `mutation`.
+2. **NO `btoa()`, `crypto.subtle`, `crypto.randomUUID`** in Convex actions. Allowed in HTTP actions.
+3. **Custom admin auth** — NOT Convex Auth for admin. SessionId in localStorage `admin_session_token`.
+4. **Actions cannot use `ctx.db` directly** — use `ctx.runQuery(internal.auth_helpers.validateAdminSession, { adminToken })`.
+5. **Kora API response field is `status` (boolean)** — NEVER `success`.
+6. **Dashboard uses `useConvex().query()`** (one-shot fetch) — NOT `useQuery` from `convex/react`.
+7. **All features are ADDITIVE** — must NOT break existing 15 agents, voice, payments, wallet, auto-sweep, Resend auth.
+8. **`convex-helpers` pinned to exact `0.1.103`** — V0.1.119 has broken exports.
+9. **NO `@esbuild/win32-x64`** in package.json — breaks Vercel Linux builds.
+10. **Never pass `undefined`** as a Convex value — use `null` instead.
+
+---
+
 # Convex guidelines
 ## Common mistakes to avoid
 - Do NOT use `useQuery` from `convex/react` — use `useSuspenseQuery` from `@tanstack/react-query` with `convexQuery` from `@convex-dev/react-query`.
