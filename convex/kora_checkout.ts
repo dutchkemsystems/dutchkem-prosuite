@@ -288,20 +288,6 @@ export const initiateWhatsAppSubscription = action({
         phoneNumber: args.phoneNumber,
       });
 
-      // Send welcome message to activate WhatsApp integration immediately
-      const welcomeMessage = `🎉 *Welcome to DutchKem Ventures WhatsApp!*\n\nYour *${tier.name}* plan is now active!\n\n✅ *What's included:*\n• ${tier.messagesPerMonth} messages/month\n• ${tier.agentLimit} AI agent${tier.agentLimit > 1 ? 's' : ''} support\n• ${tier.features.join(', ')}\n\n💬 *How to use:*\n• Chat with our AI agents for any service\n• Send messages to your contacts\n• Access all features in your plan\n\n🚀 *Get started now!* Send a message to any of our AI agents:\n• 🎓 Academic Writer\n• 💼 Business Consultant\n• ✍️ Content Strategist\n• 📄 Career Coach\n• 💰 Finance Advisor\n• And 10+ more!\n\n_Dutchkem Ventures — Your AI-Powered Business Partner_`;
-
-      // Try to send via WhatsApp (non-blocking)
-      try {
-        await ctx.runAction((await import("./_generated/api")).internal.whatsapp_openwa.sendText as any, {
-          sessionType: args.systemType,
-          to: args.phoneNumber,
-          message: welcomeMessage,
-        });
-      } catch (e) {
-        console.log("[WhatsApp] Welcome message send skipped:", e);
-      }
-
       return { success: true, reference: "FREE_TIER" };
     }
 
@@ -450,29 +436,12 @@ export const verifyPayment = action({
               const systemType = metadata.systemType || "admin";
               const phoneNumber = metadata.phoneNumber || "";
 
-              const tier = await ctx.runQuery(internal.whatsapp_dual.getTierById, { tierId: tierId as any });
-
               await ctx.runMutation(internal.whatsapp_dual.createSubscriptionInternal, {
                 userId,
                 systemType,
                 tierId: tierId as any,
                 phoneNumber,
               });
-
-              // Send welcome message
-              const tierName = tier?.name || "Premium";
-              const features = tier?.features?.join(', ') || "messaging, support, analytics";
-              const welcomeMessage = `🎉 *Welcome to DutchKem Ventures WhatsApp!*\n\nYour *${tierName}* plan is now active!\n\n✅ *What's included:*\n• ${tier?.messagesPerMonth || 5000} messages/month\n• ${tier?.agentLimit || 5} AI agent support\n• ${features}\n\n💬 *How to use:*\n• Chat with our AI agents for any service\n• Send messages to your contacts\n• Access all features in your plan\n\n🚀 *Get started now!* Send a message to any of our AI agents:\n• 🎓 Academic Writer\n• 💼 Business Consultant\n• ✍️ Content Strategist\n• 📄 Career Coach\n• 💰 Finance Advisor\n• And 10+ more!\n\n_Dutchkem Ventures — Your AI-Powered Business Partner_`;
-
-              try {
-                await ctx.runAction((await import("./_generated/api")).internal.whatsapp_openwa.sendText as any, {
-                  sessionType: systemType,
-                  to: phoneNumber,
-                  message: welcomeMessage,
-                });
-              } catch (e) {
-                console.log("[WhatsApp] Welcome message send skipped:", e);
-              }
             }
           }
         }
@@ -553,31 +522,12 @@ export const handleKoraWebhook = internalMutation({
             const systemType = metadata.systemType || "admin";
             const phoneNumber = metadata.phoneNumber || "";
 
-            // Get tier details for welcome message
-            const tier = await ctx.runQuery(internal.whatsapp_dual.getTierById, { tierId: tierId as any });
-
             await ctx.runMutation(internal.whatsapp_dual.createSubscriptionInternal, {
               userId,
               systemType,
               tierId: tierId as any,
               phoneNumber,
             });
-
-            // Send welcome message
-            const tierName = tier?.name || "Premium";
-            const features = tier?.features?.join(', ') || "messaging, support, analytics";
-            const welcomeMessage = `🎉 *Welcome to DutchKem Ventures WhatsApp!*\n\nYour *${tierName}* plan is now active!\n\n✅ *What's included:*\n• ${tier?.messagesPerMonth || 5000} messages/month\n• ${tier?.agentLimit || 5} AI agent support\n• ${features}\n\n💬 *How to use:*\n• Chat with our AI agents for any service\n• Send messages to your contacts\n• Access all features in your plan\n\n🚀 *Get started now!* Send a message to any of our AI agents:\n• 🎓 Academic Writer\n• 💼 Business Consultant\n• ✍️ Content Strategist\n• 📄 Career Coach\n• 💰 Finance Advisor\n• And 10+ more!\n\n_Dutchkem Ventures — Your AI-Powered Business Partner_`;
-
-            // Try to send via WhatsApp (non-blocking)
-            try {
-              await ctx.runAction((await import("./_generated/api")).internal.whatsapp_openwa.sendText as any, {
-                sessionType: systemType,
-                to: phoneNumber,
-                message: welcomeMessage,
-              });
-            } catch (e) {
-              console.log("[WhatsApp] Welcome message send skipped:", e);
-            }
           }
         }
     }

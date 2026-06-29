@@ -5073,7 +5073,7 @@ export default defineSchema({
 
   whatsapp_toggle_logs: defineTable({
     systemType: v.union(v.literal("admin"), v.literal("enterprise")),
-    action: v.union(v.literal("enabled"), v.literal("disabled")),
+    action: v.union(v.literal("enabled"), v.literal("disabled"), v.literal("session_start"), v.literal("session_stop")),
     performedBy: v.string(),
     affectedClients: v.number(),
     timestamp: v.number(),
