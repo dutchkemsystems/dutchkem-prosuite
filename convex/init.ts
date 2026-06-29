@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
-import { hashPassword } from "./encryption";
+import { internal } from "./_generated/api";
 
 export const setupAdminAccount = mutation({
   args: {},
@@ -16,7 +16,7 @@ export const setupAdminAccount = mutation({
       .map((b) => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[b % 62])
       .join("");
     
-    const passwordHash = await hashPassword(password);
+    const passwordHash = await ctx.runMutation(internal.auth_helpers._hashPassword, { password });
 
     const backupCodes = Array.from({ length: 10 }, () => 
       Math.random().toString(36).substring(2, 10).toUpperCase()

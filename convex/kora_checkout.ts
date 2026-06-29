@@ -250,6 +250,137 @@ export const initiateEnterpriseAddonPurchase = action({
   },
 });
 
+// ─── INITIATE WHATSAPP SUBSCRIPTION PURCHASE ───
+
+export const initiateWhatsAppSubscription = action({
+  args: {
+    userId: v.string(),
+    tierId: v.string(),
+    systemType: v.union(v.literal("admin"), v.literal("enterprise")),
+    phoneNumber: v.string(),
+    email: v.string(),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    checkoutUrl: v.optional(v.string()),
+    reference: v.optional(v.string()),
+    error: v.optional(v.string()),
+    debug: v.optional(v.any()),
+  }),
+  handler: async (ctx, args) => {
+    const secretKey = process.env.KORA_SECRET_KEY;
+    if (!secretKey) {
+      return { success: false, error: "KORA_SECRET_KEY not configured", debug: { hasKey: false } };
+    }
+
+    // Get the tier details
+    const tier = await ctx.runQuery(internal.whatsapp_dual.getTierById, { tierId: args.tierId as any });
+    if (!tier) {
+      return { success: false, error: "Tier not found", debug: { tierId: args.tierId } };
+    }
+
+    // Free tier - no payment needed
+    if (tier.priceNgn === 0) {
+      await ctx.runMutation(internal.whatsapp_dual.createSubscriptionInternal, {
+        userId: args.userId,
+        systemType: args.systemType,
+        tierId: args.tierId,
+        phoneNumber: args.phoneNumber,
+      });
+
+      // Send welcome message to activate WhatsApp integration immediately
+      const welcomeMessage = `🎉 *Welcome to DutchKem Ventures WhatsApp!*\n\nYour *${tier.name}* plan is now active!\n\n✅ *What's included:*\n• ${tier.messagesPerMonth} messages/month\n• ${tier.agentLimit} AI agent${tier.agentLimit > 1 ? 's' : ''} support\n• ${tier.features.join(', ')}\n\n💬 *How to use:*\n• Chat with our AI agents for any service\n• Send messages to your contacts\n• Access all features in your plan\n\n🚀 *Get started now!* Send a message to any of our AI agents:\n• 🎓 Academic Writer\n• 💼 Business Consultant\n• ✍️ Content Strategist\n• 📄 Career Coach\n• 💰 Finance Advisor\n• And 10+ more!\n\n_Dutchkem Ventures — Your AI-Powered Business Partner_`;
+
+      // Try to send via WhatsApp (non-blocking)
+      try {
+        await ctx.runAction((await import("./_generated/api")).internal.whatsapp_openwa.sendText as any, {
+          sessionType: args.systemType,
+          to: args.phoneNumber,
+          message: welcomeMessage,
+        });
+      } catch (e) {
+        console.log("[WhatsApp] Welcome message send skipped:", e);
+      }
+
+      return { success: true, reference: "FREE_TIER" };
+    }
+
+    const amount = parseInt(String(tier.priceNgn));
+    const reference = `WA-${args.userId.slice(-8)}-${Date.now()}`;
+
+    try {
+      const requestBody = {
+        amount,
+        currency: "NGN",
+        reference,
+        customer: { email: args.email },
+        metadata: {
+          userId: args.userId,
+          type: "whatsapp_subscription",
+          tierId: args.tierId,
+          systemType: args.systemType,
+          phoneNumber: args.phoneNumber,
+          tierName: tier.name,
+          messagesPerMonth: tier.messagesPerMonth,
+        },
+      };
+
+      console.log("[WhatsApp Payment] Request:", JSON.stringify(requestBody));
+
+      const response = await fetch("https://api.korapay.com/merchant/api/v1/charges/initialize", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${secretKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+      console.log("[WhatsApp Payment] Response:", JSON.stringify(data));
+
+      if (data.status && data.data?.checkout_url) {
+        await ctx.runMutation(internal.kora_checkout.storePendingTransaction, {
+          userId: args.userId,
+          type: "whatsapp_subscription",
+          reference,
+          amount,
+          packageId: args.tierId,
+          credits: tier.messagesPerMonth,
+          email: args.email,
+          billingCycle: "monthly",
+        });
+
+        return {
+          success: true,
+          checkoutUrl: data.data.checkout_url,
+          reference,
+          debug: { tierName: tier.name, amount, reference },
+        };
+      }
+
+      return { 
+        success: false, 
+        error: data.message || "Payment initialization failed",
+        debug: { 
+          koraStatus: data.status, 
+          koraMessage: data.message,
+          koraData: data.data,
+          requestBody,
+          httpStatus: response.status,
+        },
+      };
+    } catch (e: any) {
+      console.error("[WhatsApp Payment] Error:", e.message);
+      return { 
+        success: false, 
+        error: e.message || "Payment system error",
+        debug: { exception: e.message, stack: e.stack },
+      };
+    }
+  },
+});
+
 // ─── VERIFY PAYMENT ───
 
 export const verifyPayment = action({
@@ -311,6 +442,37 @@ export const verifyPayment = action({
                 addonId: pending.packageId,
                 reference: args.reference,
               });
+            } else if (pending.type === "whatsapp_subscription") {
+              // Activate WhatsApp subscription after payment verification
+              const metadata = pending.rawPayload?.metadata || {};
+              const tierId = pending.packageId;
+              const userId = pending.userId;
+              const systemType = metadata.systemType || "admin";
+              const phoneNumber = metadata.phoneNumber || "";
+
+              const tier = await ctx.runQuery(internal.whatsapp_dual.getTierById, { tierId: tierId as any });
+
+              await ctx.runMutation(internal.whatsapp_dual.createSubscriptionInternal, {
+                userId,
+                systemType,
+                tierId: tierId as any,
+                phoneNumber,
+              });
+
+              // Send welcome message
+              const tierName = tier?.name || "Premium";
+              const features = tier?.features?.join(', ') || "messaging, support, analytics";
+              const welcomeMessage = `🎉 *Welcome to DutchKem Ventures WhatsApp!*\n\nYour *${tierName}* plan is now active!\n\n✅ *What's included:*\n• ${tier?.messagesPerMonth || 5000} messages/month\n• ${tier?.agentLimit || 5} AI agent support\n• ${features}\n\n💬 *How to use:*\n• Chat with our AI agents for any service\n• Send messages to your contacts\n• Access all features in your plan\n\n🚀 *Get started now!* Send a message to any of our AI agents:\n• 🎓 Academic Writer\n• 💼 Business Consultant\n• ✍️ Content Strategist\n• 📄 Career Coach\n• 💰 Finance Advisor\n• And 10+ more!\n\n_Dutchkem Ventures — Your AI-Powered Business Partner_`;
+
+              try {
+                await ctx.runAction((await import("./_generated/api")).internal.whatsapp_openwa.sendText as any, {
+                  sessionType: systemType,
+                  to: phoneNumber,
+                  message: welcomeMessage,
+                });
+              } catch (e) {
+                console.log("[WhatsApp] Welcome message send skipped:", e);
+              }
             }
           }
         }
@@ -356,35 +518,68 @@ export const handleKoraWebhook = internalMutation({
         .withIndex("by_reference", (q) => q.eq("reference", args.reference))
         .first();
 
-      if (pending && pending.status === "pending") {
-        // Mark as processed
-        await ctx.db.patch(pending._id, {
-          status: "completed",
-          processedAt: Date.now(),
-        });
+        if (pending && pending.status === "pending") {
+          // Mark as processed
+          await ctx.db.patch(pending._id, {
+            status: "completed",
+            processedAt: Date.now(),
+          });
 
-        // Process based on type
-        if (pending.type === "credit_purchase") {
-          await ctx.runMutation(internal.kora_checkout.addCreditsToUser, {
-            userId: pending.userId,
-            credits: pending.credits,
-            reference: args.reference,
-          });
-        } else if (pending.type === "subscription") {
-          await ctx.runMutation(internal.kora_checkout.activateUserSubscription, {
-            userId: pending.userId,
-            planId: pending.packageId,
-            billingCycle: pending.billingCycle || "monthly",
-            reference: args.reference,
-          });
-        } else if (pending.type === "enterprise_addon") {
-          await ctx.runMutation(internal.kora_checkout.activateEnterpriseAddon, {
-            orgId: pending.userId,
-            addonId: pending.packageId,
-            reference: args.reference,
-          });
+          // Process based on type
+          if (pending.type === "credit_purchase") {
+            await ctx.runMutation(internal.kora_checkout.addCreditsToUser, {
+              userId: pending.userId,
+              credits: pending.credits,
+              reference: args.reference,
+            });
+          } else if (pending.type === "subscription") {
+            await ctx.runMutation(internal.kora_checkout.activateUserSubscription, {
+              userId: pending.userId,
+              planId: pending.packageId,
+              billingCycle: pending.billingCycle || "monthly",
+              reference: args.reference,
+            });
+          } else if (pending.type === "enterprise_addon") {
+            await ctx.runMutation(internal.kora_checkout.activateEnterpriseAddon, {
+              orgId: pending.userId,
+              addonId: pending.packageId,
+              reference: args.reference,
+            });
+          } else if (pending.type === "whatsapp_subscription") {
+            // Activate WhatsApp subscription after payment
+            const metadata = pending.rawPayload?.metadata || {};
+            const tierId = pending.packageId;
+            const userId = pending.userId;
+            const systemType = metadata.systemType || "admin";
+            const phoneNumber = metadata.phoneNumber || "";
+
+            // Get tier details for welcome message
+            const tier = await ctx.runQuery(internal.whatsapp_dual.getTierById, { tierId: tierId as any });
+
+            await ctx.runMutation(internal.whatsapp_dual.createSubscriptionInternal, {
+              userId,
+              systemType,
+              tierId: tierId as any,
+              phoneNumber,
+            });
+
+            // Send welcome message
+            const tierName = tier?.name || "Premium";
+            const features = tier?.features?.join(', ') || "messaging, support, analytics";
+            const welcomeMessage = `🎉 *Welcome to DutchKem Ventures WhatsApp!*\n\nYour *${tierName}* plan is now active!\n\n✅ *What's included:*\n• ${tier?.messagesPerMonth || 5000} messages/month\n• ${tier?.agentLimit || 5} AI agent support\n• ${features}\n\n💬 *How to use:*\n• Chat with our AI agents for any service\n• Send messages to your contacts\n• Access all features in your plan\n\n🚀 *Get started now!* Send a message to any of our AI agents:\n• 🎓 Academic Writer\n• 💼 Business Consultant\n• ✍️ Content Strategist\n• 📄 Career Coach\n• 💰 Finance Advisor\n• And 10+ more!\n\n_Dutchkem Ventures — Your AI-Powered Business Partner_`;
+
+            // Try to send via WhatsApp (non-blocking)
+            try {
+              await ctx.runAction((await import("./_generated/api")).internal.whatsapp_openwa.sendText as any, {
+                sessionType: systemType,
+                to: phoneNumber,
+                message: welcomeMessage,
+              });
+            } catch (e) {
+              console.log("[WhatsApp] Welcome message send skipped:", e);
+            }
+          }
         }
-      }
     }
   },
 });

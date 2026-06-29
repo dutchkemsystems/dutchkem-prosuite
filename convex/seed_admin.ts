@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { hashPassword } from "./encryption";
 
 /**
  * SEED ADMIN ACCOUNT
@@ -41,7 +40,7 @@ export const seed = mutation({
     }
 
     // 4. Create Admin User
-    const passwordHash = await hashPassword(password);
+    const passwordHash = await ctx.runMutation(internal.auth_helpers._hashPassword, { password });
     await ctx.db.insert("users", {
       email: "admin@dutchkem.com",
       name: "Super Admin",
@@ -108,7 +107,7 @@ export const resetPassword = mutation({
     }
 
     // Update admin user
-    const passwordHash = await hashPassword(password);
+    const passwordHash = await ctx.runMutation(internal.auth_helpers._hashPassword, { password });
     await ctx.db.patch("users", existing._id, {
       adminPasswordHash: passwordHash,
       adminBackupCodes: backupCodes,

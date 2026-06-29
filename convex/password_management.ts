@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { tryGetAdminSession } from "./auth_helpers";
-import { hashPassword, verifyPassword } from "./encryption";
+import { internal } from "./_generated/api";
 
 /**
  * Enhanced Password Management System
@@ -29,7 +29,7 @@ export const requestPasswordChange = mutation({
 
     // Verify current password if one exists
     if (user.adminPasswordHash) {
-      const valid = await verifyPassword(args.currentPassword, user.adminPasswordHash);
+      const valid = await ctx.runMutation(internal.auth_helpers._verifyPassword, { password: args.currentPassword, stored: user.adminPasswordHash });
       if (!valid) return { success: false, error: "Current password is incorrect" };
     }
 
@@ -43,7 +43,7 @@ export const requestPasswordChange = mutation({
       userId: args.userId,
       requestedBy: identity._id,
       currentPasswordHash: user.adminPasswordHash || "",
-      newPasswordHash: await hashPassword(args.newPassword),
+      newPasswordHash: await ctx.runMutation(internal.auth_helpers._hashPassword, { password: args.newPassword }),
       reason: args.reason || "Password change requested",
       status: "pending",
       createdAt: Date.now(),

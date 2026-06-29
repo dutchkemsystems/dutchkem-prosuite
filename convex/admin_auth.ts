@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { verifyPassword } from "./encryption";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -40,7 +39,7 @@ export const adminLogin = mutation({
 
     // 2. Verify Password
     const isValid = user.adminPasswordHash
-      ? await verifyPassword(args.password, user.adminPasswordHash)
+      ? await ctx.runMutation(internal.auth_helpers._verifyPassword, { password: args.password, stored: user.adminPasswordHash })
       : false;
 
     if (!isValid) {

@@ -1,0 +1,556 @@
+import { useState } from 'react'
+import { useQuery, useMutation, useAction } from 'convex/react'
+import { api } from '../../../convex/_generated/api'
+
+const MODEL_ICONS: Record<string, string> = {
+  groq: '⚡', openrouter: '🧠', aiml: '🎨', mimo: '🚀', nvidia: '🟢',
+}
+
+export function WhatsAppDualPanel({ adminToken }: { adminToken: string }) {
+  const [activeSystem, setActiveSystem] = useState<'admin' | 'enterprise'>('admin')
+  const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'pricing' | 'subscriptions' | 'ads' | 'safety' | 'revenue'>('overview')
+  const [toast, setToast] = useState<{ type: string; msg: string } | null>(null)
+
+  const adminStatus: any = useQuery(api.whatsapp_dual.getSystemStatus, { systemType: 'admin' })
+  const enterpriseStatus: any = useQuery(api.whatsapp_dual.getSystemStatus, { systemType: 'enterprise' })
+  const tiers: any = useQuery(api.whatsapp_dual.getPricingTiers, {})
+  const rates: any = useQuery(api.whatsapp_dual.getMessageRates, {})
+  const adminSubs: any = useQuery(api.whatsapp_dual.getSubscriptions, { systemType: 'admin' })
+  const enterpriseSubs: any = useQuery(api.whatsapp_dual.getSubscriptions, { systemType: 'enterprise' })
+  const blacklist: any = useQuery(api.whatsapp_dual.getBlacklist, {})
+  const campaigns: any = useQuery(api.whatsapp_dual.getAdCampaigns, {})
+  const revenue: any = useQuery(api.whatsapp_dual.getRevenueReport, { period: 'monthly' })
+  const adminSessionStatus: any = useQuery(api.whatsapp_openwa.getSessionStatus, { sessionType: 'admin' })
+  const enterpriseSessionStatus: any = useQuery(api.whatsapp_openwa.getSessionStatus, { sessionType: 'enterprise' })
+  const adminContacts: any = useQuery(api.whatsapp_openwa.getContacts, { sessionType: 'admin' })
+  const adminGroups: any = useQuery(api.whatsapp_openwa.getGroups, { sessionType: 'admin' })
+
+  const toggleSystem = useMutation(api.whatsapp_dual.toggleSystem)
+  const togglePricingTier = useMutation(api.whatsapp_dual.togglePricingTier)
+  const seedDefaults = useMutation(api.whatsapp_dual.seedWhatsAppDefaults)
+  const startSession = useMutation(api.whatsapp_openwa.startSession)
+  const stopSession = useMutation(api.whatsapp_openwa.stopSession)
+
+  const status = activeSystem === 'admin' ? adminStatus : enterpriseStatus
+  const subs = activeSystem === 'admin' ? adminSubs : enterpriseSubs
+
+  const showToast = (type: string, msg: string) => {
+    setToast({ type, msg })
+    setTimeout(() => setToast(null), 4000)
+  }
+
+  const handleToggle = async () => {
+    if (!status?.status) return
+    const newEnabled = !status.status.isEnabled
+    try {
+      const result = await toggleSystem({
+        systemType: activeSystem,
+        enabled: newEnabled,
+        adminToken,
+      })
+      if (result.success) {
+        showToast('success', `${activeSystem.toUpperCase()} WhatsApp ${newEnabled ? 'ENABLED' : 'DISABLED'} for ${result.affectedClients} clients`)
+      }
+    } catch (e: any) {
+      showToast('error', e.message)
+    }
+  }
+
+  const handleSeed = async () => {
+    try {
+      const result = await seedDefaults({ adminToken })
+      showToast('success', `Seeded ${result.seeded} default records`)
+    } catch (e: any) {
+      showToast('error', e.message)
+    }
+  }
+
+  const handleStartSession = async (sessionType: 'admin' | 'enterprise') => {
+    try {
+      await startSession({ sessionType, adminToken })
+      showToast('success', `${sessionType} session starting...`)
+    } catch (e: any) {
+      showToast('error', e.message)
+    }
+  }
+
+  const handleStopSession = async (sessionType: 'admin' | 'enterprise') => {
+    try {
+      await stopSession({ sessionType, adminToken })
+      showToast('success', `${sessionType} session stopped`)
+    } catch (e: any) {
+      showToast('error', e.message)
+    }
+  }
+
+  const isEnabled = status?.status?.isEnabled ?? true
+  const activeClients = status?.activeClients ?? 0
+  const totalMessages = status?.totalMessages ?? 0
+
+  const tabs = [
+    { id: 'overview' as const, label: 'Overview', icon: '📊' },
+    { id: 'sessions' as const, label: 'Sessions', icon: '📱' },
+    { id: 'pricing' as const, label: 'Pricing', icon: '💰' },
+    { id: 'subscriptions' as const, label: 'Subscriptions', icon: '📋' },
+    { id: 'ads' as const, label: 'Global Ads', icon: '🌍' },
+    { id: 'safety' as const, label: 'Safety', icon: '🛡️' },
+    { id: 'revenue' as const, label: 'Revenue', icon: '📈' },
+  ]
+
+  if (!adminStatus || !enterpriseStatus) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-xl font-black">📱 WhatsApp Dual System</h2>
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-black">📱 WhatsApp Dual System</h2>
+          <p className="text-xs text-slate-400 mt-1">Business Number: +234-9113393525 | Dutchkem Ventures</p>
+        </div>
+        <button onClick={handleSeed}
+          className="px-4 py-2 bg-slate-700 text-white rounded-xl text-xs font-bold hover:bg-slate-600">
+          🔄 Seed Defaults
+        </button>
+      </div>
+
+      {/* System Switcher */}
+      <div className="flex gap-2">
+        {(['admin', 'enterprise'] as const).map((sys) => {
+          const sysStatus = sys === 'admin' ? adminStatus : enterpriseStatus
+          const sysEnabled = sysStatus?.status?.isEnabled ?? true
+          return (
+            <button key={sys} onClick={() => setActiveSystem(sys)}
+              className={`flex-1 p-4 rounded-2xl border-l-4 transition-all ${
+                activeSystem === sys
+                  ? 'bg-slate-800 border-orange-500'
+                  : 'bg-slate-900/50 border-slate-700 hover:bg-slate-800/50'
+              }`}>
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <p className="font-black text-sm">{sys === 'admin' ? '👤 Admin WhatsApp' : '🏢 Enterprise WhatsApp'}</p>
+                  <p className="text-[10px] text-slate-400 mt-1">{sysStatus?.activeClients ?? 0} active clients</p>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  sysEnabled ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                }`}>
+                  {sysEnabled ? '🟢 ON' : '🔴 OFF'}
+                </span>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-slate-800 rounded-xl p-1">
+        {tabs.map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all ${
+              activeTab === tab.id ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white'
+            }`}>
+            {tab.icon} {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <div className="space-y-4">
+          {/* Toggle Card */}
+          <div className={`rounded-2xl border-l-4 p-5 transition-all ${
+            isEnabled ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-red-500/5 border-red-500/30'
+          }`}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="font-black text-lg">📱 WhatsApp Service</p>
+                <p className="text-xs text-slate-400 mt-1">+234-9113393525 | Dutchkem Ventures</p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                isEnabled ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+              }`}>
+                {isEnabled ? '🟢 Active' : '🔴 Inactive'}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="text-center">
+                <p className="text-2xl font-black text-white">{activeClients}</p>
+                <p className="text-[10px] text-slate-500 uppercase">Active Clients</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-blue-400">{totalMessages.toLocaleString()}</p>
+                <p className="text-[10px] text-slate-500 uppercase">Messages Sent</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-black text-emerald-400">₦{(revenue?.totalRevenue ?? 0).toLocaleString()}</p>
+                <p className="text-[10px] text-slate-500 uppercase">Revenue</p>
+              </div>
+            </div>
+            <button onClick={handleToggle}
+              className={`w-full py-3 rounded-xl font-bold text-sm transition-all ${
+                isEnabled ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-emerald-500 text-white hover:bg-emerald-600'
+              }`}>
+              {isEnabled ? '🔴 Disable WhatsApp' : '🟢 Enable WhatsApp'}
+            </button>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+              <p className="text-xl font-black text-white">{subs?.length ?? 0}</p>
+              <p className="text-[10px] text-slate-500 uppercase">Subscriptions</p>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+              <p className="text-xl font-black text-white">{blacklist?.length ?? 0}</p>
+              <p className="text-[10px] text-slate-500 uppercase">Blacklisted</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sessions Tab */}
+      {activeTab === 'sessions' && (
+        <div className="space-y-4">
+          <h3 className="font-black">📱 WhatsApp Sessions (OpenWA)</h3>
+          <p className="text-xs text-slate-400">Connect to WhatsApp via OpenWA. Scan QR code to authenticate.</p>
+
+          {(['admin', 'enterprise'] as const).map((sys) => {
+            const sessStatus = sys === 'admin' ? adminSessionStatus : enterpriseSessionStatus
+            const connected = sessStatus?.connected ?? false
+
+            return (
+              <div key={sys} className={`rounded-2xl border-l-4 p-5 transition-all ${
+                connected ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-slate-900 border-slate-800'
+              }`}>
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="font-black">{sys === 'admin' ? '👤 Admin Session' : '🏢 Enterprise Session'}</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Business: +234-9113393525</p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                    connected ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                  }`}>
+                    {connected ? '🟢 Connected' : '🔴 Disconnected'}
+                  </span>
+                </div>
+
+                {sessStatus?.qr && !connected && (
+                  <div className="bg-white p-4 rounded-xl text-center mb-3">
+                    <p className="text-xs text-slate-600 mb-2">Scan QR Code with WhatsApp</p>
+                    <img src={`data:image/png;base64,${sessStatus.qr}`} alt="QR Code" className="mx-auto" style={{ maxWidth: 256 }} />
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button onClick={() => handleStartSession(sys)}
+                    disabled={connected}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      connected ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                    }`}>
+                    {connected ? '✅ Connected' : '▶ Start Session'}
+                  </button>
+                  <button onClick={() => handleStopSession(sys)}
+                    disabled={!connected}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      !connected ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'
+                    }`}>
+                    ⏹ Stop
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+
+          {/* Contacts & Groups (admin only) */}
+          {activeSystem === 'admin' && adminSessionStatus?.connected && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+                <h4 className="font-bold text-sm mb-2">👥 Contacts ({adminContacts?.contacts?.length ?? 0})</h4>
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {(adminContacts?.contacts ?? []).slice(0, 10).map((c: any) => (
+                    <div key={c.id} className="flex items-center gap-2 text-xs">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                      <span className="text-slate-300">{c.name}</span>
+                      <span className="text-slate-500">{c.phone}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+                <h4 className="font-bold text-sm mb-2">👥 Groups ({adminGroups?.groups?.length ?? 0})</h4>
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {(adminGroups?.groups ?? []).slice(0, 10).map((g: any) => (
+                    <div key={g.id} className="flex items-center gap-2 text-xs">
+                      <span className="w-2 h-2 rounded-full bg-blue-400" />
+                      <span className="text-slate-300">{g.name}</span>
+                      <span className="text-slate-500">{g.members} members</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Pricing Tab */}
+      {activeTab === 'pricing' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-black">💰 Pricing Tiers</h3>
+            <p className="text-xs text-slate-400">Toggle tiers to enable/disable for clients and agents</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {(tiers ?? []).map((tier: any) => (
+              <div key={tier._id} className={`rounded-2xl border-l-4 p-4 transition-all ${
+                tier.isActive ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-slate-900/50 border-red-500/30 opacity-70'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-sm">{tier.name}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      tier.clientType === 'enterprise' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'
+                    }`}>
+                      {tier.clientType}
+                    </span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    tier.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                  }`}>
+                    {tier.isActive ? '🟢 Active' : '🔴 Disabled'}
+                  </span>
+                </div>
+                <p className="text-2xl font-black text-emerald-400">₦{tier.priceNgn.toLocaleString()}<span className="text-xs text-slate-500">/mo</span></p>
+                <p className="text-xs text-slate-400 mt-1">{tier.messagesPerMonth.toLocaleString()} messages • {tier.agentLimit} agents</p>
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {tier.features.map((f: string) => (
+                    <span key={f} className="px-2 py-0.5 bg-slate-800 rounded text-[10px] text-slate-400">{f}</span>
+                  ))}
+                </div>
+                <div className="mt-3 pt-3 border-t border-slate-800">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" checked={tier.isActive}
+                      onChange={async () => {
+                        try {
+                          await togglePricingTier({ tierId: tier._id, isActive: !tier.isActive, adminToken })
+                          showToast('success', `${tier.name} ${!tier.isActive ? 'ENABLED' : 'DISABLED'}`)
+                        } catch (e: any) { showToast('error', e.message) }
+                      }}
+                      className="sr-only peer" />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500" />
+                  </label>
+                  <span className="ml-3 text-xs text-slate-400">{tier.isActive ? '✅ Sending allowed' : '🚫 Sending blocked'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <h3 className="font-black mt-6">💸 Message Rates (Overage)</h3>
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+            <table className="w-full">
+              <thead><tr className="border-b border-slate-800">
+                <th className="text-left px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Type</th>
+                <th className="text-right px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Rate</th>
+              </tr></thead>
+              <tbody>
+                {(rates ?? []).map((r: any) => (
+                  <tr key={r._id} className="border-b border-slate-800/50">
+                    <td className="px-4 py-3 text-xs font-bold capitalize">{r.messageType}</td>
+                    <td className="px-4 py-3 text-right text-xs font-bold text-emerald-400">₦{r.rateNgn}/msg</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Subscriptions Tab */}
+      {activeTab === 'subscriptions' && (
+        <div className="space-y-4">
+          <h3 className="font-black">📋 {activeSystem === 'admin' ? 'Client' : 'Enterprise'} Subscriptions</h3>
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+            <table className="w-full">
+              <thead><tr className="border-b border-slate-800">
+                <th className="text-left px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Phone</th>
+                <th className="text-left px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Status</th>
+                <th className="text-right px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Used</th>
+                <th className="text-right px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Limit</th>
+                <th className="text-right px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Usage</th>
+              </tr></thead>
+              <tbody>
+                {(subs ?? []).map((sub: any) => {
+                  const usagePct = sub.messagesLimit > 0 ? (sub.messagesUsed / sub.messagesLimit) * 100 : 0
+                  return (
+                    <tr key={sub._id} className="border-b border-slate-800/50">
+                      <td className="px-4 py-3 text-xs font-bold">{sub.phoneNumber}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          sub.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                        }`}>{sub.status}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right text-xs">{sub.messagesUsed.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right text-xs">{sub.messagesLimit.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="w-20 h-2 bg-slate-800 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{
+                            width: `${Math.min(usagePct, 100)}%`,
+                            backgroundColor: usagePct > 90 ? '#ef4444' : usagePct > 70 ? '#f59e0b' : '#10b981',
+                          }} />
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+                {(!subs || subs.length === 0) && (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-xs text-slate-500">No subscriptions yet</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Global Ads Tab */}
+      {activeTab === 'ads' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-black">🌍 Global Ad Automation</h3>
+          </div>
+          <p className="text-xs text-slate-400">AI-powered flyers sent to NEW contacts only. Business: +234-9113393525</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {(campaigns ?? []).map((c: any) => (
+              <div key={c._id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-black text-sm">{c.name}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    c.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' :
+                    c.status === 'completed' ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-700 text-slate-400'
+                  }`}>{c.status}</span>
+                </div>
+                <p className="text-xs text-slate-400 mb-2">{c.headline}</p>
+                <div className="flex gap-3 text-[10px] text-slate-500">
+                  <span>Sent: {c.sentCount}</span>
+                  <span>Failed: {c.failedCount}</span>
+                  <span>Target: {c.targetCount}</span>
+                </div>
+              </div>
+            ))}
+            {(!campaigns || campaigns.length === 0) && (
+              <div className="col-span-3 bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center">
+                <p className="text-3xl mb-2">🌍</p>
+                <p className="text-sm font-bold text-slate-400">No campaigns yet</p>
+                <p className="text-xs text-slate-500 mt-1">Create campaigns to send AI-generated flyers to new contacts</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Safety Tab */}
+      {activeTab === 'safety' && (
+        <div className="space-y-4">
+          <h3 className="font-black">🛡️ Safety & Blacklist</h3>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-black text-red-400">{blacklist?.length ?? 0}</p>
+              <p className="text-[10px] text-slate-500 uppercase">Blacklisted</p>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-black text-amber-400">1%</p>
+              <p className="text-[10px] text-slate-500 uppercase">Complaint Threshold</p>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-black text-blue-400">1,000</p>
+              <p className="text-[10px] text-slate-500 uppercase">Rate Limit/Day</p>
+            </div>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+            <table className="w-full">
+              <thead><tr className="border-b border-slate-800">
+                <th className="text-left px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Phone</th>
+                <th className="text-left px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Reason</th>
+                <th className="text-right px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Complaints</th>
+                <th className="text-right px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Blocked</th>
+              </tr></thead>
+              <tbody>
+                {(blacklist ?? []).map((b: any) => (
+                  <tr key={b._id} className="border-b border-slate-800/50">
+                    <td className="px-4 py-3 text-xs font-bold">{b.phoneNumber}</td>
+                    <td className="px-4 py-3 text-xs text-slate-400">{b.reason}</td>
+                    <td className="px-4 py-3 text-right text-xs text-red-400">{b.complaintCount}</td>
+                    <td className="px-4 py-3 text-right text-xs text-slate-400">{new Date(b.blockedAt).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+                {(!blacklist || blacklist.length === 0) && (
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-xs text-slate-500">No blacklisted numbers</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Revenue Tab */}
+      {activeTab === 'revenue' && revenue && (
+        <div className="space-y-4">
+          <h3 className="font-black">📈 Revenue Report</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-black text-emerald-400">₦{(revenue.totalRevenue ?? 0).toLocaleString()}</p>
+              <p className="text-[10px] text-slate-500 uppercase mt-1">Revenue (Monthly)</p>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-black text-white">₦{(revenue.projectedAnnual ?? 0).toLocaleString()}</p>
+              <p className="text-[10px] text-slate-500 uppercase mt-1">Projected Annual</p>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-black text-white">{(revenue.transactionCount ?? 0).toLocaleString()}</p>
+              <p className="text-[10px] text-slate-500 uppercase mt-1">Transactions</p>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-black text-blue-400">{Object.keys(revenue.byType ?? {}).length}</p>
+              <p className="text-[10px] text-slate-500 uppercase mt-1">Revenue Sources</p>
+            </div>
+          </div>
+          {Object.keys(revenue.byType ?? {}).length > 0 && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+              <h4 className="text-sm font-bold mb-3">Revenue by Type</h4>
+              <div className="space-y-2">
+                {Object.entries(revenue.byType ?? {}).sort(([,a]: [string,any], [,b]: [string,any]) => b - a).map(([type, amount]: [string, any]) => (
+                  <div key={type} className="flex items-center gap-3">
+                    <span className="text-xs font-bold w-24 capitalize">{type}</span>
+                    <div className="flex-1 h-3 bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500 rounded-full" style={{
+                        width: `${(amount / Math.max(revenue.totalRevenue, 1)) * 100}%`
+                      }} />
+                    </div>
+                    <span className="text-xs font-bold text-emerald-400 w-20 text-right">₦{amount.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 px-5 py-3 rounded-2xl shadow-2xl z-50 animate-pulse ${
+          toast.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+        }`}>
+          <p className="text-sm font-bold">{toast.msg}</p>
+        </div>
+      )}
+    </div>
+  )
+}

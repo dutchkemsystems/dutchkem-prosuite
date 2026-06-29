@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { hmacSign, getRandomValues } from "./crypto_pure";
 
 // ═══════════════════════════════════════════════════════════════
 // CLIENT 2FA — TOTP (Google Authenticator) Support
@@ -13,7 +14,7 @@ export const generateClientSecret = mutation({
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     let secret = "";
     const rand = new Uint8Array(20);
-    globalThis.crypto.getRandomValues(rand);
+    getRandomValues(rand);
     for (let i = 0; i < 20; i++) secret += chars[rand[i] % 32];
     return { secret };
   },
@@ -100,13 +101,10 @@ async function computeTOTP(secret: string, timeStep: number): Promise<string> {
     bytes[i] = parseInt(bits.substr(i * 8, 8), 2);
   }
 
-  const timeBuffer = new ArrayBuffer(8);
-  const timeView = new DataView(timeBuffer);
-  timeView.setUint32(4, timeStep, false);
+  const timeBuffer = new Uint8Array(8);
+  new DataView(timeBuffer.buffer).setUint32(4, timeStep, false);
 
-  const key = await globalThis.crypto.subtle.importKey("raw", bytes, { name: "HMAC", hash: "SHA-1" }, false, ["sign"]);
-  const signature = await globalThis.crypto.subtle.sign("HMAC", key, timeBuffer);
-  const hash = new Uint8Array(signature);
+  const hash = hmacSign("SHA-1", bytes, timeBuffer);
   const offset = hash[hash.length - 1] & 0x0f;
   const binary = ((hash[offset] & 0x7f) << 24) | ((hash[offset + 1] & 0xff) << 16) | ((hash[offset + 2] & 0xff) << 8) | (hash[offset + 3] & 0xff);
   const otp = binary % 1000000;

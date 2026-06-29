@@ -1,12 +1,39 @@
 import { v } from "convex/values";
-import { internalMutation } from "./_generated/server";
+import { internalMutation, internalAction, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { hmacVerify } from "./crypto_pure";
 
 /**
  * LAYER 7 — GUARDIAN AI: Automated Payment Verification
  * Institutional grade fraud detection and signature validation
  */
-export const verifyPayment = internalMutation({
+async function verifySignature(args: { reference: string; amount: number; currency: string; signature: string }): Promise<boolean> {
+  const encryptionKey = process.env.KORA_ENCRYPTION_KEY;
+  if (!encryptionKey || !args.signature) return false;
+  try {
+    const key = new TextEncoder().encode(encryptionKey);
+    const data = `${args.reference}:${args.amount}:${args.currency}`;
+    const sigBytes = Uint8Array.from(atob(args.signature), c => c.charCodeAt(0));
+    return hmacVerify("SHA-256", key, sigBytes, new TextEncoder().encode(data));
+  } catch {
+    return false;
+  }
+}
+
+export const _verifySignature = internalAction({
+  args: {
+    reference: v.string(),
+    amount: v.number(),
+    currency: v.string(),
+    signature: v.string(),
+  },
+  returns: v.boolean(),
+  handler: async (_ctx, args) => {
+    return verifySignature(args);
+  },
+});
+
+export const verifyPayment = internalAction({
   args: {
     reference: v.string(),
     amount: v.number(),
@@ -22,110 +49,43 @@ export const verifyPayment = internalMutation({
     confidenceScore: v.number(),
   }),
   handler: async (ctx, args) => {
-    // 1. Signature Verification (HMAC-SHA256 simulation)
-    const encryptionKey = process.env.KORA_ENCRYPTION_KEY;
-    if (!encryptionKey) {
-      return { status: "rejected", confidenceScore: 0 };
-    }
-    // Verify HMAC-SHA256 signature
-    let isValidSignature = false;
-    if (encryptionKey && args.signature) {
-      try {
-        const key = await crypto.subtle.importKey(
-          "raw",
-          new TextEncoder().encode(encryptionKey),
-          { name: "HMAC", hash: "SHA-256" },
-          false,
-          ["verify"]
-        );
-        const data = `${args.reference}:${args.amount}:${args.currency}`;
-        const signatureBytes = Uint8Array.from(atob(args.signature), c => c.charCodeAt(0));
-        isValidSignature = await crypto.subtle.verify("HMAC", key, signatureBytes, new TextEncoder().encode(data));
-      } catch {
-        isValidSignature = false;
-      }
-    }
-    
-    let confidenceScore = 100;
-    const flags: Array<string> = [];
+    const isValidSignature = await verifySignature(args);
 
-    // 2. FRAUD DETECTION SUITE
-    const windowStart = Date.now() - (5 * 60 * 1000);
-    const recentPayments = await ctx.db
-      .query("payment_verifications")
-      .order("desc")
-      .take(10);
-    
-    const userRecent = recentPayments.filter(p => p.verifiedAt >= windowStart);
-    if (userRecent.length > 2) {
-       confidenceScore -= 20;
-       flags.push("velocity_violation");
-    }
+    const result: { status: string; confidenceScore: number; flags: string[] } = await ctx.runQuery(
+      internal.guardian._computeFraudScore,
+      { userId: args.userId, ip: args.ip, isValidSignature }
+    );
 
-    const session = await ctx.db
-      .query("user_sessions")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .order("desc")
-      .first();
-    
-    if (session && session.ip !== args.ip) {
-      confidenceScore -= 15;
-      flags.push("ip_mismatch");
-    }
-
-    // Check IP against system_config blacklisted IPs
-    const blacklistConfig = await ctx.db.query("system_config")
-      .withIndex("by_key", q => q.eq("key", "blacklisted_ips"))
-      .first();
-    const fraudList: Array<string> = (blacklistConfig?.value as Array<string>) || [];
-    if (fraudList.includes(args.ip)) {
-        confidenceScore = 0;
-        flags.push("blacklisted_ip");
-    }
-
-    // 3. Decision Engine
-    let status: "approved" | "rejected" | "manual_review" = "approved";
-    let reason = "Verified by Guardian AI Node";
+    let { status, confidenceScore, flags } = result;
 
     if (confidenceScore < 50 || !isValidSignature) {
       status = "rejected";
-      reason = flags.join(", ") || "Institutional fraud risk detected";
     } else if (confidenceScore < 85) {
       status = "manual_review";
-      reason = "Flagged for Human review: " + flags.join(", ");
     }
 
-    // 4. Record Verification
-    await ctx.db.insert("payment_verifications", {
+    await ctx.runMutation(internal.guardian._recordVerification, {
       reference: args.reference,
       amount: args.amount,
       status,
-      reason,
       confidenceScore,
-      verifiedAt: Date.now(),
       agentId: args.agentId,
       service: args.service,
       userId: args.userId,
     });
 
-    // 4.1 Update System Wallets if approved
     if (status === "approved") {
-        await ctx.runMutation(internal.guardian.updateSystemWallets, { amount: args.amount, userId: args.userId });
+      await ctx.runMutation(internal.guardian.updateSystemWallets, { amount: args.amount, userId: args.userId });
     }
 
-    // 5. Update User Balance / Active Projects
     if (status === "approved" && args.agentId) {
-        await ctx.db.insert("projects", {
-            userId: args.userId,
-            name: args.service || "New Project",
-            agentId: args.agentId,
-            status: "in-progress",
-            format: "MP4",
-            createdAt: Date.now()
-        });
+      await ctx.runMutation(internal.guardian._createProject, {
+        userId: args.userId,
+        name: args.service || "New Project",
+        agentId: args.agentId,
+      });
     }
 
-    // 6. Log Security Event (Layer 8 Audit)
     await ctx.runMutation(internal.guardian.logSecurityEvent, {
       userId: args.userId,
       action: "PAYMENT_VERIFICATION",
@@ -134,9 +94,73 @@ export const verifyPayment = internalMutation({
       userAgent: "Guardian AI Engine",
     });
 
-    // 7. Webhook triggers are handled by the caller (http.ts) — no double-fire here
-
     return { status, confidenceScore };
+  },
+});
+
+export const _computeFraudScore = internalQuery({
+  args: { userId: v.id("users"), ip: v.string(), isValidSignature: v.boolean() },
+  returns: v.object({ status: v.string(), confidenceScore: v.number(), flags: v.array(v.string()) }),
+  handler: async (ctx, args) => {
+    let confidenceScore = 100;
+    const flags: Array<string> = [];
+
+    const windowStart = Date.now() - (5 * 60 * 1000);
+    const recentPayments = await ctx.db.query("payment_verifications").order("desc").take(10);
+    const userRecent = recentPayments.filter(p => p.verifiedAt >= windowStart);
+    if (userRecent.length > 2) {
+      confidenceScore -= 20;
+      flags.push("velocity_violation");
+    }
+
+    const session = await ctx.db.query("user_sessions")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .order("desc").first();
+    if (session && session.ip !== args.ip) {
+      confidenceScore -= 15;
+      flags.push("ip_mismatch");
+    }
+
+    const blacklistConfig = await ctx.db.query("system_config")
+      .withIndex("by_key", q => q.eq("key", "blacklisted_ips")).first();
+    const fraudList: Array<string> = (blacklistConfig?.value as Array<string>) || [];
+    if (fraudList.includes(args.ip)) {
+      confidenceScore = 0;
+      flags.push("blacklisted_ip");
+    }
+
+    let status = "approved";
+    if (confidenceScore < 50 || !args.isValidSignature) status = "rejected";
+    else if (confidenceScore < 85) status = "manual_review";
+
+    return { status, confidenceScore, flags };
+  },
+});
+
+export const _recordVerification = internalMutation({
+  args: {
+    reference: v.string(), amount: v.number(), status: v.string(),
+    confidenceScore: v.number(), agentId: v.optional(v.string()),
+    service: v.optional(v.string()), userId: v.id("users"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.insert("payment_verifications", {
+      reference: args.reference, amount: args.amount, status: args.status,
+      reason: "Verified by Guardian AI Node", confidenceScore: args.confidenceScore,
+      verifiedAt: Date.now(), agentId: args.agentId, service: args.service, userId: args.userId,
+    });
+  },
+});
+
+export const _createProject = internalMutation({
+  args: { userId: v.id("users"), name: v.string(), agentId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.insert("projects", {
+      userId: args.userId, name: args.name, agentId: args.agentId,
+      status: "in-progress", format: "MP4", createdAt: Date.now(),
+    });
   },
 });
 

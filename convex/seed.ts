@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
-import { hashPassword } from "./encryption";
+import { internal } from "./_generated/api";
 
 export const seedAdmin = mutation({
   args: {
@@ -13,7 +13,7 @@ export const seedAdmin = mutation({
       .withIndex("email", (q) => q.eq("email", "admin@dutchkem.com"))
       .first();
 
-    const passwordHash = await hashPassword(args.password);
+    const passwordHash = await ctx.runMutation(internal.auth_helpers._hashPassword, { password: args.password });
     if (existing) {
       console.log("Admin exists, updating hash");
       await ctx.db.patch("users", existing._id, {

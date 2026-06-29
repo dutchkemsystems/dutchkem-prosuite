@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { hashPassword, verifyPassword } from "./encryption";
+import { internal } from "./_generated/api";
 
 export const toggle2FA = mutation({
   args: { enable: v.boolean() },
@@ -46,11 +46,11 @@ export const changeClientPassword = mutation({
     }
 
     if (user.adminPasswordHash) {
-      const valid = await verifyPassword(args.currentPassword, user.adminPasswordHash);
+      const valid = await ctx.runMutation(internal.auth_helpers._verifyPassword, { password: args.currentPassword, stored: user.adminPasswordHash });
       if (!valid) return { error: "Current password is incorrect" };
     }
 
-    const newHash = await hashPassword(args.newPassword);
+    const newHash = await ctx.runMutation(internal.auth_helpers._hashPassword, { password: args.newPassword });
     await ctx.db.patch("users", userId, { adminPasswordHash: newHash });
 
     await ctx.db.insert("audit_logs", {

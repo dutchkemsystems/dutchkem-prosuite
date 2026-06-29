@@ -1,8 +1,29 @@
 import { v } from "convex/values";
-import { internalQuery, mutation, query } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { hashPassword, verifyPassword } from "./encryption";
+import { hashPasswordPure, verifyPasswordPure, hmacSign } from "./crypto_pure";
 import type { Id } from "./_generated/dataModel";
+
+export const _hashPassword = internalMutation({
+  args: { password: v.string() },
+  returns: v.string(),
+  handler: async (_ctx, args) => hashPasswordPure(args.password),
+});
+
+export const _verifyPassword = internalMutation({
+  args: { password: v.string(), stored: v.string() },
+  returns: v.boolean(),
+  handler: async (_ctx, args) => verifyPasswordPure(args.password, args.stored),
+});
+
+export const _encryptWeb = internalAction({
+  args: { text: v.string(), keyHex: v.string() },
+  returns: v.any(),
+  handler: async (_ctx, args) => {
+    const { encryptWeb } = await import("./encryption");
+    return encryptWeb(args.text, args.keyHex);
+  },
+});
 
 // ═══════════════════════════════════════════════════════════════════
 // ADMIN SESSION AUTH (custom auth, NOT Convex Auth)
@@ -290,11 +311,9 @@ export const verifyUserPassword = mutation({
   args: { email: v.string(), password: v.string() },
   returns: v.any(),
   handler: async (ctx, { email, password }) => {
-    // Note: Convex Auth stores passwords in auth_passwords table internally.
-    // This checks via the admin password hash on the users table.
     const user = await ctx.db.query("users").withIndex("email", q => q.eq("email", email)).first();
     if (!user || !user.adminPasswordHash) return false;
-    return verifyPassword(password, user.adminPasswordHash);
+    return await ctx.runMutation(internal.auth_helpers._verifyPassword, { password, stored: user.adminPasswordHash });
   },
 });
 
@@ -304,7 +323,7 @@ export const verifyAdminPassword = mutation({
   handler: async (ctx, { email, password }) => {
     const user = await ctx.db.query("users").withIndex("by_role", q => q.eq("role", "admin")).filter(q => q.eq(q.field("email"), email)).first();
     if (!user || !user.adminPasswordHash) return false;
-    return verifyPassword(password, user.adminPasswordHash);
+    return await ctx.runMutation(internal.auth_helpers._verifyPassword, { password, stored: user.adminPasswordHash });
   },
 });
 
@@ -322,7 +341,7 @@ export const changePassword = mutation({
 
     // Verify current password if one exists
     if (user.adminPasswordHash) {
-      const valid = await verifyPassword(currentPassword, user.adminPasswordHash);
+      const valid = await ctx.runMutation(internal.auth_helpers._verifyPassword, { password: currentPassword, stored: user.adminPasswordHash });
       if (!valid) return { success: false, error: "Current password is incorrect" };
     }
 
@@ -331,7 +350,7 @@ export const changePassword = mutation({
       return { success: false, error: "Password must be at least 8 characters" };
     }
 
-    const newHash = await hashPassword(newPassword);
+    const newHash = await ctx.runMutation(internal.auth_helpers._hashPassword, { password: newPassword });
     await ctx.db.patch("users", userId, { adminPasswordHash: newHash });
 
     // Log password change
@@ -563,7 +582,6 @@ export const verifyAdminTOTP = mutation({
     const twoFactor = await ctx.db.query("admin_2fa").withIndex("by_admin", q => q.eq("adminId", adminId)).first();
     if (!twoFactor) return false;
 
-    // Check backup codes first (8+ chars)
     if (totpCode.length >= 8) {
       const idx = twoFactor.backupCodes.indexOf(totpCode.toUpperCase());
       if (idx !== -1) {
@@ -574,18 +592,13 @@ export const verifyAdminTOTP = mutation({
       }
     }
 
-    // Verify TOTP using HMAC-SHA1 (RFC 6238)
-    // Standard TOTP: 6 digits, 30-second window, SHA-1
     if (totpCode.length === 6 && /^\d{6}$/.test(totpCode)) {
-      const secret = twoFactor.secret;
-      const window = 1; // Allow 1 step before/after (30s tolerance)
       const timeStep = Math.floor(Date.now() / 30000);
-      
-      for (let i = -window; i <= window; i++) {
-        const computed = await computeTOTP(secret, timeStep + i);
-        if (computed === totpCode) {
-          return true;
-        }
+      for (let i = -1; i <= 1; i++) {
+        const computed = await ctx.runAction(internal.auth_helpers._computeTOTP, {
+          secret: twoFactor.secret, timeStep: timeStep + i,
+        });
+        if (computed === totpCode) return true;
       }
     }
 
@@ -593,28 +606,21 @@ export const verifyAdminTOTP = mutation({
   },
 });
 
-// TOTP computation using Web Crypto API (RFC 6238 / RFC 4226)
+export const _computeTOTP = internalAction({
+  args: { secret: v.string(), timeStep: v.number() },
+  returns: v.string(),
+  handler: async (_ctx, args) => {
+    return computeTOTP(args.secret, args.timeStep);
+  },
+});
+
 async function computeTOTP(secret: string, timeStep: number): Promise<string> {
-  // Convert base32 secret to bytes
   const secretBytes = base32Decode(secret);
   
-  // Encode time step as 8-byte big-endian
-  const timeBuffer = new ArrayBuffer(8);
-  const timeView = new DataView(timeBuffer);
-  timeView.setUint32(4, timeStep, false);
+  const timeBuffer = new Uint8Array(8);
+  new DataView(timeBuffer.buffer).setUint32(4, timeStep, false);
   
-  // Import key for HMAC-SHA1
-  const key = await globalThis.crypto.subtle.importKey(
-    "raw",
-    secretBytes as BufferSource,
-    { name: "HMAC", hash: "SHA-1" },
-    false,
-    ["sign"]
-  );
-  
-  // Sign the time step
-  const signature = await globalThis.crypto.subtle.sign("HMAC", key, timeBuffer);
-  const hash = new Uint8Array(signature);
+  const hash = hmacSign("SHA-1", secretBytes, timeBuffer);
   
   // Dynamic truncation (RFC 4226)
   const offset = hash[19] & 0x0f;
