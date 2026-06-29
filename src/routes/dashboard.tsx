@@ -29,6 +29,7 @@ import { SupportChat } from '~/components/dashboard/SupportChat';
 import { SubscriptionManager } from '~/components/dashboard/SubscriptionManager';
 import { CreditBalance } from '~/components/dashboard/CreditBalance';
 import { UsageTracker } from '~/components/dashboard/UsageTracker';
+import { ClientWhatsApp } from '~/components/dashboard/ClientWhatsApp';
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -243,6 +244,7 @@ function DashboardContent() {
             <TabButton active={activeTab === "kdp"} onClick={() => { setActiveTab("kdp"); setSidebarOpen(false); }} icon="📖" label="KDP Publishing" />
             <TabButton active={activeTab === "projects"} onClick={() => { setActiveTab("projects"); setSidebarOpen(false); }} icon="📁" label="Projects" />
             <TabButton active={activeTab === "referrals"} onClick={() => { setActiveTab("referrals"); setSidebarOpen(false); }} icon="🤝" label="Referrals" />
+            <TabButton active={activeTab === "whatsapp"} onClick={() => { setActiveTab("whatsapp"); setSidebarOpen(false); }} icon="📱" label="WhatsApp" />
             <TabButton active={activeTab === "security"} onClick={() => { setActiveTab("security"); setSidebarOpen(false); }} icon="🛡️" label="Security" />
             <TabButton active={activeTab === "settings"} onClick={() => { setActiveTab("settings"); setSidebarOpen(false); }} icon="⚙️" label="Settings" />
             <TabButton active={activeTab === "browse-agents"} onClick={() => { setActiveTab("browse-agents"); setSidebarOpen(false); }} icon="🤖" label="Browse Agents" />
@@ -297,6 +299,11 @@ function DashboardContent() {
           )}
           {activeTab === "projects" && <Projects data={data} setActiveTab={setActiveTab} setModal={setModal} setShowAgentBrowser={setShowAgentBrowser} setShowCredits={setShowCredits} setShowHistory={setShowHistory} setShowSupport={setShowSupport} />}
           {activeTab === "referrals" && <Referrals data={data} payoutMessage={payoutMessage} setPayoutMessage={setPayoutMessage} requestReferralPayoutAction={requestReferralPayoutAction} />}
+          {activeTab === "whatsapp" && (
+            <div className="">
+              <ClientWhatsApp userId={data.user._id} userEmail={data.user.email} />
+            </div>
+          )}
           {activeTab === "security" && <Security data={data} tfaMessage={tfaMessage} setTfaMessage={setTfaMessage} toggle2FAAction={toggle2FAAction} newPassword={newPassword} setNewPassword={setNewPassword} passwordMessage={passwordMessage} setPasswordMessage={setPasswordMessage} changePasswordAction={changePasswordAction} />}
           {activeTab === "settings" && <Settings data={data} />}
           {activeTab === "browse-agents" && (

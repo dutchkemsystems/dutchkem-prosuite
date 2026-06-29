@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
-import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react"
+import { useAction, useConvexAuth, useConvex, useMutation } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
 import { Component,  Suspense, useCallback, useEffect, useState } from "react"
 import { api } from "../../../convex/_generated/api"
@@ -33,6 +33,8 @@ import AdminPayoutDashboard from "~/components/admin/enterprise/AdminPayoutDashb
 import { EnterprisePaymentsReadOnly } from "~/components/admin/EnterprisePaymentsReadOnly";
 import { ModelTogglePanel } from "~/components/admin/ModelTogglePanel";
 import { ModelAnalyticsPanel } from "~/components/admin/ModelAnalyticsPanel";
+import { WhatsAppDualPanel } from "~/components/admin/WhatsAppDualPanel";
+import { HermesDashboard } from "~/components/admin/HermesDashboard";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -87,6 +89,8 @@ function AdminDashboardPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const convex = useConvex();
+  const [sessionCheck, setSessionCheck] = useState<any>(undefined);
 
   // Check for admin session
   const [adminToken, setAdminToken] = useState<string | null>(null);
@@ -100,13 +104,11 @@ function AdminDashboardPage() {
     }
   }, [isLoading, navigate]);
 
-  // Continuously validate the session against the backend.
-  // If the backend session was deleted/expired/revoked, log the user out.
-  // This protects against stale localStorage tokens pointing to dead sessions.
-  const sessionCheck = useQuery(
-    api.auth_helpers.checkAdminSession,
-    adminToken ? { adminToken } : "skip"
-  );
+  useEffect(() => {
+    if (!adminToken) return;
+    convex.query(api.auth_helpers.checkAdminSession, { adminToken }).then(setSessionCheck).catch(() => {});
+  }, [adminToken]);
+
   useEffect(() => {
     if (!adminToken) return;
     if (sessionCheck && sessionCheck.valid === false) {
@@ -228,7 +230,9 @@ function AdminDashboardPage() {
                   <AdminTab active={activeTab === "whatsapp"} onClick={() => setActiveTab("whatsapp")} icon="📱" label="WhatsApp" onClose={() => setSidebarOpen(false)} />
                   <AdminTab active={activeTab === "enterprise-payments"} onClick={() => setActiveTab("enterprise-payments")} icon="💳" label="Enterprise Payments" onClose={() => setSidebarOpen(false)} />
                   <AdminTab active={activeTab === "ai-models"} onClick={() => setActiveTab("ai-models")} icon="🤖" label="AI Model Toggle" onClose={() => setSidebarOpen(false)} />
-                  <AdminTab active={activeTab === "ai-analytics"} onClick={() => setActiveTab("ai-analytics")} icon="📊" label="AI Analytics" onClose={() => setSidebarOpen(false)} />
+                   <AdminTab active={activeTab === "ai-analytics"} onClick={() => setActiveTab("ai-analytics")} icon="📊" label="AI Analytics" onClose={() => setSidebarOpen(false)} />
+                    <AdminTab active={activeTab === "whatsapp-dual"} onClick={() => setActiveTab("whatsapp-dual")} icon="📱" label="WhatsApp Dual" onClose={() => setSidebarOpen(false)} />
+                    <AdminTab active={activeTab === "hermes"} onClick={() => setActiveTab("hermes")} icon="🤖" label="Hermes AI" onClose={() => setSidebarOpen(false)} />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -288,9 +292,11 @@ function AdminDashboardPage() {
                      {activeTab === "ad-designer" && <AdDesignerPanel adminToken={adminToken} />}
                      {activeTab === "whatsapp" && <WhatsAppHub adminToken={adminToken} />}
                       {activeTab === "enterprise-payments" && <EnterprisePaymentsReadOnly adminToken={adminToken} />}
-                      {activeTab === "ai-models" && <ModelTogglePanel adminToken={adminToken} />}
-                      {activeTab === "ai-analytics" && <ModelAnalyticsPanel adminToken={adminToken} />}
-           </AdminSuspense>
+                       {activeTab === "ai-models" && <ModelTogglePanel adminToken={adminToken} />}
+                       {activeTab === "ai-analytics" && <ModelAnalyticsPanel adminToken={adminToken} />}
+                        {activeTab === "whatsapp-dual" && <WhatsAppDualPanel adminToken={adminToken} />}
+                        {activeTab === "hermes" && <HermesDashboard adminToken={adminToken} />}
+            </AdminSuspense>
         </div>
         <Footer />
       </main>

@@ -273,6 +273,12 @@ export const initiateWhatsAppSubscription = action({
       return { success: false, error: "KORA_SECRET_KEY not configured", debug: { hasKey: false } };
     }
 
+    // Validate email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!args.email || !emailRegex.test(args.email)) {
+      return { success: false, error: "A valid email address is required for payment" };
+    }
+
     // Get the tier details
     const tier = await ctx.runQuery(internal.whatsapp_dual.getTierById, { tierId: args.tierId as any });
     if (!tier) {
