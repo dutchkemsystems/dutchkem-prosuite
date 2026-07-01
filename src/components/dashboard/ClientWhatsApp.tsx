@@ -32,14 +32,23 @@ export function ClientWhatsApp({ userId, userEmail }: ClientWhatsAppProps) {
     setTimeout(() => setToast(null), 4000)
   }
 
+  const formatPhoneNumber = (input: string): string => {
+    const digits = input.replace(/[^0-9]/g, '')
+    if (digits.startsWith('234') && digits.length >= 12) return `+${digits}`
+    if (digits.startsWith('0') && digits.length >= 11) return `+234${digits.slice(1)}`
+    if (digits.length >= 10) return `+234${digits}`
+    return `+${digits}`
+  }
+
   const handleSubscribe = async (tierId: string) => {
-    if (!phoneNumber || phoneNumber.length < 10) {
-      showToast('error', 'Please enter a valid phone number (e.g. 2348012345678)')
+    const cleaned = phoneNumber.replace(/[^0-9]/g, '')
+    if (!cleaned || cleaned.length < 10) {
+      showToast('error', 'Enter a valid Nigerian number (e.g. 08123456789 or +2348123456789)')
       return
     }
 
-    if (!userEmail) {
-      showToast('error', 'Please update your email in profile settings before subscribing')
+    if (!userEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
+      showToast('error', 'A valid email is required for payment. Update your profile first.')
       return
     }
 
@@ -49,7 +58,7 @@ export function ClientWhatsApp({ userId, userEmail }: ClientWhatsAppProps) {
         userId,
         tierId,
         systemType: 'admin',
-        phoneNumber: phoneNumber.replace(/[^0-9]/g, ''),
+        phoneNumber: formatPhoneNumber(phoneNumber),
         email: userEmail,
       })
 
@@ -241,10 +250,10 @@ export function ClientWhatsApp({ userId, userEmail }: ClientWhatsAppProps) {
 
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
             <label className="text-[10px] uppercase font-black text-slate-500 tracking-[0.3em] mb-2 block">Your WhatsApp Number</label>
-            <input type="tel" placeholder="e.g. 2348012345678" value={phoneNumber}
+            <input type="tel" placeholder="08123456789 or +2348123456789" value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
               className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white" />
-            <p className="text-[10px] text-slate-500 mt-1">Include country code (234 for Nigeria)</p>
+            <p className="text-[10px] text-slate-500 mt-1">Nigerian number — country code added automatically if missing</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

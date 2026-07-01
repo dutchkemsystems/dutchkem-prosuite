@@ -298,7 +298,12 @@ export const initiateWhatsAppSubscription = action({
     }
 
     const amount = parseInt(String(tier.priceNgn));
+    if (isNaN(amount) || amount <= 0) {
+      return { success: false, error: "Invalid payment amount" };
+    }
+
     const reference = `WA-${args.userId.slice(-8)}-${Date.now()}`;
+    const phone = args.phoneNumber.startsWith('+') ? args.phoneNumber : `+${args.phoneNumber.replace(/[^0-9]/g, '')}`;
 
     try {
       const requestBody = {
@@ -311,7 +316,7 @@ export const initiateWhatsAppSubscription = action({
           type: "whatsapp_subscription",
           tierId: args.tierId,
           systemType: args.systemType,
-          phoneNumber: args.phoneNumber,
+          phoneNumber: phone,
           tierName: tier.name,
           messagesPerMonth: tier.messagesPerMonth,
         },
