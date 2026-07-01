@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useQuery, useMutation } from 'convex/react'
+import { useConvex, useMutation } from 'convex/react'
 import { useState, useEffect } from 'react'
 import { api } from '../../../convex/_generated/api'
 import { CompanyLogo } from '~/components/CompanyLogo'
@@ -47,6 +47,9 @@ function EnterpriseDashboard() {
   const [token, setToken] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('overview')
   const logout = useMutation(api.enterprise_auth.logout)
+  const convex = useConvex()
+  const [org, setOrg] = useState<any>(undefined)
+  const [featureConfig, setFeatureConfig] = useState<any>(undefined)
 
   useEffect(() => {
     const t = localStorage.getItem('enterprise_token')
@@ -54,11 +57,15 @@ function EnterpriseDashboard() {
     setToken(t)
   }, [navigate])
 
-  const org = useQuery(api.enterprise_auth.getOrgDetails, token ? { token } : 'skip')
-  const featureConfig = useQuery(
-    api.enterprise_features.getConfig,
-    org ? { orgId: org._id } : 'skip'
-  )
+  useEffect(() => {
+    if (!token) return
+    convex.query(api.enterprise_auth.getOrgDetails, { token }).then(setOrg).catch(() => {})
+  }, [token])
+
+  useEffect(() => {
+    if (!org?._id) return
+    convex.query(api.enterprise_features.getConfig, { orgId: org._id }).then(setFeatureConfig).catch(() => {})
+  }, [org?._id])
 
   const handleLogout = async () => {
     if (token) await logout({ token })
@@ -223,7 +230,12 @@ function EnterpriseDashboard() {
 }
 
 function OverviewTab({ org, token, onNavigateTab, enabledFeatures }: { org: any; token: string; onNavigateTab: (tab: string) => void; enabledFeatures: string[] }) {
-  const companies = useQuery(api.enterprise_features.getSeededCompanies, {})
+  const convex = useConvex()
+  const [companies, setCompanies] = useState<any>(undefined)
+
+  useEffect(() => {
+    convex.query(api.enterprise_features.getSeededCompanies, {}).then(setCompanies).catch(() => {})
+  }, [])
 
   const capabilities = [
     { icon: '🧩', name: 'Add-ons', desc: 'Subscribe to premium add-ons', tab: 'addons', color: 'from-orange-500 to-red-600' },

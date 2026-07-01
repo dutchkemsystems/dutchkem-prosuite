@@ -37,6 +37,10 @@ services:
       # 📱 Termii SMS (OTP)
       - key: TERMII_API_KEY
         sync: false
+      - key: TERMII_SECRET
+        sync: false
+      - key: TERMII_CHANNEL
+        value: dnd
       - key: TERMII_SENDER_ID
         value: Dutchkem
 
@@ -51,6 +55,16 @@ services:
       # 🔐 Encryption (required for payout decryption)
       - key: ENCRYPTION_KEY
         sync: false
+
+      # 🔗 Composio (11 social platforms)
+      - key: COMPOSIO_API_KEY
+        sync: false
+
+      # ⏱️ Session timeouts
+      - key: SESSION_TIMEOUT_MINUTES
+        value: "30"
+      - key: ADMIN_SESSION_TIMEOUT_MINUTES
+        value: "15"
 
       # 🌐 Frontend
       - key: FRONTEND_URL

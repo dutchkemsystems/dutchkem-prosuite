@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery, useMutation } from 'convex/react'
+import { useQuery, useMutation, useAction } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 
 type HermesDashboardProps = {
@@ -7,9 +7,13 @@ type HermesDashboardProps = {
 }
 
 export function HermesDashboard({ adminToken }: HermesDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'healing' | 'platforms' | 'install'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'healing' | 'platforms' | 'design' | 'install'>('overview')
   const [toast, setToast] = useState<{ type: string; msg: string } | null>(null)
   const [taskInput, setTaskInput] = useState('')
+  const [designForm, setDesignForm] = useState({ headline: '', body: '', cta: '', template: 'social_media', style: 'modern' })
+  const [creatingDesign, setCreatingDesign] = useState(false)
+  const [previewItem, setPreviewItem] = useState<any>(null)
+  const [autoPostEnabled, setAutoPostEnabled] = useState(true)
 
   const status: any = useQuery(api.hermes_orchestrator.getStatus)
   const tasks: any = useQuery(api.hermes_orchestrator.getTasks, { limit: 20 })
@@ -18,6 +22,9 @@ export function HermesDashboard({ adminToken }: HermesDashboardProps) {
   const gatewayStats: any = useQuery(api.hermes_gateway.getGatewayStats)
   const installedServices: any = useQuery(api.hermes_auto_install.getInstalledServices)
   const availableServices: any = useQuery(api.hermes_auto_install.getAvailableServices)
+  const adStatus: any = useQuery(api.adOrchestrator.getOrchestratorStatus)
+  const generatedContent: any = useQuery(api.adOrchestrator.getGeneratedContent, { limit: 10, adminToken })
+  const pendingApprovals: any = useQuery(api.adOrchestrator.getPendingApprovals, { adminToken })
 
   const startOrchestrator = useMutation(api.hermes_orchestrator.startOrchestrator)
   const stopOrchestrator = useMutation(api.hermes_orchestrator.stopOrchestrator)
@@ -25,6 +32,14 @@ export function HermesDashboard({ adminToken }: HermesDashboardProps) {
   const delegateTask = useMutation(api.hermes_orchestrator.delegateTask)
   const togglePlatform = useMutation(api.hermes_gateway.togglePlatform)
   const installService = useMutation(api.hermes_auto_install.installService)
+  const toggleAdOrchestrator = useMutation(api.adOrchestrator.toggleOrchestrator)
+  const toggleAdPlatform = useMutation(api.adOrchestrator.togglePlatform)
+  const generateAdContent = useMutation(api.adOrchestrator.generateContent)
+  const createDesign = useAction(api.ad_designer.createNewAdDesign)
+  const generateVideo = useAction(api.video_generator.generateVideo)
+  const approveContent = useMutation(api.adOrchestrator.approveContent)
+  const rejectContent = useMutation(api.adOrchestrator.rejectContent)
+  const postContent = useAction(api.adOrchestrator.postAcrossPlatforms)
 
   const showToast = (type: string, msg: string) => {
     setToast({ type, msg })
@@ -80,6 +95,7 @@ export function HermesDashboard({ adminToken }: HermesDashboardProps) {
     { id: 'tasks' as const, label: 'Tasks', icon: '📋' },
     { id: 'healing' as const, label: 'Self-Heal', icon: '🩺' },
     { id: 'platforms' as const, label: 'Platforms', icon: '🌐' },
+    { id: 'design' as const, label: 'Design & Ads', icon: '🎨' },
     { id: 'install' as const, label: 'Install', icon: '📦' },
   ]
 
@@ -166,9 +182,16 @@ export function HermesDashboard({ adminToken }: HermesDashboardProps) {
             <h3 className="font-bold text-sm mb-3">🌐 Platform Gateway</h3>
             <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
               {platforms?.slice(0, 12).map((p: any) => (
-                <div key={p.id} className={`p-2 rounded-xl text-center text-xs ${p.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+                <div key={p.id} className={`p-2 rounded-xl text-center text-xs ${
+                  p.connected ? 'bg-emerald-500/10 text-emerald-400' : 
+                  p.status === 'active' ? 'bg-blue-500/10 text-blue-400' : 
+                  'bg-slate-800 text-slate-500'
+                }`}>
                   <span className="text-lg">{p.icon}</span>
                   <p className="mt-1 truncate">{p.name}</p>
+                  <p className="text-[8px] mt-0.5">
+                    {p.connected ? '🟢 Connected' : p.status === 'active' ? '🟡 Available' : '⚪ Inactive'}
+                  </p>
                 </div>
               ))}
             </div>
@@ -265,6 +288,206 @@ export function HermesDashboard({ adminToken }: HermesDashboardProps) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {activeTab === 'design' && (
+        <div className="space-y-4">
+          <h3 className="font-black">🎨 Design & Advert Creation</h3>
+          <p className="text-xs text-slate-400">Auto-generate → Preview → Approve → Auto-Post</p>
+
+          {/* Status Bar */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="font-black text-sm">🌍 Auto-Post Orchestrator</p>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked={adStatus?.enabled ?? false}
+                  onChange={async () => {
+                    try {
+                      await toggleAdOrchestrator({ enabled: !(adStatus?.enabled ?? false), adminToken })
+                      showToast('success', `Orchestrator ${!(adStatus?.enabled ?? false) ? 'ENABLED' : 'DISABLED'}`)
+                    } catch (e: any) { showToast('error', e.message) }
+                  }}
+                  className="sr-only peer" />
+                <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500" />
+              </label>
+            </div>
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <div><p className="text-base font-black text-white">{adStatus?.totalGenerated ?? 0}</p><p className="text-[9px] text-slate-500">Generated</p></div>
+              <div><p className="text-base font-black text-amber-400">{pendingApprovals?.length ?? 0}</p><p className="text-[9px] text-slate-500">Pending</p></div>
+              <div><p className="text-base font-black text-emerald-400">{adStatus?.totalPosted ?? 0}</p><p className="text-[9px] text-slate-500">Posted</p></div>
+              <div><p className="text-base font-black text-blue-400">{adStatus?.platforms?.filter((p: any) => p.enabled).length ?? 0}</p><p className="text-[9px] text-slate-500">Platforms</p></div>
+            </div>
+          </div>
+
+          {/* ALL 7 BUTTONS - Always Visible */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+            <h4 className="font-bold text-sm mb-3">⚡ All Action Buttons</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={async () => {
+                try {
+                  const result = await generateAdContent({ adminToken })
+                  showToast('success', `Generated: ${result.headline}`)
+                } catch (e: any) { showToast('error', e.message) }
+              }} className="py-3 bg-emerald-500 text-white rounded-xl text-sm font-bold hover:bg-emerald-600">
+                📢 Generate Ad Content
+              </button>
+              <button onClick={async () => {
+                try {
+                  const result = await generateAdContent({ adminToken })
+                  await approveContent({ contentId: result.contentId, autoPost: true, adminToken })
+                  showToast('success', `Generated & posted: ${result.headline}`)
+                } catch (e: any) { showToast('error', e.message) }
+              }} className="py-3 bg-purple-500 text-white rounded-xl text-sm font-bold hover:bg-purple-600">
+                ⚡ Generate & Auto-Post
+              </button>
+              <button onClick={async () => {
+                if (!pendingApprovals || pendingApprovals.length === 0) { showToast('error', 'No pending items to approve'); return }
+                const item = pendingApprovals[0]
+                try {
+                  await approveContent({ contentId: item._id, autoPost: true, adminToken })
+                  showToast('success', `Approved & posting: ${item.headline}`)
+                } catch (e: any) { showToast('error', e.message) }
+              }} className="py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700">
+                ✅ Approve & Post
+              </button>
+              <button onClick={async () => {
+                if (!pendingApprovals || pendingApprovals.length === 0) { showToast('error', 'No pending items to approve'); return }
+                const item = pendingApprovals[0]
+                try {
+                  await approveContent({ contentId: item._id, autoPost: false, adminToken })
+                  showToast('success', `Approved: ${item.headline}`)
+                } catch (e: any) { showToast('error', e.message) }
+              }} className="py-3 bg-blue-500 text-white rounded-xl text-sm font-bold hover:bg-blue-600">
+                📋 Approve Only
+              </button>
+              <button onClick={async () => {
+                if (!pendingApprovals || pendingApprovals.length === 0) { showToast('error', 'No pending items to reject'); return }
+                const item = pendingApprovals[0]
+                try {
+                  await rejectContent({ contentId: item._id, adminToken })
+                  showToast('success', `Rejected: ${item.headline}`)
+                } catch (e: any) { showToast('error', e.message) }
+              }} className="py-3 bg-red-500 text-white rounded-xl text-sm font-bold hover:bg-red-600">
+                ✗ Reject
+              </button>
+              <button onClick={async () => {
+                if (!designForm.headline || !designForm.body) { showToast('error', 'Fill headline & body first'); return }
+                setCreatingDesign(true)
+                try {
+                  await createDesign({ adminToken, headline: designForm.headline, body: designForm.body, cta: designForm.cta || 'Learn More', url: 'https://dutchkem-prosuite-app.vercel.app', template: designForm.template, style: designForm.style })
+                  showToast('success', 'Design created!')
+                } catch (e: any) { showToast('error', e.message) }
+                setCreatingDesign(false)
+              }} disabled={creatingDesign} className="py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 disabled:opacity-50">
+                {creatingDesign ? '⏳ Creating...' : '🎨 Create Design'}
+              </button>
+              <button onClick={async () => {
+                const prompt = (document.getElementById('videoPrompt') as HTMLInputElement)?.value
+                const duration = parseInt((document.getElementById('videoDuration') as HTMLSelectElement)?.value || '30')
+                const quality = (document.getElementById('videoQuality') as HTMLSelectElement)?.value || 'hd'
+                if (!prompt) { showToast('error', 'Enter video description'); return }
+                try {
+                  const result = await generateVideo({ prompt, duration, quality, adminToken })
+                  showToast('success', `Video generated! Model: ${result.model}`)
+                } catch (e: any) { showToast('error', e.message) }
+              }} className="py-3 bg-orange-500 text-white rounded-xl text-sm font-bold hover:bg-orange-600">
+                🎥 Generate Video
+              </button>
+            </div>
+          </div>
+
+          {/* Design Form */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+            <h4 className="font-bold text-sm mb-3">🖼️ Design Settings</h4>
+            <div className="space-y-3">
+              <input type="text" value={designForm.headline} onChange={(e) => setDesignForm({ ...designForm, headline: e.target.value })}
+                placeholder="Headline" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white" />
+              <textarea value={designForm.body} onChange={(e) => setDesignForm({ ...designForm, body: e.target.value })}
+                placeholder="Body text" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white h-16" />
+              <input type="text" value={designForm.cta} onChange={(e) => setDesignForm({ ...designForm, cta: e.target.value })}
+                placeholder="Call to Action" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white" />
+              <div className="grid grid-cols-2 gap-3">
+                <select value={designForm.template} onChange={(e) => setDesignForm({ ...designForm, template: e.target.value })}
+                  className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white">
+                  <option value="social_media">Social Media</option>
+                  <option value="story">Story/Reel</option>
+                  <option value="banner">Banner</option>
+                  <option value="flyer">Flyer</option>
+                  <option value="poster">Poster</option>
+                </select>
+                <select value={designForm.style} onChange={(e) => setDesignForm({ ...designForm, style: e.target.value })}
+                  className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white">
+                  <option value="modern">Modern</option>
+                  <option value="vibrant">Vibrant</option>
+                  <option value="minimal">Minimal</option>
+                  <option value="corporate">Corporate</option>
+                  <option value="playful">Playful</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Video Form */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+            <h4 className="font-bold text-sm mb-3">🎬 Video Settings (A8)</h4>
+            <input type="text" id="videoPrompt" placeholder="Describe your video"
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white mb-3" />
+            <div className="grid grid-cols-2 gap-3">
+              <select id="videoDuration" className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white">
+                <option value="15">15 sec</option>
+                <option value="30">30 sec</option>
+                <option value="60">60 sec</option>
+                <option value="90">90 sec</option>
+              </select>
+              <select id="videoQuality" className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white">
+                <option value="sd">SD (720p)</option>
+                <option value="hd">HD (1080p)</option>
+                <option value="4k">4K Ultra</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Platforms */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+            <h4 className="font-bold text-sm mb-3">🌐 Platforms</h4>
+            <div className="grid grid-cols-3 gap-2">
+              {(adStatus?.platforms ?? []).map((p: any) => (
+                <div key={p.id} className="flex items-center gap-2 bg-slate-800 rounded-lg p-2">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" checked={p.enabled}
+                      onChange={async () => {
+                        try {
+                          await toggleAdPlatform({ platformId: p.id, enabled: !p.enabled, adminToken })
+                          showToast('success', `${p.id} ${!p.enabled ? 'ON' : 'OFF'}`)
+                        } catch (e: any) { showToast('error', e.message) }
+                      }}
+                      className="sr-only peer" />
+                    <div className="w-8 h-4 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-500" />
+                  </label>
+                  <span className="text-[10px] text-slate-400">{p.id}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent */}
+          {generatedContent?.content?.length > 0 && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+              <h4 className="font-bold text-sm mb-3">📋 Recent</h4>
+              {generatedContent.content.slice(0, 3).map((c: any) => (
+                <div key={c._id} className="bg-slate-800 rounded-lg p-3 mb-2 flex justify-between items-center">
+                  <span className="text-xs font-bold truncate">{c.headline}</span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    c.status === 'posted' ? 'bg-emerald-500/20 text-emerald-400' :
+                    c.status === 'approved' ? 'bg-blue-500/20 text-blue-400' :
+                    c.status === 'pending' ? 'bg-amber-500/20 text-amber-400' :
+                    'bg-slate-700 text-slate-400'
+                  }`}>{c.status}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

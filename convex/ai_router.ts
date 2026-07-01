@@ -50,9 +50,14 @@ const TASK_PATTERNS: Record<string, { keywords: string[]; provider: string; mode
     model: 'mimo-v2.5',
   },
   video: {
-    keywords: ['video', 'movie', 'clip', 'animation', 'cinematic', 'reel', 'short', 'promo', 'advertisement', 'commercial'],
-    provider: 'openrouter',
-    model: 'nvidia/llama-3.3-70b-instruct:free',
+    keywords: ['video', 'movie', 'clip', 'animation', 'cinematic', 'reel', 'short', 'promo', 'advertisement', 'commercial', 'production', 'film', 'direct', 'scene', 'shot', 'frame', 'render', '3d', '4k', 'hd', 'quality', 'professional', 'studio'],
+    provider: 'mimo',
+    model: 'mimo-v2.5',
+  },
+  advert_creation: {
+    keywords: ['advert', 'ad', 'flyer', 'poster', 'promotion', 'marketing', 'campaign', 'banner', 'social media ad', 'google ad', 'facebook ad'],
+    provider: 'mimo',
+    model: 'mimo-v2.5',
   },
   nigerian_business: {
     keywords: ['Nigeria', 'Lagos', 'Abuja', 'Port Harcourt', 'Kano', 'naira', 'NGN', 'SME', 'small business', 'Nigerian', 'West Africa', 'Africa', 'Lagos business', 'Nigerian startup', 'tech company Nigeria', 'Kora Pay', 'Paystack', 'Flutterwave', 'bank transfer', 'POS', 'USSD'],
@@ -76,6 +81,7 @@ const AGENT_TASK_MAP: Record<string, string> = {
   A5: 'design', A6: 'academic', A7: 'analysis', A8: 'video',
   A9: 'analysis', A10: 'content', A11: 'chat', A12: 'business',
   A13: 'academic', A14: 'content', A15: 'business',
+  A16: 'advert_creation', A17: 'audio',
 };
 
 // ═══════════════════════════════════════════════════════════════════

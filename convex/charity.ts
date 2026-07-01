@@ -1,27 +1,12 @@
 import { v } from "convex/values";
 import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-
-function getWATDate(): Date {
-  const now = new Date();
-  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-  return new Date(utcMs + 60 * 60000);
-}
-
-function getDaysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate();
-}
+import { DESIGNATED_ACCOUNT, getWATDate, formatMonth, getDaysInMonth } from "./finance_helpers";
 
 function isLastDayOfMonth(date: Date): boolean {
   const tomorrow = new Date(date);
   tomorrow.setDate(tomorrow.getDate() + 1);
   return tomorrow.getMonth() !== date.getMonth();
-}
-
-function formatMonth(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
 }
 
 async function getOrCreateCharityWallet(ctx: import("./_generated/server").MutationCtx) {

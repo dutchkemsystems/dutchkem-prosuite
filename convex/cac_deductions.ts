@@ -1,28 +1,15 @@
 import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { DESIGNATED_ACCOUNT, getWATDate, formatMonth } from "./finance_helpers";
 
 // ═══════════════════════════════════════════════════════════════════
 // CAC ANNUAL RETURNS DEDUCTION SERVICE
 // Annual fee ÷ 12 → monthly fraction to Tax Wallet
-// Designated account: 8121161202 (PalmPay - Oladotun Alabi)
 // ═══════════════════════════════════════════════════════════════════
 
-const DESIGNATED_ACCOUNT = "8121161202";
 const ANNUAL_CAC_FEE = 100000; // ₦100,000 per year
 const MONTHLY_CAC_FRACTION = ANNUAL_CAC_FEE / 12; // ₦8,333.33 per month
-
-function getWATDate(): Date {
-  const now = new Date();
-  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-  return new Date(utcMs + 60 * 60000);
-}
-
-function formatMonth(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
-}
 
 /**
  * Monthly CAC deduction (1st of each month)

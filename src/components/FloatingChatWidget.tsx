@@ -3,14 +3,16 @@ import { useQuery } from "@tanstack/react-query";
 import { convexQuery, useConvexMutation } from "@convex-dev/react-query";
 import { useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import CustomerSupportChat from "./CustomerSupportChat";
 
 export function FloatingChatWidget() {
   const { isAuthenticated: _isAuthenticated, user } = useConvexAuth() as any;
   const [isOpen, setIsOpen] = useState(false);
+  const [showOrchestrator, setShowOrchestrator] = useState(false);
   const [message, setMessage] = useState("");
   const [_sessionId, setSessionId] = useState<string | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
-  const [agentType, setAgentType] = useState<"sales" | "support">("support");
+  const [agentType, setAgentType] = useState<"sales" | "support" | "ai_support">("support");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const createChat = useConvexMutation(api.chatbot.createChatSession as any);
@@ -24,10 +26,16 @@ export function FloatingChatWidget() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory?.data?.chat?.messages]);
 
-  const startChat = async (type: "sales" | "support") => {
-    const result = await createChat({ 
+  const startChat = async (type: "sales" | "support" | "ai_support") => {
+    if (type === "ai_support") {
+      setAgentType("ai_support");
+      setShowOrchestrator(true);
+      return;
+    }
+
+    const result = await createChat({
       userId: user?._id,
-      agentType: type 
+      agentType: type,
     });
     setSessionId(result.sessionId);
     setChatId(result.chatId);
@@ -37,10 +45,10 @@ export function FloatingChatWidget() {
 
   const handleSend = async () => {
     if (!message.trim() || !chatId) return;
-    
+
     const currentMessage = message;
     setMessage("");
-    
+
     try {
       await sendMessage({
         chatId: chatId,
@@ -59,10 +67,28 @@ export function FloatingChatWidget() {
     }
   };
 
+  if (showOrchestrator) {
+    return (
+      <CustomerSupportChat
+        onClose={() => {
+          setShowOrchestrator(false);
+          setAgentType("support");
+        }}
+      />
+    );
+  }
+
   if (!isOpen) {
     return (
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
         <div className="flex gap-2">
+          <button
+            onClick={() => startChat("ai_support")}
+            className="bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white rounded-full px-4 py-3 shadow-lg flex items-center gap-2 transition-all hover:scale-105"
+          >
+            <span className="text-lg">🤖</span>
+            <span className="text-sm font-medium">AI Support</span>
+          </button>
           <button
             onClick={() => startChat("sales")}
             className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-4 py-3 shadow-lg flex items-center gap-2 transition-all hover:scale-105"
@@ -110,6 +136,14 @@ export function FloatingChatWidget() {
 
         {/* Agent Type Selector */}
         <div className="flex border-b border-slate-700">
+          <button
+            onClick={() => setAgentType("ai_support")}
+            className={`flex-1 py-2 text-xs font-medium transition-colors ${
+              agentType === "ai_support" ? "bg-orange-500 text-white" : "bg-slate-800 text-slate-400"
+            }`}
+          >
+            🤖 AI Support
+          </button>
           <button
             onClick={() => setAgentType("sales")}
             className={`flex-1 py-2 text-xs font-medium transition-colors ${

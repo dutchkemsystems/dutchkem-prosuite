@@ -12,9 +12,11 @@ app.use(express.json());
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
+const supportRoutes = require('./routes/support.routes');
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/support', supportRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

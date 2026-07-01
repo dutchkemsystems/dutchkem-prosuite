@@ -15,7 +15,7 @@ if (Test-Path ~\.aws\credentials) {
 
 # Install dependencies
 Write-Host "📦 Installing dependencies..." -ForegroundColor Cyan
-cd backend
+cd server
 npm install
 
 # Start the server

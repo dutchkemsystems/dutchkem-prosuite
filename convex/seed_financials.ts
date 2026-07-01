@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
-import { encryptWeb } from "./encryption";
+import { internal } from "./_generated/api";
 
 /**
  * SEED FINANCIAL INFRASTRUCTURE
@@ -20,8 +20,8 @@ export const seedFinancials = internalMutation({
     const accountNumber = "8121161202";
     const accountName = "Oladotun Alabi";
     
-    const encAccount = await encryptWeb(accountNumber, encryptionKey);
-    const encName = await encryptWeb(accountName, encryptionKey);
+    const encAccount = await ctx.runAction(internal.auth_helpers._encryptWeb, { text: accountNumber, keyHex: encryptionKey });
+    const encName = await ctx.runAction(internal.auth_helpers._encryptWeb, { text: accountName, keyHex: encryptionKey });
 
     const existing = await ctx.db.query("beneficiaries").first();
     if (existing) {

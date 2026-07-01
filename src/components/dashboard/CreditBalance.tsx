@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useQuery, useMutation, useAction } from 'convex/react'
+import { useState, useEffect } from 'react'
+import { useConvex, useMutation, useAction } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 
 function formatNgN(amount: number): string {
@@ -7,12 +7,26 @@ function formatNgN(amount: number): string {
 }
 
 export function CreditBalance({ userId, email }: { userId: string; email?: string }) {
-  const credits = useQuery(api.revenue_credits.getCreditBalance, userId ? { userId } : 'skip')
-  const expiryConfig = useQuery(api.revenue_growth.getCreditExpiryConfig)
-  const expiringCredits = useQuery(api.revenue_growth.getExpiringCredits, userId ? { userId } : 'skip')
-  const transactions = useQuery(api.revenue_credits.getCreditTransactions, userId ? { userId, limit: 10 } : 'skip')
+  const convex = useConvex()
+  const [credits, setCredits] = useState<any>(undefined)
+  const [expiryConfig, setExpiryConfig] = useState<any>(undefined)
+  const [expiringCredits, setExpiringCredits] = useState<any>(undefined)
+  const [transactions, setTransactions] = useState<any>(undefined)
   const initiatePurchase = useAction(api.kora_checkout.initiateCreditPurchase)
   const setAutoRecharge = useMutation(api.revenue_credits.setAutoRecharge)
+
+  useEffect(() => {
+    if (userId) convex.query(api.revenue_credits.getCreditBalance, { userId }).then(setCredits).catch(() => {})
+  }, [userId])
+  useEffect(() => {
+    convex.query(api.revenue_growth.getCreditExpiryConfig, {}).then(setExpiryConfig).catch(() => {})
+  }, [])
+  useEffect(() => {
+    if (userId) convex.query(api.revenue_growth.getExpiringCredits, { userId }).then(setExpiringCredits).catch(() => {})
+  }, [userId])
+  useEffect(() => {
+    if (userId) convex.query(api.revenue_credits.getCreditTransactions, { userId, limit: 10 }).then(setTransactions).catch(() => {})
+  }, [userId])
 
   const [showPurchase, setShowPurchase] = useState(false)
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null)

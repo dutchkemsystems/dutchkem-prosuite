@@ -1,31 +1,14 @@
 import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { DESIGNATED_ACCOUNT, getWATDate, formatMonth, getDaysInMonth } from "./finance_helpers";
 
 // ═══════════════════════════════════════════════════════════════════
 // TITHE DEDUCTIONS SERVICE
 // 10% of revenue ÷ days in month → daily fraction to Tithe Wallet
-// Designated account: 8121161202 (PalmPay - Oladotun Alabi)
 // ═══════════════════════════════════════════════════════════════════
 
-const DESIGNATED_ACCOUNT = "8121161202";
 const TITHE_PERCENTAGE = 10; // 10% as required
-
-function getWATDate(): Date {
-  const now = new Date();
-  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
-  return new Date(utcMs + 60 * 60000);
-}
-
-function getDaysInMonth(year: number, month: number): number {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function formatMonth(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
-}
 
 /**
  * Get or create the tithe wallet

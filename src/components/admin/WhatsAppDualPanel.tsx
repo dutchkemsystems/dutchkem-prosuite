@@ -31,6 +31,11 @@ export function WhatsAppDualPanel({ adminToken }: { adminToken: string }) {
   const startSession = useMutation(api.whatsapp_openwa.startSession)
   const stopSession = useMutation(api.whatsapp_openwa.stopSession)
 
+  // Ad Orchestrator
+  const adStatus: any = useQuery(api.adOrchestrator.getOrchestratorStatus)
+  const toggleAdOrchestrator = useMutation(api.adOrchestrator.toggleOrchestrator)
+  const toggleAdPlatform = useMutation(api.adOrchestrator.togglePlatform)
+
   const status = activeSystem === 'admin' ? adminStatus : enterpriseStatus
   const subs = activeSystem === 'admin' ? adminSubs : enterpriseSubs
 
@@ -249,21 +254,22 @@ export function WhatsAppDualPanel({ adminToken }: { adminToken: string }) {
                   </div>
                 )}
 
-                <div className="flex gap-2">
-                  <button onClick={() => handleStartSession(sys)}
-                    disabled={connected}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                      connected ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-emerald-500 text-white hover:bg-emerald-600'
-                    }`}>
-                    {connected ? '✅ Connected' : '▶ Start Session'}
-                  </button>
-                  <button onClick={() => handleStopSession(sys)}
-                    disabled={!connected}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                      !connected ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-red-500 text-white hover:bg-red-600'
-                    }`}>
-                    ⏹ Stop
-                  </button>
+                <div className="flex items-center gap-3">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" checked={connected}
+                      onChange={async () => {
+                        if (connected) {
+                          await handleStopSession(sys)
+                        } else {
+                          await handleStartSession(sys)
+                        }
+                      }}
+                      className="sr-only peer" />
+                    <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500" />
+                  </label>
+                  <span className={`text-xs font-bold ${connected ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {connected ? '🟢 Connected' : '🔴 Disconnected'}
+                  </span>
                 </div>
               </div>
             )
@@ -422,36 +428,115 @@ export function WhatsAppDualPanel({ adminToken }: { adminToken: string }) {
       {/* Global Ads Tab */}
       {activeTab === 'ads' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-black">🌍 Global Ad Automation</h3>
+          {/* Master Toggle */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="font-black">🌍 Global Ad Automation</p>
+                <p className="text-xs text-slate-400">Auto-post adverts across all platforms</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked={adStatus?.enabled ?? false}
+                  onChange={async () => {
+                    try {
+                      await toggleAdOrchestrator({
+                        enabled: !(adStatus?.enabled ?? false),
+                        adminToken
+                      })
+                      showToast('success', `Ad Orchestrator ${!(adStatus?.enabled ?? false) ? 'ENABLED' : 'DISABLED'}`)
+                    } catch (e: any) {
+                      showToast('error', e.message)
+                    }
+                  }}
+                  className="sr-only peer" />
+                <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500" />
+              </label>
+            </div>
+            
+            {/* WhatsApp Compliance Notice */}
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 mb-4">
+              <p className="text-xs text-amber-400 font-bold">⚠️ WhatsApp Compliance Rules</p>
+              <ul className="text-[10px] text-slate-400 mt-1 space-y-0.5">
+                <li>• Only NEW contacts receive adverts (no spam to existing)</li>
+                <li>• Rate limit: 1,000 messages/day maximum</li>
+                <li>• 1% complaint threshold - auto-pause if exceeded</li>
+                <li>• Business hours only: 8AM - 8PM WAT</li>
+                <li>• Opt-out mechanism included in every message</li>
+              </ul>
+            </div>
+            
+            {/* Platform toggles */}
+            <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+              {(adStatus?.platforms ?? []).map((p: any) => (
+                <div key={p.id} className="flex items-center gap-2 bg-slate-800 rounded-lg p-2">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" checked={p.enabled}
+                      onChange={async () => {
+                        try {
+                          await toggleAdPlatform({
+                            platformId: p.id,
+                            enabled: !p.enabled,
+                            adminToken
+                          })
+                          showToast('success', `${p.id} ${!p.enabled ? 'ENABLED' : 'DISABLED'}`)
+                        } catch (e: any) {
+                          showToast('error', e.message)
+                        }
+                      }}
+                      className="sr-only peer" />
+                    <div className="w-9 h-5 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500" />
+                  </label>
+                  <span className="text-[10px] text-slate-400 truncate">{p.id}</span>
+                </div>
+              ))}
+            </div>
+            
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-800">
+              <div className="text-center">
+                <p className="text-lg font-black text-white">{adStatus?.totalGenerated ?? 0}</p>
+                <p className="text-[10px] text-slate-500">Generated</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-black text-emerald-400">{adStatus?.totalPosted ?? 0}</p>
+                <p className="text-[10px] text-slate-500">Posted</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-black text-blue-400">{adStatus?.platforms?.filter((p: any) => p.enabled).length ?? 0}</p>
+                <p className="text-[10px] text-slate-500">Active Platforms</p>
+              </div>
+            </div>
           </div>
-          <p className="text-xs text-slate-400">AI-powered flyers sent to NEW contacts only. Business: +234-9113393525</p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {(campaigns ?? []).map((c: any) => (
-              <div key={c._id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-black text-sm">{c.name}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                    c.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' :
-                    c.status === 'completed' ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-700 text-slate-400'
-                  }`}>{c.status}</span>
+          {/* Campaigns */}
+          <div>
+            <h3 className="font-black mb-3">📋 Campaigns</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {(campaigns ?? []).map((c: any) => (
+                <div key={c._id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-black text-sm">{c.name}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      c.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' :
+                      c.status === 'completed' ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-700 text-slate-400'
+                    }`}>{c.status}</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mb-2">{c.headline}</p>
+                  <div className="flex gap-3 text-[10px] text-slate-500">
+                    <span>Sent: {c.sentCount}</span>
+                    <span>Failed: {c.failedCount}</span>
+                    <span>Target: {c.targetCount}</span>
+                  </div>
                 </div>
-                <p className="text-xs text-slate-400 mb-2">{c.headline}</p>
-                <div className="flex gap-3 text-[10px] text-slate-500">
-                  <span>Sent: {c.sentCount}</span>
-                  <span>Failed: {c.failedCount}</span>
-                  <span>Target: {c.targetCount}</span>
+              ))}
+              {(!campaigns || campaigns.length === 0) && (
+                <div className="col-span-3 bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center">
+                  <p className="text-3xl mb-2">🌍</p>
+                  <p className="text-sm font-bold text-slate-400">No campaigns yet</p>
+                  <p className="text-xs text-slate-500 mt-1">Enable the orchestrator to auto-generate campaigns</p>
                 </div>
-              </div>
-            ))}
-            {(!campaigns || campaigns.length === 0) && (
-              <div className="col-span-3 bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center">
-                <p className="text-3xl mb-2">🌍</p>
-                <p className="text-sm font-bold text-slate-400">No campaigns yet</p>
-                <p className="text-xs text-slate-500 mt-1">Create campaigns to send AI-generated flyers to new contacts</p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}

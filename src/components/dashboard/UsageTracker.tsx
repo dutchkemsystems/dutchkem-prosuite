@@ -1,10 +1,22 @@
-import { useQuery } from 'convex/react'
+import { useState, useEffect } from 'react'
+import { useConvex } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 
 export function UsageTracker({ userId }: { userId: string }) {
-  const usage = useQuery(api.revenue_growth.getUsageTracking, userId ? { userId } : 'skip')
-  const expiryConfig = useQuery(api.revenue_growth.getCreditExpiryConfig)
-  const expiringCredits = useQuery(api.revenue_growth.getExpiringCredits, userId ? { userId } : 'skip')
+  const convex = useConvex()
+  const [usage, setUsage] = useState<any>(undefined)
+  const [expiryConfig, setExpiryConfig] = useState<any>(undefined)
+  const [expiringCredits, setExpiringCredits] = useState<any>(undefined)
+
+  useEffect(() => {
+    if (userId) convex.query(api.revenue_growth.getUsageTracking, { userId }).then(setUsage).catch(() => {})
+  }, [userId])
+  useEffect(() => {
+    convex.query(api.revenue_growth.getCreditExpiryConfig, {}).then(setExpiryConfig).catch(() => {})
+  }, [])
+  useEffect(() => {
+    if (userId) convex.query(api.revenue_growth.getExpiringCredits, { userId }).then(setExpiringCredits).catch(() => {})
+  }, [userId])
 
   if (usage === undefined) {
     return (

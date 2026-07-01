@@ -161,7 +161,9 @@ export const getModelPerformance = query({
     const now = Date.now();
     const oneDay = 24 * 60 * 60 * 1000;
 
-    const models = ["groq", "openrouter", "aiml", "mimo", "nvidia"];
+    // Dynamic model detection from usage data
+    const allModels = [...new Set(all.map(u => u.modelName))];
+    const models = allModels.length > 0 ? allModels : ["groq", "openrouter", "aiml", "mimo", "nvidia"];
     const results = [];
 
     for (const model of models) {
@@ -205,6 +207,67 @@ export const getModelPerformance = query({
   },
 });
 
+// ─── A8 AGENT PERFORMANCE ───
+
+export const getA8Performance = query({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const all = await ctx.db.query("ai_model_usage").take(5000);
+    const now = Date.now();
+    const oneDay = 24 * 60 * 60 * 1000;
+
+    // Filter for A8 agent (video tasks)
+    const a8Usage = all.filter((u) => u.agentId === "A8" || u.taskType === "video");
+    const a8Day = a8Usage.filter((u) => now - u.timestamp < oneDay);
+
+    // Video productions
+    const videoProductions = await ctx.db.query("video_productions").take(100);
+    const completedVideos = videoProductions.filter((v) => v.status === "completed");
+    const failedVideos = videoProductions.filter((v) => v.status === "failed");
+    const todayVideos = videoProductions.filter((v) => now - v.createdAt < oneDay);
+
+    // Model usage for A8
+    const byModel: Record<string, { count: number; success: number; avgTime: number }> = {};
+    for (const u of a8Usage) {
+      if (!byModel[u.modelName]) byModel[u.modelName] = { count: 0, success: 0, avgTime: 0 };
+      byModel[u.modelName].count++;
+      if (u.success) byModel[u.modelName].success++;
+      byModel[u.modelName].avgTime += u.responseTimeMs;
+    }
+    for (const key of Object.keys(byModel)) {
+      byModel[key].avgTime = Math.round(byModel[key].avgTime / byModel[key].count);
+    }
+
+    const totalA8 = a8Usage.length;
+    const successA8 = a8Usage.filter((u) => u.success).length;
+    const successRate = totalA8 > 0 ? ((successA8 / totalA8) * 100).toFixed(1) : "0";
+    const avgResponseTime = totalA8 > 0
+      ? Math.round(a8Usage.reduce((sum, u) => sum + u.responseTimeMs, 0) / totalA8)
+      : 0;
+
+    return {
+      agent: "A8 - MediaStudio Pro",
+      totalRequests: totalA8,
+      dayRequests: a8Day.length,
+      successRate,
+      avgResponseTime,
+      videoStats: {
+        totalProduced: videoProductions.length,
+        completed: completedVideos.length,
+        failed: failedVideos.length,
+        todayProduced: todayVideos.length,
+        completionRate: videoProductions.length > 0
+          ? ((completedVideos.length / videoProductions.length) * 100).toFixed(1)
+          : "0",
+      },
+      models: byModel,
+      capabilities: ["video", "animation", "design", "audio", "voiceover"],
+      qualityPresets: ["draft (480p)", "standard (720p)", "hd (1080p)", "4k (2160p)"],
+    };
+  },
+});
+
 // ─── TASK DISTRIBUTION ───
 
 export const getTaskDistribution = query({
@@ -244,6 +307,98 @@ export const getRecentUsage = query({
       .query("ai_model_usage")
       .order("desc")
       .take(args.limit || 50);
+  },
+});
+
+// ─── MODEL REVENUE ANALYTICS ───
+
+const MODEL_REVENUE_CONFIG: Record<string, { costPerToken: number; revenuePerRequest: number }> = {
+  groq: { costPerToken: 0.0000006, revenuePerRequest: 0.5 },
+  openrouter: { costPerToken: 0.0000003, revenuePerRequest: 0.3 },
+  aiml: { costPerToken: 0.000001, revenuePerRequest: 1.0 },
+  mimo: { costPerToken: 0.0000008, revenuePerRequest: 0.8 },
+  nvidia: { costPerToken: 0.0000015, revenuePerRequest: 1.5 },
+};
+
+export const getModelRevenue = query({
+  args: {
+    period: v.optional(v.union(
+      v.literal("daily"),
+      v.literal("weekly"),
+      v.literal("monthly"),
+      v.literal("yearly"),
+    )),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const period = args.period || "daily";
+    const all = await ctx.db.query("ai_model_usage").take(10000);
+    const now = Date.now();
+
+    const periodMs: Record<string, number> = {
+      daily: 24 * 60 * 60 * 1000,
+      weekly: 7 * 24 * 60 * 60 * 1000,
+      monthly: 30 * 24 * 60 * 60 * 1000,
+      yearly: 365 * 24 * 60 * 60 * 1000,
+    };
+    const cutoff = now - (periodMs[period] || periodMs.daily);
+
+    const periodUsage = all.filter((u) => u.timestamp >= cutoff);
+    
+    // Dynamic model detection from usage data
+    const allModels = [...new Set(periodUsage.map(u => u.modelName))];
+    const models = allModels.length > 0 ? allModels : ["groq", "openrouter", "aiml", "mimo", "nvidia"];
+
+    const byModel: Record<string, {
+      totalRequests: number;
+      totalTokens: number;
+      estimatedRevenue: number;
+      avgRevenuePerRequest: number;
+      successRate: string;
+    }> = {};
+
+    let grandTotalRevenue = 0;
+    let grandTotalRequests = 0;
+
+    for (const model of models) {
+      const modelUsage = periodUsage.filter((u) => u.modelName === model);
+      const totalRequests = modelUsage.length;
+      const totalTokens = modelUsage.reduce((sum, u) => sum + (u.tokenCount || 0), 0);
+      const config = MODEL_REVENUE_CONFIG[model] || { costPerToken: 0.000001, revenuePerRequest: 0.5 };
+
+      const tokenRevenue = totalTokens * config.costPerToken;
+      const requestRevenue = totalRequests * config.revenuePerRequest;
+      const estimatedRevenue = Math.round((tokenRevenue + requestRevenue) * 100) / 100;
+      const avgRevenuePerRequest = totalRequests > 0 ? Math.round((estimatedRevenue / totalRequests) * 100) / 100 : 0;
+
+      const successCount = modelUsage.filter((u) => u.success).length;
+      const successRate = totalRequests > 0 ? ((successCount / totalRequests) * 100).toFixed(1) : "0";
+
+      byModel[model] = {
+        totalRequests,
+        totalTokens,
+        estimatedRevenue,
+        avgRevenuePerRequest,
+        successRate,
+      };
+
+      grandTotalRevenue += estimatedRevenue;
+      grandTotalRequests += totalRequests;
+    }
+
+    const totalTokens = periodUsage.reduce((sum, u) => sum + (u.tokenCount || 0), 0);
+
+    return {
+      period,
+      periodLabel: `${period.charAt(0).toUpperCase() + period.slice(1)}`,
+      grandTotalRevenue: Math.round(grandTotalRevenue * 100) / 100,
+      grandTotalRequests,
+      totalTokens,
+      avgRevenuePerRequest: grandTotalRequests > 0
+        ? Math.round((grandTotalRevenue / grandTotalRequests) * 100) / 100
+        : 0,
+      byModel,
+    };
   },
 });
 

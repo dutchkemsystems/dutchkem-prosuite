@@ -3,6 +3,7 @@ import { useAction, useMutation } from "convex/react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
+import { StatCard } from "./ui/StatCard";
 
 type AdminPanelProps = {
   adminToken: string;
@@ -924,24 +925,4 @@ function CustomToolsSection({
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon,
-  color,
-}: {
-  label: string;
-  value: string | number;
-  icon: string;
-  color: "indigo" | "emerald" | "rose" | "blue" | "amber" | "purple";
-}) {
-  return (
-    <div className={`bg-gradient-to-br from-${color}-500/10 to-${color}-600/5 border border-${color}-500/20 rounded-2xl p-4`}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-slate-400 uppercase font-bold">{label}</span>
-        <span className="text-xl">{icon}</span>
-      </div>
-      <div className={`text-2xl font-black text-${color}-300`}>{value}</div>
-    </div>
-  );
-}
+

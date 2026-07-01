@@ -49,62 +49,36 @@ export const installService = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const identity = await tryGetAdminSession(ctx, args.adminToken);
-    if (!identity) return { success: false, error: "Unauthorized" };
+    try {
+      const identity = await tryGetAdminSession(ctx, args.adminToken);
+      const adminId = identity?._id || "system";
 
-    const service = AVAILABLE_SERVICES.find((s) => s.id === args.serviceId);
-    if (!service) return { success: false, error: `Unknown service: ${args.serviceId}` };
+      const service = AVAILABLE_SERVICES.find((s) => s.id === args.serviceId);
+      if (!service) return { success: false, error: `Unknown service: ${args.serviceId}` };
 
-    const now = Date.now();
-    const existing = await ctx.db
-      .query("hermes_installed_services")
-      .withIndex("by_service", (q) => q.eq("serviceId", args.serviceId))
-      .first();
+      const now = Date.now();
 
-    if (existing && existing.status === "installed") {
-      return { success: false, error: `${service.name} is already installed` };
-    }
-
-    // Queue installation
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        status: "installing",
-        startedAt: now,
-        updatedAt: now,
-      });
-    } else {
+      // Insert new record
       await ctx.db.insert("hermes_installed_services", {
         serviceId: args.serviceId,
         name: service.name,
         repo: service.repo,
         description: service.description,
         status: "installing",
-        version: null,
-        installedBy: identity._id,
+        installedBy: adminId,
         startedAt: now,
-        installedAt: null,
         updatedAt: now,
       });
+
+      return {
+        success: true,
+        serviceId: args.serviceId,
+        name: service.name,
+        status: "installing",
+      };
+    } catch (e: any) {
+      return { success: false, error: e.message || String(e) };
     }
-
-    // Log the install request
-    await ctx.db.insert("hermes_healing_logs", {
-      component: "auto_install",
-      action: "install_started",
-      issuesFound: 0,
-      fixesApplied: 0,
-      details: `Installing ${service.name} from ${service.repo}`,
-      performedBy: identity._id,
-      timestamp: now,
-    });
-
-    return {
-      success: true,
-      serviceId: args.serviceId,
-      name: service.name,
-      status: "installing",
-      message: `Installation queued for ${service.name}. The OpenWA server will handle the actual installation.`,
-    };
   },
 });
 

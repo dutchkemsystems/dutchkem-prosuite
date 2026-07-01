@@ -1,20 +1,24 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
+import { useQueryClient } from '@tanstack/react-query'
+import { convexQuery } from '@convex-dev/react-query'
 import { api } from '../../../convex/_generated/api'
-
-// ═══════════════════════════════════════════════════════════════════
-// AI MODEL TOGGLE PANEL
-// Admin enables/disables AI models globally
-// ═══════════════════════════════════════════════════════════════════
 
 export function ModelTogglePanel({ adminToken }: { adminToken: string }) {
   const [toggling, setToggling] = useState<string | null>(null)
   const [toast, setToast] = useState<{ type: string; message: string } | null>(null)
+  const queryClient = useQueryClient()
 
   const stats = useQuery(api.model_toggle.getModelStats, {})
   const toggleModel = useMutation(api.model_toggle.toggleModel)
   const toggleMultiple = useMutation(api.model_toggle.toggleMultipleModels)
   const resetAll = useMutation(api.model_toggle.resetAllModels)
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({
+      queryKey: convexQuery(api.model_toggle.getModelStats, {}).queryKey,
+    })
+  }
 
   const showToast = (type: string, message: string) => {
     setToast({ type, message })
@@ -24,13 +28,10 @@ export function ModelTogglePanel({ adminToken }: { adminToken: string }) {
   const handleToggle = async (modelName: string, currentEnabled: boolean) => {
     setToggling(modelName)
     try {
-      const result = await toggleModel({
-        modelName,
-        enabled: !currentEnabled,
-        adminToken,
-      })
+      const result = await toggleModel({ modelName, enabled: !currentEnabled, adminToken })
       if (result.success) {
         showToast('success', `${result.modelName} is now ${result.enabled ? 'ENABLED' : 'DISABLED'}`)
+        invalidate()
       }
     } catch (e: any) {
       showToast('error', `Failed: ${e.message}`)
@@ -46,6 +47,7 @@ export function ModelTogglePanel({ adminToken }: { adminToken: string }) {
       stats?.models?.forEach((m: any) => { toggles[m.modelName] = enabled })
       await toggleMultiple({ toggles, adminToken })
       showToast('success', `All models ${enabled ? 'ENABLED' : 'DISABLED'}`)
+      invalidate()
     } catch (e: any) {
       showToast('error', `Failed: ${e.message}`)
     } finally {
@@ -58,6 +60,7 @@ export function ModelTogglePanel({ adminToken }: { adminToken: string }) {
     try {
       await resetAll({ adminToken })
       showToast('success', 'All models reset to ENABLED')
+      invalidate()
     } catch (e: any) {
       showToast('error', `Failed: ${e.message}`)
     } finally {
@@ -73,7 +76,6 @@ export function ModelTogglePanel({ adminToken }: { adminToken: string }) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-black">🤖 AI Model Control Panel</h2>
@@ -81,7 +83,6 @@ export function ModelTogglePanel({ adminToken }: { adminToken: string }) {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
           <p className="text-2xl font-black text-white">{totalModels}</p>
@@ -97,7 +98,6 @@ export function ModelTogglePanel({ adminToken }: { adminToken: string }) {
         </div>
       </div>
 
-      {/* Bulk Actions */}
       <div className="flex gap-2">
         <button onClick={() => handleToggleAll(true)} disabled={toggling === 'all'}
           className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-xs font-bold hover:bg-emerald-600 transition-all disabled:opacity-50">
@@ -113,12 +113,10 @@ export function ModelTogglePanel({ adminToken }: { adminToken: string }) {
         </button>
       </div>
 
-      {/* Model Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {models.map((model: any) => {
           const isEnabled = model.isEnabled
           const isTogglingThis = toggling === model.modelName
-
           return (
             <div key={model.modelName}
               className={`rounded-2xl border-l-4 p-5 transition-all ${
@@ -140,9 +138,7 @@ export function ModelTogglePanel({ adminToken }: { adminToken: string }) {
                   {isEnabled ? '🟢 Active' : '🔴 Inactive'}
                 </span>
               </div>
-
               <p className="text-xs text-slate-400 mb-4">{model.description}</p>
-
               <div className="flex items-center gap-3">
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" checked={isEnabled}
@@ -159,7 +155,6 @@ export function ModelTogglePanel({ adminToken }: { adminToken: string }) {
                   {isTogglingThis ? '⏳' : isEnabled ? 'Disable' : 'Enable'}
                 </button>
               </div>
-
               {model.lastToggledAt && (
                 <p className="text-[10px] text-slate-500 mt-2">
                   Last changed: {new Date(model.lastToggledAt).toLocaleString()}
@@ -170,7 +165,6 @@ export function ModelTogglePanel({ adminToken }: { adminToken: string }) {
         })}
       </div>
 
-      {/* Toggle Logs */}
       {recentLogs.length > 0 && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
           <h3 className="text-sm font-bold mb-3">📋 Recent Activity</h3>
@@ -187,7 +181,6 @@ export function ModelTogglePanel({ adminToken }: { adminToken: string }) {
         </div>
       )}
 
-      {/* Global Scope Notice */}
       <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4 flex items-start gap-3">
         <span className="text-xl">🌍</span>
         <div>
@@ -199,7 +192,6 @@ export function ModelTogglePanel({ adminToken }: { adminToken: string }) {
         </div>
       </div>
 
-      {/* Toast */}
       {toast && (
         <div className={`fixed bottom-6 right-6 px-5 py-3 rounded-2xl shadow-2xl z-50 animate-pulse ${
           toast.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'

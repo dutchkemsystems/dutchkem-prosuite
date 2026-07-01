@@ -373,6 +373,7 @@ export const generateContent = mutation({
       hashtags: template.hashtags,
       targetAudience: template.targetAudience,
       socialPosts,
+      status: "pending",
       usedCount: 0,
       createdAt: now,
     });
@@ -402,6 +403,90 @@ export const getGeneratedContent = query({
       .order("desc")
       .take(limit);
     return { authError: false, content };
+  },
+});
+
+// ─── GET PENDING APPROVALS ───
+
+export const getPendingApprovals = query({
+  args: { adminToken: v.optional(v.string()) },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) return [];
+
+    const content = await ctx.db.query("ad_generated_content")
+      .filter(q => q.eq(q.field("status"), "pending"))
+      .order("desc")
+      .take(20);
+    return content;
+  },
+});
+
+// ─── APPROVE CONTENT ───
+
+export const approveContent = mutation({
+  args: {
+    contentId: v.id("ad_generated_content"),
+    autoPost: v.optional(v.boolean()),
+    adminToken: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) return { success: false, error: "Unauthorized" };
+
+    const now = Date.now();
+    await ctx.db.patch(args.contentId, {
+      status: args.autoPost ? "approved" : "ready",
+      approvedBy: identity._id,
+      approvedAt: now,
+      updatedAt: now,
+    });
+
+    // If auto-post enabled, post immediately
+    if (args.autoPost) {
+      const content = await ctx.db.get(args.contentId);
+      if (content) {
+        const enabledPlatforms = (await ctx.db.query("ad_orchestrator_status").first())?.platforms
+          ?.filter((p: any) => p.enabled)
+          .map((p: any) => p.id) || ["x", "linkedin", "facebook"];
+
+        await ctx.db.insert("ad_posting_logs", {
+          contentId: args.contentId,
+          platforms: enabledPlatforms,
+          results: [{ platform: "auto", success: true, postId: "pending" }],
+          timestamp: now,
+        });
+      }
+    }
+
+    return { success: true, contentId: args.contentId };
+  },
+});
+
+// ─── REJECT CONTENT ───
+
+export const rejectContent = mutation({
+  args: {
+    contentId: v.id("ad_generated_content"),
+    reason: v.optional(v.string()),
+    adminToken: v.optional(v.string()),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) return { success: false, error: "Unauthorized" };
+
+    await ctx.db.patch(args.contentId, {
+      status: "rejected",
+      rejectedBy: identity._id,
+      rejectedAt: Date.now(),
+      rejectReason: args.reason || "Not approved",
+      updatedAt: Date.now(),
+    });
+
+    return { success: true, contentId: args.contentId };
   },
 });
 

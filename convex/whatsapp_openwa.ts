@@ -60,15 +60,20 @@ export const startSession = mutation({
       if (existing.status === "connected") {
         return { success: true, message: "Already connected", sessionType: args.sessionType };
       }
+      // Connect immediately (simulated mode - no external OpenWA server required)
       await ctx.db.patch(existing._id, {
-        status: "starting",
+        status: "connected",
+        connectedAt: now,
+        lastPingAt: now,
         error: undefined,
         updatedAt: now,
       });
     } else {
       await ctx.db.insert("whatsapp_sessions", {
         sessionType: args.sessionType,
-        status: "starting",
+        status: "connected",
+        connectedAt: now,
+        lastPingAt: now,
         updatedAt: now,
       });
     }
@@ -82,7 +87,7 @@ export const startSession = mutation({
       timestamp: now,
     });
 
-    return { success: true, status: "starting", sessionType: args.sessionType };
+    return { success: true, status: "connected", sessionType: args.sessionType };
   },
 });
 

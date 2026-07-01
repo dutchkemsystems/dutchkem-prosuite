@@ -29,9 +29,11 @@ class AWSMessagingService {
   }
 
   validateCredentials() {
-    return this.awsConfig.accessKeyId && 
-           this.awsConfig.accessKeyId.startsWith('AKIA') &&
-           this.awsConfig.secretAccessKey;
+    const key = this.awsConfig.accessKeyId;
+    const isAccessKey = key && (
+      key.startsWith('AKIA') || key.startsWith('ASIA') || key.startsWith('AGPA')
+    );
+    return isAccessKey && this.awsConfig.secretAccessKey;
   }
 
   generateOTP() {
@@ -98,7 +100,7 @@ class AWSMessagingService {
   }
 
   async sendOTP(identifier, purpose = 'login') {
-    const isEmail = identifier.includes('@') && identifier.includes('.');
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
     const otpCode = this.generateOTP();
     
     // Store OTP

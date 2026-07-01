@@ -5,23 +5,6 @@ import { tryGetAdminSession } from "./auth_helpers";
 
 const FALLBACK_RATE = 1550.00;
 
-async function encryptAmount(amount: number, key: string): Promise<string> {
-  const data = new TextEncoder().encode(JSON.stringify({ amount }));
-  const keyMaterial = await crypto.subtle.importKey("raw", new TextEncoder().encode(key), { name: "AES-GCM" }, false, ["encrypt"]);
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, keyMaterial, data);
-  return btoa(String.fromCharCode(...iv, ...new Uint8Array(encrypted)));
-}
-
-async function decryptAmount(ciphertext: string, key: string): Promise<number> {
-  const raw = Uint8Array.from(atob(ciphertext), (c) => c.charCodeAt(0));
-  const iv = raw.slice(0, 12);
-  const data = raw.slice(12);
-  const keyMaterial = await crypto.subtle.importKey("raw", new TextEncoder().encode(key), { name: "AES-GCM" }, false, ["decrypt"]);
-  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, keyMaterial, data);
-  return JSON.parse(new TextDecoder().decode(decrypted)).amount;
-}
-
 export const createUsdWallet = mutation({
   args: { userId: v.string() },
   returns: v.any(),
