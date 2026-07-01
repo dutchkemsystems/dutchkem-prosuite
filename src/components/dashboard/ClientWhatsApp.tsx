@@ -22,7 +22,7 @@ export function ClientWhatsApp({ userId, userEmail }: ClientWhatsAppProps) {
 
   const initiatePayment = useAction(api.kora_checkout.initiateWhatsAppSubscription)
   const verifyPaymentAction = useAction(api.kora_checkout.verifyPayment)
-  const sendMessage = useMutation(api.whatsapp_dual.sendClientMessage)
+  const sendMessage = useAction(api.whatsapp_dual.sendClientWhatsAppMessage)
 
   const userSub = subscriptions?.find((s: any) => s.userId === userId && s.status === 'active')
   const activeTier = userSub ? tiers?.find((t: any) => t._id === userSub.tierId) : null

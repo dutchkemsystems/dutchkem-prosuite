@@ -877,3 +877,128 @@ export const sendClientMessage = mutation({
     return { success: true, messageId: `msg_${Date.now()}` };
   },
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// SEND CLIENT WHATSAPP MESSAGE (Action — calls WhatsApp API)
+// ═══════════════════════════════════════════════════════════════════
+
+export const getActiveSubscription = internalQuery({
+  args: { userId: v.string() },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("whatsapp_subscriptions")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .first();
+  },
+});
+
+export const incrementUsage = internalMutation({
+  args: { subscriptionId: v.id("whatsapp_subscriptions") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const sub = await ctx.db.get(args.subscriptionId);
+    if (sub) {
+      await ctx.db.patch(args.subscriptionId, {
+        messagesUsed: sub.messagesUsed + 1,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
+function formatNigerianPhone(phone: string): string {
+  const digits = phone.replace(/[^0-9]/g, "");
+  if (digits.startsWith("234")) return digits;
+  if (digits.startsWith("0")) return `234${digits.slice(1)}`;
+  return `234${digits}`;
+}
+
+export const sendClientWhatsAppMessage = action({
+  args: {
+    userId: v.string(),
+    to: v.string(),
+    message: v.string(),
+    messageType: v.union(
+      v.literal("transactional"),
+      v.literal("support"),
+      v.literal("marketing")
+    ),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    messageId: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+
+    if (!phoneId || !accessToken) {
+      return { success: false, error: "WhatsApp not configured" };
+    }
+
+    // Validate subscription
+    const sub = await ctx.runQuery(internal.whatsapp_dual.getActiveSubscription, {
+      userId: args.userId,
+    });
+
+    if (!sub) {
+      return { success: false, error: "No active WhatsApp subscription" };
+    }
+
+    if (sub.messagesUsed >= sub.messagesLimit) {
+      return { success: false, error: "Message limit reached. Upgrade your plan." };
+    }
+
+    const formattedPhone = formatNigerianPhone(args.to);
+
+    try {
+      const response = await fetch(
+        `https://graph.facebook.com/${WHATSAPP_API_VERSION}/${phoneId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            to: formattedPhone,
+            type: "text",
+            text: { body: args.message },
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.messages && data.messages[0]) {
+        // Log usage
+        await ctx.runMutation(internal.whatsapp_dual.logUsage, {
+          userId: args.userId,
+          systemType: sub.systemType,
+          messageType: args.messageType,
+          direction: "outbound",
+          phoneNumber: formattedPhone,
+          costNgn: 0,
+          includedInTier: true,
+        });
+
+        await ctx.runMutation(internal.whatsapp_dual.incrementUsage, {
+          subscriptionId: sub._id,
+        });
+
+        return { success: true, messageId: data.messages[0].id };
+      }
+
+      return {
+        success: false,
+        error: data.error?.message || "Failed to send message",
+      };
+    } catch (e: any) {
+      return { success: false, error: e.message || "WhatsApp API error" };
+    }
+  },
+});

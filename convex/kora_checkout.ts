@@ -297,8 +297,8 @@ export const initiateWhatsAppSubscription = action({
       return { success: true, reference: "FREE_TIER" };
     }
 
-    const amount = parseInt(String(tier.priceNgn));
-    if (isNaN(amount) || amount <= 0) {
+    const amountKobo = parseInt(String(tier.priceNgn)) * 100;
+    if (isNaN(amountKobo) || amountKobo <= 0) {
       return { success: false, error: "Invalid payment amount" };
     }
 
@@ -307,7 +307,7 @@ export const initiateWhatsAppSubscription = action({
 
     try {
       const requestBody = {
-        amount,
+        amount: amountKobo,
         currency: "NGN",
         reference,
         customer: { email: args.email },
@@ -341,7 +341,7 @@ export const initiateWhatsAppSubscription = action({
           userId: args.userId,
           type: "whatsapp_subscription",
           reference,
-          amount,
+          amount: amountKobo,
           packageId: args.tierId,
           credits: tier.messagesPerMonth,
           email: args.email,
@@ -352,7 +352,7 @@ export const initiateWhatsAppSubscription = action({
           success: true,
           checkoutUrl: data.data.checkout_url,
           reference,
-          debug: { tierName: tier.name, amount, reference },
+          debug: { tierName: tier.name, amountKobo, reference },
         };
       }
 
