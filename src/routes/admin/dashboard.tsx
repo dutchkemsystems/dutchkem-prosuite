@@ -35,6 +35,7 @@ import { ModelTogglePanel } from "~/components/admin/ModelTogglePanel";
 import { ModelAnalyticsPanel } from "~/components/admin/ModelAnalyticsPanel";
 import { WhatsAppDualPanel } from "~/components/admin/WhatsAppDualPanel";
 import { HermesDashboard } from "~/components/admin/HermesDashboard";
+import { SupportDashboard } from "~/components/admin/SupportDashboard";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -231,8 +232,9 @@ function AdminDashboardPage() {
                   <AdminTab active={activeTab === "enterprise-payments"} onClick={() => setActiveTab("enterprise-payments")} icon="💳" label="Enterprise Payments" onClose={() => setSidebarOpen(false)} />
                   <AdminTab active={activeTab === "ai-models"} onClick={() => setActiveTab("ai-models")} icon="🤖" label="AI Model Toggle" onClose={() => setSidebarOpen(false)} />
                    <AdminTab active={activeTab === "ai-analytics"} onClick={() => setActiveTab("ai-analytics")} icon="📊" label="AI Analytics" onClose={() => setSidebarOpen(false)} />
-                    <AdminTab active={activeTab === "whatsapp-dual"} onClick={() => setActiveTab("whatsapp-dual")} icon="📱" label="WhatsApp Dual" onClose={() => setSidebarOpen(false)} />
-                    <AdminTab active={activeTab === "hermes"} onClick={() => setActiveTab("hermes")} icon="🤖" label="Hermes AI" onClose={() => setSidebarOpen(false)} />
+                     <AdminTab active={activeTab === "whatsapp-dual"} onClick={() => setActiveTab("whatsapp-dual")} icon="📱" label="WhatsApp Dual" onClose={() => setSidebarOpen(false)} />
+                     <AdminTab active={activeTab === "hermes"} onClick={() => setActiveTab("hermes")} icon="🤖" label="Hermes AI" onClose={() => setSidebarOpen(false)} />
+                     <AdminTab active={activeTab === "support-orch"} onClick={() => setActiveTab("support-orch")} icon="🎧" label="Support Orchestrator" onClose={() => setSidebarOpen(false)} />
         </nav>
 
         <div className="p-6 border-t border-slate-800 bg-slate-900/50">
@@ -296,6 +298,7 @@ function AdminDashboardPage() {
                        {activeTab === "ai-analytics" && <ModelAnalyticsPanel adminToken={adminToken} />}
                         {activeTab === "whatsapp-dual" && <WhatsAppDualPanel adminToken={adminToken} />}
                         {activeTab === "hermes" && <HermesDashboard adminToken={adminToken} />}
+                        {activeTab === "support-orch" && <SupportDashboard />}
             </AdminSuspense>
         </div>
         <Footer />
