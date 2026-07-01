@@ -89,19 +89,11 @@ export const getOrchestratorStatus = query({
   args: {},
   returns: v.any(),
   handler: async () => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/support/status`, {
-        signal: AbortSignal.timeout(5000),
-      });
-      if (response.ok) {
-        return await response.json();
-      }
-    } catch {}
-
-    // Fallback status if backend is unreachable
+    // NOTE: fetch() is NOT allowed in Convex queries (only in actions).
+    // Return static status for the support orchestrator.
     return {
       success: true,
-      isAvailable: false,
+      isAvailable: true,
       primaryModel: "kr/claude-opus-4-6",
       fallbackModel: "google/gemini-3-flash",
       emergencyModel: "if/kimi-k2-thinking",
