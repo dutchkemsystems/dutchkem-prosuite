@@ -122,6 +122,15 @@ export const koraWebhook = httpAction(async (ctx, request) => {
           rawPayload: payload,
         });
         console.log(`[KORA WEBHOOK] Credit/Subscription/Addon payment completed: ${reference}`);
+      } else if (reference.startsWith("WA-")) {
+        await ctx.runMutation(internal.kora_checkout.handleKoraWebhook, {
+          eventType: String(eventType),
+          reference: String(reference),
+          amount: typeof amount === "number" ? amount : 0,
+          status: "success",
+          rawPayload: payload,
+        });
+        console.log(`[KORA WEBHOOK] WhatsApp subscription payment completed: ${reference}`);
       } else {
         // Handle regular subscription payments
         await ctx.runMutation(internal.kora_pay.handleTransferCompleted, {

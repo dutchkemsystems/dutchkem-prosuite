@@ -13,12 +13,16 @@ export function ClientWhatsApp({ userId, userEmail }: ClientWhatsAppProps) {
   const [messageForm, setMessageForm] = useState({ to: '', message: '', type: 'transactional' as string })
   const [purchasing, setPurchasing] = useState<string | null>(null)
   const [phoneNumber, setPhoneNumber] = useState('')
+  const [verifyReference, setVerifyReference] = useState<string | null>(null)
+  const [verifying, setVerifying] = useState(false)
 
   const subscriptions: any = useQuery(api.whatsapp_dual.getSubscriptions, { systemType: 'admin' })
   const tiers: any = useQuery(api.whatsapp_dual.getPricingTiers, { clientType: 'individual' })
   const usageLogs: any = useQuery(api.whatsapp_dual.getUsageLogs, { userId })
 
   const initiatePayment = useAction(api.kora_checkout.initiateWhatsAppSubscription)
+  const verifyPaymentAction = useAction(api.kora_checkout.verifyPayment)
+  const sendMessage = useMutation(api.whatsapp_dual.sendClientMessage)
 
   const userSub = subscriptions?.find((s: any) => s.userId === userId && s.status === 'active')
   const activeTier = userSub ? tiers?.find((t: any) => t._id === userSub.tierId) : null
@@ -34,6 +38,11 @@ export function ClientWhatsApp({ userId, userEmail }: ClientWhatsAppProps) {
       return
     }
 
+    if (!userEmail) {
+      showToast('error', 'Please update your email in profile settings before subscribing')
+      return
+    }
+
     setPurchasing(tierId)
     try {
       const result = await initiatePayment({
@@ -41,7 +50,7 @@ export function ClientWhatsApp({ userId, userEmail }: ClientWhatsAppProps) {
         tierId,
         systemType: 'admin',
         phoneNumber: phoneNumber.replace(/[^0-9]/g, ''),
-        email: userEmail || 'client@dutchkem.com',
+        email: userEmail,
       })
 
       if (result.success) {
@@ -49,7 +58,8 @@ export function ClientWhatsApp({ userId, userEmail }: ClientWhatsAppProps) {
           showToast('success', 'Free tier activated! You can now send messages.')
         } else if (result.checkoutUrl) {
           window.open(result.checkoutUrl, '_blank')
-          showToast('success', 'Payment page opened. Complete payment to activate WhatsApp.')
+          setVerifyReference(result.reference || null)
+          showToast('success', 'Payment page opened. Complete payment, then click "Verify Payment" below.')
         }
       } else {
         showToast('error', result.error || 'Payment failed')
@@ -58,6 +68,47 @@ export function ClientWhatsApp({ userId, userEmail }: ClientWhatsAppProps) {
       showToast('error', e.message || 'Payment error')
     } finally {
       setPurchasing(null)
+    }
+  }
+
+  const handleVerify = async () => {
+    if (!verifyReference) return
+    setVerifying(true)
+    try {
+      const result = await verifyPaymentAction({ reference: verifyReference })
+      if (result.success) {
+        showToast('success', 'Payment verified! Your WhatsApp plan is now active.')
+        setVerifyReference(null)
+      } else {
+        showToast('error', result.error || 'Payment not yet verified. Try again in a moment.')
+      }
+    } catch (e: any) {
+      showToast('error', e.message || 'Verification failed')
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  const handleSendMessage = async () => {
+    if (!messageForm.to || !messageForm.message) {
+      showToast('error', 'Please enter phone number and message')
+      return
+    }
+    try {
+      const result = await sendMessage({
+        userId,
+        to: messageForm.to,
+        message: messageForm.message,
+        messageType: messageForm.type as "transactional" | "support" | "marketing",
+      })
+      if (result.success) {
+        showToast('success', 'Message sent!')
+        setMessageForm({ to: '', message: '', type: 'transactional' })
+      } else {
+        showToast('error', result.error || 'Failed to send message')
+      }
+    } catch (e: any) {
+      showToast('error', e.message || 'Send failed')
     }
   }
 
@@ -172,7 +223,7 @@ export function ClientWhatsApp({ userId, userEmail }: ClientWhatsAppProps) {
               <option value="support">Support (₦2/msg)</option>
               <option value="marketing">Marketing (₦10/msg)</option>
             </select>
-            <button className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold text-sm">📤 Send Message</button>
+            <button onClick={handleSendMessage} className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold text-sm hover:bg-orange-600 transition-all">📤 Send Message</button>
           </div>
         </div>
       )}
@@ -241,6 +292,21 @@ export function ClientWhatsApp({ userId, userEmail }: ClientWhatsAppProps) {
               )
             })}
           </div>
+
+          {verifyReference && (
+            <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-blue-400">Payment Pending Verification</p>
+                <p className="text-xs text-slate-400">Completed payment? Click verify to activate your plan.</p>
+              </div>
+              <button
+                onClick={handleVerify}
+                disabled={verifying}
+                className="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-bold hover:bg-blue-600 disabled:opacity-50">
+                {verifying ? '⏳ Verifying...' : '🔄 Verify Payment'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

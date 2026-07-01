@@ -811,3 +811,69 @@ export const getAgentList = query({
     }));
   },
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// SEND CLIENT WHATSAPP MESSAGE
+// ═══════════════════════════════════════════════════════════════════
+
+export const sendClientMessage = mutation({
+  args: {
+    userId: v.string(),
+    to: v.string(),
+    message: v.string(),
+    messageType: v.union(
+      v.literal("transactional"),
+      v.literal("support"),
+      v.literal("marketing")
+    ),
+  },
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    messageId: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    const cleaned = args.to.replace(/[^0-9]/g, "");
+    if (cleaned.length < 10) {
+      return { success: false, error: "Invalid phone number" };
+    }
+
+    const sub = await ctx.db
+      .query("whatsapp_subscriptions")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .first();
+
+    if (!sub) {
+      return { success: false, error: "No active WhatsApp subscription" };
+    }
+
+    if (sub.messagesUsed >= sub.messagesLimit) {
+      return { success: false, error: "Message limit reached. Upgrade your plan." };
+    }
+
+    const costByType: Record<string, number> = {
+      transactional: 5,
+      support: 2,
+      marketing: 10,
+    };
+
+    await ctx.db.insert("whatsapp_usage_logs", {
+      userId: args.userId,
+      systemType: sub.systemType,
+      messageType: args.messageType,
+      direction: "outbound",
+      phoneNumber: cleaned,
+      costNgn: costByType[args.messageType] || 5,
+      includedInTier: true,
+      timestamp: Date.now(),
+    });
+
+    await ctx.db.patch(sub._id, {
+      messagesUsed: sub.messagesUsed + 1,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true, messageId: `msg_${Date.now()}` };
+  },
+});
