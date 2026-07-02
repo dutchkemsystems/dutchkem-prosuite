@@ -8,6 +8,7 @@ import type { UIMessage } from "@convex-dev/agent"
 import { AgentServices } from '~/components/AgentServices'
 import { CompanyLogo } from '~/components/CompanyLogo'
 import { FileDownloadButtons } from '~/components/dashboard/FileDownloadButtons'
+import { AgentSupportButton } from '~/components/AgentSupportButton'
 
 export const Route = createFileRoute('/academic-writer')({
   component: AcademicWriterPage,
@@ -122,7 +123,12 @@ function ChatContainer({ threadId }: { threadId: string }) {
       </div>
       
       <div className="p-4 md:p-8 pt-0">
-        <ChatInput threadId={threadId} />
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <ChatInput threadId={threadId} />
+          </div>
+          <AgentSupportButton agentId="A1" agentName="Academic Pro" />
+        </div>
         <p className="text-[10px] text-center text-slate-600 mt-3 font-bold uppercase tracking-widest opacity-50">
           Dutchkem ProSuite NG+ Academic Agent • Llama 3.3 70B • Bank-Grade Security
         </p>

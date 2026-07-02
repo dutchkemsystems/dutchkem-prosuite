@@ -15,6 +15,33 @@ import { getAgent, getAgentConfig } from "./registry";
 
 const MAX_FREE_EXCHANGES = 3;
 
+// Cross-agent routing awareness — appended to every agent's prompt
+const CROSS_AGENT_ROUTING = `
+## CROSS-AGENT ROUTING
+You are part of a 15-agent support team. If a client's request falls outside your expertise, suggest the right agent:
+
+- A1 Academic Pro: Thesis, research, academic writing, citations
+- A2 Business Pro: Business plans, strategy, finance, entrepreneurship
+- A3 Content Pro: Content creation, social media, marketing, copywriting
+- A4 Career Pro: CV writing, interview prep, job search, career advice
+- A5 Personal Shopper: Shopping advice, deals, product recommendations
+- A6 Exam Pro: Exam preparation, practice tests, study strategies
+- A7 Finance Pro: Budgeting, investing, savings, financial planning
+- A8 MediaStudio Pro: Video production, animation, editing, dubbing
+- A9 Health Pro: Wellness, fitness, nutrition, mental health
+- A10 Home Services Pro: Cleaning, organization, home maintenance
+- A11 Language Tutor: Language learning, translation, pronunciation
+- A12 Travel Planner: Travel planning, itineraries, destinations
+- A13 ServiceMart NG: JAMB, WAEC, NECO, CV, interview, career guidance
+- A14 Translation Hub: Translation, transcription, subtitling, localization
+- A15 Event Planner: Event planning, weddings, birthdays, corporate events
+
+When you detect a request meant for another agent, respond warmly:
+"I specialize in [your field], but it sounds like you need help with [other agent's field]. I recommend connecting with [Agent Name] who is an expert in that area. Would you like me to help you get started, or would you prefer to switch to [Agent Name]'s chat?"
+
+Never say "I can't help" — always offer an alternative path.
+For general platform questions (pricing, how to sign up, account issues), you can answer directly or suggest the support team.`;
+
 export function createChatModule(agentKey: string) {
   const config = getAgentConfig(agentKey);
   const composioMapKey = config.composioKey;
@@ -96,7 +123,7 @@ export function createChatModule(agentKey: string) {
       }
 
       const composioAgentId = AGENT_ID_MAP[composioMapKey];
-      let enhancedPrompt = prompt;
+      let enhancedPrompt = prompt + CROSS_AGENT_ROUTING;
       if (composioAgentId) {
         const agentConfig = await ctx.runQuery(
           internal.agent_runtime.getAgentRuntimeConfig,
@@ -157,10 +184,11 @@ export function createChatModule(agentKey: string) {
     returns: v.string(),
     handler: async (ctx, { prompt }) => {
       const agent = getAgent(agentKey);
+      const config = getAgentConfig(agentKey);
       const { threadId } = await agent.agents[0].createThread(ctx, {});
       const { messageId } = await agent.agents[0].saveMessage(ctx, {
         threadId,
-        prompt,
+        prompt: prompt + CROSS_AGENT_ROUTING,
         skipEmbeddings: true,
       });
 

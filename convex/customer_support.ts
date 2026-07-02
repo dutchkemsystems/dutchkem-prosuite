@@ -55,11 +55,17 @@ const AGENT_BUNDLES: Record<string, string> = {
   A2: `🎯 Startup: Business Plan + Financial Model + Pitch Deck = ₦95,000\n🎯 Growth: Market Research + Go-to-Market + Pricing = ₦50,000`,
   A3: `🎯 Starter: Blog + Social + Newsletter = ₦10,000\n🎯 Growth: 4 Blogs + Calendar + Weekly Social = ₦25,000`,
   A4: `🎯 Job Seeker: CV + Cover Letter + LinkedIn = ₦22,000\n🎯 Career Starter: CV + LinkedIn + Interview = ₦28,000`,
+  A5: `🎯 Basic: Price Comparison + Deal Finder = ₦3,000\n🎯 Premium: All Shopping Services = ₦8,000`,
   A6: `🎯 Lite: 100 Qs + Study guide = ₦12,000\n🎯 Full: All Qs + Cheat sheets + Strategy = ₦30,000`,
   A7: `🎯 Starter: Budget + Savings + Health Check = ₦12,000\n🎯 Investor: Investment + Retirement + Goal = ₦27,000`,
+  A8: `🎯 Basic: Video Editing + Transcription = ₦18,000\n🎯 Pro: 2D Animation + Voice Cloning = ₦75,000\n🎯 Studio: Full Production Suite = ₦150,000`,
   A9: `🎯 Starter: Meal + Workout + Water = ₦11,000\n🎯 Transformation: Weight Loss + Challenge + Tracker = ₦15,000`,
+  A10: `🎯 Basic: Cleaning Schedule + Declutter Guide = ₦5,000\n🎯 Complete: Full Home Organization = ₦12,000`,
   A11: `🎯 Starter: Translation + Phrasebook + Vocabulary = ₦8,000\n🎯 Conversation: Practice + Pronunciation + Mistakes = ₦10,000`,
+  A12: `🎯 Basic: Itinerary + Budget = ₦10,000\n🎯 Premium: Full Trip Planning = ₦25,000`,
   A13: `🎯 Exam Prep: JAMB + WAEC + NECO = ₦7,500\n🎯 Career Starter: CV + LinkedIn + Interview = ₦15,000`,
+  A14: `🎯 Basic: Text + Document Translation = ₦2,500\n🎯 Pro: Audio + Video + Certified = ₦15,000`,
+  A15: `🎯 Basic: Checklist + Budget = ₦8,000\n🎯 Full: Venue + Catering + Decoration = ₦30,000`,
 };
 
 const AGENT_SUBSCRIPTIONS: Record<string, string> = {

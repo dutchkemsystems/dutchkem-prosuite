@@ -1707,6 +1707,7 @@ export const miscTables = {
     reason: v.string(),
     status: v.union(v.literal("pending"), v.literal("in_progress"), v.literal("resolved")),
     assignedTo: v.optional(v.string()),
+    resolution: v.optional(v.string()),
     resolvedAt: v.optional(v.number()),
     createdAt: v.number(),
   }).index("by_user", ["userId"])

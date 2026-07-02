@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from 'convex/react'
+import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 
 const AGENT_NAMES: Record<string, string> = {
@@ -19,7 +19,7 @@ const AGENT_ICONS: Record<string, string> = {
 }
 
 export function SupportDashboard() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'interactions' | 'escalations' | 'agents'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'interactions' | 'escalations' | 'agents' | 'settings'>('overview')
   const [days, setDays] = useState(7)
 
   const analytics: any = useQuery(api.support_orchestrator.getSupportAnalytics, { days })
@@ -43,6 +43,7 @@ export function SupportDashboard() {
     { id: 'interactions' as const, label: 'Interactions', icon: '💬' },
     { id: 'escalations' as const, label: 'Escalations', icon: '🚨' },
     { id: 'agents' as const, label: 'Agents', icon: '🤖' },
+    { id: 'settings' as const, label: 'Settings', icon: '⚙️' },
   ]
 
   return (
@@ -50,7 +51,7 @@ export function SupportDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-black">🎧 Support Orchestrator</h2>
-          <p className="text-xs text-slate-400 mt-1">Multi-agent customer support analytics and monitoring</p>
+          <p className="text-xs text-slate-400 mt-1">Multi-agent customer support analytics, monitoring & configuration</p>
         </div>
         <div className="flex items-center gap-2">
           <select value={days} onChange={(e) => setDays(Number(e.target.value))}
@@ -208,26 +209,7 @@ export function SupportDashboard() {
       )}
 
       {activeTab === 'escalations' && (
-        <div className="space-y-3">
-          {escalations && escalations.length > 0 ? escalations.map((e: any) => (
-            <div key={e._id} className="bg-red-500/5 border border-red-500/20 rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-bold text-red-400">🚨 Escalation</span>
-                <span className="px-2 py-0.5 bg-yellow-500/10 text-yellow-400 rounded-full text-[10px] font-bold">
-                  {e.status}
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">Agent: {AGENT_NAMES[e.agentId] || e.agentId}</p>
-              <p className="text-xs text-slate-400">Reason: {e.reason}</p>
-              <p className="text-[10px] text-slate-500 mt-1">{new Date(e.createdAt).toLocaleString()}</p>
-            </div>
-          )) : (
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center">
-              <p className="text-lg mb-2">✅</p>
-              <p className="text-sm text-slate-400">No pending escalations</p>
-            </div>
-          )}
-        </div>
+        <EscalationsTab escalations={escalations} />
       )}
 
       {activeTab === 'agents' && (
@@ -256,6 +238,235 @@ export function SupportDashboard() {
           })}
         </div>
       )}
+
+      {activeTab === 'settings' && (
+        <SettingsTab />
+      )}
+    </div>
+  )
+}
+
+function EscalationsTab({ escalations }: { escalations: any[] }) {
+  const resolveEsc = useMutation(api.support_orchestrator.resolveEscalation)
+  const assignEsc = useMutation(api.support_orchestrator.assignEscalation)
+  const addResponse = useMutation(api.support_orchestrator.addEscalationResponse)
+  const [resolution, setResolution] = useState<Record<string, string>>({})
+  const [responseText, setResponseText] = useState<Record<string, string>>({})
+  const [localStatus, setLocalStatus] = useState<Record<string, string>>({})
+
+  const handleAssign = async (id: string) => {
+    await assignEsc({ escalationId: id as any, assignedTo: "admin" })
+    setLocalStatus(prev => ({ ...prev, [id]: "in_progress" }))
+  }
+
+  const handleResolve = async (id: string) => {
+    const res = resolution[id] || "Resolved by admin"
+    await resolveEsc({ escalationId: id as any, resolution: res })
+    setLocalStatus(prev => ({ ...prev, [id]: "resolved" }))
+  }
+
+  const handleAddResponse = async (id: string) => {
+    const text = responseText[id]
+    if (!text) return
+    await addResponse({ escalationId: id as any, response: text })
+    setResponseText(prev => ({ ...prev, [id]: "" }))
+  }
+
+  const getStatus = (e: any) => localStatus[e._id] || e.status
+
+  const statusColors: Record<string, string> = {
+    pending: "bg-yellow-500/10 text-yellow-400",
+    in_progress: "bg-blue-500/10 text-blue-400",
+    resolved: "bg-emerald-500/10 text-emerald-400",
+  }
+
+  return (
+    <div className="space-y-3">
+      {escalations && escalations.length > 0 ? escalations.map((e: any) => {
+        const status = getStatus(e)
+        return (
+          <div key={e._id} className={`bg-slate-900 border rounded-2xl p-4 ${
+            status === 'resolved' ? 'border-emerald-500/20 opacity-60' :
+            status === 'in_progress' ? 'border-blue-500/20' :
+            'border-red-500/20'
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-white">🚨 Escalation</span>
+                {e.assignedTo && (
+                  <span className="text-[10px] text-slate-500">→ {e.assignedTo}</span>
+                )}
+              </div>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusColors[status] || statusColors.pending}`}>
+                {status}
+              </span>
+            </div>
+            <p className="text-xs text-slate-400">Agent: {AGENT_NAMES[e.agentId] || e.agentId}</p>
+            <p className="text-xs text-slate-400">Reason: {e.reason}</p>
+            <div className="flex items-center gap-3 mt-1">
+              <p className="text-[10px] text-slate-500">Created: {new Date(e.createdAt).toLocaleString()}</p>
+              {e.resolvedAt && (
+                <p className="text-[10px] text-emerald-500">Resolved: {new Date(e.resolvedAt).toLocaleString()}</p>
+              )}
+            </div>
+
+            {/* Response history */}
+            {e.responses && e.responses.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {e.responses.map((r: any, i: number) => (
+                  <div key={i} className="bg-slate-800 rounded-lg p-2 text-[10px] text-slate-300">
+                    <span className="text-slate-500">{new Date(r.timestamp).toLocaleTimeString()}</span> — {r.text}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Actions */}
+            {status !== 'resolved' && (
+              <div className="mt-3 space-y-2">
+                {status === 'pending' && (
+                  <button onClick={() => handleAssign(e._id)}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-[10px] font-bold text-white">
+                    Take Ownership
+                  </button>
+                )}
+                {status === 'in_progress' && (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={responseText[e._id] || ''}
+                      onChange={(ev) => setResponseText(prev => ({ ...prev, [e._id]: ev.target.value }))}
+                      onKeyDown={(ev) => { if (ev.key === 'Enter') handleAddResponse(e._id) }}
+                      placeholder="Add response note..."
+                      className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500"
+                    />
+                    <button onClick={() => handleAddResponse(e._id)}
+                      className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-[10px] font-bold text-white">
+                      Add Note
+                    </button>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={resolution[e._id] || ''}
+                    onChange={(ev) => setResolution(prev => ({ ...prev, [e._id]: ev.target.value }))}
+                    placeholder="Resolution notes..."
+                    className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500"
+                  />
+                  <button onClick={() => handleResolve(e._id)}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-[10px] font-bold text-white">
+                    Resolve
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      }) : (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center">
+          <p className="text-lg mb-2">✅</p>
+          <p className="text-sm text-slate-400">No active escalations</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SettingsTab() {
+  const status: any = useQuery(api.support_orchestrator.getOrchestratorStatus)
+  const agentStates: any = useQuery(api.support_orchestrator.getAgentStates)
+  const updateModelConfig = useMutation(api.support_orchestrator.updateModelConfig)
+  const toggleAgent = useMutation(api.support_orchestrator.toggleAgent)
+
+  const [primaryModel, setPrimaryModel] = useState('')
+  const [fallbackModel, setFallbackModel] = useState('')
+  const [emergencyModel, setEmergencyModel] = useState('')
+  const [saved, setSaved] = useState(false)
+
+  // Set initial values from status
+  if (status && !primaryModel) {
+    setPrimaryModel(status.primaryModel || '')
+    setFallbackModel(status.fallbackModel || '')
+    setEmergencyModel(status.emergencyModel || '')
+  }
+
+  const handleSaveModels = async () => {
+    await updateModelConfig({ primaryModel, fallbackModel, emergencyModel })
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+  }
+
+  const handleToggleAgent = async (agentId: string, enabled: boolean) => {
+    await toggleAgent({ agentId, enabled })
+  }
+
+  return (
+    <div className="space-y-6">
+      {saved && (
+        <div className="p-4 rounded-2xl text-center text-sm font-black bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+          Model configuration saved!
+        </div>
+      )}
+
+      {/* Model Configuration */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <h3 className="text-sm font-black uppercase tracking-tight text-white mb-4">🤖 Model Configuration</h3>
+        <p className="text-xs text-slate-400 mb-4">Configure the AI models used for intent classification and support responses.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Primary Model</label>
+            <input type="text" value={primaryModel} onChange={(e) => setPrimaryModel(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white" />
+          </div>
+          <div>
+            <label className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Fallback Model</label>
+            <input type="text" value={fallbackModel} onChange={(e) => setFallbackModel(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white" />
+          </div>
+          <div>
+            <label className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Emergency Model</label>
+            <input type="text" value={emergencyModel} onChange={(e) => setEmergencyModel(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white" />
+          </div>
+        </div>
+        <button onClick={handleSaveModels}
+          className="mt-4 px-6 py-2.5 bg-orange-600 hover:bg-orange-700 rounded-xl text-xs font-black text-white transition-all">
+          Save Model Config
+        </button>
+      </div>
+
+      {/* Agent Toggles */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <h3 className="text-sm font-black uppercase tracking-tight text-white mb-4">🎛️ Agent Control</h3>
+        <p className="text-xs text-slate-400 mb-4">Enable or disable individual agents. Disabled agents won't receive routed messages.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {Object.entries(AGENT_NAMES).filter(([id]) => id !== 'GENERAL').map(([id, name]) => {
+            const enabled = agentStates?.[id] !== false
+            return (
+              <div key={id} className={`flex items-center justify-between p-3 rounded-xl border ${
+                enabled ? 'bg-slate-950 border-emerald-500/20' : 'bg-slate-950 border-red-500/20 opacity-60'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <span>{AGENT_ICONS[id]}</span>
+                  <div>
+                    <p className="text-xs font-bold text-white">{name}</p>
+                    <p className="text-[9px] text-slate-500">{id}</p>
+                  </div>
+                </div>
+                <button onClick={() => handleToggleAgent(id, !enabled)}
+                  className={`w-10 h-5 rounded-full transition-all relative ${
+                    enabled ? 'bg-emerald-500' : 'bg-slate-700'
+                  }`}>
+                  <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all ${
+                    enabled ? 'left-5' : 'left-0.5'
+                  }`} />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }

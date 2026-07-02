@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
-import { useAction, useConvexAuth, useConvex, useMutation } from "convex/react"
+import { useAction, useConvexAuth, useConvex, useMutation, useQuery } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
 import { Component,  Suspense, useCallback, useEffect, useState } from "react"
+import { AreaChart, Area, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { api } from "../../../convex/_generated/api"
 import type {ReactNode} from "react";
 import { CompanyLogo } from "~/components/CompanyLogo";
@@ -36,6 +37,7 @@ import { ModelAnalyticsPanel } from "~/components/admin/ModelAnalyticsPanel";
 import { WhatsAppDualPanel } from "~/components/admin/WhatsAppDualPanel";
 import { HermesDashboard } from "~/components/admin/HermesDashboard";
 import { SupportDashboard } from "~/components/admin/SupportDashboard";
+import { ClientAnalyticsDashboard } from "~/components/ClientAnalyticsWidgets";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };
@@ -208,7 +210,9 @@ function AdminDashboardPage() {
            <AdminTab active={activeTab === "voice-roi"} onClick={() => setActiveTab("voice-roi")} icon="🎙️" label="Voice ROI" onClose={() => setSidebarOpen(false)} />
            <AdminTab active={activeTab === "live-chats"} onClick={() => setActiveTab("live-chats")} icon="💬" label="Live Chats" onClose={() => setSidebarOpen(false)} />
            <AdminTab active={activeTab === "api-costs"} onClick={() => setActiveTab("api-costs")} icon="🔌" label="API Costs" onClose={() => setSidebarOpen(false)} />
-           <AdminTab active={activeTab === "platform-analytics"} onClick={() => setActiveTab("platform-analytics")} icon="📊" label="Platform Analytics" onClose={() => setSidebarOpen(false)} />
+             <AdminTab active={activeTab === "platform-analytics"} onClick={() => setActiveTab("platform-analytics")} icon="📊" label="Platform Analytics" onClose={() => setSidebarOpen(false)} />
+             <AdminTab active={activeTab === "users"} onClick={() => setActiveTab("users")} icon="👤" label="User Management" onClose={() => setSidebarOpen(false)} />
+             <AdminTab active={activeTab === "unified-analytics"} onClick={() => setActiveTab("unified-analytics")} icon="📊" label="Unified Analytics" onClose={() => setSidebarOpen(false)} />
            <AdminTab active={activeTab === "synthetic"} onClick={() => setActiveTab("synthetic")} icon="🤖" label="Synthetic AI" onClose={() => setSidebarOpen(false)} />
             <AdminTab active={activeTab === "ad-engine"} onClick={() => setActiveTab("ad-engine")} icon="📢" label="Ad Engine" onClose={() => setSidebarOpen(false)} />
             <AdminTab active={activeTab === "ad-automation"} onClick={() => setActiveTab("ad-automation")} icon="🚀" label="Ad Automation" onClose={() => setSidebarOpen(false)} />
@@ -273,6 +277,8 @@ function AdminDashboardPage() {
             {activeTab === "live-chats" && <LiveChatsPanel />}
             {activeTab === "api-costs" && <APICostsPanel />}
              {activeTab === "platform-analytics" && <PlatformAnalyticsPanel />}
+             {activeTab === "users" && <UserManagementPanel adminToken={adminToken} />}
+             {activeTab === "unified-analytics" && <UnifiedAnalyticsPanel />}
              {activeTab === "synthetic" && <SyntheticIntelPanel />}
               {activeTab === "ad-engine" && <AdEnginePanel />}
               {activeTab === "ad-automation" && <AdAutomationHub adminToken={adminToken} />}
@@ -3996,15 +4002,20 @@ function APICostsPanel() {
 function PlatformAnalyticsPanel() {
   const [timeRange, setTimeRange] = useState<"day" | "week" | "month" | "year">("month");
   const { data: analytics } = useSuspenseQuery(convexQuery(api.platform_analytics.getPlatformAnalyticsSummary, { timeRange })) as { data: any };
+  const { data: dailyMetrics } = useSuspenseQuery(convexQuery(api.platform_analytics.getDailyPlatformMetrics, { days: timeRange === "day" ? 1 : timeRange === "week" ? 7 : timeRange === "month" ? 30 : 365 })) as { data: any };
+
+  const totals = analytics?.totals || {};
+  const platforms = analytics?.platforms || [];
+  const revenueTotal = totals.revenue || 1;
 
   return (
-    <div className="space-y-10 ">
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-        <MetricCard label="Total Visits" value={(analytics?.totals?.visits || 0).toLocaleString()} icon="👁️" color="blue" />
-        <MetricCard label="Registrations" value={(analytics?.totals?.registrations || 0).toLocaleString()} icon="👥" color="emerald" />
-        <MetricCard label="Subscriptions" value={(analytics?.totals?.subscriptions || 0).toLocaleString()} icon="💳" color="amber" />
-        <MetricCard label="Revenue" value={`₦${(analytics?.totals?.revenue || 0).toLocaleString()}`} icon="💰" color="indigo" />
+    <div className="space-y-8">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <MetricCard label="Total Visits" value={(totals.visits || 0).toLocaleString()} icon="👁️" color="blue" />
+        <MetricCard label="Registrations" value={(totals.registrations || 0).toLocaleString()} icon="👥" color="emerald" />
+        <MetricCard label="Subscriptions" value={(totals.subscriptions || 0).toLocaleString()} icon="💳" color="amber" />
+        <MetricCard label="Revenue" value={`₦${(totals.revenue || 0).toLocaleString()}`} icon="💰" color="indigo" />
       </div>
 
       {/* Time Range Selector */}
@@ -4024,29 +4035,586 @@ function PlatformAnalyticsPanel() {
         ))}
       </div>
 
-      {/* Platform Breakdown */}
-      <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">
-        <h3 className="text-xl font-black uppercase tracking-tighter text-white mb-8">Platform Performance</h3>
-        <div className="space-y-4">
-          {analytics?.platforms?.map((platform: any) => (
-            <div key={platform.id} className="flex items-center justify-between p-6 bg-slate-950 rounded-2xl border border-white/5">
-              <div className="flex items-center gap-4">
-                <span className="text-2xl">{platform.icon}</span>
-                <div>
-                  <p className="text-sm font-bold text-white">{platform.name}</p>
-                  <p className="text-[9px] text-slate-500">
-                    {platform.visits} visits • {platform.registrations} registered • {platform.subscriptions} subscribed
-                  </p>
+      {/* Daily Trend + Revenue Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Daily Trend Chart */}
+        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6">
+          <h3 className="text-sm font-black uppercase tracking-tight text-white mb-4">Daily Trend</h3>
+          {dailyMetrics && dailyMetrics.length > 0 ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={dailyMetrics}>
+                  <defs>
+                    <linearGradient id="visitsGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(v: string) => v.slice(5)} />
+                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Area type="monotone" dataKey="visits" stroke="#3b82f6" fill="url(#visitsGrad)" strokeWidth={2} name="Visits" />
+                  <Area type="monotone" dataKey="registrations" stroke="#f59e0b" fill="transparent" strokeWidth={2} name="Registrations" strokeDasharray="5 5" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-slate-500 text-xs">No daily data available</div>
+          )}
+        </div>
+
+        {/* Revenue by Platform Pie */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+          <h3 className="text-sm font-black uppercase tracking-tight text-white mb-4">Revenue Split</h3>
+          {platforms.some((p: any) => p.revenue > 0) ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={platforms.filter((p: any) => p.revenue > 0)}
+                    dataKey="revenue"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={3}
+                    label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {platforms.filter((p: any) => p.revenue > 0).map((_: any, i: number) => (
+                      <Cell key={i} fill={['#FF6B35', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'][i % 8]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: number) => `₦${v.toLocaleString()}`} contentStyle={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, fontSize: 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-slate-500 text-xs">No revenue data yet</div>
+          )}
+        </div>
+      </div>
+
+      {/* Conversion Funnel */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <h3 className="text-sm font-black uppercase tracking-tight text-white mb-6">Conversion Funnel</h3>
+        <div className="flex items-center justify-between gap-2">
+          {[
+            { label: 'Visits', value: totals.visits || 0, color: 'bg-blue-500' },
+            { label: 'Registrations', value: totals.registrations || 0, color: 'bg-emerald-500' },
+            { label: 'Subscriptions', value: totals.subscriptions || 0, color: 'bg-amber-500' },
+            { label: 'Revenue', value: totals.revenue || 0, color: 'bg-indigo-500', isCurrency: true },
+          ].map((step, i, arr) => {
+            const maxWidth = arr[0].value || 1;
+            const widthPct = Math.max((step.value / maxWidth) * 100, 8);
+            return (
+              <div key={step.label} className="flex-1 flex flex-col items-center gap-2">
+                <div className="w-full relative">
+                  <div className={`${step.color} rounded-xl h-12 flex items-center justify-center transition-all`} style={{ width: `${widthPct}%`, margin: '0 auto', minWidth: 48 }}>
+                    <span className="text-xs font-black text-white">{step.isCurrency ? `₦${step.value.toLocaleString()}` : step.value.toLocaleString()}</span>
+                  </div>
                 </div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase">{step.label}</span>
+                {i < arr.length - 1 && arr[i + 1].value > 0 && (
+                  <span className="text-[9px] text-slate-600">{((arr[i + 1].value / Math.max(step.value, 1)) * 100).toFixed(1)}%</span>
+                )}
               </div>
-              <div className="text-right">
-                <p className="text-sm font-bold text-emerald-500">₦{platform.revenue.toLocaleString()}</p>
-                <p className="text-[9px] text-slate-500">{platform.conversionRate}% conversion</p>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Platform Performance Cards */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <h3 className="text-sm font-black uppercase tracking-tight text-white mb-6">Platform Performance</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {platforms.map((platform: any) => (
+            <div key={platform.id} className="bg-slate-950 border border-white/5 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">{platform.icon}</span>
+                  <div>
+                    <p className="text-sm font-bold text-white">{platform.name}</p>
+                    <p className="text-[9px] text-slate-500">{platform.conversionRate}% conversion</p>
+                  </div>
+                </div>
+                <span className="text-sm font-black text-emerald-400">₦{platform.revenue.toLocaleString()}</span>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="text-slate-500">Visits</span>
+                  <span className="text-slate-300 font-bold">{platform.visits.toLocaleString()}</span>
+                </div>
+                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${totals.visits ? (platform.visits / totals.visits) * 100 : 0}%` }} />
+                </div>
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="text-slate-500">Registrations</span>
+                  <span className="text-slate-300 font-bold">{platform.registrations.toLocaleString()}</span>
+                </div>
+                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${totals.registrations ? (platform.registrations / totals.registrations) * 100 : 0}%` }} />
+                </div>
               </div>
             </div>
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function UserManagementPanel({ adminToken }: { adminToken: string }) {
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"all" | "user" | "admin" | "freelancer">("all");
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [extendDays, setExtendDays] = useState(30);
+  const [statusMsg, setStatusMsg] = useState<{ message: string; type: string } | null>(null);
+
+  const users: any[] = useQuery(api.admin.listAllUsers, { adminToken }) ?? [];
+  const { data: subsData } = useSuspenseQuery(convexQuery(api.admin.listSubscriptions, { adminToken })) as { data: any };
+  const { data: subStats } = useSuspenseQuery(convexQuery(api.admin.getSubscriptionStats, {})) as { data: any };
+
+  const updateSub = useMutation(api.admin.updateSubscription);
+  const cancelSub = useMutation(api.admin.cancelSubscription);
+  const extendSub = useMutation(api.admin.extendSubscription);
+
+  const subscriptions = subsData?.data || [];
+
+  const userSubMap: Record<string, any> = {};
+  subscriptions.forEach((s: any) => { userSubMap[s.userId] = s; });
+
+  const filtered = users.filter((u: any) => {
+    const matchesSearch = !search || (u.name || "").toLowerCase().includes(search.toLowerCase()) || (u.email || "").toLowerCase().includes(search.toLowerCase());
+    const matchesRole = roleFilter === "all" || u.role === roleFilter;
+    return matchesSearch && matchesRole;
+  });
+
+  const showStatus = (message: string, type: string) => {
+    setStatusMsg({ message, type });
+    setTimeout(() => setStatusMsg(null), 3000);
+  };
+
+  const handleUpdateStatus = async (subId: string, newStatus: string) => {
+    await updateSub({ adminToken, subscriptionId: subId, status: newStatus as any });
+    showStatus(`Subscription ${newStatus}`, "success");
+    setSelectedUser(null);
+  };
+
+  const handleCancel = async (subId: string) => {
+    await cancelSub({ adminToken, subscriptionId: subId });
+    showStatus("Subscription canceled", "success");
+    setSelectedUser(null);
+  };
+
+  const handleExtend = async (subId: string) => {
+    await extendSub({ adminToken, subscriptionId: subId, days: extendDays });
+    showStatus(`Extended by ${extendDays} days`, "success");
+    setSelectedUser(null);
+  };
+
+  const roleColors: Record<string, string> = {
+    admin: "bg-red-500/10 text-red-400",
+    freelancer: "bg-blue-500/10 text-blue-400",
+    user: "bg-emerald-500/10 text-emerald-400",
+  };
+
+  const subStatusColors: Record<string, string> = {
+    active: "bg-emerald-500/10 text-emerald-400",
+    pending: "bg-amber-500/10 text-amber-400",
+    canceled: "bg-slate-500/10 text-slate-400",
+    expired: "bg-red-500/10 text-red-400",
+    suspended: "bg-orange-500/10 text-orange-400",
+  };
+
+  return (
+    <div className="space-y-6">
+      {statusMsg && (
+        <div className={`p-4 rounded-2xl text-center text-sm font-black ${
+          statusMsg.type === "success" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"
+        }`}>{statusMsg.message}</div>
+      )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <MetricCard label="Total Users" value={users.length} icon="👥" color="blue" />
+        <MetricCard label="Active Subs" value={subStats?.active || 0} icon="💳" color="emerald" />
+        <MetricCard label="Pending" value={subStats?.pending || 0} icon="⏳" color="amber" />
+        <MetricCard label="MRR" value={`₦${((subStats?.mrr || 0) / 1000).toFixed(1)}K`} icon="💰" color="indigo" />
+      </div>
+
+      {/* Search & Filters */}
+      <div className="flex flex-col md:flex-row gap-3">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or email..."
+          className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+        />
+        <div className="flex gap-1 bg-slate-800 rounded-xl p-1">
+          {(["all", "user", "admin", "freelancer"] as const).map((r) => (
+            <button key={r} onClick={() => setRoleFilter(r)}
+              className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                roleFilter === r ? "bg-orange-500 text-white" : "text-slate-400 hover:text-white"
+              }`}>{r}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* User Table */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-slate-800">
+                <th className="text-left px-4 py-3 text-slate-500 font-bold">User</th>
+                <th className="text-left px-4 py-3 text-slate-500 font-bold">Role</th>
+                <th className="text-left px-4 py-3 text-slate-500 font-bold">Balance</th>
+                <th className="text-left px-4 py-3 text-slate-500 font-bold">Subscription</th>
+                <th className="text-left px-4 py-3 text-slate-500 font-bold">Joined</th>
+                <th className="text-right px-4 py-3 text-slate-500 font-bold">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-500">No users found</td></tr>
+              ) : (
+                filtered.map((u: any) => {
+                  const sub = userSubMap[u._id];
+                  return (
+                    <tr key={u._id} className="border-b border-slate-800/50 hover:bg-slate-800/30 cursor-pointer" onClick={() => setSelectedUser(u)}>
+                      <td className="px-4 py-3">
+                        <div>
+                          <p className="font-bold text-white">{u.name || "Unnamed"}</p>
+                          <p className="text-[10px] text-slate-500">{u.email || "No email"}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${roleColors[u.role] || "bg-slate-500/10 text-slate-400"}`}>
+                          {u.role || "user"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-300 font-bold">₦{(u.balance || 0).toLocaleString()}</td>
+                      <td className="px-4 py-3">
+                        {sub ? (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${subStatusColors[sub.status] || ""}`}>
+                            {sub.plan} ({sub.status})
+                          </span>
+                        ) : (
+                          <span className="text-slate-600 text-[10px]">None</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-400">{new Date(u._creationTime).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button onClick={(e) => { e.stopPropagation(); setSelectedUser(u); }}
+                          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-[10px] font-bold text-slate-300">View</button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        {filtered.length > 0 && (
+          <div className="px-4 py-3 border-t border-slate-800 text-[10px] text-slate-500">
+            Showing {filtered.length} of {users.length} users
+          </div>
+        )}
+      </div>
+
+      {/* User Detail Slide-over */}
+      {selectedUser && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedUser(null)} />
+          <div className="relative w-full max-w-lg bg-slate-900 border-l border-slate-800 overflow-y-auto shadow-2xl">
+            <div className="sticky top-0 bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between z-10">
+              <h3 className="font-black text-white">User Details</h3>
+              <button onClick={() => setSelectedUser(null)} className="text-slate-400 hover:text-white text-lg">&times;</button>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Profile */}
+              <div className="bg-slate-950 rounded-xl p-5 border border-white/5">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center text-xl">
+                    {(selectedUser.name || "U")[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-black text-white">{selectedUser.name || "Unnamed"}</p>
+                    <p className="text-[10px] text-slate-500">{selectedUser.email || "No email"}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-[10px]">
+                  <div><span className="text-slate-500">Role:</span> <span className={`font-bold ${roleColors[selectedUser.role] || ""}`}>{selectedUser.role || "user"}</span></div>
+                  <div><span className="text-slate-500">Balance:</span> <span className="font-bold text-emerald-400">₦{(selectedUser.balance || 0).toLocaleString()}</span></div>
+                  <div><span className="text-slate-500">Phone:</span> <span className="font-bold text-slate-300">{selectedUser.phone || "—"}</span></div>
+                  <div><span className="text-slate-500">Referral:</span> <span className="font-bold text-slate-300">{selectedUser.referralCode || "—"}</span></div>
+                  <div className="col-span-2"><span className="text-slate-500">Joined:</span> <span className="font-bold text-slate-300">{new Date(selectedUser._creationTime).toLocaleString()}</span></div>
+                </div>
+                {selectedUser.bankAccount && (
+                  <div className="mt-3 pt-3 border-t border-white/5 text-[10px]">
+                    <span className="text-slate-500">Bank:</span> <span className="font-bold text-slate-300">{selectedUser.bankAccount.bankName} — {selectedUser.bankAccount.accountNumber}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Subscription */}
+              {(() => {
+                const sub = userSubMap[selectedUser._id];
+                if (!sub) return (
+                  <div className="bg-slate-950 rounded-xl p-5 border border-white/5 text-center text-slate-500 text-xs">No active subscription</div>
+                );
+                return (
+                  <div className="bg-slate-950 rounded-xl p-5 border border-white/5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-black text-white text-sm">Subscription</h4>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${subStatusColors[sub.status] || ""}`}>{sub.status}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-[10px]">
+                      <div><span className="text-slate-500">Plan:</span> <span className="font-bold text-white">{sub.plan}</span></div>
+                      <div><span className="text-slate-500">Auto-Renew:</span> <span className="font-bold text-white">{sub.autoRenew ? "Yes" : "No"}</span></div>
+                      <div><span className="text-slate-500">Expires:</span> <span className="font-bold text-white">{new Date(sub.endsAt).toLocaleDateString()}</span></div>
+                      <div><span className="text-slate-500">Failures:</span> <span className="font-bold text-white">{sub.failureCount}</span></div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-2 border-t border-white/5">
+                      {sub.status !== "active" && (
+                        <button onClick={() => handleUpdateStatus(sub._id, "active")} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-[10px] font-bold text-white">Activate</button>
+                      )}
+                      {sub.status === "active" && (
+                        <button onClick={() => handleUpdateStatus(sub._id, "suspended")} className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 rounded-lg text-[10px] font-bold text-white">Suspend</button>
+                      )}
+                      <div className="flex items-center gap-1">
+                        <input type="number" value={extendDays} onChange={(e) => setExtendDays(Number(e.target.value))}
+                          className="w-16 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-[10px] text-white text-center" />
+                        <button onClick={() => handleExtend(sub._id)} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-[10px] font-bold text-white">Extend</button>
+                      </div>
+                      <button onClick={() => handleCancel(sub._id)} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-[10px] font-bold text-white">Cancel</button>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UnifiedAnalyticsPanel() {
+  const [activeSubTab, setActiveSubTab] = useState<"overview" | "platform" | "ai" | "users" | "support">("overview");
+
+  // Cross-domain queries for overview
+  const { data: platformData } = useSuspenseQuery(convexQuery(api.platform_analytics.getPlatformAnalyticsSummary, { timeRange: "month" })) as { data: any };
+  const aiOverview: any = useQuery(api.model_analytics.getOverview, {});
+  const supportAnalytics: any = useQuery(api.support_orchestrator.getSupportAnalytics, { days: 30 });
+
+  const platformTotals = platformData?.totals || {};
+  const aiTotal = aiOverview?.total || 0;
+  const aiSuccessRate = aiOverview?.successRate || "0";
+  const supportInteractions = supportAnalytics?.totalInteractions || 0;
+  const pendingEscalations = supportAnalytics?.pendingEscalations || 0;
+
+  const subTabs = [
+    { id: "overview" as const, label: "Overview", icon: "📊" },
+    { id: "platform" as const, label: "Platform", icon: "🌐" },
+    { id: "ai" as const, label: "AI Models", icon: "🤖" },
+    { id: "users" as const, label: "Users", icon: "👥" },
+    { id: "support" as const, label: "Support", icon: "🎧" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-black">Unified Analytics</h2>
+        <p className="text-xs text-slate-400 mt-1">Cross-domain insights across platform, AI, users, and support</p>
+      </div>
+
+      {/* Sub-tabs */}
+      <div className="flex gap-1 bg-slate-800 rounded-xl p-1">
+        {subTabs.map(tab => (
+          <button key={tab.id} onClick={() => setActiveSubTab(tab.id)}
+            className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all ${
+              activeSubTab === tab.id ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white'
+            }`}>
+            {tab.icon} {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Overview Tab */}
+      {activeSubTab === "overview" && (
+        <div className="space-y-6">
+          {/* KPI Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-black text-blue-400">{(platformTotals.visits || 0).toLocaleString()}</p>
+              <p className="text-[10px] text-slate-500 uppercase mt-1">Total Visits</p>
+              <p className="text-[9px] text-slate-600 mt-0.5">Platform</p>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-black text-emerald-400">{(platformTotals.registrations || 0).toLocaleString()}</p>
+              <p className="text-[10px] text-slate-500 uppercase mt-1">Registrations</p>
+              <p className="text-[9px] text-slate-600 mt-0.5">Platform</p>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-black text-amber-400">{(platformTotals.subscriptions || 0).toLocaleString()}</p>
+              <p className="text-[10px] text-slate-500 uppercase mt-1">Subscriptions</p>
+              <p className="text-[9px] text-slate-600 mt-0.5">Platform</p>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-black text-indigo-400">₦{(platformTotals.revenue || 0).toLocaleString()}</p>
+              <p className="text-[10px] text-slate-500 uppercase mt-1">Revenue</p>
+              <p className="text-[9px] text-slate-600 mt-0.5">Platform</p>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-black text-purple-400">{aiTotal.toLocaleString()}</p>
+              <p className="text-[10px] text-slate-500 uppercase mt-1">AI Requests</p>
+              <p className="text-[9px] text-slate-600 mt-0.5">All Models</p>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+              <p className={`text-2xl font-black ${parseFloat(aiSuccessRate) >= 90 ? 'text-emerald-400' : 'text-amber-400'}`}>{aiSuccessRate}%</p>
+              <p className="text-[10px] text-slate-500 uppercase mt-1">AI Success Rate</p>
+              <p className="text-[9px] text-slate-600 mt-0.5">All Models</p>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+              <p className="text-2xl font-black text-cyan-400">{supportInteractions.toLocaleString()}</p>
+              <p className="text-[10px] text-slate-500 uppercase mt-1">Support Interactions</p>
+              <p className="text-[9px] text-slate-600 mt-0.5">Last 30 days</p>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center">
+              <p className={`text-2xl font-black ${pendingEscalations > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{pendingEscalations}</p>
+              <p className="text-[10px] text-slate-500 uppercase mt-1">Pending Escalations</p>
+              <p className="text-[9px] text-slate-600 mt-0.5">Support</p>
+            </div>
+          </div>
+
+          {/* Domain Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Platform Summary */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-lg">🌐</span>
+                <h3 className="text-sm font-black text-white">Platform Performance</h3>
+              </div>
+              <div className="space-y-3">
+                {platformData?.platforms?.slice(0, 5).map((p: any) => (
+                  <div key={p.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span>{p.icon}</span>
+                      <span className="text-xs text-slate-300">{p.name}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] text-slate-500">{p.visits} visits</span>
+                      <span className="text-xs font-bold text-emerald-400">₦{p.revenue.toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* AI Model Summary */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-lg">🤖</span>
+                <h3 className="text-sm font-black text-white">AI Model Usage</h3>
+              </div>
+              <div className="space-y-3">
+                {Object.entries(aiOverview?.byModel || {}).slice(0, 5).map(([model, data]: [string, any]) => (
+                  <div key={model} className="flex items-center justify-between">
+                    <span className="text-xs text-slate-300 font-bold">{model}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] text-slate-500">{data.count} req</span>
+                      <span className={`text-[10px] font-bold ${parseFloat(data.avgTime) < 2000 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {Math.round(data.avgTime / 100) / 10}s avg
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {Object.keys(aiOverview?.byModel || {}).length === 0 && (
+                  <p className="text-xs text-slate-500 text-center py-4">No AI usage data yet</p>
+                )}
+              </div>
+            </div>
+
+            {/* Support Summary */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-lg">🎧</span>
+                <h3 className="text-sm font-black text-white">Support Overview</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-950 rounded-xl p-3 text-center">
+                  <p className="text-lg font-black text-orange-400">{supportAnalytics?.totalInteractions || 0}</p>
+                  <p className="text-[9px] text-slate-500">Total</p>
+                </div>
+                <div className="bg-slate-950 rounded-xl p-3 text-center">
+                  <p className="text-lg font-black text-emerald-400">{supportAnalytics?.routedCount || 0}</p>
+                  <p className="text-[9px] text-slate-500">Routed</p>
+                </div>
+                <div className="bg-slate-950 rounded-xl p-3 text-center">
+                  <p className="text-lg font-black text-blue-400">{supportAnalytics?.avgResponseMs || 0}ms</p>
+                  <p className="text-[9px] text-slate-500">Avg Response</p>
+                </div>
+                <div className="bg-slate-950 rounded-xl p-3 text-center">
+                  <p className={`text-lg font-black ${pendingEscalations > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{pendingEscalations}</p>
+                  <p className="text-[9px] text-slate-500">Pending</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Confidence Distribution */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-lg">🎯</span>
+                <h3 className="text-sm font-black text-white">Support Confidence</h3>
+              </div>
+              <div className="space-y-3">
+                {Object.entries(supportAnalytics?.confidenceCounts || {}).map(([level, count]: [string, any]) => {
+                  const total = supportAnalytics?.totalInteractions || 1;
+                  const pct = Math.round((count / total) * 100);
+                  return (
+                    <div key={level}>
+                      <div className="flex items-center justify-between text-[10px] mb-1">
+                        <span className="text-slate-400 capitalize">{level}</span>
+                        <span className="text-slate-300 font-bold">{count} ({pct}%)</span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{
+                          width: `${pct}%`,
+                          backgroundColor: level === 'high' ? '#10b981' : level === 'medium' ? '#f59e0b' : '#ef4444',
+                        }} />
+                      </div>
+                    </div>
+                  );
+                })}
+                {Object.keys(supportAnalytics?.confidenceCounts || {}).length === 0 && (
+                  <p className="text-xs text-slate-500 text-center py-4">No support data yet</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Platform Tab */}
+      {activeSubTab === "platform" && <PlatformAnalyticsPanel />}
+
+      {/* AI Models Tab */}
+      {activeSubTab === "ai" && <ModelAnalyticsPanel adminToken="" />}
+
+      {/* Users Tab */}
+      {activeSubTab === "users" && <ClientAnalyticsDashboard />}
+
+      {/* Support Tab */}
+      {activeSubTab === "support" && <SupportDashboard />}
     </div>
   );
 }

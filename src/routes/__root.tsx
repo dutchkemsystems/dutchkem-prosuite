@@ -8,6 +8,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { Navbar } from '~/components/Navbar'
 import { Footer } from '~/components/Footer'
 import { BackToTop } from '~/components/BackToTop'
+import { FloatingChatWidget } from '~/components/FloatingChatWidget'
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -29,17 +30,20 @@ function HolidayBannerWrapper() {
 
 function RootComponent() {
   const location = useLocation()
-  const isDashboard = location.pathname.startsWith('/dashboard') || 
+  const isDashboard = location.pathname.startsWith('/dashboard') ||
                       location.pathname.startsWith('/admin') ||
-                      location.pathname.startsWith('/enterprise') ||
-                      [
-                        '/academic-writer', '/business-consultant', '/content-writer', 
-                        '/career-coach', '/personal-shopper', '/exam-prep', 
-                        '/finance-advisor', '/video-production', '/wellness-coach', 
-                        '/home-management', '/language-coach', '/travel-planner', 
-                        '/exam-success', '/translation-hub', '/event-planner',
-                      '/all-agents'
-                      ].includes(location.pathname)
+                      location.pathname.startsWith('/enterprise')
+
+  const isAgentPage = [
+    '/academic-writer', '/business-consultant', '/content-writer',
+    '/career-coach', '/personal-shopper', '/exam-prep',
+    '/finance-advisor', '/video-production', '/wellness-coach',
+    '/home-management', '/language-coach', '/travel-planner',
+    '/exam-success', '/translation-hub', '/event-planner',
+    '/all-agents'
+  ].includes(location.pathname)
+
+  const showChat = !isDashboard && !isAgentPage
 
   return (
     <>
@@ -49,6 +53,7 @@ function RootComponent() {
         <Outlet />
       </div>
       {!isDashboard && <Footer />}
+      {showChat && <FloatingChatWidget />}
       <BackToTop />
     </>
   )

@@ -2,14 +2,100 @@ import { v } from "convex/values";
 import { action, query, mutation } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
-// MULTI-AGENT SUPPORT ORCHESTRATOR (Convex bridge)
-// Calls the backend orchestrator service which uses OmniRoute + LLM routing.
+// MULTI-AGENT SUPPORT ORCHESTRATOR
+// LLM-powered intent classification + agent routing (A1-A15).
 // ═══════════════════════════════════════════════════════════════════
 
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:3001";
+const AGENT_MAP: Record<string, { name: string; icon: string; domain: string }> = {
+  A1: { name: "Academic Pro", icon: "🎓", domain: "Thesis, research, academic writing, citations" },
+  A2: { name: "Business Pro", icon: "💼", domain: "Business plans, strategy, finance, entrepreneurship" },
+  A3: { name: "Content Pro", icon: "✍️", domain: "Content creation, social media, marketing, copywriting" },
+  A4: { name: "Career Pro", icon: "📄", domain: "CV writing, interview prep, job search, career advice" },
+  A5: { name: "Personal Shopper", icon: "🛍️", domain: "Shopping advice, deals, product recommendations" },
+  A6: { name: "Exam Pro", icon: "📝", domain: "Exam preparation, practice tests, study strategies" },
+  A7: { name: "Finance Pro", icon: "💰", domain: "Budgeting, investing, savings, financial planning" },
+  A8: { name: "MediaStudio Pro", icon: "🎬", domain: "Video production, animation, editing, dubbing" },
+  A9: { name: "Health Pro", icon: "🏥", domain: "Wellness, fitness, nutrition, mental health" },
+  A10: { name: "Home Services Pro", icon: "🧹", domain: "Cleaning, organization, home maintenance" },
+  A11: { name: "Language Tutor", icon: "🗣️", domain: "Language learning, translation, pronunciation" },
+  A12: { name: "Travel Planner", icon: "✈️", domain: "Travel planning, itineraries, destinations" },
+  A13: { name: "ServiceMart NG", icon: "🚀", domain: "JAMB, WAEC, NECO, CV, interview, career guidance" },
+  A14: { name: "Translation Hub", icon: "📝", domain: "Translation, transcription, subtitling, localization" },
+  A15: { name: "Event Planner", icon: "🎉", domain: "Event planning, weddings, birthdays, corporate events" },
+};
+
+const AGENT_LIST = Object.entries(AGENT_MAP)
+  .map(([id, a]) => `- ${id}: ${a.name} — ${a.domain}`)
+  .join("\n");
 
 // ═══════════════════════════════════════════════════════════════════
-// ACTION: Process message via backend orchestrator
+// LLM CALL HELPER
+// ═══════════════════════════════════════════════════════════════════
+async function callNVIDIA(model: string, systemPrompt: string, userMessage: string): Promise<string> {
+  const apiKey = process.env.NVIDIA_NIM_API_KEY;
+  if (!apiKey) throw new Error("NVIDIA API key not configured");
+
+  const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
+      ],
+      temperature: 0.3,
+      max_tokens: 100,
+    }),
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!response.ok) throw new Error(`NVIDIA API error: ${response.status}`);
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INTENT CLASSIFICATION
+// ═══════════════════════════════════════════════════════════════════
+async function classifyIntent(message: string, history: Array<{ role: string; content: string }>): Promise<{ agentId: string; confidence: string }> {
+  const contextSnippet = history.slice(-3).map((h) => `${h.role}: ${h.content}`).join("\n");
+
+  const classificationPrompt = `You are a support request classifier. Your ONLY job is to determine which agent should handle this customer message.
+
+Available Agents:
+${AGENT_LIST}
+- GENERAL: General platform questions (pricing, features, how to get started, complaints)
+
+Customer Message: "${message}"
+${contextSnippet ? `Previous context: ${contextSnippet}` : ""}
+
+Respond with ONLY the agent ID (e.g. A1, A7, GENERAL). Nothing else.`;
+
+  // Try primary model
+  try {
+    const response = await callNVIDIA("meta/llama-3.3-70b-instruct", classificationPrompt, message);
+    const agentId = response.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (AGENT_MAP[agentId]) return { agentId, confidence: "high" };
+    if (agentId === "GENERAL") return { agentId: "GENERAL", confidence: "medium" };
+  } catch {}
+
+  // Try fallback model
+  try {
+    const response = await callNVIDIA("meta/llama-3.1-70b-instruct", classificationPrompt, message);
+    const agentId = response.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (AGENT_MAP[agentId]) return { agentId, confidence: "high" };
+    if (agentId === "GENERAL") return { agentId: "GENERAL", confidence: "medium" };
+  } catch {}
+
+  return { agentId: "GENERAL", confidence: "low" };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ACTION: Process message with LLM routing
 // ═══════════════════════════════════════════════════════════════════
 export const processMessage = action({
   args: {
@@ -25,59 +111,77 @@ export const processMessage = action({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/support/message`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: args.message,
-          context: {
-            history: args.conversationHistory || [],
-          },
-        }),
-        signal: AbortSignal.timeout(45000),
-      });
+    const history = args.conversationHistory || [];
+    const startTime = Date.now();
 
-      if (!response.ok) {
-        throw new Error(`Backend returned ${response.status}`);
-      }
+    // Step 1: Classify intent via LLM
+    const intent = await classifyIntent(args.message, history);
 
-      const data = await response.json();
-      return data;
-    } catch (error: any) {
-      console.error("[Orchestrator] Backend call failed:", error.message);
-
-      // Fallback: use existing customer_support directly via NVIDIA
+    // Step 2: Route to the classified agent
+    if (intent.agentId === "GENERAL") {
+      // General support — answer directly
       try {
-        const result = await ctx.runAction(
-          (await import("./_generated/api")).api.customer_support.generateSupportResponse,
-          {
-            agentId: "A1",
-            message: args.message,
-            conversationHistory: args.conversationHistory,
-          }
+        const response = await callNVIDIA(
+          "meta/llama-3.3-70b-instruct",
+          "You are a friendly customer support agent for Dutchkem Ventures Prosuite NG+. Help with general questions about the platform, pricing, features, and getting started. Be warm, professional, use emojis. If the question is about a specific service, suggest the right agent.",
+          args.message
         );
-
         return {
           success: true,
-          response: result.message || "I'm here to help! Could you rephrase your question?",
-          agentId: "A1",
-          agentName: "Support",
+          response,
+          agentId: "GENERAL",
+          agentName: "General Support",
+          icon: "💬",
+          routed: false,
+          confidence: intent.confidence,
+          responseTimeMs: Date.now() - startTime,
+        };
+      } catch {
+        return {
+          success: true,
+          response: "I'm here to help! Could you tell me more about what you need? 😊",
+          agentId: "GENERAL",
+          agentName: "General Support",
           icon: "💬",
           routed: false,
           confidence: "low",
-          fallback: true,
-        };
-      } catch (fallbackError: any) {
-        return {
-          success: false,
-          response: "I apologize, but our support system is temporarily unavailable. Please try again later.",
-          agentId: "GENERAL",
-          agentName: "System",
-          routed: false,
-          confidence: "low",
+          responseTimeMs: Date.now() - startTime,
         };
       }
+    }
+
+    // Step 3: Route to specific agent via customer_support
+    try {
+      const result = await ctx.runAction(
+        (await import("./_generated/api")).api.customer_support.generateSupportResponse,
+        {
+          agentId: intent.agentId,
+          message: args.message,
+          conversationHistory: history,
+        }
+      );
+
+      const agentInfo = AGENT_MAP[intent.agentId];
+      return {
+        success: true,
+        response: result.message || "I'm here to help! Could you rephrase your question?",
+        agentId: intent.agentId,
+        agentName: agentInfo?.name || "Support",
+        icon: agentInfo?.icon || "💬",
+        routed: true,
+        confidence: intent.confidence,
+        responseTimeMs: Date.now() - startTime,
+      };
+    } catch (error: any) {
+      console.error(`[Orchestrator] Agent ${intent.agentId} failed:`, error.message);
+      return {
+        success: false,
+        response: "I apologize, but our support system is temporarily unavailable. Please try again later.",
+        agentId: intent.agentId,
+        agentName: AGENT_MAP[intent.agentId]?.name || "System",
+        routed: false,
+        confidence: "low",
+      };
     }
   },
 });
@@ -272,5 +376,170 @@ export const getPendingEscalations = query({
       .withIndex("by_status", (q) => q.eq("status", "pending"))
       .order("desc")
       .collect();
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// MUTATION: Update orchestrator model config
+// ═══════════════════════════════════════════════════════════════════
+export const updateModelConfig = mutation({
+  args: {
+    primaryModel: v.optional(v.string()),
+    fallbackModel: v.optional(v.string()),
+    emergencyModel: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const key = "support_orchestrator_config";
+    const existing = await ctx.db
+      .query("system_config")
+      .withIndex("by_key", (q) => q.eq("key", key))
+      .first();
+
+    const value = {
+      primaryModel: args.primaryModel,
+      fallbackModel: args.fallbackModel,
+      emergencyModel: args.emergencyModel,
+    };
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { value, updatedAt: Date.now() });
+    } else {
+      await ctx.db.insert("system_config", {
+        key,
+        value,
+        description: "Support orchestrator model configuration",
+        updatedAt: Date.now(),
+      });
+    }
+    return null;
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// MUTATION: Toggle agent enabled/disabled
+// ═══════════════════════════════════════════════════════════════════
+export const toggleAgent = mutation({
+  args: {
+    agentId: v.string(),
+    enabled: v.boolean(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const key = `agent_enabled_${args.agentId}`;
+    const existing = await ctx.db
+      .query("system_config")
+      .withIndex("by_key", (q) => q.eq("key", key))
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { value: args.enabled, updatedAt: Date.now() });
+    } else {
+      await ctx.db.insert("system_config", {
+        key,
+        value: args.enabled,
+        description: `Agent ${args.agentId} enabled state`,
+        updatedAt: Date.now(),
+      });
+    }
+    return null;
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// QUERY: Get agent enabled states
+// ═══════════════════════════════════════════════════════════════════
+export const getAgentStates = query({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const agentIds = ["A1","A2","A3","A4","A5","A6","A7","A8","A9","A10","A11","A12","A13","A14","A15"];
+    const states: Record<string, boolean> = {};
+    for (const id of agentIds) {
+      const config = await ctx.db
+        .query("system_config")
+        .withIndex("by_key", (q) => q.eq("key", `agent_enabled_${id}`))
+        .first();
+      states[id] = config ? (config.value as boolean) : true;
+    }
+    return states;
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// MUTATION: Resolve escalation
+// ═══════════════════════════════════════════════════════════════════
+export const resolveEscalation = mutation({
+  args: {
+    escalationId: v.id("support_escalations"),
+    resolution: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.escalationId, {
+      status: "resolved",
+      resolution: args.resolution,
+      resolvedAt: Date.now(),
+    });
+    return null;
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// MUTATION: Assign escalation to agent/admin
+// ═══════════════════════════════════════════════════════════════════
+export const assignEscalation = mutation({
+  args: {
+    escalationId: v.id("support_escalations"),
+    assignedTo: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.escalationId, {
+      status: "in_progress",
+      assignedTo: args.assignedTo,
+    });
+    return null;
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// MUTATION: Add response note to escalation
+// ═══════════════════════════════════════════════════════════════════
+export const addEscalationResponse = mutation({
+  args: {
+    escalationId: v.id("support_escalations"),
+    response: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const doc = await ctx.db.get(args.escalationId);
+    if (!doc) return null;
+    const existing = (doc as any).responses || [];
+    await ctx.db.patch(args.escalationId, {
+      responses: [...existing, { text: args.response, timestamp: Date.now() }],
+    } as any);
+    return null;
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// QUERY: Get all escalations (pending + in_progress)
+// ═══════════════════════════════════════════════════════════════════
+export const getActiveEscalations = query({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const pending = await ctx.db
+      .query("support_escalations")
+      .withIndex("by_status", (q) => q.eq("status", "pending"))
+      .order("desc")
+      .collect();
+    const inProgress = await ctx.db
+      .query("support_escalations")
+      .withIndex("by_status", (q) => q.eq("status", "in_progress"))
+      .order("desc")
+      .collect();
+    return [...pending, ...inProgress];
   },
 });

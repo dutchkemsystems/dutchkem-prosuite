@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useAction, useQuery } from 'convex/react'
+import { useAction, useMutation, useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 
 interface Message {
@@ -207,7 +207,7 @@ export default function CustomerSupportChat({ agentId, onClose }: CustomerSuppor
         {/* Agent chips */}
         <div className="px-4 py-2 border-t border-white/5 bg-white/[0.02] overflow-x-auto">
           <div className="flex gap-1.5">
-            {['GENERAL', 'A1', 'A2', 'A3', 'A7', 'A13'].map((id) => (
+            {['GENERAL', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12', 'A13', 'A14', 'A15'].map((id) => (
               <button
                 key={id}
                 onClick={() => {

@@ -7,6 +7,7 @@ import { AgentHeader } from '../components/AgentHeader'
 import type { UIMessage } from "@convex-dev/agent"
 import { CompanyLogo } from "~/components/CompanyLogo"
 import { FileDownloadButtons } from '~/components/dashboard/FileDownloadButtons'
+import { AgentSupportButton } from '~/components/AgentSupportButton'
 
 export const Route = createFileRoute('/video-production')({
   component: VideoProductionPage,
@@ -187,7 +188,12 @@ function ChatContainer({ threadId }: { threadId: string }) {
         {results.map((msg) => <MessageBubble key={msg.key} message={msg} />)}
       </div>
       <div className="p-4 md:p-8 pt-0">
-        <ChatInput threadId={threadId} />
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <ChatInput threadId={threadId} />
+          </div>
+          <AgentSupportButton agentId="A8" agentName="MediaStudio Pro" />
+        </div>
         <p className="text-[10px] text-center text-slate-600 mt-3 font-bold uppercase tracking-widest opacity-50">Dutchkem ProSuite NG+ MediaStudio Agent • Llama 3.3 70B • Bank-Grade Security</p>
       </div>
     </div>
