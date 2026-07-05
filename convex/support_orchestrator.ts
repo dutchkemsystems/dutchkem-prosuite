@@ -227,9 +227,33 @@ export const processMessage = action({
         }
       }
 
+      // Repetition detection
+      const repetitionCheck = await ctx.runMutation(
+        (await import("./_generated/api")).api.support_repetition_detector.checkRepetition,
+        {
+          agentId: intent.agentId,
+          message: args.message,
+          response: responseText,
+        }
+      );
+
+      let finalResponse = responseText;
+      if (repetitionCheck.isRepetitive) {
+        const retryResult = await ctx.runAction(
+          (await import("./_generated/api")).api.customer_support.generateSupportResponse,
+          {
+            agentId: intent.agentId,
+            message: `IMPORTANT: Do NOT repeat previous answers. Provide a fresh, different response to: ${args.message}`,
+          }
+        );
+        if (retryResult.message) {
+          finalResponse = retryResult.message;
+        }
+      }
+
       return {
         success: true,
-        response: responseText,
+        response: finalResponse,
         agentId: intent.agentId,
         agentName: agentInfo?.name || "Support",
         icon: agentInfo?.icon || "💬",
