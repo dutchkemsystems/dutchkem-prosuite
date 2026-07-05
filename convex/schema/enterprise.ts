@@ -397,6 +397,7 @@ export const enterpriseTables = {
   })
     .index("by_company", ["companyId"])
     .index("by_status", ["status"])
+    .index("by_company_status", ["companyId", "status"])
     .index("by_priority", ["priority"])
     .index("by_ticket_number", ["ticketNumber"])
     .index("by_created", ["createdAt"]),

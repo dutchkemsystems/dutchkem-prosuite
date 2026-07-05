@@ -71,11 +71,13 @@ export const listTickets = query({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
 
-    let q: any = ctx.db.query("enterprise_support_tickets")
-      .withIndex("by_company", (q2) => q2.eq("companyId", args.companyId));
-
+    let q: any;
     if (args.status && args.status !== "all") {
-      q = q.filter((q2: any) => q2.eq(q2.field("status"), args.status));
+      q = ctx.db.query("enterprise_support_tickets")
+        .withIndex("by_company_status", (q2) => q2.eq("companyId", args.companyId).eq("status", args.status!));
+    } else {
+      q = ctx.db.query("enterprise_support_tickets")
+        .withIndex("by_company", (q2) => q2.eq("companyId", args.companyId));
     }
 
     return await q.order("desc").take(50);
