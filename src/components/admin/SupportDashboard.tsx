@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
+import { AutoResponseRulesPanel } from './AutoResponseRulesPanel'
 
 const AGENT_NAMES: Record<string, string> = {
   A1: 'Academic Pro', A2: 'Business Pro', A3: 'Content Pro',
@@ -19,7 +20,7 @@ const AGENT_ICONS: Record<string, string> = {
 }
 
 export function SupportDashboard() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'interactions' | 'escalations' | 'agents' | 'settings'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'interactions' | 'escalations' | 'agents' | 'rules' | 'settings'>('overview')
   const [days, setDays] = useState(7)
 
   const analytics: any = useQuery(api.support_orchestrator.getSupportAnalytics, { days })
@@ -43,7 +44,8 @@ export function SupportDashboard() {
     { id: 'interactions' as const, label: 'Interactions', icon: '💬' },
     { id: 'escalations' as const, label: 'Escalations', icon: '🚨' },
     { id: 'agents' as const, label: 'Agents', icon: '🤖' },
-    { id: 'settings' as const, label: 'Settings', icon: '⚙️' },
+    { id: 'rules' as const, label: 'Rules', icon: '⚙️' },
+    { id: 'settings' as const, label: 'Settings', icon: '🔧' },
   ]
 
   return (
@@ -237,6 +239,10 @@ export function SupportDashboard() {
             )
           })}
         </div>
+      )}
+
+      {activeTab === 'rules' && (
+        <AutoResponseRulesPanel adminToken="" />
       )}
 
       {activeTab === 'settings' && (
