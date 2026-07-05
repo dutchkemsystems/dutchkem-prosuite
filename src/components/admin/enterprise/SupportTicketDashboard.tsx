@@ -22,10 +22,11 @@ export function SupportTicketDashboard({ adminToken }: { adminToken: string }) {
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  const [form, setForm] = useState({ subject: '', description: '', priority: 'normal' as string, category: 'technical' as string, customerEmail: '', customerName: '', companyId: '' })
+  const [form, setForm] = useState({ subject: '', description: '', priority: 'normal' as string, category: 'technical' as string, customerEmail: '', customerName: '', companyId: '', orgId: '' })
 
   const dashboard = useQuery(api.enterprise_support.getSupportDashboard, { adminToken })
   const tickets = useQuery(api.enterprise_support.listAllTickets, { status: filter !== 'all' ? filter : undefined, adminToken })
+  const createTicket = useMutation(api.enterprise_support.createTicket)
   const updateStatus = useMutation(api.enterprise_support.updateTicketStatus)
   const rateTicket = useMutation(api.enterprise_support.rateTicket)
 
@@ -147,6 +148,7 @@ export function SupportTicketDashboard({ adminToken }: { adminToken: string }) {
               <button onClick={() => setShowCreate(false)} className="text-slate-400 hover:text-white">✕</button>
             </div>
             <div className="space-y-3">
+              <input placeholder="Organization ID *" value={form.orgId} onChange={(e) => setForm({ ...form, orgId: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-[#FF6B35]/50" />
               <input placeholder="Company ID *" value={form.companyId} onChange={(e) => setForm({ ...form, companyId: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-[#FF6B35]/50" />
               <input placeholder="Your Name *" value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-[#FF6B35]/50" />
               <input type="email" placeholder="Your Email *" value={form.customerEmail} onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-[#FF6B35]/50" />
@@ -169,7 +171,30 @@ export function SupportTicketDashboard({ adminToken }: { adminToken: string }) {
                 </select>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setShowCreate(false)} className="flex-1 px-4 py-2.5 bg-[#FF6B35] hover:bg-[#FF8255] text-white rounded-xl text-xs font-black transition-all">Submit Ticket</button>
+                <button onClick={async () => {
+                  if (!form.orgId || !form.companyId || !form.subject || !form.description || !form.customerName || !form.customerEmail) {
+                    showToast('Please fill in all required fields', 'error')
+                    return
+                  }
+                  try {
+                    await createTicket({
+                      orgId: form.orgId as any,
+                      companyId: form.companyId,
+                      customerName: form.customerName,
+                      customerEmail: form.customerEmail,
+                      subject: form.subject,
+                      description: form.description,
+                      priority: form.priority as any,
+                      category: form.category as any,
+                      adminToken,
+                    })
+                    showToast('Ticket created successfully', 'success')
+                    setShowCreate(false)
+                    setForm({ subject: '', description: '', priority: 'normal', category: 'technical', customerEmail: '', customerName: '', companyId: '', orgId: '' })
+                  } catch (e: any) {
+                    showToast(e.message || 'Failed to create ticket', 'error')
+                  }
+                }} className="flex-1 px-4 py-2.5 bg-[#FF6B35] hover:bg-[#FF8255] text-white rounded-xl text-xs font-black transition-all">Submit Ticket</button>
                 <button onClick={() => setShowCreate(false)} className="px-4 py-2.5 bg-white/5 border border-white/10 text-slate-400 rounded-xl text-xs font-black hover:text-white">Cancel</button>
               </div>
             </div>
