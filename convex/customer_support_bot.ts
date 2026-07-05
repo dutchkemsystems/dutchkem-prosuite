@@ -39,7 +39,23 @@ export const handleSupportChat = action({
       }
     }
 
-    // If no FAQ match, use AI router
+    // Check auto-response rules
+    const autoResponseMatch = await ctx.runMutation(
+      (await import("./_generated/api")).api.support_auto_response.matchAutoResponse,
+      { message: args.message }
+    );
+
+    if (autoResponseMatch.matched) {
+      return {
+        success: true,
+        response: autoResponseMatch.response,
+        source: 'auto-response',
+        matchedRule: autoResponseMatch.ruleId,
+        suggestions: ['pricing', 'features', 'support', 'payment'],
+      };
+    }
+
+    // If no FAQ or auto-response match, use AI router
     const aiResponse = await ctx.runAction(internal.ai_router.routeRequest, {
       input: args.message,
       systemPrompt: 'You are a friendly customer support agent for DutchKem Ventures. Be helpful, professional, and concise. Always include the registration URL: https://dutchkem-prosuite-app.vercel.app/auth',
