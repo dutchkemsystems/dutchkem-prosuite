@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  openwa-admin:
+    build: .
+    container_name: dutchkem-openwa-admin
+    environment:
+      - CONVEX_URL=https://warmhearted-aardvark-280.convex.cloud
+      - SESSION_TYPE=admin
+      - POLL_INTERVAL_MS=3000
+    volumes:
+      - ./auth_admin:/app/auth_admin
+    restart: unless-stopped
+    ports:
+      - "2785:2785"
+
+  openwa-enterprise:
+    build: .
+    container_name: dutchkem-openwa-enterprise
+    environment:
+      - CONVEX_URL=https://warmhearted-aardvark-280.convex.cloud
+      - SESSION_TYPE=enterprise
+      - POLL_INTERVAL_MS=3000
+    volumes:
+      - ./auth_enterprise:/app/auth_enterprise
+    restart: unless-stopped
+    ports:
+      - "2786:2785"

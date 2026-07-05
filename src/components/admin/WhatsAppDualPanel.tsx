@@ -8,7 +8,7 @@ const MODEL_ICONS: Record<string, string> = {
 
 export function WhatsAppDualPanel({ adminToken }: { adminToken: string }) {
   const [activeSystem, setActiveSystem] = useState<'admin' | 'enterprise'>('admin')
-  const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'pricing' | 'subscriptions' | 'ads' | 'safety' | 'revenue'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'pricing' | 'subscriptions' | 'ads' | 'safety' | 'revenue' | 'failed'>('overview')
   const [toast, setToast] = useState<{ type: string; msg: string } | null>(null)
 
   const adminStatus: any = useQuery(api.whatsapp_dual.getSystemStatus, { systemType: 'admin' })
@@ -24,12 +24,16 @@ export function WhatsAppDualPanel({ adminToken }: { adminToken: string }) {
   const enterpriseSessionStatus: any = useQuery(api.whatsapp_openwa.getSessionStatus, { sessionType: 'enterprise' })
   const adminContacts: any = useQuery(api.whatsapp_openwa.getContacts, { sessionType: 'admin' })
   const adminGroups: any = useQuery(api.whatsapp_openwa.getGroups, { sessionType: 'admin' })
+  const masterKillSwitch: any = useQuery(api.whatsapp_dual.getMasterKillSwitchStatus, {})
 
   const toggleSystem = useMutation(api.whatsapp_dual.toggleSystem)
   const togglePricingTier = useMutation(api.whatsapp_dual.togglePricingTier)
   const seedDefaults = useMutation(api.whatsapp_dual.seedWhatsAppDefaults)
   const startSession = useMutation(api.whatsapp_openwa.startSession)
   const stopSession = useMutation(api.whatsapp_openwa.stopSession)
+  const failedMessages: any = useQuery(api.whatsapp_openwa.getFailedMessages, {})
+  const retryFailedMessage = useMutation(api.whatsapp_openwa.retryFailedMessage)
+  const deleteFailedMessage = useMutation(api.whatsapp_openwa.deleteFailedMessage)
 
   // Ad Orchestrator
   const adStatus: any = useQuery(api.adOrchestrator.getOrchestratorStatus)
@@ -97,6 +101,7 @@ export function WhatsAppDualPanel({ adminToken }: { adminToken: string }) {
     { id: 'sessions' as const, label: 'Sessions', icon: '📱' },
     { id: 'pricing' as const, label: 'Pricing', icon: '💰' },
     { id: 'subscriptions' as const, label: 'Subscriptions', icon: '📋' },
+    { id: 'failed' as const, label: 'Failed', icon: '⚠️' },
     { id: 'ads' as const, label: 'Global Ads', icon: '🌍' },
     { id: 'safety' as const, label: 'Safety', icon: '🛡️' },
     { id: 'revenue' as const, label: 'Revenue', icon: '📈' },
@@ -126,6 +131,43 @@ export function WhatsAppDualPanel({ adminToken }: { adminToken: string }) {
           🔄 Seed Defaults
         </button>
       </div>
+
+      {/* Master Kill Switch Alert */}
+      {masterKillSwitch && !masterKillSwitch.enabled && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🛑</span>
+            <div>
+              <p className="font-black text-red-400">MASTER KILL SWITCH ACTIVE</p>
+              <p className="text-xs text-slate-400 mt-1">{masterKillSwitch.message}</p>
+              <p className="text-[10px] text-slate-500 mt-1">Source: {masterKillSwitch.source}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expiring Subscriptions Warning */}
+      {subs && subs.some((s: any) => {
+        if (s.status !== 'active' || !s.endDate) return false
+        const daysLeft = Math.ceil((s.endDate - Date.now()) / (24 * 60 * 60 * 1000))
+        return daysLeft <= 7 && daysLeft > 0
+      }) && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">⏰</span>
+            <div>
+              <p className="font-black text-amber-400">Subscriptions Expiring Soon</p>
+              <p className="text-xs text-slate-400 mt-1">
+                {subs.filter((s: any) => {
+                  if (s.status !== 'active' || !s.endDate) return false
+                  const daysLeft = Math.ceil((s.endDate - Date.now()) / (24 * 60 * 60 * 1000))
+                  return daysLeft <= 7 && daysLeft > 0
+                }).length} subscription(s) expiring within 7 days (3-day grace period applies)
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* System Switcher */}
       <div className="flex gap-2">
@@ -391,10 +433,14 @@ export function WhatsAppDualPanel({ adminToken }: { adminToken: string }) {
                 <th className="text-right px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Used</th>
                 <th className="text-right px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Limit</th>
                 <th className="text-right px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Usage</th>
+                <th className="text-right px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Expires</th>
               </tr></thead>
               <tbody>
                 {(subs ?? []).map((sub: any) => {
                   const usagePct = sub.messagesLimit > 0 ? (sub.messagesUsed / sub.messagesLimit) * 100 : 0
+                  const daysLeft = sub.endDate ? Math.ceil((sub.endDate - Date.now()) / (24 * 60 * 60 * 1000)) : null
+                  const isExpiringSoon = daysLeft !== null && daysLeft <= 7 && daysLeft > 0
+                  const isExpired = daysLeft !== null && daysLeft <= 0
                   return (
                     <tr key={sub._id} className="border-b border-slate-800/50">
                       <td className="px-4 py-3 text-xs font-bold">{sub.phoneNumber}</td>
@@ -413,15 +459,97 @@ export function WhatsAppDualPanel({ adminToken }: { adminToken: string }) {
                           }} />
                         </div>
                       </td>
+                      <td className="px-4 py-3 text-right">
+                        {daysLeft !== null ? (
+                          <span className={`text-[10px] font-bold ${
+                            isExpired ? 'text-red-400' : isExpiringSoon ? 'text-amber-400' : 'text-slate-400'
+                          }`}>
+                            {isExpired ? 'Expired' : `${daysLeft}d`}
+                            {isExpiringSoon && ' (grace)'}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-500">-</span>
+                        )}
+                      </td>
                     </tr>
                   )
                 })}
                 {(!subs || subs.length === 0) && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-xs text-slate-500">No subscriptions yet</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-xs text-slate-500">No subscriptions yet</td></tr>
                 )}
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Failed Messages Tab */}
+      {activeTab === 'failed' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-black">⚠️ Failed Messages</h3>
+              <p className="text-xs text-slate-400 mt-1">{failedMessages?.length ?? 0} messages failed to send</p>
+            </div>
+          </div>
+
+          {(!failedMessages || failedMessages.length === 0) ? (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center">
+              <p className="text-3xl mb-2">✅</p>
+              <p className="text-sm font-bold text-slate-400">No failed messages</p>
+              <p className="text-xs text-slate-500 mt-1">All messages are being delivered successfully</p>
+            </div>
+          ) : (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+              <table className="w-full">
+                <thead><tr className="border-b border-slate-800">
+                  <th className="text-left px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">To</th>
+                  <th className="text-left px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Session</th>
+                  <th className="text-left px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Type</th>
+                  <th className="text-left px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Error</th>
+                  <th className="text-right px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Retries</th>
+                  <th className="text-right px-4 py-3 text-[10px] text-slate-500 uppercase font-bold">Actions</th>
+                </tr></thead>
+                <tbody>
+                  {(failedMessages ?? []).map((msg: any) => (
+                    <tr key={msg._id} className="border-b border-slate-800/50">
+                      <td className="px-4 py-3 text-xs font-bold">{msg.to}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          msg.sessionType === 'admin' ? 'bg-blue-500/10 text-blue-400' : 'bg-purple-500/10 text-purple-400'
+                        }`}>{msg.sessionType}</span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-400">{msg.messageType}</td>
+                      <td className="px-4 py-3 text-xs text-red-400 max-w-[200px] truncate">{msg.error}</td>
+                      <td className="px-4 py-3 text-right text-xs">{msg.retryCount}/3</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex gap-1 justify-end">
+                          <button
+                            onClick={async () => {
+                              try {
+                                await retryFailedMessage({ messageId: msg._id, adminToken })
+                                showToast('success', 'Message queued for retry')
+                              } catch (e: any) { showToast('error', e.message) }
+                            }}
+                            className="px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded text-[10px] font-bold hover:bg-emerald-500/20"
+                          >Retry</button>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await deleteFailedMessage({ messageId: msg._id, adminToken })
+                                showToast('success', 'Message deleted')
+                              } catch (e: any) { showToast('error', e.message) }
+                            }}
+                            className="px-2 py-1 bg-red-500/10 text-red-400 rounded text-[10px] font-bold hover:bg-red-500/20"
+                          >Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

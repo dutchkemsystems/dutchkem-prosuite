@@ -114,4 +114,23 @@ export const whatsappTables = {
     error: v.optional(v.string()),
     updatedAt: v.number(),
   }).index("by_type", ["sessionType"]),
+
+  // MESSAGE QUEUE — Outbound messages waiting to be sent by OpenWA server
+  whatsapp_message_queue: defineTable({
+    sessionType: v.union(v.literal("admin"), v.literal("enterprise")),
+    to: v.string(),
+    messageType: v.union(v.literal("text"), v.literal("image"), v.literal("template")),
+    content: v.string(),
+    mediaUrl: v.optional(v.string()),
+    caption: v.optional(v.string()),
+    status: v.union(v.literal("pending"), v.literal("sending"), v.literal("sent"), v.literal("failed")),
+    error: v.optional(v.string()),
+    externalId: v.optional(v.string()),
+    retryCount: v.number(),
+    createdAt: v.number(),
+    sentAt: v.optional(v.number()),
+  }).index("by_status", ["status"])
+    .index("by_session", ["sessionType"])
+    .index("by_created", ["createdAt"])
+    .index("by_session_status", ["sessionType", "status"]),
 };

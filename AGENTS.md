@@ -65,7 +65,58 @@ vercel deploy --prod --yes --force
 
 # 4. Verify health
 Invoke-RestMethod -Uri "https://warmhearted-aardvark-280.convex.site/api/health"
+
+# 5. Deploy OpenWA Server (if changed)
+cd openwa-server && ./deploy-fly.sh both
 ```
+
+## WhatsApp Dual System
+
+Dual-channel WhatsApp messaging platform running two independent systems from +234-9113393525.
+
+### Architecture
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| Schema (12 tables) | `convex/schema/whatsapp.ts` | Database tables |
+| Core backend | `convex/whatsapp_dual.ts` | Pricing, subscriptions, messaging |
+| OpenWA sessions | `convex/whatsapp_openwa.ts` | Session mgmt, message queue |
+| Meta API integration | `convex/whatsapp_integration.ts` | WhatsApp Business API fallback |
+| OpenWA server | `openwa-server/server.js` | Baileys-based WhatsApp connection |
+| Admin panel | `src/components/admin/WhatsAppDualPanel.tsx` | 8-tab management UI |
+| Client UI | `src/components/dashboard/ClientWhatsApp.tsx` | Subscription + messaging |
+
+### Environment Variables
+
+| Variable | Purpose | Required |
+|----------|---------|----------|
+| `WHATSAPP_ENABLED` | Master kill switch (set "false" to disable all) | No (default: true) |
+| `WHATSAPP_PHONE_NUMBER_ID` | Meta WhatsApp Business phone ID | For Meta API path |
+| `WHATSAPP_ACCESS_TOKEN` | Meta WhatsApp Business API token | For Meta API path |
+| `CONVEX_URL` | Convex backend URL (for OpenWA server) | Yes (for server) |
+| `SESSION_TYPE` | "admin" or "enterprise" (for OpenWA server) | Yes (for server) |
+
+### OpenWA Server Deployment (Fly.io)
+
+```bash
+# Deploy admin session
+cd openwa-server
+fly deploy --config fly.toml --app dutchkem-openwa-admin
+
+# Deploy enterprise session
+fly deploy --config fly-enterprise.toml --app dutchkem-openwa-enterprise
+
+# View QR codes for authentication
+fly logs --app dutchkem-openwa-admin
+```
+
+### Key Rules
+
+1. **Simulated mode removed** — `startSession` sets status to "starting", waits for OpenWA server to report "connected"
+2. **Master kill switch** — `WHATSAPP_ENABLED=false` disables ALL WhatsApp regardless of DB state
+3. **3-day grace period** — Expired subscriptions have 3 days before being marked expired
+4. **Message queue cleanup** — Cron jobs reset stuck messages and fail permanently after 3 retries
+5. **Never use `.filter()`** on message queue queries — use `by_session_status` index
 
 ## Revert
 

@@ -11,6 +11,31 @@ import { tryGetAdminSession } from "./auth_helpers";
 
 const BUSINESS_NUMBER = "+2349113393525";
 const BUSINESS_NAME = "Dutchkem Ventures";
+const WHATSAPP_API_VERSION = "v18.0";
+
+// Master kill switch — when "false", ALL WhatsApp systems are disabled regardless of DB state
+// Set WHATSAPP_ENABLED=false in environment to emergency shutdown
+function isWhatsAppEnabled(): boolean {
+  const envVal = process.env.WHATSAPP_ENABLED;
+  if (envVal === undefined) return true; // Default: enabled
+  return envVal.toLowerCase() !== "false" && envVal !== "0";
+}
+
+// Query to check master kill switch status (for admin panel)
+export const getMasterKillSwitchStatus = query({
+  args: {},
+  returns: v.any(),
+  handler: async () => {
+    const envVal = process.env.WHATSAPP_ENABLED;
+    return {
+      enabled: isWhatsAppEnabled(),
+      source: envVal === undefined ? "default (enabled)" : `environment: ${envVal}`,
+      message: isWhatsAppEnabled()
+        ? "WhatsApp is enabled"
+        : "WhatsApp is DISABLED via WHATSAPP_ENABLED environment variable",
+    };
+  },
+});
 
 // ─── SEED DEFAULT DATA ───
 
@@ -513,6 +538,11 @@ export const sendWhatsAppMessage = action({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
+    // Master kill switch check
+    if (!isWhatsAppEnabled()) {
+      return { success: false, error: "WhatsApp is disabled via environment variable (WHATSAPP_ENABLED=false)" };
+    }
+
     // Check if system is enabled
     const status = await ctx.runQuery(internal.whatsapp_dual.getSystemStatus, {
       systemType: args.systemType,
@@ -650,6 +680,11 @@ export const agentSendMessage = action({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
+    // Master kill switch check
+    if (!isWhatsAppEnabled()) {
+      return { success: false, error: "WhatsApp is disabled via environment variable (WHATSAPP_ENABLED=false)" };
+    }
+
     // Always use admin system for agent communication
     const status = await ctx.runQuery(internal.whatsapp_dual.getSystemStatus, {
       systemType: "admin",
@@ -674,6 +709,13 @@ export const agentSendMessage = action({
       s.phoneNumber === args.phoneNumber && s.status === "active"
     );
 
+    // Actually queue the message via OpenWA
+    const queueId = await ctx.runMutation(internal.whatsapp_openwa.queueMessage, {
+      sessionType: "admin",
+      to: formatNigerianPhone(args.phoneNumber),
+      message: args.message,
+    });
+
     // Log usage
     const messageType = args.messageType || "support";
     const rates: Record<string, number> = { marketing: 10, transactional: 5, auth: 3, support: 2 };
@@ -697,7 +739,7 @@ export const agentSendMessage = action({
       description: `Agent ${args.agentId} → ${args.phoneNumber}`,
     });
 
-    return { success: true, agentId: args.agentId, systemType: "admin", cost };
+    return { success: true, queued: true, queueId, agentId: args.agentId, systemType: "admin", cost };
   },
 });
 
@@ -715,6 +757,11 @@ export const enterpriseSendMessage = action({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
+    // Master kill switch check
+    if (!isWhatsAppEnabled()) {
+      return { success: false, error: "WhatsApp is disabled via environment variable (WHATSAPP_ENABLED=false)" };
+    }
+
     // Always use enterprise system
     const status = await ctx.runQuery(internal.whatsapp_dual.getSystemStatus, {
       systemType: "enterprise",
@@ -739,6 +786,13 @@ export const enterpriseSendMessage = action({
       s.userId === args.enterpriseId && s.status === "active"
     );
 
+    // Actually queue the message via OpenWA
+    const queueId = await ctx.runMutation(internal.whatsapp_openwa.queueMessage, {
+      sessionType: "enterprise",
+      to: formatNigerianPhone(args.phoneNumber),
+      message: args.message,
+    });
+
     const messageType = args.messageType || "transactional";
     const rates: Record<string, number> = { marketing: 10, transactional: 5, auth: 3, support: 2 };
     const cost = rates[messageType] || 5;
@@ -760,7 +814,7 @@ export const enterpriseSendMessage = action({
       description: `Enterprise ${args.enterpriseId} → ${args.phoneNumber}`,
     });
 
-    return { success: true, enterpriseId: args.enterpriseId, systemType: "enterprise", cost };
+    return { success: true, queued: true, queueId, enterpriseId: args.enterpriseId, systemType: "enterprise", cost };
   },
 });
 
@@ -816,7 +870,7 @@ export const getAgentList = query({
 // SEND CLIENT WHATSAPP MESSAGE
 // ═══════════════════════════════════════════════════════════════════
 
-export const sendClientMessage = mutation({
+export const sendClientMessage = action({
   args: {
     userId: v.string(),
     to: v.string(),
@@ -833,16 +887,19 @@ export const sendClientMessage = mutation({
     messageId: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
+    // Master kill switch check
+    if (!isWhatsAppEnabled()) {
+      return { success: false, error: "WhatsApp is disabled via environment variable (WHATSAPP_ENABLED=false)" };
+    }
+
     const cleaned = args.to.replace(/[^0-9]/g, "");
     if (cleaned.length < 10) {
       return { success: false, error: "Invalid phone number" };
     }
 
-    const sub = await ctx.db
-      .query("whatsapp_subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .filter((q) => q.eq(q.field("status"), "active"))
-      .first();
+    const sub = await ctx.runQuery(internal.whatsapp_dual.getActiveSubscription, {
+      userId: args.userId,
+    });
 
     if (!sub) {
       return { success: false, error: "No active WhatsApp subscription" };
@@ -852,13 +909,20 @@ export const sendClientMessage = mutation({
       return { success: false, error: "Message limit reached. Upgrade your plan." };
     }
 
+    // Actually queue the message via OpenWA
+    const queueId = await ctx.runMutation(internal.whatsapp_openwa.queueMessage, {
+      sessionType: sub.systemType,
+      to: formatNigerianPhone(args.to),
+      message: args.message,
+    });
+
     const costByType: Record<string, number> = {
       transactional: 5,
       support: 2,
       marketing: 10,
     };
 
-    await ctx.db.insert("whatsapp_usage_logs", {
+    await ctx.runMutation(internal.whatsapp_dual.logUsage, {
       userId: args.userId,
       systemType: sub.systemType,
       messageType: args.messageType,
@@ -866,15 +930,13 @@ export const sendClientMessage = mutation({
       phoneNumber: cleaned,
       costNgn: costByType[args.messageType] || 5,
       includedInTier: true,
-      timestamp: Date.now(),
     });
 
-    await ctx.db.patch(sub._id, {
-      messagesUsed: sub.messagesUsed + 1,
-      updatedAt: Date.now(),
+    await ctx.runMutation(internal.whatsapp_dual.incrementUsage, {
+      subscriptionId: sub._id,
     });
 
-    return { success: true, messageId: `msg_${Date.now()}` };
+    return { success: true, messageId: queueId };
   },
 });
 
@@ -914,6 +976,60 @@ function formatNigerianPhone(phone: string): string {
   if (digits.startsWith("0")) return `234${digits.slice(1)}`;
   return `234${digits}`;
 }
+
+// ─── CRON: Check Expired Subscriptions ───
+
+export const checkExpiredSubscriptions = internalMutation({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const now = Date.now();
+    const GRACE_PERIOD_MS = 3 * 24 * 60 * 60 * 1000; // 3-day grace period
+
+    // Find active subscriptions past their end date
+    const allSubs = await ctx.db
+      .query("whatsapp_subscriptions")
+      .withIndex("by_status", (q) => q.eq("status", "active"))
+      .collect();
+
+    const expired: { id: string; userId: string; systemType: string; endDate: number }[] = [];
+    const graceExpiring: { id: string; userId: string; daysLeft: number }[] = [];
+
+    for (const sub of allSubs) {
+      if (sub.endDate <= now) {
+        // Check if still in grace period
+        if (now - sub.endDate <= GRACE_PERIOD_MS) {
+          const daysLeft = Math.ceil((GRACE_PERIOD_MS - (now - sub.endDate)) / (24 * 60 * 60 * 1000));
+          graceExpiring.push({ id: sub._id, userId: sub.userId, daysLeft });
+        } else {
+          // Past grace period — mark as expired
+          await ctx.db.patch(sub._id, {
+            status: "expired",
+            updatedAt: now,
+          });
+          expired.push({
+            id: sub._id,
+            userId: sub.userId,
+            systemType: sub.systemType,
+            endDate: sub.endDate,
+          });
+        }
+      } else if (sub.endDate - now <= 7 * 24 * 60 * 60 * 1000) {
+        // Expiring within 7 days
+        const daysLeft = Math.ceil((sub.endDate - now) / (24 * 60 * 60 * 1000));
+        graceExpiring.push({ id: sub._id, userId: sub.userId, daysLeft });
+      }
+    }
+
+    return {
+      checkedAt: now,
+      expired,
+      graceExpiring,
+      totalExpired: expired.length,
+      totalExpiringSoon: graceExpiring.length,
+    };
+  },
+});
 
 export const sendClientWhatsAppMessage = action({
   args: {

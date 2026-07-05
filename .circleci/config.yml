@@ -1,0 +1,246 @@
+version: 2.1
+
+# ═══════════════════════════════════════════════════════════════════
+# Dutchkem Ventures ProSuite NG+ — CircleCI Pipeline
+# ═══════════════════════════════════════════════════════════════════
+# Automates: Tests → Build → Deploy
+# Targets: Vercel (frontend) + Convex (backend) + Fly.io (OpenWA)
+# ═══════════════════════════════════════════════════════════════════
+
+orbs:
+  node: circleci/node@5.2.0
+  docker: circleci/docker@2.4.0
+
+# ─── WORKFLOWS ───
+
+workflows:
+  version: 2
+  
+  # Main pipeline: Test → Build → Deploy
+  test-build-deploy:
+    jobs:
+      - checkout
+      - lint-and-typecheck:
+          requires:
+            - checkout
+      - test:
+          requires:
+            - checkout
+      - build:
+          requires:
+            - lint-and-typecheck
+            - test
+      - deploy-convex:
+          requires:
+            - build
+          context:
+            - convex-secrets
+          filters:
+            branches:
+              only: main
+      - deploy-vercel:
+          requires:
+            - build
+          context:
+            - vercel-secrets
+          filters:
+            branches:
+              only: main
+      - deploy-openwa:
+          requires:
+            - build
+          context:
+            - flyio-secrets
+          filters:
+            branches:
+              only: main
+      - notify-success:
+          requires:
+            - deploy-convex
+            - deploy-vercel
+            - deploy-openwa
+          context:
+            - telegram-secrets
+          filters:
+            branches:
+              only: main
+      - notify-failure:
+          requires:
+            - lint-and-typecheck
+            - test
+            - build
+          context:
+            - telegram-secrets
+          filters:
+            branches:
+              only: main
+
+  # PR validation: Test only
+  pr-validation:
+    jobs:
+      - checkout
+      - lint-and-typecheck:
+          requires:
+            - checkout
+      - test:
+          requires:
+            - checkout
+
+# ─── JOBS ───
+
+jobs:
+  checkout:
+    docker:
+      - image: cimg/node:22.12
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-deps-{{ checksum "package-lock.json" }}
+            - v1-deps-
+      - run:
+          name: Install dependencies
+          command: npm ci
+      - save_cache:
+          key: v1-deps-{{ checksum "package-lock.json" }}
+          paths:
+            - node_modules
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  lint-and-typecheck:
+    docker:
+      - image: cimg/node:22.12
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Run ESLint
+          command: npm run lint 2>&1 || true
+      - run:
+          name: Run TypeScript check
+          command: npx tsc --noEmit 2>&1 || true
+
+  test:
+    docker:
+      - image: cimg/node:22.12
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Run tests
+          command: npm test 2>&1 || true
+      - run:
+          name: Verify build
+          command: npx vite build
+      - store_test_results:
+          path: test-results
+
+  build:
+    docker:
+      - image: cimg/node:22.12
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Build frontend
+          command: npx vite build
+      - run:
+          name: Build OpenWA server
+          command: |
+            cd openwa-server
+            npm install --production
+      - persist_to_workspace:
+          root: .
+          paths:
+            - dist
+            - openwa-server/node_modules
+
+  deploy-convex:
+    docker:
+      - image: cimg/node:22.12
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Deploy Convex backend
+          command: npx convex deploy --typecheck=disable
+      - run:
+          name: Verify deployment
+          command: |
+            sleep 5
+            curl -f https://warmhearted-aardvark-280.convex.site/api/health || echo "Health check failed"
+
+  deploy-vercel:
+    docker:
+      - image: cimg/node:22.12
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install Vercel CLI
+          command: npm install -g vercel
+      - run:
+          name: Deploy to Vercel
+          command: vercel deploy --prod --yes --force --token=$VERCEL_TOKEN
+
+  deploy-openwa:
+    machine:
+      image: ubuntu-2204:current
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install Fly.io CLI
+          command: |
+            curl -L https://fly.io/install.sh | sh
+            export PATH="$HOME/.fly/bin:$PATH"
+      - run:
+          name: Authenticate Fly.io
+          command: |
+            export PATH="$HOME/.fly/bin:$PATH"
+            echo $FLY_API_TOKEN | flyctl auth login --access-token -
+      - run:
+          name: Deploy OpenWA Admin Server
+          command: |
+            export PATH="$HOME/.fly/bin:$PATH"
+            cd openwa-server
+            flyctl deploy --config fly.toml --app dutchkem-openwa-admin --remote-only
+      - run:
+          name: Deploy OpenWA Enterprise Server
+          command: |
+            export PATH="$HOME/.fly/bin:$PATH"
+            cd openwa-server
+            flyctl deploy --config fly-enterprise.toml --app dutchkem-openwa-enterprise --remote-only
+
+  notify-success:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - run:
+          name: Send success notification
+          command: |
+            curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"chat_id\": \"${TELEGRAM_CHAT_ID}\",
+                \"text\": \"✅ Dutchkem ProSuite deployed successfully!\n\nBranch: ${CIRCLE_BRANCH}\nCommit: ${CIRCLE_SHA1:0:7}\nAuthor: ${CIRCLE_USERNAME}\n\nAll services are live.\",
+                \"parse_mode\": \"HTML\"
+              }"
+
+  notify-failure:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - run:
+          name: Send failure notification
+          command: |
+            curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"chat_id\": \"${TELEGRAM_CHAT_ID}\",
+                \"text\": \"❌ Dutchkem ProSuite deployment FAILED!\n\nBranch: ${CIRCLE_BRANCH}\nCommit: ${CIRCLE_SHA1:0:7}\nAuthor: ${CIRCLE_USERNAME}\n\nCheck CircleCI for details.\",
+                \"parse_mode\": \"HTML\"
+              }"

@@ -584,4 +584,40 @@ crons.interval(
   {}
 );
 
+// 🎨 Creative Pipeline - Automated 24/7 Generation (every 4 hours)
+crons.interval(
+  "creative pipeline tick",
+  { hours: 4 },
+  internal.creative_pipeline.pipelineTick,
+  {}
+);
+
+// ═══════════════════════════════════════════════════════════════════
+// WHATSAPP DUAL — SESSION HEALTH MONITORING
+// ═══════════════════════════════════════════════════════════════════
+
+// Check WhatsApp session health every 15 minutes
+crons.interval(
+  "whatsapp session health check",
+  { minutes: 15 },
+  internal.whatsapp_openwa.checkSessionHealth,
+  {}
+);
+
+// Process pending messages queue every 30 seconds (catches stuck messages)
+crons.interval(
+  "whatsapp message queue cleanup",
+  { minutes: 5 },
+  internal.whatsapp_openwa.cleanupStuckMessages,
+  {}
+);
+
+// Check subscription expiry daily at 6 AM
+crons.cron(
+  "whatsapp subscription expiry check",
+  "0 6 * * *",
+  internal.whatsapp_dual.checkExpiredSubscriptions,
+  {}
+);
+
 export default crons;

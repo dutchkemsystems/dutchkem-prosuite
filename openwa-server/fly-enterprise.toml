@@ -1,0 +1,36 @@
+# fly-enterprise.toml — Dutchkem OpenWA Server (Enterprise Session)
+# Deploy with: fly deploy --config fly-enterprise.toml --app dutchkem-openwa-enterprise
+
+app = "dutchkem-openwa-enterprise"
+primary_region = "ams"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  CONVEX_URL = "https://warmhearted-aardvark-280.convex.cloud"
+  SESSION_TYPE = "enterprise"
+  POLL_INTERVAL_MS = "3000"
+  NODE_ENV = "production"
+
+# Persistent volume for WhatsApp auth state (QR scan data)
+[mounts]
+  source = "openwa_auth_enterprise"
+  destination = "/app/auth_enterprise"
+
+[http_service]
+  internal_port = 2785
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 250
+    soft_limit = 200
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
