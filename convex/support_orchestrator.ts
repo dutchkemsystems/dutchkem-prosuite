@@ -126,6 +126,37 @@ export const processMessage = action({
           "You are a friendly customer support agent for Dutchkem Ventures Prosuite NG+. Help with general questions about the platform, pricing, features, and getting started. Be warm, professional, use emojis. If the question is about a specific service, suggest the right agent.",
           args.message
         );
+
+        // Log the interaction
+        const interactionId = await ctx.runMutation(
+          (await import("./_generated/api")).api.support_orchestrator.logInteraction,
+          {
+            userId: "anonymous",
+            message: args.message,
+            response,
+            agentId: "GENERAL",
+            agentName: "General Support",
+            confidence: intent.confidence,
+            routed: false,
+            responseTimeMs: Date.now() - startTime,
+          }
+        );
+
+        // Check for auto-escalation
+        const escalationResult = await ctx.runMutation(
+          (await import("./_generated/api")).api.support_auto_escalation.checkAndEscalate,
+          {
+            interactionId: interactionId as any,
+            confidence: intent.confidence,
+            agentId: "GENERAL",
+            message: args.message,
+          }
+        );
+
+        if (escalationResult.escalated) {
+          console.log(`Auto-escalated: ${escalationResult.reason}`);
+        }
+
         return {
           success: true,
           response,
@@ -162,15 +193,49 @@ export const processMessage = action({
       );
 
       const agentInfo = AGENT_MAP[intent.agentId];
+      const responseText = result.message || "I'm here to help! Could you rephrase your question?";
+      const responseTimeMs = Date.now() - startTime;
+
+      // Log interaction and get ID for escalation check
+      const interactionId = await ctx.runMutation(
+        (await import("./_generated/api")).api.support_orchestrator.logInteraction,
+        {
+          userId: "orchestrator",
+          message: args.message,
+          response: responseText,
+          agentId: intent.agentId,
+          agentName: agentInfo?.name || "Support",
+          confidence: intent.confidence,
+          routed: true,
+          responseTimeMs,
+        }
+      );
+
+      // Auto-escalation check
+      if (interactionId) {
+        const escalationResult = await ctx.runMutation(
+          (await import("./_generated/api")).api.support_auto_escalation.checkAndEscalate,
+          {
+            interactionId,
+            confidence: intent.confidence,
+            agentId: intent.agentId,
+            message: args.message,
+          }
+        );
+        if (escalationResult.escalated) {
+          console.log(`Auto-escalated: ${escalationResult.reason}`);
+        }
+      }
+
       return {
         success: true,
-        response: result.message || "I'm here to help! Could you rephrase your question?",
+        response: responseText,
         agentId: intent.agentId,
         agentName: agentInfo?.name || "Support",
         icon: agentInfo?.icon || "💬",
         routed: true,
         confidence: intent.confidence,
-        responseTimeMs: Date.now() - startTime,
+        responseTimeMs,
       };
     } catch (error: any) {
       console.error(`[Orchestrator] Agent ${intent.agentId} failed:`, error.message);
@@ -198,9 +263,9 @@ export const getOrchestratorStatus = query({
     return {
       success: true,
       isAvailable: true,
-      primaryModel: "kr/claude-opus-4-6",
-      fallbackModel: "google/gemini-3-flash",
-      emergencyModel: "if/kimi-k2-thinking",
+      primaryModel: "meta/llama-3.3-70b-instruct",
+      fallbackModel: "meta/llama-3.1-70b-instruct",
+      emergencyModel: "general",
       agentCount: 15,
       agents: [
         { id: "A1", name: "Academic Pro", icon: "\u{1F393}" },
@@ -220,7 +285,7 @@ export const getOrchestratorStatus = query({
         { id: "A15", name: "Event Planner", icon: "\u{1F389}" },
       ],
       features: [
-        "LLM-powered intent classification (claude-opus-4-6)",
+        "LLM-powered intent classification (llama-3.3-70b)",
         "Agent routing (A1-A15)",
         "Repetition detection",
         "Conversation context passing",
@@ -246,9 +311,9 @@ export const logInteraction = mutation({
     sentiment: v.optional(v.string()),
     responseTimeMs: v.optional(v.number()),
   },
-  returns: v.null(),
+  returns: v.optional(v.id("support_interactions")),
   handler: async (ctx, args) => {
-    await ctx.db.insert("support_interactions", {
+    const id = await ctx.db.insert("support_interactions", {
       userId: args.userId,
       message: args.message,
       response: args.response,
@@ -260,7 +325,7 @@ export const logInteraction = mutation({
       responseTimeMs: args.responseTimeMs,
       createdAt: Date.now(),
     });
-    return null;
+    return id;
   },
 });
 
@@ -274,17 +339,21 @@ export const escalateInteraction = mutation({
     agentId: v.string(),
     reason: v.string(),
   },
-  returns: v.null(),
+  returns: v.optional(v.id("support_interactions")),
   handler: async (ctx, args) => {
-    await ctx.db.insert("support_escalations", {
+    const id = await ctx.db.insert("support_interactions", {
       userId: args.userId,
-      interactionId: args.interactionId,
+      message: args.message,
+      response: args.response,
       agentId: args.agentId,
-      reason: args.reason,
-      status: "pending",
+      agentName: args.agentName,
+      confidence: args.confidence,
+      routed: args.routed,
+      sentiment: args.sentiment,
+      responseTimeMs: args.responseTimeMs,
       createdAt: Date.now(),
     });
-    return null;
+    return id;
   },
 });
 

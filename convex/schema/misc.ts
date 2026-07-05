@@ -1712,5 +1712,66 @@ export const miscTables = {
     createdAt: v.number(),
   }).index("by_user", ["userId"])
     .index("by_status", ["status"])
+    .index("by_created", ["createdAt"])
+    .index("by_interaction", ["interactionId"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // AI SALES AGENT
+  // ═══════════════════════════════════════════════════════════════════
+  sales_leads: defineTable({
+    userId: v.optional(v.string()),
+    email: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    name: v.optional(v.string()),
+    source: v.string(),
+    status: v.union(v.literal("new"), v.literal("contacted"), v.literal("qualified"), v.literal("proposal"), v.literal("negotiation"), v.literal("closed_won"), v.literal("closed_lost")),
+    score: v.number(),
+    interest: v.string(),
+    assignedAgent: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_status", ["status"])
+    .index("by_score", ["score"])
     .index("by_created", ["createdAt"]),
+
+  sales_conversations: defineTable({
+    leadId: v.id("sales_leads"),
+    messages: v.array(v.object({
+      role: v.string(),
+      content: v.string(),
+      timestamp: v.number(),
+    })),
+    outcome: v.optional(v.string()),
+    conversionValue: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_lead", ["leadId"])
+    .index("by_created", ["createdAt"]),
+
+  sales_deals: defineTable({
+    leadId: v.id("sales_leads"),
+    value: v.number(),
+    stage: v.union(v.literal("prospect"), v.literal("qualification"), v.literal("proposal"), v.literal("negotiation"), v.literal("closed_won"), v.literal("closed_lost")),
+    probability: v.number(),
+    expectedClose: v.optional(v.number()),
+    actualClose: v.optional(v.number()),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_lead", ["leadId"])
+    .index("by_stage", ["stage"])
+    .index("by_created", ["createdAt"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // CREATIVE PIPELINE (Automated 24/7 Generation)
+  // ═══════════════════════════════════════════════════════════════════
+  creative_pipeline_status: defineTable({
+    enabled: v.boolean(),
+    lastRun: v.optional(v.number()),
+    nextRun: v.optional(v.number()),
+    totalGenerated: v.number(),
+    totalPosted: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }),
 };
