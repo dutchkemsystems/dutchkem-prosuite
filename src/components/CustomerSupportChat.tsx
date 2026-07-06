@@ -16,6 +16,7 @@ interface Message {
 
 interface CustomerSupportChatProps {
   agentId?: string
+  userId?: string
   onClose: () => void
 }
 
@@ -35,7 +36,26 @@ const AGENT_NAMES: Record<string, string> = {
   GENERAL: 'General Support',
 }
 
-export default function CustomerSupportChat({ agentId, onClose }: CustomerSupportChatProps) {
+const AGENT_DOMAINS: Record<string, string> = {
+  A1: 'Academic writing, research, thesis, citations',
+  A2: 'Business plans, strategy, consulting, market analysis',
+  A3: 'Content creation, copywriting, social media, blogs',
+  A4: 'Resume writing, job search, career coaching, interviews',
+  A5: 'Product sourcing, shopping, deals, comparisons',
+  A6: 'Exam prep, study guides, test-taking strategies',
+  A7: 'Finance, budgeting, investments, tax, accounting',
+  A8: 'Video editing, graphics, multimedia, design',
+  A9: 'Health advice, wellness, fitness, nutrition',
+  A10: 'Home services, cleaning, repairs, maintenance',
+  A11: 'Language learning, translation, tutoring',
+  A12: 'Travel planning, bookings, itineraries, visas',
+  A13: 'Service marketplace, local services, vendors',
+  A14: 'Document translation, localization, interpretation',
+  A15: 'Event planning, parties, weddings, corporate events',
+  GENERAL: 'General platform questions, pricing, getting started',
+}
+
+export default function CustomerSupportChat({ agentId, userId, onClose }: CustomerSupportChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -48,8 +68,8 @@ export default function CustomerSupportChat({ agentId, onClose }: CustomerSuppor
 
   useEffect(() => {
     const greeting = agentId && agentId !== 'GENERAL'
-      ? `👋 Hello! I'm ${AGENT_NAMES[agentId] || 'Agent'} Support. I'm here to answer any questions about our services, pricing, or anything else. What would you like to know? 😊`
-      : '👋 Hello! I\'m your AI support assistant powered by the Multi-Agent Orchestrator. I\'ll route your question to the right expert automatically. What can I help you with today? 😊'
+      ? `👋 Hello! I'm ${AGENT_NAMES[agentId] || 'Agent'} — your ${AGENT_DOMAINS[agentId] || 'support'} expert. I'm here to help with any questions. What would you like to know? 😊`
+      : '👋 Hello! I\'m the Multi-Agent Orchestrator. I\'ll route your question to the best expert automatically. You can also click any agent below to talk directly. What can I help you with? 😊'
 
     setMessages([{
       role: 'assistant',
@@ -75,6 +95,7 @@ export default function CustomerSupportChat({ agentId, onClose }: CustomerSuppor
     try {
       const result = await processMessage({
         message: input,
+        userId: userId || 'anonymous',
         conversationHistory: messages.slice(-10).map(m => ({
           role: m.role,
           content: m.content,
@@ -99,7 +120,7 @@ export default function CustomerSupportChat({ agentId, onClose }: CustomerSuppor
         // Log interaction for analytics
         try {
           logInteraction({
-            userId: 'anonymous',
+            userId: userId || 'anonymous',
             message: input,
             response: result.response,
             agentId: routedAgent,
@@ -214,7 +235,7 @@ export default function CustomerSupportChat({ agentId, onClose }: CustomerSuppor
                   setActiveAgent(id)
                   setMessages(prev => [...prev, {
                     role: 'assistant',
-                    content: `Switched to ${AGENT_NAMES[id] || 'General Support'}. How can I help? 😊`,
+                    content: `Switched to ${AGENT_NAMES[id] || 'General Support'}. ${AGENT_DOMAINS[id] ? `I specialize in ${AGENT_DOMAINS[id]}.` : ''} How can I help? 😊`,
                     timestamp: new Date().toISOString(),
                     agentId: id,
                     agentName: AGENT_NAMES[id],

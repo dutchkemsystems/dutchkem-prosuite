@@ -100,6 +100,7 @@ Respond with ONLY the agent ID (e.g. A1, A7, GENERAL). Nothing else.`;
 export const processMessage = action({
   args: {
     message: v.string(),
+    userId: v.optional(v.string()),
     conversationHistory: v.optional(
       v.array(
         v.object({
@@ -113,6 +114,7 @@ export const processMessage = action({
   handler: async (ctx, args) => {
     const history = args.conversationHistory || [];
     const startTime = Date.now();
+    const userId = args.userId || "anonymous";
 
     // Step 1: Classify intent via LLM
     const intent = await classifyIntent(args.message, history);
@@ -131,7 +133,7 @@ export const processMessage = action({
         const interactionId = await ctx.runMutation(
           (await import("./_generated/api")).api.support_orchestrator.logInteraction,
           {
-            userId: "anonymous",
+            userId,
             message: args.message,
             response,
             agentId: "GENERAL",
@@ -200,7 +202,7 @@ export const processMessage = action({
       const interactionId = await ctx.runMutation(
         (await import("./_generated/api")).api.support_orchestrator.logInteraction,
         {
-          userId: "orchestrator",
+          userId,
           message: args.message,
           response: responseText,
           agentId: intent.agentId,
