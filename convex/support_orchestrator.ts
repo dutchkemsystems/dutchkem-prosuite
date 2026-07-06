@@ -75,9 +75,9 @@ ${contextSnippet ? `Previous context: ${contextSnippet}` : ""}
 
 Respond with ONLY the agent ID (e.g. A1, A7, GENERAL). Nothing else.`;
 
-  // Try primary model
+  // Try primary model (fast 8B model)
   try {
-    const response = await callNVIDIA("meta/llama-3.3-70b-instruct", classificationPrompt, message);
+    const response = await callNVIDIA("meta/llama-3.1-8b-instruct", classificationPrompt, message);
     const agentId = response.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
     if (AGENT_MAP[agentId]) return { agentId, confidence: "high" };
     if (agentId === "GENERAL") return { agentId: "GENERAL", confidence: "medium" };
@@ -85,7 +85,7 @@ Respond with ONLY the agent ID (e.g. A1, A7, GENERAL). Nothing else.`;
 
   // Try fallback model
   try {
-    const response = await callNVIDIA("meta/llama-3.1-70b-instruct", classificationPrompt, message);
+    const response = await callNVIDIA("meta/llama-3-8b-instruct", classificationPrompt, message);
     const agentId = response.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
     if (AGENT_MAP[agentId]) return { agentId, confidence: "high" };
     if (agentId === "GENERAL") return { agentId: "GENERAL", confidence: "medium" };
@@ -124,7 +124,7 @@ export const processMessage = action({
       // General support — answer directly
       try {
         const response = await callNVIDIA(
-          "meta/llama-3.3-70b-instruct",
+          "meta/llama-3.1-8b-instruct",
           "You are a friendly customer support agent for Dutchkem Ventures Prosuite NG+. Help with general questions about the platform, pricing, features, and getting started. Be warm, professional, use emojis. If the question is about a specific service, suggest the right agent.",
           args.message
         );
@@ -289,8 +289,8 @@ export const getOrchestratorStatus = query({
     return {
       success: true,
       isAvailable: true,
-      primaryModel: "meta/llama-3.3-70b-instruct",
-      fallbackModel: "meta/llama-3.1-70b-instruct",
+      primaryModel: "meta/llama-3.1-8b-instruct",
+      fallbackModel: "meta/llama-3-8b-instruct",
       emergencyModel: "general",
       agentCount: 15,
       agents: [
