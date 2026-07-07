@@ -113,6 +113,12 @@ export const koraWebhook = httpAction(async (ctx, request) => {
           });
           console.log(`[KORA WEBHOOK] Agent payment completed: ${reference}`);
         }
+      } else if (reference.startsWith("PKG-")) {
+        await ctx.runMutation(internal.agent_packages.completePackagePayment, {
+          reference: String(reference),
+          status: String(status),
+        });
+        console.log(`[KORA WEBHOOK] Package payment completed: ${reference}`);
       } else if (reference.startsWith("CREDIT-") || reference.startsWith("SUB-") || reference.startsWith("ADDON-")) {
         await ctx.runMutation(internal.kora_checkout.handleKoraWebhook, {
           eventType: String(eventType),
