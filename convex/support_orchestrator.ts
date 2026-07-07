@@ -168,6 +168,7 @@ export const processMessage = action({
           routed: false,
           confidence: intent.confidence,
           responseTimeMs: Date.now() - startTime,
+          shouldPromptLogin: false,
         };
       } catch {
         return {
@@ -179,6 +180,7 @@ export const processMessage = action({
           routed: false,
           confidence: "low",
           responseTimeMs: Date.now() - startTime,
+          shouldPromptLogin: false,
         };
       }
     }
@@ -253,15 +255,23 @@ export const processMessage = action({
         }
       }
 
+      // Login prompt detection
+      const shouldPromptLogin = finalResponse.includes("---LOGIN_PROMPT---");
+      let cleanedResponse = finalResponse;
+      if (shouldPromptLogin) {
+        cleanedResponse = finalResponse.replace(/---LOGIN_PROMPT---[\s\S]*?\[\/LOGIN_PROMPT\]/g, "").trim();
+      }
+
       return {
         success: true,
-        response: finalResponse,
+        response: cleanedResponse,
         agentId: intent.agentId,
         agentName: agentInfo?.name || "Support",
         icon: agentInfo?.icon || "💬",
         routed: true,
         confidence: intent.confidence,
         responseTimeMs,
+        shouldPromptLogin,
       };
     } catch (error: any) {
       console.error(`[Orchestrator] Agent ${intent.agentId} failed:`, error.message);
@@ -272,6 +282,7 @@ export const processMessage = action({
         agentName: AGENT_MAP[intent.agentId]?.name || "System",
         routed: false,
         confidence: "low",
+        shouldPromptLogin: false,
       };
     }
   },
@@ -283,15 +294,28 @@ export const processMessage = action({
 export const getOrchestratorStatus = query({
   args: {},
   returns: v.any(),
-  handler: async () => {
-    // NOTE: fetch() is NOT allowed in Convex queries (only in actions).
-    // Return static status for the support orchestrator.
-    return {
-      success: true,
-      isAvailable: true,
+  handler: async (ctx) => {
+    const defaultModels = {
       primaryModel: "meta/llama-3.1-8b-instruct",
       fallbackModel: "meta/llama-3-8b-instruct",
       emergencyModel: "general",
+    };
+
+    const configDoc = await ctx.db
+      .query("system_config")
+      .withIndex("by_key", (q) => q.eq("key", "support_orchestrator_config"))
+      .first();
+
+    const models = configDoc
+      ? { ...defaultModels, ...(configDoc.value as Record<string, string>) }
+      : defaultModels;
+
+    return {
+      success: true,
+      isAvailable: true,
+      primaryModel: models.primaryModel,
+      fallbackModel: models.fallbackModel,
+      emergencyModel: models.emergencyModel,
       agentCount: 15,
       agents: [
         { id: "A1", name: "Academic Pro", icon: "\u{1F393}" },
@@ -365,19 +389,17 @@ export const escalateInteraction = mutation({
     agentId: v.string(),
     reason: v.string(),
   },
-  returns: v.optional(v.id("support_interactions")),
+  returns: v.optional(v.id("support_escalations")),
   handler: async (ctx, args) => {
-    const id = await ctx.db.insert("support_interactions", {
+    const now = Date.now();
+    const id = await ctx.db.insert("support_escalations", {
       userId: args.userId,
-      message: args.message,
-      response: args.response,
+      interactionId: args.interactionId,
       agentId: args.agentId,
-      agentName: args.agentName,
-      confidence: args.confidence,
-      routed: args.routed,
-      sentiment: args.sentiment,
-      responseTimeMs: args.responseTimeMs,
-      createdAt: Date.now(),
+      reason: args.reason,
+      status: "pending",
+      createdAt: now,
+      updatedAt: now,
     });
     return id;
   },
@@ -549,13 +571,13 @@ export const getAgentStates = query({
   returns: v.any(),
   handler: async (ctx) => {
     const agentIds = ["A1","A2","A3","A4","A5","A6","A7","A8","A9","A10","A11","A12","A13","A14","A15"];
+    const allConfig = await ctx.db.query("system_config").collect();
+    const configMap = new Map(allConfig.map((c) => [c.key, c.value]));
+
     const states: Record<string, boolean> = {};
     for (const id of agentIds) {
-      const config = await ctx.db
-        .query("system_config")
-        .withIndex("by_key", (q) => q.eq("key", `agent_enabled_${id}`))
-        .first();
-      states[id] = config ? (config.value as boolean) : true;
+      const val = configMap.get(`agent_enabled_${id}`);
+      states[id] = val !== undefined ? (val as boolean) : true;
     }
     return states;
   },
