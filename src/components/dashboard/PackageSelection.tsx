@@ -47,7 +47,7 @@ export function PackageSelection({ agentId, userId, customerEmail, customerName,
   return (
     <div className="space-y-2">
       <p className="text-[10px] text-slate-500 uppercase font-bold mb-2">Available Packages</p>
-      {packages.map((pkg) => (
+      {packages.map((pkg: any) => (
         <div
           key={pkg.id}
           className="bg-slate-800/50 border border-white/10 rounded-xl p-3 hover:border-orange-500/30 transition-all"
