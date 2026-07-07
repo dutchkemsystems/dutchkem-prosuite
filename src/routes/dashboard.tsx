@@ -31,6 +31,7 @@ import { CreditBalance } from '~/components/dashboard/CreditBalance';
 import { UsageTracker } from '~/components/dashboard/UsageTracker';
 import { ClientWhatsApp } from '~/components/dashboard/ClientWhatsApp';
 import CustomerSupportChat from '~/components/CustomerSupportChat';
+import { MyTasks } from '~/components/dashboard/MyTasks';
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -262,6 +263,7 @@ function DashboardContent() {
             <TabButton active={activeTab === "settings"} onClick={() => { setActiveTab("settings"); setSidebarOpen(false); }} icon="⚙️" label="Settings" />
             <TabButton active={activeTab === "browse-agents"} onClick={() => { setActiveTab("browse-agents"); setSidebarOpen(false); }} icon="🤖" label="Browse Agents" />
             <TabButton active={activeTab === "history"} onClick={() => { setActiveTab("history"); setSidebarOpen(false); }} icon="📜" label="Full History" />
+            <TabButton active={activeTab === "my-tasks"} onClick={() => { setActiveTab("my-tasks"); setSidebarOpen(false); }} icon="📋" label="My Tasks" />
             <TabButton active={activeTab === "support"} onClick={() => { setActiveTab("support"); setSidebarOpen(false); }} icon="💬" label="Support" />
           </nav>
         </div>
@@ -328,6 +330,9 @@ function DashboardContent() {
             <div className="">
               <HistoryPanel isOpen={true} onClose={() => setActiveTab("overview")} />
             </div>
+          )}
+          {activeTab === "my-tasks" && user && (
+            <MyTasks userId={user._id} />
           )}
           {activeTab === "support" && (
             <div className="">
