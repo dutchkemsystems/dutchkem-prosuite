@@ -12,6 +12,7 @@ interface Message {
   routed?: boolean
   confidence?: string
   icon?: string
+  shouldPromptLogin?: boolean
 }
 
 interface CustomerSupportChatProps {
@@ -115,6 +116,7 @@ export default function CustomerSupportChat({ agentId, userId, onClose }: Custom
           icon: result.icon || AGENT_ICONS[routedAgent] || '💬',
           routed: result.routed,
           confidence: result.confidence,
+          shouldPromptLogin: result.shouldPromptLogin || false,
         }])
 
         // Log interaction for analytics
@@ -207,6 +209,23 @@ export default function CustomerSupportChat({ agentId, userId, onClose }: Custom
               </div>
             </div>
           ))}
+
+          {/* Login Prompt CTA */}
+          {messages.length > 0 && messages[messages.length - 1].shouldPromptLogin && !userId && (
+            <div className="flex justify-start">
+              <div className="px-4 py-3 bg-gradient-to-r from-orange-500/20 to-amber-500/20 border border-orange-500/30 rounded-2xl rounded-bl-md max-w-[85%]">
+                <p className="text-xs text-orange-200 mb-2">
+                  Login to get your deliverable and access your purchased tasks.
+                </p>
+                <a
+                  href={`/auth?redirect=${encodeURIComponent(`/dashboard?agent=${activeAgent}`)}`}
+                  className="inline-block px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-all"
+                >
+                  Login to Continue
+                </a>
+              </div>
+            </div>
+          )}
 
           {isLoading && (
             <div className="flex justify-start">
