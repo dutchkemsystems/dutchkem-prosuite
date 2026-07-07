@@ -24,9 +24,9 @@ describe("Support Orchestrator", () => {
     test("returns model configuration", async () => {
       const t = convexTest(schema, modules);
       const status: any = await t.query(api.support_orchestrator.getOrchestratorStatus, {});
-      expect(status.primaryModel).toBe("kr/claude-opus-4-6");
-      expect(status.fallbackModel).toBe("google/gemini-3-flash");
-      expect(status.emergencyModel).toBe("if/kimi-k2-thinking");
+      expect(status.primaryModel).toBe("meta/llama-3.1-8b-instruct");
+      expect(status.fallbackModel).toBe("meta/llama-3-8b-instruct");
+      expect(status.emergencyModel).toBe("general");
     });
 
     test("returns feature list", async () => {
