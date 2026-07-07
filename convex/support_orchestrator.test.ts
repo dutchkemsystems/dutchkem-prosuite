@@ -24,8 +24,8 @@ describe("Support Orchestrator", () => {
     test("returns model configuration", async () => {
       const t = convexTest(schema, modules);
       const status: any = await t.query(api.support_orchestrator.getOrchestratorStatus, {});
-      expect(status.primaryModel).toContain("llama-3.1-8b-instruct");
-      expect(status.fallbackModel).toContain("llama-3-8b-instruct");
+      expect(status.primaryModel).toBe("meta/llama-3.1-8b-instruct");
+      expect(status.fallbackModel).toBe("meta/llama-3-8b-instruct");
       expect(status.emergencyModel).toBe("general");
     });
 

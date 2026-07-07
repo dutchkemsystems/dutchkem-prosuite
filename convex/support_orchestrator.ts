@@ -75,7 +75,7 @@ ${contextSnippet ? `Previous context: ${contextSnippet}` : ""}
 
 Respond with ONLY the agent ID (e.g. A1, A7, GENERAL). Nothing else.`;
 
-  // Try primary model (fast 8B for classification — only needs to return agent ID)
+  // Try primary model (fast 8B)
   try {
     const response = await callNVIDIA("meta/llama-3.1-8b-instruct", classificationPrompt, message);
     const agentId = response.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -83,7 +83,7 @@ Respond with ONLY the agent ID (e.g. A1, A7, GENERAL). Nothing else.`;
     if (agentId === "GENERAL") return { agentId: "GENERAL", confidence: "medium" };
   } catch {}
 
-  // Try fallback model (also fast 8B)
+  // Try fallback model
   try {
     const response = await callNVIDIA("meta/llama-3-8b-instruct", classificationPrompt, message);
     const agentId = response.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -296,8 +296,8 @@ export const getOrchestratorStatus = query({
   returns: v.any(),
   handler: async (ctx) => {
     const defaultModels = {
-      primaryModel: "meta/llama-3.1-8b-instruct (classify) + meta/llama-3.3-70b-instruct (respond)",
-      fallbackModel: "meta/llama-3-8b-instruct (classify) + meta/llama-3.1-70b-instruct (respond)",
+      primaryModel: "meta/llama-3.1-8b-instruct",
+      fallbackModel: "meta/llama-3-8b-instruct",
       emergencyModel: "general",
     };
 
