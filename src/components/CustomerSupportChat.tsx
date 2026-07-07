@@ -1,7 +1,37 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useAction, useMutation, useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { PackageSelection } from './dashboard/PackageSelection'
+
+function formatMarkdown(text: string): string {
+  let html = text
+    // Escape HTML
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    // Bold: **text** or __text__
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    // Italic: *text* or _text_
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/_(.+?)_/g, '<em>$1</em>')
+    // Headers: ### text, ## text, # text
+    .replace(/^### (.+)$/gm, '<h4 class="font-bold text-white mt-2 mb-1">$1</h4>')
+    .replace(/^## (.+)$/gm, '<h3 class="font-bold text-white text-base mt-3 mb-1">$1</h3>')
+    .replace(/^# (.+)$/gm, '<h2 class="font-bold text-white text-lg mt-3 mb-1">$1</h2>')
+    // Unordered lists: - item or * item
+    .replace(/^[\-\*] (.+)$/gm, '<li class="ml-4">• $1</li>')
+    // Ordered lists: 1. item
+    .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal">$1</li>')
+    // Line breaks
+    .replace(/\n/g, '<br/>')
+    // Wrap consecutive li elements
+    .replace(/(<li[^>]*>.*?<\/li>(<br\/>)?)+/g, (match) => `<ul class="my-1 space-y-0.5">${match.replace(/<br\/>/g, '')}</ul>`)
+    // Inline code: `text`
+    .replace(/`(.+?)`/g, '<code class="bg-white/10 px-1.5 py-0.5 rounded text-xs">$1</code>')
+
+  return html
+}
 
 interface Message {
   role: 'user' | 'assistant'
@@ -202,7 +232,11 @@ export default function CustomerSupportChat({ agentId, userId, onClose }: Custom
                       ? 'bg-red-500/10 border border-red-500/20 text-red-400 rounded-bl-md'
                       : 'bg-white/5 border border-white/10 text-white rounded-bl-md'
                 }`}>
-                  {msg.content}
+                  {msg.role === 'assistant' && !msg.isError ? (
+                    <div dangerouslySetInnerHTML={{ __html: formatMarkdown(msg.content) }} />
+                  ) : (
+                    msg.content
+                  )}
                 </div>
                 <p className="text-[9px] text-slate-500 mt-1 px-2">
                   {new Date(msg.timestamp).toLocaleTimeString()}
