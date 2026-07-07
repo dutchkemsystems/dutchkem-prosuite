@@ -12,21 +12,21 @@ const AGENT_CONFIGS: Record<string, {
   primaryModel: string;
   fallbackModel: string;
 }> = {
-  A1: { name: "Academic Pro", icon: "🎓", field: "Academics", specialty: "academic writing, thesis, research, methodology, citations", primaryModel: "meta/llama-3.1-8b-instruct", fallbackModel: "meta/llama-3-8b-instruct" },
-  A2: { name: "Business Pro", icon: "💼", field: "Business", specialty: "business planning, strategy, finance, entrepreneurship", primaryModel: "meta/llama-3.1-8b-instruct", fallbackModel: "meta/llama-3-8b-instruct" },
-  A3: { name: "Content Pro", icon: "✍️", field: "Content", specialty: "content creation, social media, marketing, copywriting", primaryModel: "meta/llama-3.1-8b-instruct", fallbackModel: "meta/llama-3-8b-instruct" },
-  A4: { name: "Career Pro", icon: "📄", field: "Career", specialty: "CV writing, interview prep, job search, career advice", primaryModel: "meta/llama-3.1-8b-instruct", fallbackModel: "meta/llama-3-8b-instruct" },
-  A5: { name: "Personal Shopper", icon: "🛍️", field: "Shopping", specialty: "shopping advice, deals, product recommendations", primaryModel: "meta/llama-3.1-8b-instruct", fallbackModel: "meta/llama-3-8b-instruct" },
-  A6: { name: "Exam Pro", icon: "📝", field: "Education", specialty: "exam preparation, practice tests, study strategies", primaryModel: "meta/llama-3.1-8b-instruct", fallbackModel: "meta/llama-3-8b-instruct" },
-  A7: { name: "Finance Pro", icon: "💰", field: "Finance", specialty: "budgeting, investing, savings, financial planning", primaryModel: "meta/llama-3.1-8b-instruct", fallbackModel: "meta/llama-3-8b-instruct" },
-  A8: { name: "MediaStudio Pro", icon: "🎬", field: "Media", specialty: "video production, animation, editing, dubbing", primaryModel: "meta/llama-3.1-8b-instruct", fallbackModel: "meta/llama-3-8b-instruct" },
-  A9: { name: "Health Pro", icon: "🏥", field: "Health", specialty: "wellness, fitness, nutrition, mental health", primaryModel: "meta/llama-3.1-8b-instruct", fallbackModel: "meta/llama-3-8b-instruct" },
-  A10: { name: "Home Services Pro", icon: "🧹", field: "Home", specialty: "cleaning, organization, home maintenance", primaryModel: "meta/llama-3.1-8b-instruct", fallbackModel: "meta/llama-3-8b-instruct" },
-  A11: { name: "Language Tutor", icon: "🗣️", field: "Language", specialty: "language learning, translation, pronunciation", primaryModel: "meta/llama-3.1-8b-instruct", fallbackModel: "meta/llama-3-8b-instruct" },
-  A12: { name: "Travel Planner", icon: "✈️", field: "Travel", specialty: "travel planning, itineraries, destinations", primaryModel: "meta/llama-3.1-8b-instruct", fallbackModel: "meta/llama-3-8b-instruct" },
-  A13: { name: "ServiceMart NG", icon: "🚀", field: "Education/Career", specialty: "JAMB, WAEC, NECO, CV, interview, career guidance", primaryModel: "meta/llama-3.1-8b-instruct", fallbackModel: "meta/llama-3-8b-instruct" },
-  A14: { name: "Translation Hub", icon: "📝", field: "Translation", specialty: "translation, transcription, subtitling, localization", primaryModel: "meta/llama-3.1-8b-instruct", fallbackModel: "meta/llama-3-8b-instruct" },
-  A15: { name: "Event Planner", icon: "🎉", field: "Events", specialty: "event planning, weddings, birthdays, corporate events", primaryModel: "meta/llama-3.1-8b-instruct", fallbackModel: "meta/llama-3-8b-instruct" },
+  A1: { name: "Academic Pro", icon: "🎓", field: "Academics", specialty: "academic writing, thesis, research, methodology, citations", primaryModel: "meta/llama-3.3-70b-instruct", fallbackModel: "meta/llama-3.1-70b-instruct" },
+  A2: { name: "Business Pro", icon: "💼", field: "Business", specialty: "business planning, strategy, finance, entrepreneurship", primaryModel: "meta/llama-3.3-70b-instruct", fallbackModel: "meta/llama-3.1-70b-instruct" },
+  A3: { name: "Content Pro", icon: "✍️", field: "Content", specialty: "content creation, social media, marketing, copywriting", primaryModel: "meta/llama-3.3-70b-instruct", fallbackModel: "meta/llama-3.1-70b-instruct" },
+  A4: { name: "Career Pro", icon: "📄", field: "Career", specialty: "CV writing, interview prep, job search, career advice", primaryModel: "meta/llama-3.3-70b-instruct", fallbackModel: "meta/llama-3.1-70b-instruct" },
+  A5: { name: "Personal Shopper", icon: "🛍️", field: "Shopping", specialty: "shopping advice, deals, product recommendations", primaryModel: "meta/llama-3.3-70b-instruct", fallbackModel: "meta/llama-3.1-70b-instruct" },
+  A6: { name: "Exam Pro", icon: "📝", field: "Education", specialty: "exam preparation, practice tests, study strategies", primaryModel: "meta/llama-3.3-70b-instruct", fallbackModel: "meta/llama-3.1-70b-instruct" },
+  A7: { name: "Finance Pro", icon: "💰", field: "Finance", specialty: "budgeting, investing, savings, financial planning", primaryModel: "meta/llama-3.3-70b-instruct", fallbackModel: "meta/llama-3.1-70b-instruct" },
+  A8: { name: "MediaStudio Pro", icon: "🎬", field: "Media", specialty: "video production, animation, editing, dubbing", primaryModel: "meta/llama-3.3-70b-instruct", fallbackModel: "meta/llama-3.1-70b-instruct" },
+  A9: { name: "Health Pro", icon: "🏥", field: "Health", specialty: "wellness, fitness, nutrition, mental health", primaryModel: "meta/llama-3.3-70b-instruct", fallbackModel: "meta/llama-3.1-70b-instruct" },
+  A10: { name: "Home Services Pro", icon: "🧹", field: "Home", specialty: "cleaning, organization, home maintenance", primaryModel: "meta/llama-3.3-70b-instruct", fallbackModel: "meta/llama-3.1-70b-instruct" },
+  A11: { name: "Language Tutor", icon: "🗣️", field: "Language", specialty: "language learning, translation, pronunciation", primaryModel: "meta/llama-3.3-70b-instruct", fallbackModel: "meta/llama-3.1-70b-instruct" },
+  A12: { name: "Travel Planner", icon: "✈️", field: "Travel", specialty: "travel planning, itineraries, destinations", primaryModel: "meta/llama-3.3-70b-instruct", fallbackModel: "meta/llama-3.1-70b-instruct" },
+  A13: { name: "ServiceMart NG", icon: "🚀", field: "Education/Career", specialty: "JAMB, WAEC, NECO, CV, interview, career guidance", primaryModel: "meta/llama-3.3-70b-instruct", fallbackModel: "meta/llama-3.1-70b-instruct" },
+  A14: { name: "Translation Hub", icon: "📝", field: "Translation", specialty: "translation, transcription, subtitling, localization", primaryModel: "meta/llama-3.3-70b-instruct", fallbackModel: "meta/llama-3.1-70b-instruct" },
+  A15: { name: "Event Planner", icon: "🎉", field: "Events", specialty: "event planning, weddings, birthdays, corporate events", primaryModel: "meta/llama-3.3-70b-instruct", fallbackModel: "meta/llama-3.1-70b-instruct" },
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -184,10 +184,10 @@ async function callNVIDIA(
       model,
       messages,
       temperature: 0.7,
-      max_tokens: 512,
-      top_p: 0.9,
-      frequency_penalty: 0.2,
-      presence_penalty: 0.2,
+      max_tokens: 1024,
+      top_p: 0.95,
+      frequency_penalty: 0.3,
+      presence_penalty: 0.3,
     }),
   });
 
