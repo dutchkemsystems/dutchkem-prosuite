@@ -30,6 +30,7 @@ import { SubscriptionManager } from '~/components/dashboard/SubscriptionManager'
 import { CreditBalance } from '~/components/dashboard/CreditBalance';
 import { UsageTracker } from '~/components/dashboard/UsageTracker';
 import { ClientWhatsApp } from '~/components/dashboard/ClientWhatsApp';
+import CustomerSupportChat from '~/components/CustomerSupportChat';
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
@@ -118,6 +119,8 @@ function DashboardContent() {
   const [showCredits, setShowCredits] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
+  const [showOrchestrator, setShowOrchestrator] = useState(false);
+  const [autoAgent, setAutoAgent] = useState<string | null>(null);
   const fetchedRef = useRef(false);
 
   const fetchDashboard = useCallback(async () => {
@@ -151,6 +154,16 @@ function DashboardContent() {
       setShowAccessGranted(true);
       window.history.replaceState({}, "", window.location.pathname);
       setTimeout(() => setShowAccessGranted(false), 5000);
+    }
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const agentParam = params.get("agent");
+    if (agentParam && /^(A\d{1,2}|GENERAL)$/.test(agentParam)) {
+      setAutoAgent(agentParam);
+      setShowOrchestrator(true);
+      window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
 
@@ -418,6 +431,13 @@ function DashboardContent() {
         <CreditPackages isOpen={showCredits} onClose={() => setShowCredits(false)} />
         <HistoryPanel isOpen={showHistory} onClose={() => setShowHistory(false)} />
         <SupportChat isOpen={showSupport} onClose={() => setShowSupport(false)} />
+        {showOrchestrator && (
+          <CustomerSupportChat
+            agentId={autoAgent || undefined}
+            userId={data?.user?._id}
+            onClose={() => { setShowOrchestrator(false); setAutoAgent(null); }}
+          />
+        )}
       </main>
     </div>
     </ThemeBackground>
