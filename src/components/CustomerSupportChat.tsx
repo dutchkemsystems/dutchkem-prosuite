@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAction, useMutation, useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
+import { PackageSelection } from './dashboard/PackageSelection'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -224,6 +225,15 @@ export default function CustomerSupportChat({ agentId, userId, onClose }: Custom
                   Login to Continue
                 </a>
               </div>
+            </div>
+          )}
+
+          {userId && activeAgent && activeAgent !== 'GENERAL' && messages.length > 0 && (
+            <div className="px-4 py-2">
+              <PackageSelection
+                agentId={activeAgent}
+                userId={userId}
+              />
             </div>
           )}
 
