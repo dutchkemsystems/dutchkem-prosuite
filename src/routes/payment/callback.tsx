@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { useAction } from 'convex/react'
+import { useAction, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 
 export const Route = createFileRoute('/payment/callback')({
@@ -12,6 +12,8 @@ function PaymentCallback() {
   const [status, setStatus] = useState<'loading' | 'success' | 'failed'>('loading')
   const [message, setMessage] = useState('')
   const verifyPayment = useAction(api.kora_checkout.verifyPayment)
+  const completePackagePayment = useMutation(api.agent_packages.completePackagePayment)
+  const generateDeliverable = useAction(api.agent_packages.generateDeliverable)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -22,6 +24,17 @@ function PaymentCallback() {
       if (txRef) {
         verifyPayment({ reference: txRef }).catch(() => {})
       }
+
+      if (txRef?.startsWith('PKG-')) {
+        completePackagePayment({ reference: txRef, status: 'success' })
+          .then((result) => {
+            if (result?.success && result?.taskId) {
+              generateDeliverable({ taskId: result.taskId })
+            }
+          })
+          .catch((e) => console.error('Package payment completion error:', e))
+      }
+
       setStatus('success')
       setMessage('Payment successful! Your subscription is now active.')
     } else if (statusParam === 'failed' || statusParam === 'cancelled') {
