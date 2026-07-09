@@ -296,8 +296,8 @@ export const getOrchestratorStatus = query({
   returns: v.any(),
   handler: async (ctx) => {
     const defaultModels = {
-      primaryModel: "meta/llama-3.1-8b-instruct",
-      fallbackModel: "meta/llama-3-8b-instruct",
+      primaryModel: "meta/llama-3.3-70b-instruct",
+      fallbackModel: "meta/llama-3.1-70b-instruct",
       emergencyModel: "general",
     };
 
