@@ -1835,4 +1835,19 @@ export const miscTables = {
     .index("by_user", ["userId"])
     .index("by_user_status", ["userId", "status"])
     .index("by_payment_ref", ["paymentReference"]),
+
+  // ═══════════════════════════════════════════════════════════════════
+  // FREELLMAPI USAGE TRACKING
+  // ═══════════════════════════════════════════════════════════════════
+  freellmapi_usage: defineTable({
+    model: v.string(),
+    routedVia: v.string(),
+    latencyMs: v.number(),
+    tokensUsed: v.number(),
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_model", ["model"])
+    .index("by_created", ["createdAt"]),
 };

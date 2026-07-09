@@ -42,6 +42,13 @@ const MODEL_CONFIGS = [
     providerType: "chat",
     description: "Premium quality for complex reasoning",
   },
+  {
+    modelName: "freellmapi",
+    displayName: "FreeLLMAPI",
+    icon: "🆓",
+    providerType: "free",
+    description: "161+ free AI models from 18 providers with auto-failover",
+  },
 ];
 
 // ═══════════════════════════════════════════════════════════════════

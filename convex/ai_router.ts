@@ -165,10 +165,37 @@ export const routeRequest = action({
     }
 
     // Fallback sequence — only try enabled models
+    // FreeLLMAPI is last in fallback (free tier, 161+ models from 18 providers)
     if (!result) {
-      const fallbackOrder = ['groq', 'openrouter', 'mimo', 'nvidia', 'aiml'];
+      const fallbackOrder = ['groq', 'openrouter', 'mimo', 'nvidia', 'aiml', 'freellmapi'];
       for (const provider of fallbackOrder) {
         if (provider === task.provider) continue;
+        
+        // Skip freellmapi if not configured
+        if (provider === 'freellmapi') {
+          const freellmapiConfigured = await ctx.runQuery(internal.freellmapi.getStatus, {});
+          if (!freellmapiConfigured.configured) continue;
+          
+          try {
+            const messages = [
+              ...(args.systemPrompt ? [{ role: 'system', content: args.systemPrompt }] : []),
+              { role: 'user', content: args.input },
+            ];
+            const freellmResult = await ctx.runAction(internal.freellmapi.chatCompletion, {
+              messages,
+              useCase: task.type,
+            });
+            if (freellmResult.success && freellmResult.content) {
+              result = { content: freellmResult.content, model: freellmResult.model };
+              usedProvider = 'freellmapi';
+              break;
+            }
+          } catch (e) {
+            continue;
+          }
+          continue;
+        }
+        
         const isEnabled = await ctx.runQuery(internal.model_toggle.checkModel, { modelName: provider });
         if (!isEnabled) continue;
         try {
