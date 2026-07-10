@@ -205,6 +205,8 @@ export function SecMonitorTab({ adminToken, securityDashboard, isDark, setComman
               </div>
             </div>
           </div>
-        )
+        </div>
+      </div>
+    </div>
   )
 }
