@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useAction } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
+import DOMPurify from 'dompurify'
 
 // ═══════════════════════════════════════════════════════════════════
 // ENTERPRISE BUILT-IN FEATURES — Orders, CRM, Reports, QR, etc.
@@ -262,7 +263,7 @@ export function QRCodesTab({ token }: { token: string }) {
       </div>
       {result?.svg && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center">
-          <div dangerouslySetInnerHTML={{ __html: result.svg }} className="inline-block" />
+          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(result.svg, { USE_PROFILES: { svg: true } }) }} className="inline-block" />
           <p className="text-xs text-slate-400 mt-3">Type: {result.type} · Size: {result.size}px</p>
         </div>
       )}

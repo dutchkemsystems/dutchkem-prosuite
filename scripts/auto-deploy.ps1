@@ -12,13 +12,18 @@ Write-Host @"
 "@ -ForegroundColor Cyan
 
 # ============================================================================
-# CONFIGURATION - YOUR AWS CREDENTIALS
+# CONFIGURATION - AWS CREDENTIALS FROM ENVIRONMENT VARIABLES
 # ============================================================================
-$AWS_ACCOUNT_ID = "959689755771"
-$AWS_USERNAME = "prosuite-opencode"
-$AWS_PASSWORD = "OctoPUS@#$19481981"
-$AWS_REGION = "us-east-1"
+$AWS_ACCOUNT_ID = $env:AWS_ACCOUNT_ID
+$AWS_USERNAME = $env:AWS_USERNAME
+$AWS_PASSWORD = $env:AWS_PASSWORD
+$AWS_REGION = $env:AWS_REGION ?? "us-east-1"
 $CONVEX_PROJECT = "dutchkem-prosuite"
+
+if (-not $AWS_ACCOUNT_ID -or -not $AWS_USERNAME -or -not $AWS_PASSWORD) {
+    Write-Host "ERROR: AWS credentials not set. Export AWS_ACCOUNT_ID, AWS_USERNAME, AWS_PASSWORD as environment variables." -ForegroundColor Red
+    exit 1
+}
 
 Write-Host "`n🔐 CONFIGURATION LOADED:" -ForegroundColor Yellow
 Write-Host "   Account ID: $AWS_ACCOUNT_ID" -ForegroundColor Cyan

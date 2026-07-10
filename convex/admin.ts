@@ -250,9 +250,11 @@ export const updateSweepSettings = mutation({
  * ADMIN SECTION: SYSTEM CONFIG
  */
 export const getSystemConfig = query({
-    args: {},
+    args: { adminToken: v.string() },
     returns: v.any(),
-    handler: async (ctx) => {
+    handler: async (ctx, args) => {
+        const isValid = await ctx.runQuery(internal.admin_helpers.validateAdminToken, { adminToken: args.adminToken });
+        if (!isValid) throw new Error("Unauthorized");
         return await ctx.db.query("system_config").collect();
     }
 });
@@ -399,9 +401,11 @@ export const getDailySweeps = query({
  * ADMIN SECTION: RECENT TRANSACTIONS (Last 24 Hours)
  */
 export const getRecentTransactions = query({
-  args: {},
+  args: { adminToken: v.string() },
   returns: v.any(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    const isValid = await ctx.runQuery(internal.admin_helpers.validateAdminToken, { adminToken: args.adminToken });
+    if (!isValid) throw new Error("Unauthorized");
       return await ctx.db
         .query("payment_verifications")
         .order("desc")
@@ -413,9 +417,11 @@ export const getRecentTransactions = query({
  * ADMIN SECTION: AUDIT LOGS
  */
 export const getAuditLogs = query({
-  args: {},
+  args: { adminToken: v.string() },
   returns: v.any(),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
+    const isValid = await ctx.runQuery(internal.admin_helpers.validateAdminToken, { adminToken: args.adminToken });
+    if (!isValid) throw new Error("Unauthorized");
     return await ctx.db
       .query("audit_logs")
       .order("desc")

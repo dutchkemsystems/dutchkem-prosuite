@@ -94,7 +94,7 @@ export function LiveCharts() {
   const chartRef = useRef<HTMLDivElement>(null)
   const { data: stats } = useSuspenseQuery(convexQuery(api.admin.getAdminStats, {})) as { data: any };
   const { data: earnings } = useSuspenseQuery(convexQuery(api.admin.getEarningsSummary, {})) as { data: any };
-  const { data: transactions } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, {})) as { data: any };
+  const { data: transactions } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, { adminToken: localStorage.getItem("admin_session_token") || "" })) as { data: any };
   const { data: socialStats } = useSuspenseQuery(convexQuery(api.social.getSocialStats, {})) as { data: any };
   const { data: platformAnalytics } = useSuspenseQuery(convexQuery(api.social.getPlatformAnalytics, {})) as { data: any };
   const { data: agentPerformance } = useSuspenseQuery(convexQuery(api.live_feed.getAgentPerformance, {})) as { data: any };

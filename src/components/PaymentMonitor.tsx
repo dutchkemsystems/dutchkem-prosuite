@@ -10,7 +10,7 @@ import { api } from "../../convex/_generated/api"
 export function PaymentMonitor() {
   const [timeframe, setTimeframe] = useState<'today' | 'week' | 'month'>('month')
   const { data: earnings } = useSuspenseQuery(convexQuery(api.admin.getEarningsSummary, {})) as { data: any }
-  const { data: transactions } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, {})) as { data: any }
+  const { data: transactions } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, { adminToken: localStorage.getItem("admin_session_token") || "" })) as { data: any }
   const { data: stats } = useSuspenseQuery(convexQuery(api.admin.getAdminStats, {})) as { data: any }
 
   const revenueToday = earnings?.today?.revenue || 0

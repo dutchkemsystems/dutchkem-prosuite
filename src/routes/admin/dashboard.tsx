@@ -38,6 +38,10 @@ import { WhatsAppDualPanel } from "~/components/admin/WhatsAppDualPanel";
 import { HermesDashboard } from "~/components/admin/HermesDashboard";
 import { SupportDashboard } from "~/components/admin/SupportDashboard";
 import { FreeLLMAPIPanel } from "~/components/admin/FreeLLMAPIPanel";
+import { PaymentAnalyticsPanel } from "~/components/admin/PaymentAnalyticsPanel";
+import { RefundsPanel } from "~/components/admin/RefundsPanel";
+import { InvoicesPanel } from "~/components/admin/InvoicesPanel";
+import { RecurringBillingPanel } from "~/components/admin/RecurringBillingPanel";
 import { ClientAnalyticsDashboard } from "~/components/ClientAnalyticsWidgets";
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
@@ -235,6 +239,10 @@ function AdminDashboardPage() {
                      <AdminTab active={activeTab === "ad-designer"} onClick={() => setActiveTab("ad-designer")} icon="🖼️" label="Ad Designer" onClose={() => setSidebarOpen(false)} />
                   <AdminTab active={activeTab === "whatsapp"} onClick={() => setActiveTab("whatsapp")} icon="📱" label="WhatsApp" onClose={() => setSidebarOpen(false)} />
                   <AdminTab active={activeTab === "enterprise-payments"} onClick={() => setActiveTab("enterprise-payments")} icon="💳" label="Enterprise Payments" onClose={() => setSidebarOpen(false)} />
+                  <AdminTab active={activeTab === "payment-analytics"} onClick={() => setActiveTab("payment-analytics")} icon="📊" label="Payment Analytics" onClose={() => setSidebarOpen(false)} />
+                  <AdminTab active={activeTab === "refunds"} onClick={() => setActiveTab("refunds")} icon="💸" label="Refunds" onClose={() => setSidebarOpen(false)} />
+                  <AdminTab active={activeTab === "invoices"} onClick={() => setActiveTab("invoices")} icon="🧾" label="Invoices" onClose={() => setSidebarOpen(false)} />
+                  <AdminTab active={activeTab === "recurring"} onClick={() => setActiveTab("recurring")} icon="🔁" label="Recurring Billing" onClose={() => setSidebarOpen(false)} />
                    <AdminTab active={activeTab === "ai-models"} onClick={() => setActiveTab("ai-models")} icon="🤖" label="AI Model Toggle" onClose={() => setSidebarOpen(false)} />
                     <AdminTab active={activeTab === "ai-analytics"} onClick={() => setActiveTab("ai-analytics")} icon="📊" label="AI Analytics" onClose={() => setSidebarOpen(false)} />
                     <AdminTab active={activeTab === "freellmapi"} onClick={() => setActiveTab("freellmapi")} icon="🆓" label="FreeLLMAPI" onClose={() => setSidebarOpen(false)} />
@@ -302,6 +310,10 @@ function AdminDashboardPage() {
                      {activeTab === "ad-designer" && <AdDesignerPanel adminToken={adminToken} />}
                      {activeTab === "whatsapp" && <WhatsAppHub adminToken={adminToken} />}
                       {activeTab === "enterprise-payments" && <EnterprisePaymentsReadOnly adminToken={adminToken} />}
+                      {activeTab === "payment-analytics" && <PaymentAnalyticsPanel adminToken={adminToken} />}
+                      {activeTab === "refunds" && <RefundsPanel adminToken={adminToken} />}
+                      {activeTab === "invoices" && <InvoicesPanel adminToken={adminToken} />}
+                      {activeTab === "recurring" && <RecurringBillingPanel adminToken={adminToken} />}
                         {activeTab === "ai-models" && <ModelTogglePanel adminToken={adminToken} />}
                         {activeTab === "ai-analytics" && <ModelAnalyticsPanel adminToken={adminToken} />}
                         {activeTab === "freellmapi" && <FreeLLMAPIPanel adminToken={adminToken} />}
@@ -1969,7 +1981,7 @@ function StatsOverview({ data, earnings, uaeStatus }: any) {
 }
 
 function RecentTransactions() {
-   const { data: txs } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, {})) as { data: any[] };
+   const { data: txs } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, { adminToken: localStorage.getItem("admin_session_token") || "" })) as { data: any[] };
    return (
       <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl ">
          <div className="p-10 border-b border-slate-800 flex justify-between items-center">
@@ -2763,7 +2775,7 @@ function AgentHealthMatrix({ data }: any) {
 }
 
 function AuditTrailPanel() {
-  const { data: logs } = useSuspenseQuery(convexQuery(api.admin.getAuditLogs, {})) as { data: any[] };
+  const { data: logs } = useSuspenseQuery(convexQuery(api.admin.getAuditLogs, { adminToken: localStorage.getItem("admin_session_token") || "" })) as { data: any[] };
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl ">
       <div className="p-10 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">

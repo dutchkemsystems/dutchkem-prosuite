@@ -11,6 +11,8 @@ server/
 .env.test.local
 server/.env
 server/.env.*
+backend/.env
+backend/.env.*
 
 # Key files
 *.key
@@ -63,9 +65,3 @@ coverage/
 .vscode/
 *.swp
 *.swo
-.env
-.env
-.env
-.env
-.env
-.env

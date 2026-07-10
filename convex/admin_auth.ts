@@ -176,19 +176,21 @@ export const verifyAdmin2FA = mutation({
 });
 
 export const getAdminSessions = query({
-  args: { sessionId: v.id("user_sessions") },
+  args: { adminToken: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const session = await ctx.db.get("user_sessions", args.sessionId);
-    if (!session) throw new Error("Unauthorized");
+    const isValid = await ctx.runQuery(internal.admin_helpers.validateAdminToken, { adminToken: args.adminToken });
+    if (!isValid) throw new Error("Unauthorized");
     return await ctx.db.query("user_sessions").collect();
   },
 });
 
 export const terminateAllSessions = mutation({
-  args: { adminEmail: v.string() },
+  args: { adminToken: v.string(), adminEmail: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const isValid = await ctx.runQuery(internal.admin_helpers.validateAdminToken, { adminToken: args.adminToken });
+    if (!isValid) throw new Error("Unauthorized");
     const sessions = await ctx.db.query("user_sessions").collect();
     for (const s of sessions) await ctx.db.delete("user_sessions", s._id);
     

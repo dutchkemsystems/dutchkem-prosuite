@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useAction, useMutation, useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { PackageSelection } from './dashboard/PackageSelection'
+import DOMPurify from 'dompurify'
 
 function formatMarkdown(text: string): string {
   let html = text
@@ -233,7 +234,7 @@ export default function CustomerSupportChat({ agentId, userId, onClose }: Custom
                       : 'bg-white/5 border border-white/10 text-white rounded-bl-md'
                 }`}>
                   {msg.role === 'assistant' && !msg.isError ? (
-                    <div dangerouslySetInnerHTML={{ __html: formatMarkdown(msg.content) }} />
+                    <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(formatMarkdown(msg.content)) }} />
                   ) : (
                     msg.content
                   )}

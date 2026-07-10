@@ -285,7 +285,10 @@ export const findUserByEmail = query({
   args: { email: v.string() },
   returns: v.any(),
   handler: async (ctx, { email }) => {
-    return await ctx.db.query("users").withIndex("email", q => q.eq("email", email)).first();
+    const user = await ctx.db.query("users").withIndex("email", q => q.eq("email", email)).first();
+    if (!user) return null;
+    const { adminPasswordHash, adminTwoFactorSecret, adminBackupCodes, ...safe } = user;
+    return safe;
   },
 });
 
@@ -293,7 +296,10 @@ export const findAdminByEmail = query({
   args: { email: v.string() },
   returns: v.any(),
   handler: async (ctx, { email }) => {
-    return await ctx.db.query("users").withIndex("by_role", q => q.eq("role", "admin")).filter(q => q.eq(q.field("email"), email)).first();
+    const user = await ctx.db.query("users").withIndex("by_role", q => q.eq("role", "admin")).filter(q => q.eq(q.field("email"), email)).first();
+    if (!user) return null;
+    const { adminPasswordHash, adminTwoFactorSecret, adminBackupCodes, ...safe } = user;
+    return safe;
   },
 });
 
@@ -301,7 +307,10 @@ export const getAdminById = query({
   args: { adminId: v.id("users") },
   returns: v.any(),
   handler: async (ctx, { adminId }) => {
-    return await ctx.db.get("users", adminId);
+    const user = await ctx.db.get("users", adminId);
+    if (!user) return null;
+    const { adminPasswordHash, adminTwoFactorSecret, adminBackupCodes, ...safe } = user;
+    return safe;
   },
 });
 

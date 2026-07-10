@@ -169,6 +169,20 @@ http.route({
 });
 
 const agentHandler = (actionFn: any) => httpAction(async (ctx, req) => {
+  const apiKey = req.headers.get("x-api-key");
+  if (!apiKey) {
+    return new Response(JSON.stringify({ error: "Missing x-api-key header" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  const verification = await ctx.runQuery(internal.api_key_helpers.verifyApiKey, { apiKey });
+  if (!verification.valid) {
+    return new Response(JSON.stringify({ error: "Invalid or inactive API key" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
   const { prompt } = await req.json();
   if (!prompt) return new Response("Missing prompt", { status: 400 });
   const result = await ctx.runAction(actionFn, { prompt });
@@ -823,6 +837,75 @@ http.route({
       return new Response(JSON.stringify(result), { status: 200, headers: { "Content-Type": "application/json" } });
     } catch (e: any) {
       return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+    }
+  }),
+});
+
+// ========== FREELLMAPI PROXY ENDPOINTS ==========
+http.route({
+  path: "/freellmapi/health",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const FREELLMAPI_URL = process.env.FREELLMAPI_URL || "http://localhost:3001";
+    const healthUrl = FREELLMAPI_URL.replace("/v1", "") + "/health";
+    try {
+      const response = await fetch(healthUrl, {
+        headers: { Authorization: req.headers.get("Authorization") || "" },
+      });
+      if (!response.ok) {
+        return new Response(JSON.stringify({ error: `HTTP ${response.status}` }), { status: response.status, headers: { "Content-Type": "application/json" } });
+      }
+      const data = await response.json();
+      return new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json" } });
+    } catch (error: any) {
+      return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+    }
+  }),
+});
+
+http.route({
+  path: "/freellmapi/models",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const FREELLMAPI_URL = process.env.FREELLMAPI_URL || "http://localhost:3001/v1";
+    try {
+      const response = await fetch(`${FREELLMAPI_URL}/models`, {
+        headers: { Authorization: req.headers.get("Authorization") || "" },
+      });
+      if (!response.ok) {
+        return new Response(JSON.stringify({ error: `HTTP ${response.status}` }), { status: response.status, headers: { "Content-Type": "application/json" } });
+      }
+      const data = await response.json();
+      return new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json" } });
+    } catch (error: any) {
+      return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json" } });
+    }
+  }),
+});
+
+http.route({
+  path: "/freellmapi/chat/completions",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const FREELLMAPI_URL = process.env.FREELLMAPI_URL || "http://localhost:3001/v1";
+    try {
+      const body = await req.text();
+      const response = await fetch(`${FREELLMAPI_URL}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: req.headers.get("Authorization") || "",
+        },
+        body,
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        return new Response(JSON.stringify({ error: `HTTP ${response.status}: ${errorText}` }), { status: response.status, headers: { "Content-Type": "application/json" } });
+      }
+      const data = await response.json();
+      return new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json" } });
+    } catch (error: any) {
+      return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json" } });
     }
   }),
 });
