@@ -430,7 +430,7 @@ async function postViaRapidAPIFallback(
   const apiKey = process.env.RAPIDAPI_KEY;
   if (!apiKey) return { success: false, error: "RAPIDAPI_KEY not configured" };
 
-  const { RAPIDAPI_PLATFORMS } = await import("./rapidapi");
+  const { RAPIDAPI_PLATFORMS } = await import("../rapidapi");
   const cfg = RAPIDAPI_PLATFORMS[platformId];
   if (!cfg) return { success: false, error: `No RapidAPI config for ${platformId}` };
 

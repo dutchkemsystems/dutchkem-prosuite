@@ -229,7 +229,7 @@ export async function postToPlatformHandler(ctx: any, args: any): Promise<any> {
 
   // ═══ RAPIDAPI FALLBACK ═══ If primary posting fails, try RapidAPI
   if (!result.success && process.env.RAPIDAPI_KEY) {
-    const { RAPIDAPI_PLATFORMS } = await import("./rapidapi");
+    const { RAPIDAPI_PLATFORMS } = await import("../rapidapi");
     const rapidCfg = RAPIDAPI_PLATFORMS[args.platform];
     if (rapidCfg) {
       try {
