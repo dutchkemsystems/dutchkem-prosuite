@@ -44,6 +44,8 @@ export function HistoryTab({ commands, auditLogs, isDark }: HistoryTabProps) {
               </div>
             </div>
           </div>
-        )
+        </div>
+      </div>
+    </div>
   )
 }

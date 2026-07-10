@@ -433,6 +433,8 @@ export function CronJobsTab({ adminToken, cronJobs, cronStats, cronExecutions, c
               </div>
             )}
           </div>
-        )
+        </div>
+      </div>
+    </div>
   )
 }
