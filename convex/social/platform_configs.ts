@@ -1,10 +1,5 @@
-// convex/social.ts
+// Platform configurations extracted from social.ts
 // Direct OAuth + API integration for 12 social media platforms
-
-import { v } from "convex/values";
-import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
-import { internal } from "./_generated/api";
-import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 
 // ═══════════════════════════════════════════════════════════════════
 // PLATFORM CONFIGURATIONS
