@@ -1,7 +1,7 @@
 import { action, internalAction, internalMutation, internalQuery, mutation, query } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { tryGetAdminSessionInAction } from "../auth_helpers";
-import { PLATFORM_CONFIGS, COMPOSIO_APP_MAP, TRYPOST_PLATFORMS } from "./platform-configs";
+import { PLATFORM_CONFIGS, COMPOSIO_APP_MAP, TRYPOST_PLATFORMS } from "./platform_configs";
 
 export const startComposioOAuth = action({
   args: {

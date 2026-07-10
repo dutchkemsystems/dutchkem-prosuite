@@ -1,6 +1,6 @@
 import { action } from "../_generated/server";
 import { tryGetAdminSessionInAction } from "../auth_helpers";
-import { PLATFORM_CONFIGS } from "./platform-configs";
+import { PLATFORM_CONFIGS } from "./platform_configs";
 
 export const connectTelegramBot = action({
   args: {

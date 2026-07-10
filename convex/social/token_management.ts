@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internalAction, internalMutation, mutation, query } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { PLATFORM_CONFIGS } from "./platform-configs";
+import { PLATFORM_CONFIGS } from "./platform_configs";
 
 export const refreshExpiredTokens = internalAction({
   args: {},
