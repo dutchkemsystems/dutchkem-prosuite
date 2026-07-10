@@ -3,10 +3,6 @@ import { useMutation } from 'convex/react'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
 import { api } from '../../../convex/_generated/api'
-import { CronJobsTab } from './mimo-tabs/cronjobs-tab'
-import { SecMonitorTab } from './mimo-tabs/secmonitor-tab'
-import { DeploymentTab } from './mimo-tabs/deployment-tab'
-import { HistoryTab } from './mimo-tabs/history-tab'
 
 const MIMO_TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊', category: 'core' },
@@ -325,7 +321,422 @@ export function MimoControlPanel({ adminToken }: { adminToken: string }) {
         )
 
       case 'cronjobs':
-        return <CronJobsTab adminToken={adminToken} cronJobs={cronJobs} cronStats={cronStats} cronExecutions={cronExecutions} cronCategories={cronCategories} isDark={isDark} setCommandOutput={setCommandOutput} />
+        return (
+          <div className="space-y-6">
+            {/* Cron Sub-Tabs */}
+            <div className="flex gap-2 bg-white/5 border border-white/10 rounded-xl p-1">
+              {[
+                { id: 'overview' as const, label: 'Overview', icon: '📊' },
+                { id: 'jobs' as const, label: 'All Jobs', icon: '⏰' },
+                { id: 'history' as const, label: 'Execution History', icon: '📜' },
+                { id: 'categories' as const, label: 'By Category', icon: '📁' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setCronSubTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    cronSubTab === tab.id
+                      ? 'bg-orange-500 text-white'
+                      : 'text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <span>{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Overview Sub-Tab */}
+            {cronSubTab === 'overview' && (
+              <div className="space-y-6">
+                {/* Stats Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Total Jobs', value: cronStats?.totalJobs ?? 0, icon: '⏰', color: 'from-blue-500/20 to-blue-600/10' },
+                    { label: 'Enabled', value: cronStats?.enabledJobs ?? 0, icon: '✅', color: 'from-emerald-500/20 to-emerald-600/10' },
+                    { label: 'Executions (24h)', value: cronStats?.executions24h ?? 0, icon: '🔄', color: 'from-purple-500/20 to-purple-600/10' },
+                    { label: 'Failed (24h)', value: cronStats?.failed24h ?? 0, icon: '❌', color: 'from-red-500/20 to-red-600/10' },
+                  ].map((card) => (
+                    <div key={card.label} className={`bg-gradient-to-br ${card.color} border border-white/10 rounded-2xl p-5`}>
+                      <div className="text-2xl mb-2">{card.icon}</div>
+                      <div className="text-2xl font-black text-white">{card.value}</div>
+                      <div className="text-xs text-slate-400 mt-1">{card.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Success Rate & Avg Duration */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+                    <div className="text-sm text-slate-400 mb-2">Success Rate (24h)</div>
+                    <div className="flex items-end gap-2">
+                      <span className="text-3xl font-black text-emerald-400">
+                        {cronStats?.executions24h ? Math.round((cronStats.success24h / cronStats.executions24h) * 100) : 100}%
+                      </span>
+                      <span className="text-xs text-slate-500 mb-1">({cronStats?.success24h ?? 0}/{cronStats?.executions24h ?? 0})</span>
+                    </div>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+                    <div className="text-sm text-slate-400 mb-2">Avg Duration (24h)</div>
+                    <span className="text-3xl font-black text-blue-400">{cronStats?.avgDurationMs ?? 0}ms</span>
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                  <h3 className="text-lg font-black text-white mb-4">Quick Actions</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <button
+                      onClick={async () => {
+                        try {
+                          const result = await seedCronJobsMutation({ adminToken })
+                          setCommandOutput(JSON.stringify(result, null, 2))
+                        } catch (err) {
+                          setCommandOutput(`Error: ${err instanceof Error ? err.message : String(err)}`)
+                        }
+                      }}
+                      className="px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-sm transition-all"
+                    >
+                      🔄 Sync Cron Definitions
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          // Trigger all enabled jobs
+                          if (cronJobs) {
+                            let triggered = 0
+                            for (const job of cronJobs.filter((j: any) => j.isEnabled)) {
+                              await triggerCronJob({ adminToken, cronJobId: job._id })
+                              triggered++
+                            }
+                            setCommandOutput(`Triggered ${triggered} jobs`)
+                          }
+                        } catch (err) {
+                          setCommandOutput(`Error: ${err instanceof Error ? err.message : String(err)}`)
+                        }
+                      }}
+                      className="px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-sm transition-all"
+                    >
+                      ⚡ Trigger All Enabled
+                    </button>
+                    <button
+                      onClick={() => setCronSubTab('jobs')}
+                      className="px-4 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold text-sm transition-all"
+                    >
+                      📋 View All Jobs
+                    </button>
+                  </div>
+                </div>
+
+                {/* Category Breakdown */}
+                {cronCategories && Object.keys(cronCategories).length > 0 && (
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                    <h3 className="text-lg font-black text-white mb-4">Jobs by Category</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {Object.entries(cronCategories).map(([category, stats]: [string, any]) => (
+                        <div
+                          key={category}
+                          className="bg-white/5 border border-white/10 rounded-xl p-4 cursor-pointer hover:bg-white/10 transition-colors"
+                          onClick={() => {
+                            setCronCategoryFilter(category)
+                            setCronSubTab('jobs')
+                          }}
+                        >
+                          <div className="text-sm font-bold text-white capitalize mb-2">{category}</div>
+                          <div className="flex items-center gap-4 text-xs text-slate-400">
+                            <span>{stats.total} total</span>
+                            <span className="text-emerald-400">{stats.enabled} active</span>
+                          </div>
+                          {stats.failed > 0 && (
+                            <div className="text-xs text-red-400 mt-1">{stats.failed} with failures</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Executions */}
+                {cronExecutions && cronExecutions.length > 0 && (
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-black text-white">Recent Executions</h3>
+                      <button
+                        onClick={() => setCronSubTab('history')}
+                        className="text-xs text-orange-400 hover:text-orange-300"
+                      >
+                        View All →
+                      </button>
+                    </div>
+                    <div className="space-y-2 max-h-[30vh] overflow-y-auto">
+                      {cronExecutions.slice(0, 10).map((exec: any) => (
+                        <div key={exec._id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                          <div className="flex items-center gap-3">
+                            <span className={`w-2 h-2 rounded-full ${exec.status === 'success' ? 'bg-emerald-400' : exec.status === 'failed' ? 'bg-red-400' : 'bg-blue-400'}`} />
+                            <div>
+                              <span className="text-sm text-white font-medium">{exec.cronJobName}</span>
+                              <div className="text-xs text-slate-400">
+                                {exec.triggeredBy === 'manual' ? '👤 Manual' : '⏰ Scheduled'}
+                                {exec.durationMs && ` • ${exec.durationMs}ms`}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className={`text-xs font-bold ${exec.status === 'success' ? 'text-emerald-400' : exec.status === 'failed' ? 'text-red-400' : 'text-blue-400'}`}>
+                              {exec.status}
+                            </span>
+                            <div className="text-xs text-slate-500">{new Date(exec.startedAt).toLocaleString()}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* All Jobs Sub-Tab */}
+            {cronSubTab === 'jobs' && (
+              <div className="space-y-6">
+                {/* Category Filter */}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-slate-400">Filter:</span>
+                  <button
+                    onClick={() => setCronCategoryFilter(null)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${!cronCategoryFilter ? 'bg-orange-500 text-white' : 'bg-white/5 text-slate-400 hover:text-white'}`}
+                  >
+                    All
+                  </button>
+                  {cronCategories && Object.keys(cronCategories).map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setCronCategoryFilter(cat)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-all ${cronCategoryFilter === cat ? 'bg-orange-500 text-white' : 'bg-white/5 text-slate-400 hover:text-white'}`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Jobs List */}
+                <div className="space-y-3">
+                  {cronJobs
+                    ?.filter((job: any) => !cronCategoryFilter || job.category === cronCategoryFilter)
+                    .map((job: any) => (
+                      <div key={job._id} className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-3 h-3 rounded-full ${job.isEnabled ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-black text-white">{job.name}</span>
+                                <span className="text-xs px-2 py-0.5 bg-white/10 text-slate-400 rounded capitalize">{job.category}</span>
+                                <span className="text-xs px-2 py-0.5 bg-white/10 text-slate-400 rounded">{job.scheduleType === 'cron' ? '📅' : '🔄'} {job.schedule}</span>
+                              </div>
+                              <div className="text-xs text-slate-400 mt-1">{job.description}</div>
+                              <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
+                                <span>Runs: {job.totalRuns}</span>
+                                <span className="text-emerald-400">✓ {job.successCount}</span>
+                                {job.failureCount > 0 && <span className="text-red-400">✗ {job.failureCount}</span>}
+                                {job.lastRunAt && <span>Last: {new Date(job.lastRunAt).toLocaleString()}</span>}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={async () => {
+                                try {
+                                  setCommandOutput(`Triggering: ${job.name}...`)
+                                  const result = await triggerCronJob({ adminToken, cronJobId: job._id })
+                                  setCommandOutput(JSON.stringify(result, null, 2))
+                                } catch (err) {
+                                  setCommandOutput(`Error: ${err instanceof Error ? err.message : String(err)}`)
+                                }
+                              }}
+                              className="px-3 py-1.5 bg-blue-600/20 text-blue-400 rounded-lg text-xs font-bold hover:bg-blue-600/40 transition-all"
+                            >
+                              ▶ Run
+                            </button>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await toggleCronJobMutation({ adminToken, cronJobId: job._id, isEnabled: !job.isEnabled })
+                                  setCommandOutput(`${job.name} ${job.isEnabled ? 'disabled' : 'enabled'}`)
+                                } catch (err) {
+                                  setCommandOutput(`Error: ${err instanceof Error ? err.message : String(err)}`)
+                                }
+                              }}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                job.isEnabled
+                                  ? 'bg-amber-600/20 text-amber-400 hover:bg-amber-600/40'
+                                  : 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/40'
+                              }`}
+                            >
+                              {job.isEnabled ? '⏸ Disable' : '▶ Enable'}
+                            </button>
+                          </div>
+                        </div>
+                        {job.lastRunStatus && (
+                          <div className={`mt-2 text-xs ${job.lastRunStatus === 'success' ? 'text-emerald-400' : job.lastRunStatus === 'failed' ? 'text-red-400' : 'text-blue-400'}`}>
+                            Last status: {job.lastRunStatus} {job.lastRunDurationMs && `(${job.lastRunDurationMs}ms)`}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  {(!cronJobs || cronJobs.length === 0) && (
+                    <div className="text-center py-12 text-slate-400">
+                      <p className="text-4xl mb-2">⏰</p>
+                      <p className="font-bold">No cron jobs found</p>
+                      <p className="text-sm mt-1">Click "Sync Cron Definitions" to import from crons.ts</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Execution History Sub-Tab */}
+            {cronSubTab === 'history' && (
+              <div className="space-y-6">
+                {/* Status Filter */}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-slate-400">Status:</span>
+                  {['all', 'success', 'failed', 'running'].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => {
+                        // Would filter executions by status
+                      }}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-all bg-white/5 text-slate-400 hover:text-white`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Executions List */}
+                <div className="space-y-2">
+                  {cronExecutions?.map((exec: any) => (
+                    <div key={exec._id} className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <span className={`w-3 h-3 rounded-full ${exec.status === 'success' ? 'bg-emerald-400' : exec.status === 'failed' ? 'bg-red-400' : 'bg-blue-400'}`} />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-black text-white">{exec.cronJobName}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded ${
+                                exec.status === 'success' ? 'bg-emerald-500/20 text-emerald-400' :
+                                exec.status === 'failed' ? 'bg-red-500/20 text-red-400' :
+                                'bg-blue-500/20 text-blue-400'
+                              }`}>
+                                {exec.status}
+                              </span>
+                              <span className="text-xs px-2 py-0.5 bg-white/10 text-slate-400 rounded">
+                                {exec.triggeredBy === 'manual' ? '👤 Manual' : '⏰ Scheduled'}
+                              </span>
+                            </div>
+                            {exec.error && (
+                              <div className="text-xs text-red-400 mt-1 font-mono">{exec.error}</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-bold text-white">
+                            {exec.durationMs ? `${exec.durationMs}ms` : '—'}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {new Date(exec.startedAt).toLocaleString()}
+                          </div>
+                          {exec.completedAt && (
+                            <div className="text-xs text-slate-500">
+                              Duration: {Math.round((exec.completedAt - exec.startedAt) / 1000)}s
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {(!cronExecutions || cronExecutions.length === 0) && (
+                    <div className="text-center py-12 text-slate-400">
+                      <p className="text-4xl mb-2">📜</p>
+                      <p className="font-bold">No execution history</p>
+                      <p className="text-sm mt-1">Cron jobs will appear here after they run</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Categories Sub-Tab */}
+            {cronSubTab === 'categories' && (
+              <div className="space-y-6">
+                {cronCategories && Object.entries(cronCategories).map(([category, stats]: [string, any]) => (
+                  <div key={category} className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-black text-white capitalize">{category}</h3>
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="text-slate-400">{stats.total} jobs</span>
+                        <span className="text-emerald-400">{stats.enabled} enabled</span>
+                        {stats.failed > 0 && <span className="text-red-400">{stats.failed} failing</span>}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {cronJobs
+                        ?.filter((job: any) => job.category === category)
+                        .map((job: any) => (
+                          <div key={job._id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                            <div className="flex items-center gap-3">
+                              <span className={`w-2 h-2 rounded-full ${job.isEnabled ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                              <span className="text-sm text-white font-medium">{job.name}</span>
+                              <span className="text-xs text-slate-400">{job.schedule}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {job.lastRunStatus && (
+                                <span className={`text-xs ${job.lastRunStatus === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
+                                  {job.lastRunStatus}
+                                </span>
+                              )}
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await triggerCronJob({ adminToken, cronJobId: job._id })
+                                    setCommandOutput(`Triggered: ${job.name}`)
+                                  } catch (err) {
+                                    setCommandOutput(`Error: ${err instanceof Error ? err.message : String(err)}`)
+                                  }
+                                }}
+                                className="px-2 py-1 bg-blue-600/20 text-blue-400 rounded text-xs font-bold hover:bg-blue-600/40"
+                              >
+                                ▶
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                ))}
+                {(!cronCategories || Object.keys(cronCategories).length === 0) && (
+                  <div className="text-center py-12 text-slate-400">
+                    <p className="text-4xl mb-2">📁</p>
+                    <p className="font-bold">No categories found</p>
+                    <p className="text-sm mt-1">Sync cron definitions first to populate categories</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Command Output */}
+            {commandOutput && (
+              <div className="bg-slate-900 border border-white/10 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-bold text-slate-300">Result</h4>
+                  <button onClick={() => setCommandOutput(null)} className="text-xs text-slate-500 hover:text-white">Clear</button>
+                </div>
+                <pre className="text-xs text-emerald-400 overflow-x-auto max-h-64 overflow-y-auto font-mono whitespace-pre-wrap">{commandOutput}</pre>
+              </div>
+            )}
+          </div>
+        )
+
       case 'performance':
         return (
           <div className="space-y-6">
@@ -1058,66 +1469,245 @@ export function MimoControlPanel({ adminToken }: { adminToken: string }) {
         )
 
       case 'secmonitor':
-        return <SecMonitorTab adminToken={adminToken} securityDashboard={securityDashboard} isDark={isDark} setCommandOutput={setCommandOutput} setBlockIPModal={setBlockIPModal} />
-      case 'deployment':
-        return <DeploymentTab adminToken={adminToken} isDark={isDark} setCommandOutput={setCommandOutput} />
-
-      case 'agents':
         return (
           <div className="space-y-4 md:space-y-6">
+            {/* Threat Level Banner */}
+            <div className={`border rounded-2xl p-4 md:p-6 ${
+              securityDashboard?.threatLevel === 'critical' ? 'bg-red-500/10 border-red-500/30' :
+              securityDashboard?.threatLevel === 'high' ? 'bg-orange-500/10 border-orange-500/30' :
+              securityDashboard?.threatLevel === 'medium' ? 'bg-amber-500/10 border-amber-500/30' :
+              'bg-emerald-500/10 border-emerald-500/30'
+            }`}>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div>
+                  <h3 className={`text-base md:text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>Security Status</h3>
+                  <p className={`text-xs md:text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>Real-time threat monitoring across all components</p>
+                </div>
+                <span className={`self-start md:self-auto px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-black uppercase ${
+                  securityDashboard?.threatLevel === 'critical' ? 'bg-red-500 text-white' :
+                  securityDashboard?.threatLevel === 'high' ? 'bg-orange-500 text-white' :
+                  securityDashboard?.threatLevel === 'medium' ? 'bg-amber-500 text-white' :
+                  'bg-emerald-500 text-white'
+                }`}>
+                  {securityDashboard?.threatLevel || 'low'}
+                </span>
+              </div>
+            </div>
+
+            {/* Summary Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+              {[
+                { label: 'Events (24h)', value: securityDashboard?.summary?.totalEvents24h ?? 0, icon: '📊', color: 'from-blue-500/20 to-blue-600/10' },
+                { label: 'Critical', value: securityDashboard?.summary?.criticalEvents ?? 0, icon: '🔴', color: 'from-red-500/20 to-red-600/10' },
+                { label: 'Blocked IPs', value: securityDashboard?.summary?.blockedIps ?? 0, icon: '🚫', color: 'from-purple-500/20 to-purple-600/10' },
+                { label: 'Failed Logins (1h)', value: securityDashboard?.summary?.failedLogins1h ?? 0, icon: '🔑', color: 'from-amber-500/20 to-amber-600/10' },
+              ].map((card) => (
+                <div key={card.label} className={`bg-gradient-to-br ${card.color} ${isDark ? 'border-white/10' : 'border-slate-200'} border rounded-2xl p-4 md:p-5`}>
+                  <div className="text-xl md:text-2xl mb-2">{card.icon}</div>
+                  <div className={`text-xl md:text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>{card.value}</div>
+                  <div className="text-[10px] md:text-xs text-slate-400 mt-1">{card.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Component Breakdown */}
             <div className={`${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-4 md:p-6`}>
-              <h3 className={`text-base md:text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'} mb-4`}>Agent Registry ({agents?.length || 0} agents)</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-                {agents?.map((agent: any) => (
-                  <div key={agent._id} className={`${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'} border rounded-xl p-3 md:p-4`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className={`text-xs md:text-sm font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>{agent.agentId} — {agent.agentName}</span>
-                      <span className={`text-[10px] md:text-xs font-bold ${statusColor(agent.status)}`}>{agent.status}</span>
+              <h3 className={`text-base md:text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'} mb-4`}>Threats by Component</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                {[
+                  { name: 'Frontend', key: 'frontend', icon: '🌐' },
+                  { name: 'Backend', key: 'backend', icon: '⚙️' },
+                  { name: 'Agents', key: 'agents', icon: '🤖' },
+                  { name: 'Dashboard', key: 'dashboard', icon: '📊' },
+                ].map((comp) => {
+                  const data = securityDashboard?.byComponent?.[comp.key];
+                  return (
+                    <div key={comp.key} className={`${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-slate-200'} border rounded-xl p-3 md:p-4`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg md:text-xl">{comp.icon}</span>
+                        <span className={`text-xs md:text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{comp.name}</span>
+                      </div>
+                      <div className={`text-xl md:text-2xl font-black ${data?.threats > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                        {data?.threats ?? 0}
+                      </div>
+                      <div className="text-[10px] md:text-xs text-slate-400">threats detected</div>
                     </div>
-                    <div className="text-[10px] md:text-xs text-slate-400 mb-2 truncate">
-                      Capabilities: {agent.capabilities?.join(', ')}
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Attack Type Breakdown */}
+            {securityDashboard?.attackTypes && Object.keys(securityDashboard.attackTypes).length > 0 && (
+              <div className={`${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-4 md:p-6`}>
+                <h3 className={`text-base md:text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'} mb-4`}>Attack Types</h3>
+                <div className="space-y-2">
+                  {Object.entries(securityDashboard.attackTypes)
+                    .sort(([,a], [,b]) => (b as number) - (a as number))
+                    .slice(0, 10)
+                    .map(([type, count]) => (
+                      <div key={type} className={`flex items-center justify-between p-2 ${isDark ? 'bg-white/5' : 'bg-slate-100'} rounded-lg`}>
+                        <span className={`text-xs md:text-sm ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{type.replace(/_/g, ' ')}</span>
+                        <span className={`text-xs md:text-sm font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{count as number}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Rate Limited IPs */}
+            {securityDashboard?.rateLimitedIps && securityDashboard.rateLimitedIps.length > 0 && (
+              <div className={`${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-4 md:p-6`}>
+                <h3 className={`text-base md:text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'} mb-4`}>Rate Limited IPs</h3>
+                <div className="space-y-2">
+                  {securityDashboard.rateLimitedIps.map((item: any) => (
+                    <div key={item.ip} className="flex flex-col md:flex-row md:items-center justify-between p-3 bg-red-500/10 border border-red-500/20 rounded-xl gap-2">
+                      <div className="flex items-center gap-3">
+                        <span className="w-2 h-2 rounded-full bg-red-400" />
+                        <span className={`text-xs md:text-sm ${isDark ? 'text-white' : 'text-slate-900'} font-mono`}>{item.ip}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] md:text-xs text-red-400">{item.count} attempts</span>
+                        <button
+                          onClick={() => setBlockIPModal({ ip: item.ip, reason: 'Rate limit exceeded' })}
+                          className="px-2 md:px-3 py-1 bg-red-600/20 text-red-400 rounded-lg text-[10px] md:text-xs font-bold hover:bg-red-600/40"
+                        >
+                          Block
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 md:gap-4 text-[10px] md:text-xs text-slate-400">
-                      <span>Health: {agent.healthScore}%</span>
-                      <span>Tasks: {agent.totalTasks}</span>
-                    </div>
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={async () => {
-                          try {
-                            await suspendAgentMutation({ adminToken, agentId: agent.agentId })
-                          } catch (err) {
-                            console.error('[Mimo] Failed to suspend agent:', err)
-                          }
-                        }}
-                        className="px-2 md:px-3 py-1 bg-amber-600/20 text-amber-400 rounded-lg text-[10px] md:text-xs font-bold hover:bg-amber-600/40"
-                      >
-                        Suspend
-                      </button>
-                      <button
-                        onClick={async () => {
-                          if (confirm(`Delete agent ${agent.agentId}?`)) {
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Active IP Blocks */}
+            {securityDashboard?.activeBlocks && securityDashboard.activeBlocks.length > 0 && (
+              <div className={`${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-4 md:p-6`}>
+                <h3 className={`text-base md:text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'} mb-4`}>Active IP Blocks</h3>
+                <div className="space-y-2 max-h-[25vh] md:max-h-[30vh] overflow-y-auto">
+                  {securityDashboard.activeBlocks.map((block: any) => (
+                    <div key={block._id} className={`flex flex-col md:flex-row md:items-center justify-between p-3 ${isDark ? 'bg-white/5' : 'bg-slate-100'} rounded-xl gap-2`}>
+                      <div className="flex items-center gap-3">
+                        <span className="w-2 h-2 rounded-full bg-red-400" />
+                        <div>
+                          <span className={`text-xs md:text-sm ${isDark ? 'text-white' : 'text-slate-900'} font-mono`}>{block.ip}</span>
+                          <div className="text-[10px] md:text-xs text-slate-400">{block.reason}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] md:text-xs text-slate-500">{new Date(block.blockedAt).toLocaleString()}</span>
+                        <button
+                          onClick={async () => {
                             try {
-                              await deleteAgentMutation({ adminToken, agentId: agent.agentId })
+                              await unblockIPMutation({ adminToken, ip: block.ip })
+                              setCommandOutput(`Unblocked ${block.ip}`)
                             } catch (err) {
-                              console.error('[Mimo] Failed to delete agent:', err)
+                              setCommandOutput(`Error unblocking IP: ${err instanceof Error ? err.message : String(err)}`)
                             }
-                          }
-                        }}
-                        className="px-2 md:px-3 py-1 bg-red-600/20 text-red-400 rounded-lg text-[10px] md:text-xs font-bold hover:bg-red-600/40"
-                      >
-                        Delete
-                      </button>
+                          }}
+                          className="px-2 md:px-3 py-1 bg-emerald-600/20 text-emerald-400 rounded-lg text-[10px] md:text-xs font-bold hover:bg-emerald-600/40"
+                        >
+                          Unblock
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recent Security Events */}
+            <div className={`${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-4 md:p-6`}>
+              <h3 className={`text-base md:text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'} mb-4`}>Recent Security Events</h3>
+              <div className="space-y-2 max-h-[30vh] md:max-h-[40vh] overflow-y-auto">
+                {securityDashboard?.recentEvents?.map((event: any, idx: number) => (
+                  <div key={event._id || idx} className={`flex flex-col md:flex-row md:items-center justify-between p-3 ${isDark ? 'bg-white/5' : 'bg-slate-100'} rounded-xl gap-2`}>
+                    <div className="flex items-center gap-3">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${event.blocked ? 'bg-red-400' : event.severity === 'critical' ? 'bg-red-500' : event.severity === 'high' ? 'bg-orange-400' : 'bg-amber-400'}`} />
+                      <div>
+                        <span className={`text-xs md:text-sm ${isDark ? 'text-white' : 'text-slate-900'} font-medium`}>{(event.eventType || event.category || 'unknown').replace(/_/g, ' ')}</span>
+                        <div className="text-[10px] md:text-xs text-slate-400 truncate max-w-[200px] md:max-w-none">{event.description || event.details}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-[10px] md:text-xs font-bold ${statusColor(event.severity)}`}>{event.severity}</span>
+                      <div className="text-[10px] md:text-xs text-slate-500">{new Date(event.timestamp || event.createdAt).toLocaleString()}</div>
                     </div>
                   </div>
                 ))}
+                {(!securityDashboard?.recentEvents || securityDashboard.recentEvents.length === 0) && (
+                  <p className={`text-xs md:text-sm ${isDark ? 'text-slate-400' : 'text-slate-600'} text-center py-4`}>No security events in the last 24 hours</p>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className={`${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-4 md:p-6`}>
+              <h3 className={`text-base md:text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'} mb-4`}>Security Actions</h3>
+              <div className="flex gap-2 md:gap-3 flex-wrap">
+                <button onClick={runSecurityScan} className="px-3 md:px-4 py-1.5 md:py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs md:text-sm transition-all">
+                  🛡️ Run Security Scan
+                </button>
+                <button onClick={runSelfUpdate} className="px-3 md:px-4 py-1.5 md:py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs md:text-sm transition-all">
+                  🔄 Self-Update
+                </button>
+                <button onClick={() => setBlockIPModal({ ip: '', reason: '' })} className="px-3 md:px-4 py-1.5 md:py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold text-xs md:text-sm transition-all">
+                  🚫 Block IP
+                </button>
               </div>
             </div>
           </div>
         )
 
       case 'deployment':
-        return <DeploymentTab adminToken={adminToken} isDark={isDark} setCommandOutput={setCommandOutput} />
+        return (
+          <div className="space-y-4 md:space-y-6">
+            <div className={`${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-4 md:p-6`}>
+              <h3 className={`text-base md:text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'} mb-4`}>Deployment Control</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+                <button onClick={() => runDeploy("convex", "standard")} className="px-3 md:px-4 py-2 md:py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs md:text-sm transition-all">
+                  📦 Deploy Convex
+                </button>
+                <button onClick={() => runDeploy("vercel", "standard")} className="px-3 md:px-4 py-2 md:py-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl font-bold text-xs md:text-sm transition-all">
+                  🌐 Deploy Vercel
+                </button>
+                <button onClick={() => runDeploy("github", "standard")} className="px-3 md:px-4 py-2 md:py-3 bg-slate-600 hover:bg-slate-500 text-white rounded-xl font-bold text-xs md:text-sm transition-all">
+                  📁 Deploy GitHub
+                </button>
+                <button onClick={() => runDeploy("all", "standard")} className="px-3 md:px-4 py-2 md:py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold text-xs md:text-sm transition-all">
+                  🚀 Deploy All
+                </button>
+              </div>
+              <div className="mt-3 md:mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
+                <button onClick={() => runDeploy("all", "force")} className="px-3 md:px-4 py-2 md:py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs md:text-sm transition-all">
+                  ⚡ Force Deploy All
+                </button>
+              </div>
+            </div>
+
+            {deployments && deployments.length > 0 && (
+              <div className={`${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-4 md:p-6`}>
+                <h3 className={`text-base md:text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'} mb-4`}>Recent Deployments</h3>
+                <div className="space-y-2">
+                  {deployments.map((d: any) => (
+                    <div key={d._id} className={`flex flex-col md:flex-row md:items-center justify-between p-3 ${isDark ? 'bg-white/5' : 'bg-slate-100'} rounded-xl gap-2`}>
+                      <div className="flex items-center gap-3">
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${d.status === 'success' ? 'bg-emerald-400' : d.status === 'deploying' ? 'bg-blue-400' : 'bg-red-400'}`} />
+                        <span className={`text-xs md:text-sm ${isDark ? 'text-white' : 'text-slate-900'} font-medium`}>{d.platform} ({d.type})</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-[10px] md:text-xs font-bold ${statusColor(d.status)}`}>{d.status}</span>
+                        <div className="text-[10px] md:text-xs text-slate-500">{new Date(d.startedAt).toLocaleString()}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+
       case 'agents':
         return (
           <div className="space-y-4 md:space-y-6">
@@ -1173,7 +1763,46 @@ export function MimoControlPanel({ adminToken }: { adminToken: string }) {
         )
 
       case 'history':
-        return <HistoryTab commands={commands} auditLogs={auditLogs} isDark={isDark} />
+        return (
+          <div className="space-y-4 md:space-y-6">
+            <div className={`${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-4 md:p-6`}>
+              <h3 className={`text-base md:text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'} mb-4`}>Command History</h3>
+              <div className="space-y-2">
+                {commands?.map((cmd: any) => (
+                  <div key={cmd._id} className={`flex flex-col md:flex-row md:items-center justify-between p-3 ${isDark ? 'bg-white/5' : 'bg-slate-100'} rounded-xl gap-2`}>
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <span className={`text-[10px] md:text-xs font-bold px-2 py-1 rounded ${cmd.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400' : cmd.status === 'failed' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                        {cmd.status}
+                      </span>
+                      <span className={`text-xs md:text-sm ${isDark ? 'text-white' : 'text-slate-900'} font-medium truncate max-w-[150px] md:max-w-none`}>{cmd.command}</span>
+                      <span className="text-[10px] md:text-xs text-slate-400 hidden sm:inline">by {cmd.issuedBy}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] md:text-xs text-slate-500">{new Date(cmd.startedAt).toLocaleString()}</div>
+                      {cmd.durationMs && <div className="text-[10px] md:text-xs text-slate-500">{cmd.durationMs}ms</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className={`${isDark ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-200'} border rounded-2xl p-4 md:p-6`}>
+              <h3 className={`text-base md:text-lg font-black ${isDark ? 'text-white' : 'text-slate-900'} mb-4`}>Audit Logs</h3>
+              <div className="space-y-2">
+                {auditLogs?.map((log: any) => (
+                  <div key={log._id} className={`flex flex-col md:flex-row md:items-center justify-between p-3 ${isDark ? 'bg-white/5' : 'bg-slate-100'} rounded-xl gap-2`}>
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <span className="text-[10px] md:text-xs text-slate-400">{log.action}</span>
+                      <span className={`text-xs md:text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>{log.actor}</span>
+                      {log.target && <span className="text-[10px] md:text-xs text-slate-400">→ {log.target}</span>}
+                    </div>
+                    <div className="text-[10px] md:text-xs text-slate-500">{new Date(log.timestamp).toLocaleString()}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )
 
       default:
         return null
