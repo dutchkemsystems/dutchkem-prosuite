@@ -251,6 +251,3 @@ export const diagnose = mutation({
 });
 
 // ─── HEAL ───
-
-/** Auto-heal system — attempt to fix detected issues */
-export const heal = mutation({

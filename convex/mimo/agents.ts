@@ -344,8 +344,3 @@ export const listAuditLogs = query({
       .take(args.limit || 50);
   },
 });
-
-// ─── MANUAL FIX ───
-
-/** Apply a specific manual fix */
-export const manualFix = mutation({

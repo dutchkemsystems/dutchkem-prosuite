@@ -671,6 +671,3 @@ const AGENT_TEST_CONFIG = [
     ]
   }
 ];
-
-/** Test a single agent chat */
-export const testAgentChat = mutation({

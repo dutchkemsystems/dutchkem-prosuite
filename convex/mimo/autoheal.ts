@@ -386,6 +386,3 @@ export const logThreat = mutation({
     return { success: true };
   },
 });
-
-/** Self-update — clean old data, optimize thresholds */
-export const selfUpdate = mutation({

@@ -387,6 +387,3 @@ export const verify = mutation({
 });
 
 // ─── DEPLOY ───
-
-/** Deploy to Convex, Vercel, or GitHub */
-export const deploy = mutation({

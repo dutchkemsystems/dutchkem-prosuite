@@ -228,4 +228,3 @@ export const syncFromTryPost = action({
 // ═══════════════════════════════════════════════════════════════════
 // ACTION: Connect Telegram via bot token
 // ═══════════════════════════════════════════════════════════════════
-export const connectTelegramBot = action({

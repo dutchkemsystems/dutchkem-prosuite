@@ -654,5 +654,3 @@ async function getOrCreateAuthConfigId(apiKey: string, toolkit: string): Promise
     `Composio: failed to create auth config for ${toolkit} — response: ${JSON.stringify(created).slice(0, 200)}`
   );
 }
-
-export const startComposioOAuth = action({

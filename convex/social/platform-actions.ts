@@ -1103,4 +1103,3 @@ function manualBase64Standard(input: string): string {
 // ═══════════════════════════════════════════════════════════════════
 // INTERNAL ACTION: Refresh expired tokens for all connected platforms
 // ═══════════════════════════════════════════════════════════════════
-export const refreshExpiredTokens = internalAction({

@@ -493,6 +493,3 @@ export const getCronCategories = query({
 // ═══════════════════════════════════════════════════════════════════
 // PERFORMANCE METRICS — System Performance Monitoring
 // ═══════════════════════════════════════════════════════════════════
-
-/** Get performance metrics overview */
-export const getPerformanceMetrics = query({
