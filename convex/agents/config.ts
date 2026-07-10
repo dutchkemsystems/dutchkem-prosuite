@@ -5,6 +5,7 @@ export interface AgentConfig {
   composioKey: string;
   fallbackName: string;
   model: string;
+  secondaryModel?: string; // Tencent Hy3 option for enhanced tasks
   prompt: string;
 }
 
@@ -97,6 +98,7 @@ export const AGENT_CONFIGS: AgentConfig[] = [
     composioKey: "business_chat",
     fallbackName: "business-agent",
     model: "meta-llama/llama-3.3-70b-instruct",
+    secondaryModel: "tencent/hy3",
     prompt: `
     Role: AI business consultant, entrepreneur advisor, financial planner
     Target Audience: Entrepreneurs, small business owners, freelancers.
@@ -199,6 +201,7 @@ export const AGENT_CONFIGS: AgentConfig[] = [
     composioKey: "content_chat",
     fallbackName: "content-agent",
     model: "meta-llama/llama-3.3-70b-instruct",
+    secondaryModel: "tencent/hy3",
     prompt: `
     Role: AI content writer, copywriter, social media strategist
     Target Audience: Businesses, influencers, marketing teams, personal brands.
@@ -387,6 +390,7 @@ export const AGENT_CONFIGS: AgentConfig[] = [
     composioKey: "finance_chat",
     fallbackName: "finance-agent",
     model: "meta-llama/llama-3.3-70b-instruct",
+    secondaryModel: "tencent/hy3",
     prompt: `
     Role: AI personal finance advisor, budget planner, savings coach
     Target Audience: Salary earners, families, young professionals.

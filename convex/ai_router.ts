@@ -18,6 +18,7 @@ const TASK_PATTERNS: Record<string, { keywords: string[]; provider: string; mode
     keywords: ['business plan', 'strategy', 'pitch deck', 'financial', 'market research', 'startup', 'investor', 'SME', 'small business', 'entrepreneur', 'profit', 'revenue', 'company', 'enterprise', 'NGN', 'naira', 'kora pay', 'payment', 'invoice', 'billing', 'tax', 'VAT', 'CAC', 'company registration'],
     provider: 'openrouter',
     model: 'nvidia/llama-3.3-70b-instruct:free',
+    fallbackModel: 'tencent/hy3',
   },
   content: {
     keywords: ['blog post', 'article', 'social media', 'captions', 'email newsletter', 'copywriting', 'content', 'post', 'tweet', 'linkedin post', 'instagram caption', 'tiktok', 'facebook post'],
@@ -38,6 +39,7 @@ const TASK_PATTERNS: Record<string, { keywords: string[]; provider: string; mode
     keywords: ['analyze', 'summary', 'extract', 'insight', 'trend', 'compare', 'evaluate', 'report', 'dashboard', 'metrics', 'KPI', 'ROI'],
     provider: 'openrouter',
     model: 'nvidia/llama-3.3-70b-instruct:free',
+    fallbackModel: 'tencent/hy3',
   },
   chat: {
     keywords: ['hello', 'hi', 'how', 'what', 'help', 'question', 'chat', 'please', 'thank', 'good morning', 'good afternoon'],
@@ -167,7 +169,7 @@ export const routeRequest = action({
     // Fallback sequence — only try enabled models
     // FreeLLMAPI is last in fallback (free tier, 161+ models from 18 providers)
     if (!result) {
-      const fallbackOrder = ['groq', 'openrouter', 'mimo', 'nvidia', 'aiml', 'freellmapi'];
+      const fallbackOrder = ['groq', 'openrouter', 'mimo', 'nvidia', 'aiml', 'tencent', 'freellmapi'];
       for (const provider of fallbackOrder) {
         if (provider === task.provider) continue;
         
@@ -199,9 +201,10 @@ export const routeRequest = action({
         const isEnabled = await ctx.runQuery(internal.model_toggle.checkModel, { modelName: provider });
         if (!isEnabled) continue;
         try {
+          const fallbackModel = provider === 'groq' ? 'llama3-70b-8192' : provider === 'tencent' ? 'tencent/hy3' : 'nvidia/llama-3.3-70b-instruct:free';
           result = await ctx.runAction(internal.ai_router.callProvider, {
             provider,
-            model: provider === 'groq' ? 'llama3-70b-8192' : 'nvidia/llama-3.3-70b-instruct:free',
+            model: fallbackModel,
             input: args.input,
             systemPrompt: args.systemPrompt,
           });
@@ -306,6 +309,30 @@ export const callProvider = internalAction({
       });
 
       if (!response.ok) throw new Error(`GROQ error: ${response.status}`);
+      const data = await response.json();
+      return { content: data.choices?.[0]?.message?.content || '' };
+    }
+
+    // Tencent Hy3 via OpenRouter (free tier, 1M context)
+    if (args.provider === 'tencent') {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'tencent/hy3',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: args.input },
+          ],
+          temperature: 0.7,
+          max_tokens: 4096,
+        }),
+      });
+
+      if (!response.ok) throw new Error(`Tencent Hy3 error: ${response.status}`);
       const data = await response.json();
       return { content: data.choices?.[0]?.message?.content || '' };
     }

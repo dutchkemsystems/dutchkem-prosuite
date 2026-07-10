@@ -49,6 +49,13 @@ const MODEL_CONFIGS = [
     providerType: "free",
     description: "161+ free AI models from 18 providers with auto-failover",
   },
+  {
+    modelName: "tencent",
+    displayName: "Tencent Hy3 (Hunyuan 3)",
+    icon: "🐉",
+    providerType: "chat+long_context",
+    description: "FREE 1M context window model via OpenRouter — excellent for business analysis and long documents",
+  },
 ];
 
 // ═══════════════════════════════════════════════════════════════════

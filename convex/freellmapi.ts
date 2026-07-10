@@ -14,10 +14,12 @@ const FREELLMAPI_API_KEY = process.env.FREELLMAPI_API_KEY || "";
 const MODEL_RECOMMENDATIONS: Record<string, string> = {
   chat: "auto",
   academic: "auto",
-  business: "auto",
+  business: "tencent/hy3",
   content: "auto",
   code: "auto",
   vision: "auto",
+  analysis: "tencent/hy3",
+  long_context: "tencent/hy3",
   embeddings: "text-embedding-3-small",
 };
 
