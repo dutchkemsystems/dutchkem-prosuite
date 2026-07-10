@@ -57,7 +57,7 @@ export const completeTransaction = mutation({
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return { authError: true };
-    const txn = await ctx.db.query("agentic_payment_transactions").filter((q) => q.eq(q.field("transactionId"), args.transactionId)).first();
+    const txn = await ctx.db.query("agentic_payment_transactions").withIndex("by_transaction_id", (q) => q.eq("transactionId", args.transactionId)).first();
     if (!txn) return { error: "Not found" };
     await ctx.db.patch(txn._id, { status: args.status, koraReference: args.koraReference, completedAt: Date.now() });
     return { success: true };

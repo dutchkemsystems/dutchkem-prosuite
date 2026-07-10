@@ -64,7 +64,8 @@ export const paymentsTables = {
   })
     .index("by_agent", ["agentId"])
     .index("by_status", ["status"])
-    .index("by_created", ["createdAt"]),
+    .index("by_created", ["createdAt"])
+    .index("by_transaction_id", ["transactionId"]),
   agentic_payment_limits: defineTable({
     agentId: v.string(),
     dailyLimitNgn: v.number(),
@@ -89,6 +90,8 @@ export const paymentsTables = {
     type: v.string(), // "credit_purchase", "subscription", "enterprise_addon"
     reference: v.string(),
     amount: v.number(),
+    amountNgn: v.optional(v.number()),
+    currency: v.optional(v.string()),
     packageId: v.string(),
     credits: v.number(),
     email: v.string(),
@@ -99,4 +102,63 @@ export const paymentsTables = {
   }).index("by_user", ["userId"])
     .index("by_reference", ["reference"])
     .index("by_status", ["status"]),
+  kora_refunds: defineTable({
+    refundId: v.string(),
+    originalReference: v.string(),
+    amount: v.number(),
+    reason: v.string(),
+    adminId: v.string(),
+    koraRefundId: v.string(),
+    status: v.union(v.literal("processing"), v.literal("completed"), v.literal("failed")),
+    completedAt: v.optional(v.number()),
+    rawPayload: v.optional(v.any()),
+    createdAt: v.number(),
+  })
+    .index("by_refund_id", ["refundId"])
+    .index("by_original_reference", ["originalReference"])
+    .index("by_status", ["status"]),
+  invoices: defineTable({
+    invoiceId: v.string(),
+    reference: v.string(),
+    userId: v.string(),
+    email: v.string(),
+    amount: v.number(),
+    type: v.string(),
+    packageId: v.string(),
+    credits: v.number(),
+    billingCycle: v.optional(v.string()),
+    status: v.union(v.literal("generated"), v.literal("sent"), v.literal("viewed")),
+    sentAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_invoice_id", ["invoiceId"])
+    .index("by_reference", ["reference"])
+    .index("by_user", ["userId"]),
+  renewal_transactions: defineTable({
+    subscriptionId: v.string(),
+    userId: v.string(),
+    service: v.string(),
+    plan: v.string(),
+    amount: v.number(),
+    reference: v.string(),
+    status: v.union(v.literal("pending"), v.literal("completed"), v.literal("failed")),
+    completedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_subscription", ["subscriptionId"])
+    .index("by_reference", ["reference"])
+    .index("by_status", ["status"]),
+  subscription_renewals: defineTable({
+    subscriptionId: v.string(),
+    userId: v.string(),
+    service: v.string(),
+    plan: v.string(),
+    amount: v.number(),
+    reference: v.string(),
+    previousExpiry: v.number(),
+    newExpiry: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_subscription", ["subscriptionId"])
+    .index("by_user", ["userId"]),
 };

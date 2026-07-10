@@ -598,7 +598,8 @@ export const miscTables = {
   })
     .index("by_session", ["sessionId"])
     .index("by_user", ["userId"])
-    .index("by_agent", ["agentId"]),
+    .index("by_agent", ["agentId"])
+    .index("by_active", ["isActive"]),
   companion_agent_memory: defineTable({
     sessionId: v.string(),
     userId: v.string(),
@@ -647,7 +648,8 @@ export const miscTables = {
   })
     .index("by_workflow", ["workflowId"])
     .index("by_status", ["status"])
-    .index("by_started", ["startedAt"]),
+    .index("by_started", ["startedAt"])
+    .index("by_run_id", ["runId"]),
   emotional_ai_profiles: defineTable({
     userId: v.string(),
     dominantEmotion: v.string(),
@@ -1275,7 +1277,8 @@ export const miscTables = {
     isPublished: v.optional(v.boolean()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_category", ["category"]),
+  }).index("by_category", ["category"])
+    .index("by_published", ["isPublished"]),
   appointment_slots: defineTable({
     title: v.string(),
     description: v.optional(v.string()),
@@ -1407,7 +1410,7 @@ export const miscTables = {
     responseCount: v.number(),
     isActive: v.boolean(),
     createdAt: v.number(),
-  }),
+  }).index("by_active", ["isActive"]),
   survey_responses: defineTable({
     surveyId: v.id("surveys"),
     respondentName: v.string(),
@@ -1526,7 +1529,8 @@ export const miscTables = {
     lastSweepAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_user", ["userId"]),
+  }).index("by_user", ["userId"])
+    .index("by_sweep_enabled", ["sweepEnabled"]),
 
   exchange_rates: defineTable({
     source: v.string(),

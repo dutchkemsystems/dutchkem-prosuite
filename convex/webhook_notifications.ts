@@ -77,7 +77,7 @@ export const _getActiveByEvent = query({
   args: { event: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const all = await ctx.db.query("webhook_notifications").filter((q) => q.eq(q.field("isActive"), true)).take(100);
+    const all = await ctx.db.query("webhook_notifications").withIndex("by_active", (q) => q.eq("isActive", true)).take(100);
     return all.filter((wh) => wh.events.includes(args.event));
   },
 });

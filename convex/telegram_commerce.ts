@@ -107,7 +107,7 @@ export const getProducts = query({
   args: { limit: v.optional(v.number()) },
   returns: v.any(),
   handler: async (ctx) => {
-    return await ctx.db.query("products").filter((q) => q.eq(q.field("isPublished"), true)).take(20);
+    return await ctx.db.query("products").withIndex("by_published", (q) => q.eq("isPublished", true)).take(20);
   },
 });
 

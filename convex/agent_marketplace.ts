@@ -6,8 +6,8 @@ export const listTemplates = query({
   args: { category: v.optional(v.string()), limit: v.optional(v.number()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    let q: any = ctx.db.query("agent_marketplace_templates").filter((q: any) => q.eq(q.field("isPublished"), true));
-    if (args.category) q = q.filter((q: any) => q.eq(q.field("category"), args.category));
+    let q: any = ctx.db.query("agent_marketplace_templates").withIndex("by_published", (q: any) => q.eq("isPublished", true));
+    if (args.category) q = q.withIndex("by_category", (q: any) => q.eq("category", args.category));
     return await q.order("desc").take(args.limit ?? 50);
   },
 });

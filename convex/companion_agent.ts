@@ -54,7 +54,7 @@ export const getActiveSessions = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    return await ctx.db.query("companion_agent_sessions").filter((q) => q.eq(q.field("isActive"), true)).order("desc").take(50);
+    return await ctx.db.query("companion_agent_sessions").withIndex("by_active", (q) => q.eq("isActive", true)).order("desc").take(50);
   },
 });
 

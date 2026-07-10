@@ -84,7 +84,8 @@ export const agentsTables = {
   })
     .index("by_template_id", ["templateId"])
     .index("by_category", ["category"])
-    .index("by_author", ["author"]),
+    .index("by_author", ["author"])
+    .index("by_published", ["isPublished"]),
   agent_marketplace_reviews: defineTable({
     templateId: v.string(),
     reviewerId: v.string(),

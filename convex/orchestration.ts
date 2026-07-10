@@ -59,7 +59,7 @@ export const completeRun = mutation({
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return { authError: true };
-    const run = await ctx.db.query("orchestration_workflow_runs").filter((q) => q.eq(q.field("runId"), args.runId)).first();
+    const run = await ctx.db.query("orchestration_workflow_runs").withIndex("by_run_id", (q) => q.eq("runId", args.runId)).first();
     if (!run) return { error: "Not found" };
     await ctx.db.patch(run._id, { status: args.status, result: args.result, error: args.error, completedAt: Date.now() });
     return { success: true };

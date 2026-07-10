@@ -148,7 +148,7 @@ export const _getSweepableWallets = internalQuery({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx) => {
-    return await ctx.db.query("usd_wallets").filter((q) => q.eq(q.field("sweepEnabled"), true)).collect();
+    return await ctx.db.query("usd_wallets").withIndex("by_sweep_enabled", (q) => q.eq("sweepEnabled", true)).collect();
   },
 });
 

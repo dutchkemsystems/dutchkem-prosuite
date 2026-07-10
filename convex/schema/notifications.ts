@@ -39,7 +39,8 @@ export const notificationsTables = {
     createdAt: v.number(),
   })
     .index("by_webhook_id", ["webhookId"])
-    .index("by_events", ["events"]),
+    .index("by_events", ["events"])
+    .index("by_active", ["isActive"]),
   email_notifications: defineTable({
     to: v.string(),
     subject: v.string(),

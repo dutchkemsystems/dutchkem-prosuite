@@ -116,7 +116,7 @@ export const getActiveSurveys = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    return await ctx.db.query("surveys").filter((q) => q.eq(q.field("isActive"), true)).order("desc").take(20);
+    return await ctx.db.query("surveys").withIndex("by_active", (q) => q.eq("isActive", true)).order("desc").take(20);
   },
 });
 
