@@ -18,7 +18,7 @@ export const getSalesReport = query({
     const start = args.startDate || Date.now() - 30 * 86400000;
     const end = args.endDate || Date.now();
 
-    const orders = await ctx.db.query("orders").take(5000);
+    const orders = await ctx.db.query("orders").take(500);
     const filtered = orders.filter((o: any) => o.createdAt >= start && o.createdAt <= end);
 
     const totalRevenue = filtered.reduce((s: number, o: any) => s + (o.total || 0), 0);
@@ -78,7 +78,7 @@ export const getCustomerReport = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const customers = await ctx.db.query("customers").take(5000);
+    const customers = await ctx.db.query("customers").take(500);
     const total = customers.length;
 
     const totalSpent = customers.reduce((s: number, c: any) => s + (c.totalSpent || 0), 0);
@@ -153,7 +153,7 @@ export const getInventoryReport = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const products = await ctx.db.query("products").take(5000);
+    const products = await ctx.db.query("products").take(500);
     const totalProducts = products.length;
     const publishedProducts = products.filter((p: any) => p.isPublished !== false);
     const totalStock = products.reduce((s: number, p: any) => s + (p.stock || 0), 0);
@@ -206,7 +206,7 @@ export const getDashboardSummary = query({
     const sevenDaysAgo = now - 7 * 86400000;
 
     // Orders
-    const allOrders = await ctx.db.query("orders").take(5000);
+    const allOrders = await ctx.db.query("orders").take(500);
     const recent30d = allOrders.filter((o: any) => o.createdAt >= thirtyDaysAgo);
     const recent7d = allOrders.filter((o: any) => o.createdAt >= sevenDaysAgo);
 
@@ -215,12 +215,12 @@ export const getDashboardSummary = query({
     const totalRevenueAll = allOrders.reduce((s: number, o: any) => s + (o.total || 0), 0);
 
     // Customers
-    const allCustomers = await ctx.db.query("customers").take(5000);
+    const allCustomers = await ctx.db.query("customers").take(500);
     const newCustomers30d = allCustomers.filter((c: any) => c.createdAt >= thirtyDaysAgo);
     const newCustomers7d = allCustomers.filter((c: any) => c.createdAt >= sevenDaysAgo);
 
     // Products
-    const allProducts = await ctx.db.query("products").take(5000);
+    const allProducts = await ctx.db.query("products").take(500);
     const lowStock = allProducts.filter((p: any) => (p.stock || 0) < 10 && (p.stock || 0) > 0);
 
     // Pending items
@@ -318,7 +318,7 @@ export const getSalesReportInternal = internalQuery({
   handler: async (ctx, args) => {
     const start = args.startDate || Date.now() - 30 * 86400000;
     const end = args.endDate || Date.now();
-    const orders = await ctx.db.query("orders").take(5000);
+    const orders = await ctx.db.query("orders").take(500);
     const filtered = orders.filter((o: any) => o.createdAt >= start && o.createdAt <= end);
     return {
       totalRevenue: filtered.reduce((s: number, o: any) => s + (o.total || 0), 0),

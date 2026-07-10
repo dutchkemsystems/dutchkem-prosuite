@@ -95,7 +95,7 @@ export const autoTestAllAgents = internalAction({
 export const _countUsers = internalQuery({
   args: {},
   returns: v.array(v.any()),
-  handler: async (ctx) => await ctx.db.query("users").take(1000),
+  handler: async (ctx) => await ctx.db.query("users").take(500),
 });
 
 export const _getExpiredConnections = internalQuery({

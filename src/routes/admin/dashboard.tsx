@@ -3,7 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
 import { useAction, useConvexAuth, useConvex, useMutation, useQuery } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
-import { Component,  Suspense, useCallback, useEffect, useState } from "react"
+import { Component,  Suspense, lazy, useCallback, useEffect, useState } from "react"
 import { AreaChart, Area, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { api } from "../../../convex/_generated/api"
 import type {ReactNode} from "react";
@@ -13,36 +13,38 @@ import { LiveFeed } from "~/components/LiveFeed";
 import { LiveCharts } from "~/components/LiveCharts";
 import { PaymentMonitor } from "~/components/PaymentMonitor";
 import { InactivityLogout } from "~/components/InactivityLogout";
-import { ComposioAdminHub } from "~/components/ComposioAdminHub";
-import { RenewalsTithePanel } from "~/components/RenewalsTithePanel";
-import { ComposioObservability } from "~/components/ComposioObservability";
-import { TryPostScheduler } from "~/components/TryPostScheduler";
-import { AutoHealDashboard } from "~/components/AutoHealDashboard";
-import { ComposioEnhancementPanel } from "~/components/ComposioEnhancementPanel";
-import { TaxCompliancePanel } from "~/components/TaxCompliancePanel";
-import { EnterprisePortalAdmin } from "~/components/enterprise/EnterprisePortalAdmin";
-import { AdminEnterpriseHub } from "~/components/admin/AdminEnterpriseHub";
-import { MimoControlPanel } from "~/components/admin/MimoControlPanel";
-import { RapidAPIFallbackDashboard } from "~/components/admin/RapidAPIFallbackDashboard";
-import { RevenueHub } from "~/components/admin/RevenueHub";
-import AutoFlyerDashboard from "~/components/admin/AutoFlyerDashboard";
-import CurrencyConverter from "~/components/admin/CurrencyConverter";
-import AdAutomationHub from "~/components/admin/enterprise/AdAutomationHub";
-import { AdDesignerPanel } from "~/components/admin/AdDesignerPanel";
-import { WhatsAppHub } from "~/components/admin/WhatsAppHub";
-import AdminPayoutDashboard from "~/components/admin/enterprise/AdminPayoutDashboard";
-import { EnterprisePaymentsReadOnly } from "~/components/admin/EnterprisePaymentsReadOnly";
-import { ModelTogglePanel } from "~/components/admin/ModelTogglePanel";
-import { ModelAnalyticsPanel } from "~/components/admin/ModelAnalyticsPanel";
-import { WhatsAppDualPanel } from "~/components/admin/WhatsAppDualPanel";
-import { HermesDashboard } from "~/components/admin/HermesDashboard";
 import { SupportDashboard } from "~/components/admin/SupportDashboard";
-import { FreeLLMAPIPanel } from "~/components/admin/FreeLLMAPIPanel";
-import { PaymentAnalyticsPanel } from "~/components/admin/PaymentAnalyticsPanel";
-import { RefundsPanel } from "~/components/admin/RefundsPanel";
-import { InvoicesPanel } from "~/components/admin/InvoicesPanel";
-import { RecurringBillingPanel } from "~/components/admin/RecurringBillingPanel";
-import { ClientAnalyticsDashboard } from "~/components/ClientAnalyticsWidgets";
+
+// Lazy-loaded heavy panels (only loaded when their tab is active)
+const ComposioAdminHub = lazy(() => import("~/components/ComposioAdminHub").then(m => ({ default: m.ComposioAdminHub })));
+const RenewalsTithePanel = lazy(() => import("~/components/RenewalsTithePanel").then(m => ({ default: m.RenewalsTithePanel })));
+const ComposioObservability = lazy(() => import("~/components/ComposioObservability").then(m => ({ default: m.ComposioObservability })));
+const TryPostScheduler = lazy(() => import("~/components/TryPostScheduler").then(m => ({ default: m.TryPostScheduler })));
+const AutoHealDashboard = lazy(() => import("~/components/AutoHealDashboard"));
+const ComposioEnhancementPanel = lazy(() => import("~/components/ComposioEnhancementPanel").then(m => ({ default: m.ComposioEnhancementPanel })));
+const TaxCompliancePanel = lazy(() => import("~/components/TaxCompliancePanel").then(m => ({ default: m.TaxCompliancePanel })));
+const EnterprisePortalAdmin = lazy(() => import("~/components/enterprise/EnterprisePortalAdmin").then(m => ({ default: m.EnterprisePortalAdmin })));
+const AdminEnterpriseHub = lazy(() => import("~/components/admin/AdminEnterpriseHub").then(m => ({ default: m.AdminEnterpriseHub })));
+const MimoControlPanel = lazy(() => import("~/components/admin/MimoControlPanel").then(m => ({ default: m.MimoControlPanel })));
+const RapidAPIFallbackDashboard = lazy(() => import("~/components/admin/RapidAPIFallbackDashboard").then(m => ({ default: m.RapidAPIFallbackDashboard })));
+const RevenueHub = lazy(() => import("~/components/admin/RevenueHub").then(m => ({ default: m.RevenueHub })));
+const AutoFlyerDashboard = lazy(() => import("~/components/admin/AutoFlyerDashboard"));
+const CurrencyConverter = lazy(() => import("~/components/admin/CurrencyConverter"));
+const AdAutomationHub = lazy(() => import("~/components/admin/enterprise/AdAutomationHub"));
+const AdDesignerPanel = lazy(() => import("~/components/admin/AdDesignerPanel").then(m => ({ default: m.AdDesignerPanel })));
+const WhatsAppHub = lazy(() => import("~/components/admin/WhatsAppHub").then(m => ({ default: m.WhatsAppHub })));
+const AdminPayoutDashboard = lazy(() => import("~/components/admin/enterprise/AdminPayoutDashboard"));
+const EnterprisePaymentsReadOnly = lazy(() => import("~/components/admin/EnterprisePaymentsReadOnly").then(m => ({ default: m.EnterprisePaymentsReadOnly })));
+const ModelTogglePanel = lazy(() => import("~/components/admin/ModelTogglePanel").then(m => ({ default: m.ModelTogglePanel })));
+const ModelAnalyticsPanel = lazy(() => import("~/components/admin/ModelAnalyticsPanel").then(m => ({ default: m.ModelAnalyticsPanel })));
+const WhatsAppDualPanel = lazy(() => import("~/components/admin/WhatsAppDualPanel").then(m => ({ default: m.WhatsAppDualPanel })));
+const HermesDashboard = lazy(() => import("~/components/admin/HermesDashboard").then(m => ({ default: m.HermesDashboard })));
+const FreeLLMAPIPanel = lazy(() => import("~/components/admin/FreeLLMAPIPanel").then(m => ({ default: m.FreeLLMAPIPanel })));
+const PaymentAnalyticsPanel = lazy(() => import("~/components/admin/PaymentAnalyticsPanel").then(m => ({ default: m.PaymentAnalyticsPanel })));
+const RefundsPanel = lazy(() => import("~/components/admin/RefundsPanel").then(m => ({ default: m.RefundsPanel })));
+const InvoicesPanel = lazy(() => import("~/components/admin/InvoicesPanel").then(m => ({ default: m.InvoicesPanel })));
+const RecurringBillingPanel = lazy(() => import("~/components/admin/RecurringBillingPanel").then(m => ({ default: m.RecurringBillingPanel })));
+const ClientAnalyticsDashboard = lazy(() => import("~/components/ClientAnalyticsWidgets").then(m => ({ default: m.ClientAnalyticsDashboard })));
 
 class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, { hasError: boolean; error: Error | null }> {
   state = { hasError: false, error: null as Error | null };

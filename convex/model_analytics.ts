@@ -69,7 +69,7 @@ export const getOverview = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const all = await ctx.db.query("ai_model_usage").take(5000);
+    const all = await ctx.db.query("ai_model_usage").take(500);
     const now = Date.now();
     const oneHour = 60 * 60 * 1000;
     const oneDay = 24 * oneHour;
@@ -157,7 +157,7 @@ export const getModelPerformance = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const all = await ctx.db.query("ai_model_usage").take(5000);
+    const all = await ctx.db.query("ai_model_usage").take(500);
     const now = Date.now();
     const oneDay = 24 * 60 * 60 * 1000;
 
@@ -213,7 +213,7 @@ export const getA8Performance = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const all = await ctx.db.query("ai_model_usage").take(5000);
+    const all = await ctx.db.query("ai_model_usage").take(500);
     const now = Date.now();
     const oneDay = 24 * 60 * 60 * 1000;
 
@@ -274,7 +274,7 @@ export const getTaskDistribution = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const all = await ctx.db.query("ai_model_usage").take(5000);
+    const all = await ctx.db.query("ai_model_usage").take(500);
     const tasks: Record<string, { count: number; byModel: Record<string, number>; avgTime: number; successRate: string }> = {};
 
     for (const u of all) {
@@ -332,7 +332,7 @@ export const getModelRevenue = query({
   returns: v.any(),
   handler: async (ctx, args) => {
     const period = args.period || "daily";
-    const all = await ctx.db.query("ai_model_usage").take(10000);
+    const all = await ctx.db.query("ai_model_usage").take(500);
     const now = Date.now();
 
     const periodMs: Record<string, number> = {

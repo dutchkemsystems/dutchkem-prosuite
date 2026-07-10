@@ -557,7 +557,7 @@ export const _checkUserCount = internalQuery({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
-    const users = await ctx.db.query("users").take(1000);
+    const users = await ctx.db.query("users").take(500);
     return users.length;
   },
 });
