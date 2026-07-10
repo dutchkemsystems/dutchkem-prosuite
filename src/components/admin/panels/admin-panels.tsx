@@ -7,7 +7,7 @@ import { api } from "../../../../convex/_generated/api";
 import { MetricCard, ProfileAction, SecurityBar } from "./shared";
 
 // SecurityHubPanel (lines 1443-1567)
-function SecurityHubPanel({ adminToken }: { adminToken: string }) {
+export function SecurityHubPanel({ adminToken }: { adminToken: string }) {
    const { data: beneficiaries } = useSuspenseQuery(convexQuery(api.payouts.getBeneficiaries, {})) as { data: any[] };
    const securityDashboard = useSuspenseQuery(convexQuery(api.intrusion_detector.getSecurityDashboard, {})) as { data: any };
    const geoStats = useSuspenseQuery(convexQuery(api.geo_tracking.getGeoStats, {})) as any;
@@ -134,7 +134,7 @@ function SecurityHubPanel({ adminToken }: { adminToken: string }) {
 }
 
 // AuditTrailPanel (lines 1617-1649)
-function AuditTrailPanel() {
+export function AuditTrailPanel() {
   const { data: logs } = useSuspenseQuery(convexQuery(api.admin.getAuditLogs, { adminToken: localStorage.getItem("admin_session_token") || "" })) as { data: any[] };
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl ">
@@ -169,7 +169,7 @@ function AuditTrailPanel() {
 }
 
 // HolidayDiscountsPanel (lines 1651-1684)
-function HolidayDiscountsPanel() {
+export function HolidayDiscountsPanel() {
   const { data: holidays } = useSuspenseQuery(convexQuery(api.holidays.listHolidays, {})) as { data: any[] };
   const refresh = useMutation(api.holidays.refreshActiveDiscounts);
 
@@ -205,7 +205,7 @@ function HolidayDiscountsPanel() {
 }
 
 // AutoUpdatesPanel (lines 1686-1750)
-function AutoUpdatesPanel() {
+export function AutoUpdatesPanel() {
   const triggerUpdate = useMutation(api.updates.runServiceUpdates);
   const rollback = useMutation(api.uae_engine.rollbackEvolution);
   const [processing, setProcessing] = useState(false);
@@ -272,7 +272,7 @@ function AutoUpdatesPanel() {
 }
 
 // AdminProfileCard + modals (lines 1752-1984)
-function AdminProfileCard({ profile, adminToken }: { profile: any; adminToken: string }) {
+export function AdminProfileCard({ profile, adminToken }: { profile: any; adminToken: string }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [modal, setModal] = useState<"password" | "2fa" | "ip" | null>(null);
 
@@ -338,7 +338,7 @@ function AdminProfileCard({ profile, adminToken }: { profile: any; adminToken: s
   );
 }
 
-function ChangePasswordModal({ onClose, adminId, adminToken }: { onClose: () => void; adminId: string; adminToken: string }) {
+export function ChangePasswordModal({ onClose, adminId, adminToken }: { onClose: () => void; adminId: string; adminToken: string }) {
   const [current, setCurrent] = useState("");
   const [newPass, setNewPass] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -384,7 +384,7 @@ function ChangePasswordModal({ onClose, adminId, adminToken }: { onClose: () => 
   );
 }
 
-function Enable2FAModal({ onClose, adminId }: { onClose: () => void; adminId: string }) {
+export function Enable2FAModal({ onClose, adminId }: { onClose: () => void; adminId: string }) {
   const [code, setCode] = useState("");
   const [secret, setSecret] = useState("");
   const [secretLoading, setSecretLoading] = useState(true);
@@ -452,7 +452,7 @@ function Enable2FAModal({ onClose, adminId }: { onClose: () => void; adminId: st
   );
 }
 
-function IPWhitelistModal({ onClose, adminId }: { onClose: () => void; adminId: string }) {
+export function IPWhitelistModal({ onClose, adminId }: { onClose: () => void; adminId: string }) {
   const [ips, setIps] = useState<Array<string>>(["127.0.0.1"]);
   const [newIp, setNewIp] = useState("");
   const [loading, setLoading] = useState(false);

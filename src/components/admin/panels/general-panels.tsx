@@ -4,10 +4,10 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { useAction, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { MetricCard, AgentHealthMatrix, UpdateCycleItem } from "./shared";
+import { MetricCard, UpdateCycleItem } from "./shared";
 
 // ManualAgentTaskPanel (lines 352-571)
-function ManualAgentTaskPanel() {
+export function ManualAgentTaskPanel() {
   const [agentId, setAgentId] = useState("A1");
   const [userEmail, setUserEmail] = useState("");
   const [serviceId, setServiceId] = useState("");
@@ -229,7 +229,7 @@ function ManualAgentTaskPanel() {
 
 
 // StatsOverview (lines 612-834)
-function StatsOverview({ data, earnings, uaeStatus }: any) {
+export function StatsOverview({ data, earnings, uaeStatus }: any) {
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [liveEarnings, setLiveEarnings] = useState(earnings);
   const [liveTxs, setLiveTxs] = useState<any[]>([]);
@@ -454,7 +454,7 @@ function StatsOverview({ data, earnings, uaeStatus }: any) {
 
 
 // RecentTransactions (lines 835-873)
-function RecentTransactions() {
+export function RecentTransactions() {
    const { data: txs } = useSuspenseQuery(convexQuery(api.admin.getRecentTransactions, { adminToken: localStorage.getItem("admin_session_token") || "" })) as { data: any[] };
    return (
       <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl ">
@@ -495,7 +495,7 @@ function RecentTransactions() {
 
 
 // FreelancerPanel (lines 1986-2024)
-function FreelancerPanel({ data }: { data: any }) {
+export function FreelancerPanel({ data }: { data: any }) {
   const stats = data || { total: 0, pendingApplications: 0, autoApprovedWeek: 0, autoRejectedWeek: 0, totalPaidMonth: 0, avgEarnings: 0 };
   return (
     <div className="space-y-8 ">
@@ -536,7 +536,7 @@ function FreelancerPanel({ data }: { data: any }) {
 
 
 // CloudMemoryPanel (lines 2355-2571)
-function CloudMemoryPanel({ adminToken }: { adminToken: string }) {
+export function CloudMemoryPanel({ adminToken }: { adminToken: string }) {
   const { data: health } = useSuspenseQuery(convexQuery(api.cloud_memory.getSystemHealth, {})) as { data: any };
   const { data: backups } = useSuspenseQuery(convexQuery(api.cloud_memory.getAllBackups, {})) as { data: any[] };
   const { data: healingHistory } = useSuspenseQuery(convexQuery(api.cloud_memory.getHealingHistory, { limit: 10 })) as { data: Array<any> };
@@ -755,7 +755,7 @@ function CloudMemoryPanel({ adminToken }: { adminToken: string }) {
 
 
 // VoiceROIPanel (lines 2572-2696)
-function VoiceROIPanel() {
+export function VoiceROIPanel() {
   const { data: voiceStats } = useSuspenseQuery(convexQuery(api.voice_roi.getStats, { timeRange: "week" })) as { data: any };
   const { data: callHistory } = useSuspenseQuery(convexQuery(api.voice_roi.getCallHistory, { limit: 20 })) as { data: any };
   const { data: dailyMetrics } = useSuspenseQuery(convexQuery(api.voice_roi.getDailyMetrics, { days: 7 })) as { data: any };
@@ -882,7 +882,7 @@ function VoiceROIPanel() {
 
 
 // LiveChatsPanel (lines 2697-2801)
-function LiveChatsPanel() {
+export function LiveChatsPanel() {
   const { data: activeChats } = useSuspenseQuery(convexQuery(api.live_chats.getActiveChats, {})) as { data: any };
   const { data: chatStats } = useSuspenseQuery(convexQuery(api.live_chats.getChatStats, {})) as { data: any };
   const [selectedChat, setSelectedChat] = useState<any>(null);
@@ -989,7 +989,7 @@ function LiveChatsPanel() {
 
 
 // APICostsPanel (lines 2802-2836)
-function APICostsPanel() {
+export function APICostsPanel() {
   const { data: apiCosts } = useSuspenseQuery(convexQuery(api.api_costs.getApiCostSummary, {})) as { data: any };
 
   return (
@@ -1019,6 +1019,63 @@ function APICostsPanel() {
           <p className="text-sm font-black text-white">TOTAL MONTHLY COST</p>
           <p className="text-lg font-black text-red-500">₦{(apiCosts?.totalCost || 0).toLocaleString()}</p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+export function TaxDashboardPanel() {
+  const { data: taxStatus } = useSuspenseQuery(convexQuery(api.tax.getTaxStatus, {})) as { data: any };
+  const status = taxStatus ?? {};
+  return (
+    <div className="space-y-10">
+      <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-12 shadow-2xl">
+        <h2 className="text-3xl font-black uppercase tracking-tighter text-white mb-8">Tax Wallet</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <MetricCard label="Total Tax Deducted" value={`₦${(status.totalDeducted || 0).toLocaleString()}`} icon="🏛️" color="amber" />
+          <MetricCard label="Interest Earned" value={`₦${(status.interestEarned || 0).toLocaleString()}`} icon="📈" color="emerald" />
+          <MetricCard label="Next Filing" value={status.nextFilingDate || "N/A"} icon="📋" color="blue" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AgentHealthMatrix({ data }: { data: any }) {
+  const agentHealth = data?.agentHealth || [];
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-[3rem] overflow-hidden shadow-2xl">
+      <div className="p-10 border-b border-slate-800 flex justify-between items-center">
+        <h2 className="text-xl font-black uppercase tracking-tighter">Institutional Agent Health Monitor</h2>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-slate-800">
+              <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Agent</th>
+              <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+              <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Uptime</th>
+              <th className="p-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Latency</th>
+            </tr>
+          </thead>
+          <tbody>
+            {agentHealth.map((agent: any, i: number) => (
+              <tr key={i} className="border-b border-white/5 hover:bg-slate-800/50 transition-colors">
+                <td className="p-4 text-sm font-bold text-white">{agent.name || `Agent ${i + 1}`}</td>
+                <td className="p-4">
+                  <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase ${agent.status === 'healthy' ? 'bg-emerald-500/10 text-emerald-500' : agent.status === 'degraded' ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500'}`}>
+                    {agent.status || 'unknown'}
+                  </span>
+                </td>
+                <td className="p-4 text-sm text-slate-400">{agent.uptime || 'N/A'}</td>
+                <td className="p-4 text-sm text-slate-400">{agent.latency || 'N/A'}</td>
+              </tr>
+            ))}
+            {agentHealth.length === 0 && (
+              <tr><td colSpan={4} className="p-10 text-center text-slate-600 font-bold uppercase tracking-widest italic opacity-30">No agent data available</td></tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ import { api } from "../../../../convex/_generated/api";
 import { MetricCard } from "./shared";
 
 // DailySweepStatusPanel (lines 874-1442)
-function DailySweepStatusPanel({ adminToken }: { adminToken: string }) {
+export function DailySweepStatusPanel({ adminToken }: { adminToken: string }) {
    const { data: settings } = useSuspenseQuery(convexQuery(api.secure_sweeps.getSettings, {})) as { data: any };
    const { data: sweepHistory } = useSuspenseQuery(convexQuery(api.secure_sweeps.getHistory, { limit: 10 })) as { data: any };
    const { data: sweepStats } = useSuspenseQuery(convexQuery(api.secure_sweeps.getSweepStats, {})) as { data: any };
@@ -578,7 +578,7 @@ function DailySweepStatusPanel({ adminToken }: { adminToken: string }) {
 
 
 // CharityDashboardPanel (lines 2025-2244)
-function CharityDashboardPanel() {
+export function CharityDashboardPanel() {
   const { data: settings } = useSuspenseQuery(convexQuery(api.charity.getSettings, {})) as { data: any };
   const { data: titheHistory } = useSuspenseQuery(convexQuery(api.charity.getHistory, { limit: 10 })) as { data: any };
   const { data: charities } = useSuspenseQuery(convexQuery(api.charity.getCharities, {})) as { data: any };
@@ -800,7 +800,7 @@ function CharityDashboardPanel() {
 
 
 // FreelancerMarketplacePanel (lines 2245-2354)
-function FreelancerMarketplacePanel() {
+export function FreelancerMarketplacePanel() {
   const { data: escrowBalance } = useSuspenseQuery(convexQuery(api.marketplace.getEscrowBalance, {})) as { data: any };
   const { data: pendingPayout } = useSuspenseQuery(convexQuery(api.marketplace.getPendingFridayPayout, {})) as { data: any };
   const { data: marketplaceStats } = useSuspenseQuery(convexQuery(api.marketplace.getMarketplaceStats, {})) as { data: any };

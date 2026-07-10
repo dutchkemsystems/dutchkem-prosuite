@@ -7,7 +7,7 @@ import { api } from "../../../../convex/_generated/api";
 import { MetricCard } from "./shared";
 
 // PlatformAnalyticsPanel (lines 2837-3007)
-function PlatformAnalyticsPanel() {
+export function PlatformAnalyticsPanel() {
   const [timeRange, setTimeRange] = useState<"day" | "week" | "month" | "year">("month");
   const { data: analytics } = useSuspenseQuery(convexQuery(api.platform_analytics.getPlatformAnalyticsSummary, { timeRange })) as { data: any };
   const { data: dailyMetrics } = useSuspenseQuery(convexQuery(api.platform_analytics.getDailyPlatformMetrics, { days: timeRange === "day" ? 1 : timeRange === "week" ? 7 : timeRange === "month" ? 30 : 365 })) as { data: any };
@@ -180,7 +180,7 @@ function PlatformAnalyticsPanel() {
 
 
 // UserManagementPanel (lines 3008-3245)
-function UserManagementPanel({ adminToken }: { adminToken: string }) {
+export function UserManagementPanel({ adminToken }: { adminToken: string }) {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | "user" | "admin" | "freelancer">("all");
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -420,7 +420,7 @@ function UserManagementPanel({ adminToken }: { adminToken: string }) {
 
 
 // UnifiedAnalyticsPanel (lines 3246-3456)
-function UnifiedAnalyticsPanel() {
+export function UnifiedAnalyticsPanel() {
   const [activeSubTab, setActiveSubTab] = useState<"overview" | "platform" | "ai" | "users" | "support">("overview");
 
   // Cross-domain queries for overview
@@ -633,7 +633,7 @@ function UnifiedAnalyticsPanel() {
 
 
 // SyntheticIntelPanel (lines 3457-3769)
-function SyntheticIntelPanel() {
+export function SyntheticIntelPanel() {
   const { data: agents } = useSuspenseQuery(convexQuery(api.synthetic_intelligence.getAgentsWithStatus, {})) as { data: any };
   const { data: backups } = useSuspenseQuery(convexQuery(api.agent_backups.getBackups, {})) as { data: any };
   const { data: perfSummary } = useSuspenseQuery(convexQuery(api.synthetic_intelligence.getPerformanceSummary, {})) as { data: any };
@@ -948,7 +948,7 @@ function SyntheticIntelPanel() {
 
 
 // AdEnginePanel (lines 3770-end)
-function AdEnginePanel() {
+export function AdEnginePanel() {
   const { data: engineStatus } = useSuspenseQuery(convexQuery(api.adEngine.getAdEngineStatus, {})) as { data: any };
   const { data: campaigns } = useSuspenseQuery(convexQuery(api.adEngine.getCampaigns, {})) as { data: any };
   const { data: analytics } = useSuspenseQuery(convexQuery(api.adEngine.getAdAnalytics, {})) as { data: any };
