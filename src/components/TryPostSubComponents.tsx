@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-function BrandSection({
+export function BrandSection({
   brandProfile,
   brandForm,
   setBrandForm,
@@ -85,7 +85,7 @@ function BrandSection({
   );
 }
 
-function ScheduleSection({
+export function ScheduleSection({
   posts,
   platforms,
   onNew,
@@ -169,7 +169,7 @@ function ScheduleSection({
   );
 }
 
-function BulkSection({ onNew, platforms }: { onNew: () => void; platforms: any[] }) {
+export function BulkSection({ onNew, platforms }: { onNew: () => void; platforms: any[] }) {
   return (
     <>
       <div className="flex items-center justify-between">
@@ -195,7 +195,7 @@ Weekly tip: Always... | twitter | 2026-06-11T08:00 | #Tips`}</pre>
   );
 }
 
-function CarouselSection({ carousels, onNew }: { carousels: any[]; onNew: () => void }) {
+export function CarouselSection({ carousels, onNew }: { carousels: any[]; onNew: () => void }) {
   return (
     <>
       <div className="flex items-center justify-between">
@@ -227,7 +227,7 @@ function CarouselSection({ carousels, onNew }: { carousels: any[]; onNew: () => 
   );
 }
 
-function WorkflowsSection({
+export function WorkflowsSection({
   workflows,
   onNew,
   toggleWorkflow,
@@ -279,7 +279,7 @@ function WorkflowsSection({
   );
 }
 
-function AnalyticsSection({ analytics }: { analytics: any }) {
+export function AnalyticsSection({ analytics }: { analytics: any }) {
   if (!analytics || analytics.authError) {
     return (
       <div className="bg-slate-900/30 border border-slate-700 rounded-3xl p-8 text-center text-slate-400">
@@ -325,7 +325,7 @@ function AnalyticsSection({ analytics }: { analytics: any }) {
   );
 }
 
-function Modal({
+export function Modal({
   title,
   children,
   onClose,
