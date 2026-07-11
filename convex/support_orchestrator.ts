@@ -62,7 +62,7 @@ async function callNVIDIA(model: string, systemPrompt: string, userMessage: stri
 // LOAD BALANCING — Track active conversations per agent
 // ═══════════════════════════════════════════════════════════════════
 
-async function getAgentLoad(ctx: any): Promise<Record<string, number>> {
+async function fetchAgentLoad(ctx: any): Promise<Record<string, number>> {
   const agentIds = Object.keys(AGENT_MAP);
   const load: Record<string, number> = {};
   
@@ -172,7 +172,7 @@ export const processMessage = action({
     const agentStates = await ctx.runQuery(
       (await import("./_generated/api")).api.support_orchestrator.getAgentStates
     );
-    const agentLoad = await getAgentLoad(ctx);
+    const agentLoad = await fetchAgentLoad(ctx);
 
     // Step 1: Classify intent via LLM
     const intent = await classifyIntent(args.message, history);
