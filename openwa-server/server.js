@@ -229,7 +229,7 @@ async function main() {
   // Start polling for messages
   setInterval(pollPendingMessages, POLL_INTERVAL);
 
-  // Health check + reconnect check every 30 seconds
+  // Health check + command check every 30 seconds
   setInterval(async () => {
     if (isConnected) {
       await convex.mutation('whatsapp_openwa:reportSessionStatus', {
@@ -238,20 +238,16 @@ async function main() {
       });
     }
 
-    // Check if reconnect was requested from admin panel
+    // Check for start/stop commands from admin panel
     try {
-      const flagKey = `whatsapp_reconnect_${SESSION_TYPE}`;
-      const flag = await convex.query('whatsapp_openwa:getConfigByKey', { key: flagKey });
-      if (flag?.value?.requested) {
-        console.log(`[${SESSION_TYPE}] Reconnect requested — restarting WhatsApp connection...`);
-        // Clear the flag
-        await convex.mutation('whatsapp_openwa:clearConfigKey', { key: flagKey });
-        // Reconnect
+      const cmd = await convex.query('whatsapp_openwa:getPendingCommands', { sessionType: SESSION_TYPE });
+      if (cmd?.command === 'start' && !isConnected) {
+        console.log(`[${SESSION_TYPE}] Start command received — reconnecting to WhatsApp...`);
         isConnected = false;
         await connectToWhatsApp();
       }
     } catch (e) {
-      // Ignore reconnect check errors
+      // Ignore command check errors
     }
   }, 30000);
 }
