@@ -28,6 +28,8 @@ export function SupportDashboard() {
   const escalations: any = useQuery(api.support_orchestrator.getPendingEscalations)
   const status: any = useQuery(api.support_orchestrator.getOrchestratorStatus)
   const agentStates: any = useQuery(api.support_orchestrator.getAgentStates)
+  const agentLoad: any = useQuery(api.support_orchestrator.getAgentLoad)
+  const agentMetadata: any = useQuery(api.support_orchestrator.getAgentMetadata)
   const toggleAgent = useMutation(api.support_orchestrator.toggleAgent)
 
   const handleToggleAgent = async (agentId: string, enabled: boolean) => {
@@ -224,30 +226,52 @@ export function SupportDashboard() {
         <div className="space-y-4">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
             <h3 className="text-sm font-black uppercase tracking-tight text-white mb-2">🤖 Agent Control</h3>
-            <p className="text-xs text-slate-400 mb-4">Enable or disable agents for the support orchestrator. Disabled agents won't receive routed messages from clients.</p>
+            <p className="text-xs text-slate-400 mb-4">Enable/disable agents and view load balancing. Disabled agents won't receive routed messages. Messages auto-route to least-busy agent.</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {Object.entries(AGENT_NAMES).filter(([id]) => id !== 'GENERAL').map(([id, name]) => {
-                const enabled = agentStates?.[id] !== false
-                const count = analytics.agentCounts?.[id] || 0
+              {agentMetadata?.map((agent: any) => {
+                const enabled = agentStates?.[agent.id] !== false
+                const load = agentLoad?.[agent.id] || 0
+                const count = analytics.agentCounts?.[agent.id] || 0
                 return (
-                  <div key={id} className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                  <div key={agent.id} className={`p-4 rounded-2xl border transition-all ${
                     enabled ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-slate-950 border-red-500/20 opacity-60'
                   }`}>
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{AGENT_ICONS[id]}</span>
-                      <div>
-                        <p className="text-sm font-bold text-white">{name}</p>
-                        <p className="text-[9px] text-slate-500">{id} · {count} interactions</p>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{agent.icon}</span>
+                        <div>
+                          <p className="text-sm font-bold text-white">{agent.name}</p>
+                          <p className="text-[9px] text-slate-500">{agent.id}</p>
+                        </div>
                       </div>
+                      <button onClick={() => handleToggleAgent(agent.id, !enabled)}
+                        className={`w-11 h-6 rounded-full transition-all relative ${
+                          enabled ? 'bg-emerald-500' : 'bg-slate-700'
+                        }`}>
+                        <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${
+                          enabled ? 'left-5.5' : 'left-0.5'
+                        }`} />
+                      </button>
                     </div>
-                    <button onClick={() => handleToggleAgent(id, !enabled)}
-                      className={`w-11 h-6 rounded-full transition-all relative ${
-                        enabled ? 'bg-emerald-500' : 'bg-slate-700'
-                      }`}>
-                      <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${
-                        enabled ? 'left-5.5' : 'left-0.5'
-                      }`} />
-                    </button>
+                    {/* Load indicator */}
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[9px] text-slate-500">Active: {load}</span>
+                      <span className="text-[9px] text-slate-500">Total: {count}</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mb-2">
+                      <div className={`h-full rounded-full transition-all ${
+                        load >= 3 ? 'bg-red-500' : load >= 1 ? 'bg-amber-500' : 'bg-emerald-500'
+                      }`} style={{ width: `${Math.min(100, load * 25)}%` }} />
+                    </div>
+                    {/* Tags */}
+                    <div className="flex flex-wrap gap-1">
+                      {agent.tags?.slice(0, 4).map((tag: string) => (
+                        <span key={tag} className="px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded text-[7px] font-bold uppercase">{tag}</span>
+                      ))}
+                      {agent.tags?.length > 4 && (
+                        <span className="px-1.5 py-0.5 bg-slate-800 text-slate-500 rounded text-[7px]">+{agent.tags.length - 4}</span>
+                      )}
+                    </div>
                   </div>
                 )
               })}

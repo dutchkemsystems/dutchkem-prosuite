@@ -6,22 +6,22 @@ import { action, query, mutation } from "./_generated/server";
 // LLM-powered intent classification + agent routing (A1-A15).
 // ═══════════════════════════════════════════════════════════════════
 
-const AGENT_MAP: Record<string, { name: string; icon: string; domain: string }> = {
-  A1: { name: "Academic Pro", icon: "🎓", domain: "Thesis, research, academic writing, citations" },
-  A2: { name: "Business Pro", icon: "💼", domain: "Business plans, strategy, finance, entrepreneurship" },
-  A3: { name: "Content Pro", icon: "✍️", domain: "Content creation, social media, marketing, copywriting" },
-  A4: { name: "Career Pro", icon: "📄", domain: "CV writing, interview prep, job search, career advice" },
-  A5: { name: "Personal Shopper", icon: "🛍️", domain: "Shopping advice, deals, product recommendations" },
-  A6: { name: "Exam Pro", icon: "📝", domain: "Exam preparation, practice tests, study strategies" },
-  A7: { name: "Finance Pro", icon: "💰", domain: "Budgeting, investing, savings, financial planning" },
-  A8: { name: "MediaStudio Pro", icon: "🎬", domain: "Video production, animation, editing, dubbing" },
-  A9: { name: "Health Pro", icon: "🏥", domain: "Wellness, fitness, nutrition, mental health" },
-  A10: { name: "Home Services Pro", icon: "🧹", domain: "Cleaning, organization, home maintenance" },
-  A11: { name: "Language Tutor", icon: "🗣️", domain: "Language learning, translation, pronunciation" },
-  A12: { name: "Travel Planner", icon: "✈️", domain: "Travel planning, itineraries, destinations" },
-  A13: { name: "ServiceMart NG", icon: "🚀", domain: "JAMB, WAEC, NECO, CV, interview, career guidance" },
-  A14: { name: "Translation Hub", icon: "📝", domain: "Translation, transcription, subtitling, localization" },
-  A15: { name: "Event Planner", icon: "🎉", domain: "Event planning, weddings, birthdays, corporate events" },
+const AGENT_MAP: Record<string, { name: string; icon: string; domain: string; tags: string[]; priority: number }> = {
+  A1: { name: "Academic Pro", icon: "🎓", domain: "Thesis, research, academic writing, citations", tags: ["thesis", "research", "paper", "citation", "academic", "university", "JAMB", "WAEC", "NECO", "school", "exam", "study", "dissertation"], priority: 1 },
+  A2: { name: "Business Pro", icon: "💼", domain: "Business plans, strategy, finance, entrepreneurship", tags: ["business", "plan", "strategy", "finance", "entrepreneur", "startup", "SME", "investor", "profit", "revenue", "company", "enterprise"], priority: 2 },
+  A3: { name: "Content Pro", icon: "✍️", domain: "Content creation, social media, marketing, copywriting", tags: ["content", "blog", "article", "social media", "marketing", "copywriting", "post", "tweet", "caption"], priority: 3 },
+  A4: { name: "Career Pro", icon: "📄", domain: "CV writing, interview prep, job search, career advice", tags: ["cv", "resume", "interview", "job", "career", "hiring", "recruitment", "cover letter"], priority: 4 },
+  A5: { name: "Personal Shopper", icon: "🛍️", domain: "Shopping advice, deals, product recommendations", tags: ["shop", "buy", "deal", "product", "price", "compare", "recommend", "store"], priority: 5 },
+  A6: { name: "Exam Pro", icon: "📝", domain: "Exam preparation, practice tests, study strategies", tags: ["exam", "test", "prep", "practice", "study guide", "quiz", "assessment"], priority: 6 },
+  A7: { name: "Finance Pro", icon: "💰", domain: "Budgeting, investing, savings, financial planning", tags: ["budget", "invest", "save", "money", "financial", "tax", "accounting", "loan"], priority: 2 },
+  A8: { name: "MediaStudio Pro", icon: "🎬", domain: "Video production, animation, editing, dubbing", tags: ["video", "animation", "edit", "dub", "media", "production", "film", "audio"], priority: 7 },
+  A9: { name: "Health Pro", icon: "🏥", domain: "Wellness, fitness, nutrition, mental health", tags: ["health", "wellness", "fitness", "diet", "nutrition", "mental health", "therapy"], priority: 3 },
+  A10: { name: "Home Services Pro", icon: "🧹", domain: "Cleaning, organization, home maintenance", tags: ["clean", "home", "maintenance", "repair", "organize", "plumber", "electrician"], priority: 8 },
+  A11: { name: "Language Tutor", icon: "🗣️", domain: "Language learning, translation, pronunciation", tags: ["language", "learn", "translate", "pronunciation", "grammar", "vocabulary"], priority: 5 },
+  A12: { name: "Travel Planner", icon: "✈️", domain: "Travel planning, itineraries, destinations", tags: ["travel", "trip", "hotel", "flight", "itinerary", "destination", "vacation"], priority: 6 },
+  A13: { name: "ServiceMart NG", icon: "🚀", domain: "JAMB, WAEC, NECO, CV, interview, career guidance", tags: ["jamb", "waec", "neco", "nigeria", "service", "marketplace", "freelancer"], priority: 4 },
+  A14: { name: "Translation Hub", icon: "📝", domain: "Translation, transcription, subtitling, localization", tags: ["translate", "transcribe", "subtitle", "localize", "language pair", "document"], priority: 5 },
+  A15: { name: "Event Planner", icon: "🎉", domain: "Event planning, weddings, birthdays, corporate events", tags: ["event", "wedding", "birthday", "party", "corporate event", "venue", "catering"], priority: 7 },
 };
 
 const AGENT_LIST = Object.entries(AGENT_MAP)
@@ -56,6 +56,58 @@ async function callNVIDIA(model: string, systemPrompt: string, userMessage: stri
   if (!response.ok) throw new Error(`NVIDIA API error: ${response.status}`);
   const data = await response.json();
   return data.choices[0].message.content;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LOAD BALANCING — Track active conversations per agent
+// ═══════════════════════════════════════════════════════════════════
+
+async function getAgentLoad(ctx: any): Promise<Record<string, number>> {
+  const agentIds = Object.keys(AGENT_MAP);
+  const load: Record<string, number> = {};
+  
+  for (const id of agentIds) {
+    const key = `agent_active_conversations_${id}`;
+    const config = await ctx.db
+      .query("system_config")
+      .withIndex("by_key", (q) => q.eq("key", key))
+      .first();
+    load[id] = (config?.value as number) || 0;
+  }
+  return load;
+}
+
+async function incrementAgentLoad(ctx: any, agentId: string): Promise<void> {
+  const key = `agent_active_conversations_${agentId}`;
+  const existing = await ctx.db
+    .query("system_config")
+    .withIndex("by_key", (q) => q.eq("key", key))
+    .first();
+  const current = (existing?.value as number) || 0;
+  if (existing) {
+    await ctx.db.patch(existing._id, { value: current + 1, updatedAt: Date.now() });
+  } else {
+    await ctx.db.insert("system_config", { key, value: 1, description: `Active conversations for ${agentId}`, updatedAt: Date.now() });
+  }
+}
+
+async function decrementAgentLoad(ctx: any, agentId: string): Promise<void> {
+  const key = `agent_active_conversations_${agentId}`;
+  const existing = await ctx.db
+    .query("system_config")
+    .withIndex("by_key", (q) => q.eq("key", key))
+    .first();
+  if (existing) {
+    const current = (existing.value as number) || 0;
+    await ctx.db.patch(existing._id, { value: Math.max(0, current - 1), updatedAt: Date.now() });
+  }
+}
+
+// Find least-busy enabled agent from candidates
+function selectLeastBusy(candidates: string[], agentLoad: Record<string, number>, agentStates: Record<string, boolean>): string {
+  const enabled = candidates.filter((id) => agentStates[id] !== false);
+  if (enabled.length === 0) return candidates[0]; // Fallback to first candidate
+  return enabled.reduce((best, id) => (agentLoad[id] || 0) < (agentLoad[best] || 0) ? id : best, enabled[0]);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -116,8 +168,28 @@ export const processMessage = action({
     const startTime = Date.now();
     const userId = args.userId || "anonymous";
 
+    // Get agent states and load for load balancing
+    const agentStates = await ctx.runQuery(
+      (await import("./_generated/api")).api.support_orchestrator.getAgentStates
+    );
+    const agentLoad = await getAgentLoad(ctx);
+
     // Step 1: Classify intent via LLM
     const intent = await classifyIntent(args.message, history);
+
+    // Step 2: Apply load balancing — if classified agent is busy, find least-busy alternative
+    let selectedAgentId = intent.agentId;
+    if (intent.agentId !== "GENERAL" && AGENT_MAP[intent.agentId]) {
+      const primaryLoad = agentLoad[intent.agentId] || 0;
+      // If primary agent has 3+ active conversations, find a less busy one
+      if (primaryLoad >= 3) {
+        const alternatives = Object.keys(AGENT_MAP).filter((id) => id !== intent.agentId);
+        const bestAlternative = selectLeastBusy(alternatives, agentLoad, agentStates);
+        if ((agentLoad[bestAlternative] || 0) < primaryLoad) {
+          selectedAgentId = bestAlternative;
+        }
+      }
+    }
 
     // Step 2: Route to the classified agent
     if (intent.agentId === "GENERAL") {
@@ -187,16 +259,19 @@ export const processMessage = action({
 
     // Step 3: Route to specific agent via customer_support
     try {
+      // Increment load for selected agent
+      await incrementAgentLoad(ctx, selectedAgentId);
+
       const result = await ctx.runAction(
         (await import("./_generated/api")).api.customer_support.generateSupportResponse,
         {
-          agentId: intent.agentId,
+          agentId: selectedAgentId,
           message: args.message,
           conversationHistory: history,
         }
       );
 
-      const agentInfo = AGENT_MAP[intent.agentId];
+      const agentInfo = AGENT_MAP[selectedAgentId];
       const responseText = result.message || "I'm here to help! Could you rephrase your question?";
       const responseTimeMs = Date.now() - startTime;
 
@@ -207,13 +282,16 @@ export const processMessage = action({
           userId,
           message: args.message,
           response: responseText,
-          agentId: intent.agentId,
+          agentId: selectedAgentId,
           agentName: agentInfo?.name || "Support",
           confidence: intent.confidence,
           routed: true,
           responseTimeMs,
         }
       );
+
+      // Decrement load after response
+      await decrementAgentLoad(ctx, selectedAgentId);
 
       // Auto-escalation check
       if (interactionId) {
@@ -235,7 +313,7 @@ export const processMessage = action({
       const repetitionCheck = await ctx.runMutation(
         (await import("./_generated/api")).api.support_repetition_detector.checkRepetition,
         {
-          agentId: intent.agentId,
+          agentId: selectedAgentId,
           message: args.message,
           response: responseText,
         }
@@ -246,7 +324,7 @@ export const processMessage = action({
         const retryResult = await ctx.runAction(
           (await import("./_generated/api")).api.customer_support.generateSupportResponse,
           {
-            agentId: intent.agentId,
+            agentId: selectedAgentId,
             message: `IMPORTANT: Do NOT repeat previous answers. Provide a fresh, different response to: ${args.message}`,
           }
         );
@@ -580,6 +658,44 @@ export const getAgentStates = query({
       states[id] = val !== undefined ? (val as boolean) : true;
     }
     return states;
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// QUERY: Get agent load (active conversations)
+// ═══════════════════════════════════════════════════════════════════
+export const getAgentLoad = query({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const agentIds = ["A1","A2","A3","A4","A5","A6","A7","A8","A9","A10","A11","A12","A13","A14","A15"];
+    const allConfig = await ctx.db.query("system_config").collect();
+    const configMap = new Map(allConfig.map((c) => [c.key, c.value]));
+
+    const load: Record<string, number> = {};
+    for (const id of agentIds) {
+      const val = configMap.get(`agent_active_conversations_${id}`);
+      load[id] = (val as number) || 0;
+    }
+    return load;
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// QUERY: Get agent tags and metadata
+// ═══════════════════════════════════════════════════════════════════
+export const getAgentMetadata = query({
+  args: {},
+  returns: v.any(),
+  handler: async () => {
+    return Object.entries(AGENT_MAP).map(([id, agent]) => ({
+      id,
+      name: agent.name,
+      icon: agent.icon,
+      domain: agent.domain,
+      tags: agent.tags,
+      priority: agent.priority,
+    }));
   },
 });
 
