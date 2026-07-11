@@ -254,7 +254,7 @@ export const getSystemConfig = query({
     returns: v.any(),
     handler: async (ctx, args) => {
         const isValid = await ctx.runQuery(internal.admin_helpers.validateAdminToken, { adminToken: args.adminToken });
-        if (!isValid) throw new Error("Unauthorized");
+        if (!isValid) return [];
         return await ctx.db.query("system_config").collect();
     }
 });
@@ -405,7 +405,7 @@ export const getRecentTransactions = query({
   returns: v.any(),
   handler: async (ctx, args) => {
     const isValid = await ctx.runQuery(internal.admin_helpers.validateAdminToken, { adminToken: args.adminToken });
-    if (!isValid) throw new Error("Unauthorized");
+    if (!isValid) return [];
       return await ctx.db
         .query("payment_verifications")
         .order("desc")
@@ -421,7 +421,7 @@ export const getAuditLogs = query({
   returns: v.any(),
   handler: async (ctx, args) => {
     const isValid = await ctx.runQuery(internal.admin_helpers.validateAdminToken, { adminToken: args.adminToken });
-    if (!isValid) throw new Error("Unauthorized");
+    if (!isValid) return [];
     return await ctx.db
       .query("audit_logs")
       .order("desc")

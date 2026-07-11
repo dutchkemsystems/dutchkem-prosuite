@@ -180,7 +180,7 @@ export const getAdminSessions = query({
   returns: v.any(),
   handler: async (ctx, args) => {
     const isValid = await ctx.runQuery(internal.admin_helpers.validateAdminToken, { adminToken: args.adminToken });
-    if (!isValid) throw new Error("Unauthorized");
+    if (!isValid) return [];
     return await ctx.db.query("user_sessions").collect();
   },
 });
