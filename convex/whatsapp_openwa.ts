@@ -67,6 +67,33 @@ export const checkServerHealth = query({
   },
 });
 
+// ─── SYSTEM CONFIG HELPERS (for reconnect flags) ───
+
+export const getConfigByKey = internalQuery({
+  args: { key: v.string() },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("system_config")
+      .withIndex("by_key", (q) => q.eq("key", args.key))
+      .first();
+  },
+});
+
+export const clearConfigKey = internalMutation({
+  args: { key: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("system_config")
+      .withIndex("by_key", (q) => q.eq("key", args.key))
+      .first();
+    if (existing) {
+      await ctx.db.delete(existing._id);
+    }
+  },
+});
+
 // ─── START SESSION ───
 
 export const startSession = mutation({
@@ -89,7 +116,7 @@ export const startSession = mutation({
       if (existing.status === "connected") {
         return { success: true, message: "Already connected", sessionType: args.sessionType };
       }
-      // Set to "starting" — the OpenWA server will report "connected" when QR is scanned
+      // Set to "starting" AND set reconnect flag for OpenWA server
       await ctx.db.patch(existing._id, {
         status: "starting",
         error: undefined,
@@ -103,6 +130,21 @@ export const startSession = mutation({
       });
     }
 
+    // Set reconnect flag so OpenWA server picks it up on next poll
+    const flagKey = `whatsapp_reconnect_${args.sessionType}`;
+    const existingFlag = await ctx.db
+      .query("system_config")
+      .withIndex("by_key", (q) => q.eq("key", flagKey))
+      .first();
+    if (existingFlag) {
+      await ctx.db.patch(existingFlag._id, { value: { requested: true, requestedAt: now } });
+    } else {
+      await ctx.db.insert("system_config", {
+        key: flagKey,
+        value: { requested: true, requestedAt: now },
+      });
+    }
+
     // Log the action
     await ctx.db.insert("whatsapp_toggle_logs", {
       systemType: args.sessionType,
@@ -112,7 +154,7 @@ export const startSession = mutation({
       timestamp: now,
     });
 
-    return { success: true, status: "starting", sessionType: args.sessionType, message: "Session starting — scan QR code when OpenWA server connects" };
+    return { success: true, status: "starting", sessionType: args.sessionType, message: "Reconnect requested — OpenWA server will pick up on next poll (within 3 seconds)" };
   },
 });
 
