@@ -6,6 +6,8 @@ import { useAction, useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api";
 import { MetricCard } from "./shared";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, Legend } from "recharts"
+import { ModelAnalyticsPanel } from "~/components/admin/ModelAnalyticsPanel"
+import { ClientAnalyticsDashboard } from "~/components/ClientAnalyticsWidgets"
 
 // PlatformAnalyticsPanel (lines 2837-3007)
 export function PlatformAnalyticsPanel() {

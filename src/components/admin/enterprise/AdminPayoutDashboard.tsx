@@ -179,6 +179,7 @@ function AllPayoutsTab({ adminToken }: { adminToken: string }) {
 
 function KycReviewTab({ adminToken }: { adminToken: string }) {
   const [statusFilter, setStatusFilter] = useState('pending')
+  const [rejectModal, setRejectModal] = useState<{ id: string; reason: string } | null>(null)
   const submissions = useQuery(api.client_kyc.adminListKycSubmissions, { adminToken, status: statusFilter })
   const approveKyc = useMutation(api.client_kyc.adminApproveKyc)
   const rejectKyc = useMutation(api.client_kyc.adminRejectKyc)
