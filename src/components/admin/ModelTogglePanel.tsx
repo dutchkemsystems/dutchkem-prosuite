@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation } from 'convex/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { convexQuery } from '@convex-dev/react-query'
 import { api } from '../../../convex/_generated/api'
+
+const EXPECTED_MODEL_COUNT = 7
 
 export function ModelTogglePanel({ adminToken }: { adminToken: string }) {
   const [toggling, setToggling] = useState<string | null>(null)
@@ -13,6 +15,18 @@ export function ModelTogglePanel({ adminToken }: { adminToken: string }) {
   const toggleModel = useMutation(api.model_toggle.toggleModel)
   const toggleMultiple = useMutation(api.model_toggle.toggleMultipleModels)
   const resetAll = useMutation(api.model_toggle.resetAllModels)
+  const seedModels = useMutation(api.model_toggle.seedModels)
+
+  // Auto-seed models if count is less than expected
+  useEffect(() => {
+    if (stats && stats.models && stats.models.length < EXPECTED_MODEL_COUNT) {
+      seedModels({}).then(() => {
+        queryClient.invalidateQueries({
+          queryKey: convexQuery(api.model_toggle.getModelStats, {}).queryKey,
+        })
+      }).catch(() => {})
+    }
+  }, [stats, seedModels, queryClient])
 
   const invalidate = () => {
     queryClient.invalidateQueries({

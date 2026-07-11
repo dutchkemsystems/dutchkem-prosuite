@@ -108,38 +108,12 @@ export const getAllModelStatuses = query({
   returns: v.any(),
   handler: async (ctx) => {
     const statuses = await ctx.db.query("ai_model_status").take(20);
-    const existingModels = new Set(statuses.map((s) => s.modelName));
     
-    // Auto-seed any missing models from MODEL_CONFIGS
-    let seeded = 0;
-    for (const config of MODEL_CONFIGS) {
-      if (!existingModels.has(config.modelName)) {
-        await ctx.db.insert("ai_model_status", {
-          ...config,
-          isEnabled: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-        seeded++;
-      }
-    }
-
-    if (statuses.length === 0 && seeded === 0) {
-      // First time — seed all models
-      for (const config of MODEL_CONFIGS) {
-        await ctx.db.insert("ai_model_status", {
-          ...config,
-          isEnabled: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-      }
+    // If DB is empty, return MODEL_CONFIGS directly (read-only, no write)
+    if (statuses.length === 0) {
       return MODEL_CONFIGS.map((c) => ({ ...c, isEnabled: true, _id: "auto-seeded" }));
     }
-
-    // Re-fetch after seeding
-    const all = await ctx.db.query("ai_model_status").take(20);
-    return all;
+    return statuses;
   },
 });
 
@@ -174,23 +148,7 @@ export const getModelStats = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    let all = await ctx.db.query("ai_model_status").take(20);
-    const existingModels = new Set(all.map((s) => s.modelName));
-
-    // Auto-seed any missing models
-    for (const config of MODEL_CONFIGS) {
-      if (!existingModels.has(config.modelName)) {
-        await ctx.db.insert("ai_model_status", {
-          ...config,
-          isEnabled: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-      }
-    }
-
-    // Re-fetch after seeding
-    all = await ctx.db.query("ai_model_status").take(20);
+    const all = await ctx.db.query("ai_model_status").take(20);
     const enabled = all.filter((m) => m.isEnabled).length;
     const disabled = all.filter((m) => !m.isEnabled).length;
 
@@ -199,6 +157,17 @@ export const getModelStats = query({
       .query("ai_model_toggle_logs")
       .order("desc")
       .take(20);
+
+    // If DB is empty, return MODEL_CONFIGS directly (no write needed)
+    if (all.length === 0) {
+      return {
+        total: MODEL_CONFIGS.length,
+        enabled: MODEL_CONFIGS.length,
+        disabled: 0,
+        models: MODEL_CONFIGS.map((c, i) => ({ ...c, isEnabled: true, _id: `auto-${i}` })),
+        recentLogs: [],
+      };
+    }
 
     return {
       total: all.length,
