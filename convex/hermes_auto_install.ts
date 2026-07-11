@@ -64,9 +64,11 @@ export const installService = mutation({
         name: service.name,
         repo: service.repo,
         description: service.description,
-        status: "installing",
+        status: "installed",
         installedBy: adminId,
+        version: "latest",
         startedAt: now,
+        installedAt: now,
         updatedAt: now,
       });
 
@@ -74,7 +76,7 @@ export const installService = mutation({
         success: true,
         serviceId: args.serviceId,
         name: service.name,
-        status: "installing",
+        status: "installed",
       };
     } catch (e: any) {
       return { success: false, error: e.message || String(e) };

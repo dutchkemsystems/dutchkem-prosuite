@@ -32,6 +32,7 @@ export function HermesDashboard({ adminToken }: HermesDashboardProps) {
   const delegateTask = useMutation(api.hermes_orchestrator.delegateTask)
   const togglePlatform = useMutation(api.hermes_gateway.togglePlatform)
   const installService = useMutation(api.hermes_auto_install.installService)
+  const uninstallService = useMutation(api.hermes_auto_install.uninstallService)
   const toggleAdOrchestrator = useMutation(api.adOrchestrator.toggleOrchestrator)
   const toggleAdPlatform = useMutation(api.adOrchestrator.togglePlatform)
   const generateAdContent = useMutation(api.adOrchestrator.generateContent)
@@ -78,15 +79,34 @@ export function HermesDashboard({ adminToken }: HermesDashboardProps) {
 
   const handleTogglePlatform = async (platformId: string, enabled: boolean) => {
     try {
-      await togglePlatform({ platformId, enabled, adminToken })
-      showToast('success', `Platform ${enabled ? 'enabled' : 'disabled'}`)
+      const result = await togglePlatform({ platformId, enabled, adminToken })
+      if (result?.success) {
+        showToast('success', `${platformId} ${enabled ? 'activated' : 'deactivated'}`)
+      } else {
+        showToast('error', result?.error || 'Failed to toggle platform')
+      }
     } catch (e: any) { showToast('error', e.message) }
   }
 
   const handleInstall = async (serviceId: string) => {
     try {
-      await installService({ serviceId, adminToken })
-      showToast('success', 'Installation queued')
+      const result = await installService({ serviceId, adminToken })
+      if (result?.success) {
+        showToast('success', `${result.name} installed successfully`)
+      } else {
+        showToast('error', result?.error || 'Installation failed')
+      }
+    } catch (e: any) { showToast('error', e.message) }
+  }
+
+  const handleUninstall = async (serviceId: string) => {
+    try {
+      const result = await uninstallService({ serviceId, adminToken })
+      if (result?.success) {
+        showToast('success', 'Service uninstalled')
+      } else {
+        showToast('error', result?.error || 'Uninstall failed')
+      }
     } catch (e: any) { showToast('error', e.message) }
   }
 
@@ -497,22 +517,35 @@ export function HermesDashboard({ adminToken }: HermesDashboardProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {availableServices?.map((s: any) => {
               const installed = installedServices?.find((i: any) => i.serviceId === s.id)
+              const isInstalled = installed?.status === 'installed'
               return (
-                <div key={s.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+                <div key={s.id} className={`border rounded-2xl p-4 transition-all ${isInstalled ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-slate-900 border-slate-800'}`}>
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-black text-sm">{s.name}</span>
                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      installed?.status === 'installed' ? 'bg-emerald-500/10 text-emerald-400' :
+                      isInstalled ? 'bg-emerald-500/10 text-emerald-400' :
                       installed?.status === 'installing' ? 'bg-blue-500/10 text-blue-400' :
                       'bg-slate-700 text-slate-400'
                     }`}>{installed?.status || 'available'}</span>
                   </div>
                   <p className="text-xs text-slate-400 mb-3">{s.description}</p>
-                  <button onClick={() => handleInstall(s.id)}
-                    disabled={installed?.status === 'installed' || installed?.status === 'installing'}
-                    className="w-full py-2 bg-purple-500 text-white rounded-xl text-xs font-bold hover:bg-purple-600 disabled:opacity-50 disabled:bg-slate-700">
-                    {installed?.status === 'installed' ? '✅ Installed' : installed?.status === 'installing' ? '⏳ Installing...' : '📦 Install'}
-                  </button>
+                  {isInstalled ? (
+                    <div className="flex gap-2">
+                      <div className="flex-1 py-2 bg-emerald-500/10 text-emerald-400 rounded-xl text-xs font-bold text-center">
+                        ✅ Installed {installed.version ? `v${installed.version}` : ''}
+                      </div>
+                      <button onClick={() => handleUninstall(s.id)}
+                        className="px-4 py-2 bg-red-500/10 text-red-400 rounded-xl text-xs font-bold hover:bg-red-500/20 transition-all">
+                        Uninstall
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={() => handleInstall(s.id)}
+                      disabled={installed?.status === 'installing'}
+                      className="w-full py-2 bg-purple-500 text-white rounded-xl text-xs font-bold hover:bg-purple-600 disabled:opacity-50 disabled:bg-slate-700 transition-all">
+                      {installed?.status === 'installing' ? '⏳ Installing...' : '📦 Install'}
+                    </button>
+                  )}
                 </div>
               )
             })}
