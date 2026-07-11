@@ -277,6 +277,8 @@ function KoraBalanceTab({ adminToken }: { adminToken: string }) {
   const [balance, setBalance] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [rejectModal, setRejectModal] = useState<{ id: string; reason: string } | null>(null)
+  const [processConfirm, setProcessConfirm] = useState<string | null>(null)
   const getBalance = useMutation(api.admin_payouts.adminGetKoraBalance)
 
   const fetchBalance = async () => {

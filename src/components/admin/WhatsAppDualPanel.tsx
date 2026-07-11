@@ -308,6 +308,24 @@ export function WhatsAppDualPanel({ adminToken }: { adminToken: string }) {
                   <div className="bg-white p-4 rounded-xl text-center mb-3">
                     <p className="text-xs text-slate-600 mb-2">Scan QR Code with WhatsApp</p>
                     <img src={`data:image/png;base64,${sessStatus.qr}`} alt="QR Code" className="mx-auto" style={{ maxWidth: 256 }} />
+                    <p className="text-[9px] text-slate-500 mt-2">Open WhatsApp → Settings → Linked Devices → Link a Device</p>
+                  </div>
+                )}
+
+                {!sessStatus?.qr && !connected && sessStatus?.status === 'starting' && (
+                  <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl text-center mb-3">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                      <p className="text-xs font-bold text-amber-400">Starting session...</p>
+                    </div>
+                    <p className="text-[9px] text-slate-500">Waiting for OpenWA server to generate QR code</p>
+                  </div>
+                )}
+
+                {!connected && sessStatus?.status !== 'starting' && (
+                  <div className="bg-slate-800 p-4 rounded-xl text-center mb-3">
+                    <p className="text-xs text-slate-400 mb-3">Click the toggle below to start the WhatsApp session</p>
+                    <p className="text-[9px] text-slate-500">The OpenWA server will generate a QR code to scan</p>
                   </div>
                 )}
 

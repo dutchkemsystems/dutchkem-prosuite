@@ -10,8 +10,8 @@ type AdminPanelProps = {
   adminToken: string;
 };
 
-const VOICES = ["Professional", "Casual", "Witty", "Authoritative", "Friendly", "Inspirational"];
-const TIMEZONES = ["Africa/Lagos", "UTC", "America/New_York", "Europe/London", "Asia/Dubai"];
+export const VOICES = ["Professional", "Casual", "Witty", "Authoritative", "Friendly", "Inspirational"];
+export const TIMEZONES = ["Africa/Lagos", "UTC", "America/New_York", "Europe/London", "Asia/Dubai"];
 
 export function TryPostScheduler({ adminToken }: AdminPanelProps) {
   const [section, setSection] = useState<"brand" | "schedule" | "bulk" | "carousel" | "workflows" | "analytics">("brand");
