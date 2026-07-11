@@ -566,29 +566,6 @@ export const bulkSendImage = action({
   },
 });
 
-// ─── CHECK SERVER HEALTH (DB-backed) ───
-
-export const checkServerHealth = query({
-  args: {},
-  returns: v.any(),
-  handler: async (ctx) => {
-    const adminSession = await ctx.db
-      .query("whatsapp_sessions")
-      .withIndex("by_type", (q) => q.eq("sessionType", "admin"))
-      .first();
-    const enterpriseSession = await ctx.db
-      .query("whatsapp_sessions")
-      .withIndex("by_type", (q) => q.eq("sessionType", "enterprise"))
-      .first();
-
-    return {
-      status: "ok",
-      admin: adminSession?.status || "disconnected",
-      enterprise: enterpriseSession?.status || "disconnected",
-    };
-  },
-});
-
 // ─── SEND IMAGE TO GROUP ───
 
 export const sendImageToGroup = action({
