@@ -111,6 +111,23 @@ function selectLeastBusy(candidates: string[], agentLoad: Record<string, number>
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// SENTIMENT DETECTION — Simple keyword-based
+// ═══════════════════════════════════════════════════════════════════
+function detectSentiment(message: string): string {
+  const lower = message.toLowerCase();
+  const negative = ["angry", "frustrated", "terrible", "worst", "hate", "disappointed", "unacceptable", "furious", "annoyed", "waste"];
+  const positive = ["great", "awesome", "love", "excellent", "amazing", "perfect", "thank", "happy", "satisfied", "wonderful"];
+  
+  const negCount = negative.filter((w) => lower.includes(w)).length;
+  const posCount = positive.filter((w) => lower.includes(w)).length;
+  
+  if (negCount >= 2) return "negative";
+  if (posCount >= 2) return "positive";
+  if (negCount === 1) return "slightly_negative";
+  return "neutral";
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // INTENT CLASSIFICATION
 // ═══════════════════════════════════════════════════════════════════
 async function classifyIntent(message: string, history: Array<{ role: string; content: string }>): Promise<{ agentId: string; confidence: string }> {
@@ -176,6 +193,9 @@ export const processMessage = action({
 
     // Step 1: Classify intent via LLM
     const intent = await classifyIntent(args.message, history);
+
+    // Step 1.5: Detect sentiment
+    const sentiment = detectSentiment(args.message);
 
     // Step 2: Apply load balancing — if classified agent is busy, find least-busy alternative
     let selectedAgentId = intent.agentId;
@@ -774,5 +794,48 @@ export const getActiveEscalations = query({
       .order("desc")
       .collect();
     return [...pending, ...inProgress];
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// QUERY: Get agent performance metrics
+// ═══════════════════════════════════════════════════════════════════
+export const getAgentPerformance = query({
+  args: { days: v.optional(v.number()) },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const days = args.days || 7;
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+
+    const interactions = await ctx.db
+      .query("support_interactions")
+      .withIndex("by_created", (q) => q.gte("createdAt", cutoff))
+      .collect();
+
+    const agentIds = ["A1","A2","A3","A4","A5","A6","A7","A8","A9","A10","A11","A12","A13","A14","A15"];
+    const performance: Record<string, any> = {};
+
+    for (const id of agentIds) {
+      const agentInteractions = interactions.filter((i) => i.agentId === id);
+      const withTiming = agentInteractions.filter((i) => i.responseTimeMs);
+      const avgMs = withTiming.length
+        ? Math.round(withTiming.reduce((sum, i) => sum + (i.responseTimeMs || 0), 0) / withTiming.length)
+        : 0;
+      const routedCount = agentInteractions.filter((i) => i.routed).length;
+
+      performance[id] = {
+        totalInteractions: agentInteractions.length,
+        avgResponseMs: avgMs,
+        routedCount,
+        unroutedCount: agentInteractions.length - routedCount,
+        score: Math.min(100, Math.round(
+          (agentInteractions.length > 0 ? 40 : 0) +
+          (avgMs < 5000 ? 30 : avgMs < 10000 ? 20 : 10) +
+          (routedCount / Math.max(1, agentInteractions.length) * 30)
+        )),
+      };
+    }
+
+    return performance;
   },
 });
