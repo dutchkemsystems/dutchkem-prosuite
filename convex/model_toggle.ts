@@ -174,7 +174,23 @@ export const getModelStats = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const all = await ctx.db.query("ai_model_status").take(20);
+    let all = await ctx.db.query("ai_model_status").take(20);
+    const existingModels = new Set(all.map((s) => s.modelName));
+
+    // Auto-seed any missing models
+    for (const config of MODEL_CONFIGS) {
+      if (!existingModels.has(config.modelName)) {
+        await ctx.db.insert("ai_model_status", {
+          ...config,
+          isEnabled: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      }
+    }
+
+    // Re-fetch after seeding
+    all = await ctx.db.query("ai_model_status").take(20);
     const enabled = all.filter((m) => m.isEnabled).length;
     const disabled = all.filter((m) => !m.isEnabled).length;
 

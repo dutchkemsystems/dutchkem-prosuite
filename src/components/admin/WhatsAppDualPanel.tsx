@@ -78,8 +78,12 @@ export function WhatsAppDualPanel({ adminToken }: { adminToken: string }) {
 
   const handleStartSession = async (sessionType: 'admin' | 'enterprise') => {
     try {
-      await startSession({ sessionType, adminToken })
-      showToast('success', `${sessionType} session starting...`)
+      const result = await startSession({ sessionType, adminToken })
+      if (result?.success) {
+        showToast('success', `${sessionType} session marked as starting. Restart the OpenWA server on Fly.io to connect.`)
+      } else {
+        showToast('error', result?.error || 'Failed to start session')
+      }
     } catch (e: any) {
       showToast('error', e.message)
     }
