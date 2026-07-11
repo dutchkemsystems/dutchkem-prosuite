@@ -4,7 +4,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { useAction, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import { MetricCard, ProfileAction, SecurityBar } from "./shared";
+import { MetricCard, ProfileAction, SecurityBar, UpdateCycleItem } from "./shared";
 
 // SecurityHubPanel (lines 1443-1567)
 export function SecurityHubPanel({ adminToken }: { adminToken: string }) {

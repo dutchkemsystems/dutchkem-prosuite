@@ -1,10 +1,11 @@
-// AI & analytics panels extracted from admin/dashboard.tsx
+﻿// AI & analytics panels extracted from admin/dashboard.tsx
 import { useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
-import { useAction, useMutation } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api";
 import { MetricCard } from "./shared";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, Legend } from "recharts"
 
 // PlatformAnalyticsPanel (lines 2837-3007)
 export function PlatformAnalyticsPanel() {

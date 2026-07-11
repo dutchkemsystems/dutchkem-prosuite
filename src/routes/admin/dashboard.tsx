@@ -36,15 +36,15 @@ const SyntheticIntelPanel = lazy(() => import("~/components/admin/panels/ai-pane
 const AdEnginePanel = lazy(() => import("~/components/admin/panels/ai-panels").then(m => ({ default: m.AdEnginePanel })));
 
 // Lazy-loaded external panels
-const LiveFeed = lazy(() => import("~/components/LiveFeed"));
-const LiveCharts = lazy(() => import("~/components/LiveCharts"));
-const PaymentMonitor = lazy(() => import("~/components/PaymentMonitor"));
+const LiveFeed = lazy(() => import("~/components/LiveFeed").then(m => ({ default: m.LiveFeed })));
+const LiveCharts = lazy(() => import("~/components/LiveCharts").then(m => ({ default: m.LiveCharts })));
+const PaymentMonitor = lazy(() => import("~/components/PaymentMonitor").then(m => ({ default: m.PaymentMonitor })));
 const SupportDashboard = lazy(() => import("~/components/admin/SupportDashboard").then(m => ({ default: m.SupportDashboard })));
 const ComposioAdminHub = lazy(() => import("~/components/ComposioAdminHub").then(m => ({ default: m.ComposioAdminHub })));
 const RenewalsTithePanel = lazy(() => import("~/components/RenewalsTithePanel").then(m => ({ default: m.RenewalsTithePanel })));
 const ComposioObservability = lazy(() => import("~/components/ComposioObservability").then(m => ({ default: m.ComposioObservability })));
 const TryPostScheduler = lazy(() => import("~/components/TryPostScheduler").then(m => ({ default: m.TryPostScheduler })));
-const AutoHealDashboard = lazy(() => import("~/components/AutoHealDashboard"));
+const AutoHealDashboard = lazy(() => import("~/components/AutoHealDashboard").then(m => ({ default: m.AutoHealDashboard })));
 const ComposioEnhancementPanel = lazy(() => import("~/components/ComposioEnhancementPanel").then(m => ({ default: m.ComposioEnhancementPanel })));
 const TaxCompliancePanel = lazy(() => import("~/components/TaxCompliancePanel").then(m => ({ default: m.TaxCompliancePanel })));
 const EnterprisePortalAdmin = lazy(() => import("~/components/enterprise/EnterprisePortalAdmin").then(m => ({ default: m.EnterprisePortalAdmin })));
