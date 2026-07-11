@@ -14,6 +14,9 @@ export function HermesDashboard({ adminToken }: HermesDashboardProps) {
   const [creatingDesign, setCreatingDesign] = useState(false)
   const [previewItem, setPreviewItem] = useState<any>(null)
   const [autoPostEnabled, setAutoPostEnabled] = useState(true)
+  // Optimistic local state for instant UI updates
+  const [localInstalled, setLocalInstalled] = useState<Record<string, boolean>>({})
+  const [localPlatforms, setLocalPlatforms] = useState<Record<string, boolean>>({})
 
   const status: any = useQuery(api.hermes_orchestrator.getStatus)
   const tasks: any = useQuery(api.hermes_orchestrator.getTasks, { limit: 20 })
@@ -78,36 +81,28 @@ export function HermesDashboard({ adminToken }: HermesDashboardProps) {
   }
 
   const handleTogglePlatform = async (platformId: string, enabled: boolean) => {
+    setLocalPlatforms(prev => ({ ...prev, [platformId]: enabled }))
     try {
       const result = await togglePlatform({ platformId, enabled, adminToken })
-      if (result?.success) {
-        showToast('success', `${platformId} ${enabled ? 'activated' : 'deactivated'}`)
-      } else {
-        showToast('error', result?.error || 'Failed to toggle platform')
-      }
-    } catch (e: any) { showToast('error', e.message) }
+      if (!result?.success) { setLocalPlatforms(prev => ({ ...prev, [platformId]: !enabled })); showToast('error', result?.error || 'Failed') }
+    } catch (e: any) { setLocalPlatforms(prev => ({ ...prev, [platformId]: !enabled })); showToast('error', e.message) }
   }
 
   const handleInstall = async (serviceId: string) => {
+    setLocalInstalled(prev => ({ ...prev, [serviceId]: true }))
     try {
       const result = await installService({ serviceId, adminToken })
-      if (result?.success) {
-        showToast('success', `${result.name} installed successfully`)
-      } else {
-        showToast('error', result?.error || 'Installation failed')
-      }
-    } catch (e: any) { showToast('error', e.message) }
+      if (result?.success) { showToast('success', `${result.name || serviceId} installed`) }
+      else { setLocalInstalled(prev => { const n = { ...prev }; delete n[serviceId]; return n }); showToast('error', result?.error || 'Failed') }
+    } catch (e: any) { setLocalInstalled(prev => { const n = { ...prev }; delete n[serviceId]; return n }); showToast('error', e.message) }
   }
 
   const handleUninstall = async (serviceId: string) => {
+    setLocalInstalled(prev => { const n = { ...prev }; delete n[serviceId]; return n })
     try {
       const result = await uninstallService({ serviceId, adminToken })
-      if (result?.success) {
-        showToast('success', 'Service uninstalled')
-      } else {
-        showToast('error', result?.error || 'Uninstall failed')
-      }
-    } catch (e: any) { showToast('error', e.message) }
+      if (!result?.success) { setLocalInstalled(prev => ({ ...prev, [serviceId]: true })); showToast('error', result?.error || 'Failed') }
+    } catch (e: any) { setLocalInstalled(prev => ({ ...prev, [serviceId]: true })); showToast('error', e.message) }
   }
 
   const tabs = [
@@ -286,9 +281,11 @@ export function HermesDashboard({ adminToken }: HermesDashboardProps) {
         <div className="space-y-4">
           <h3 className="font-black">🌐 Platform Gateway ({platforms?.length || 0} platforms)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {platforms?.map((p: any) => (
+            {platforms?.map((p: any) => {
+              const isActive = localPlatforms[p.id] ?? (p.status === 'active')
+              return (
               <div key={p.id} className={`rounded-2xl border-l-4 p-4 transition-all ${
-                p.status === 'active' ? 'bg-emerald-500/5 border-l-emerald-500' : 'bg-slate-900 border-l-slate-700'
+                isActive ? 'bg-emerald-500/5 border-l-emerald-500' : 'bg-slate-900 border-l-slate-700'
               }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -299,14 +296,15 @@ export function HermesDashboard({ adminToken }: HermesDashboardProps) {
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" checked={p.status === 'active'}
+                    <input type="checkbox" checked={isActive}
                       onChange={(e) => handleTogglePlatform(p.id, e.target.checked)}
                       className="sr-only peer" />
                     <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500" />
                   </label>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
@@ -516,23 +514,21 @@ export function HermesDashboard({ adminToken }: HermesDashboardProps) {
           <h3 className="font-black">📦 Auto-Installation</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {availableServices?.map((s: any) => {
-              const installed = installedServices?.find((i: any) => i.serviceId === s.id)
-              const isInstalled = installed?.status === 'installed'
+              const serverInstalled = installedServices?.find((i: any) => i.serviceId === s.id)
+              const isInstalled = localInstalled[s.id] ?? serverInstalled?.status === 'installed'
               return (
                 <div key={s.id} className={`border rounded-2xl p-4 transition-all ${isInstalled ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-slate-900 border-slate-800'}`}>
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-black text-sm">{s.name}</span>
                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      isInstalled ? 'bg-emerald-500/10 text-emerald-400' :
-                      installed?.status === 'installing' ? 'bg-blue-500/10 text-blue-400' :
-                      'bg-slate-700 text-slate-400'
-                    }`}>{installed?.status || 'available'}</span>
+                      isInstalled ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-700 text-slate-400'
+                    }`}>{isInstalled ? 'installed' : 'available'}</span>
                   </div>
                   <p className="text-xs text-slate-400 mb-3">{s.description}</p>
                   {isInstalled ? (
                     <div className="flex gap-2">
                       <div className="flex-1 py-2 bg-emerald-500/10 text-emerald-400 rounded-xl text-xs font-bold text-center">
-                        ✅ Installed {installed.version ? `v${installed.version}` : ''}
+                        ✅ Installed
                       </div>
                       <button onClick={() => handleUninstall(s.id)}
                         className="px-4 py-2 bg-red-500/10 text-red-400 rounded-xl text-xs font-bold hover:bg-red-500/20 transition-all">
@@ -541,9 +537,8 @@ export function HermesDashboard({ adminToken }: HermesDashboardProps) {
                     </div>
                   ) : (
                     <button onClick={() => handleInstall(s.id)}
-                      disabled={installed?.status === 'installing'}
-                      className="w-full py-2 bg-purple-500 text-white rounded-xl text-xs font-bold hover:bg-purple-600 disabled:opacity-50 disabled:bg-slate-700 transition-all">
-                      {installed?.status === 'installing' ? '⏳ Installing...' : '📦 Install'}
+                      className="w-full py-2 bg-purple-500 text-white rounded-xl text-xs font-bold hover:bg-purple-600 transition-all">
+                      📦 Install
                     </button>
                   )}
                 </div>
