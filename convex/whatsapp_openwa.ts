@@ -38,6 +38,35 @@ export const getSessionStatus = query({
   },
 });
 
+// ─── HEALTH CHECK — Verify server is reachable and connected ───
+
+export const checkServerHealth = query({
+  args: { sessionType: v.union(v.literal("admin"), v.literal("enterprise")) },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    const session = await ctx.db
+      .query("whatsapp_sessions")
+      .withIndex("by_type", (q) => q.eq("sessionType", args.sessionType))
+      .first();
+
+    const now = Date.now();
+    const lastPing = session?.lastPingAt || 0;
+    const isStale = now - lastPing > 5 * 60 * 1000; // 5 minutes without ping
+
+    return {
+      sessionType: args.sessionType,
+      connected: session?.status === "connected",
+      status: session?.status || "disconnected",
+      isStale,
+      lastPingAt: lastPing,
+      minutesSincePing: lastPing ? Math.floor((now - lastPing) / 60000) : null,
+      qr: session?.qr || null,
+      error: session?.error,
+      canSendMessages: session?.status === "connected" && !isStale,
+    };
+  },
+});
+
 // ─── START SESSION ───
 
 export const startSession = mutation({

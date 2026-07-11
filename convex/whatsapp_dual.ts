@@ -559,6 +559,19 @@ export const sendWhatsAppMessage = action({
       return { success: false, error: "Number is blacklisted" };
     }
 
+    // Health check: Verify OpenWA server is connected
+    const health = await ctx.runQuery(internal.whatsapp_openwa.checkServerHealth, {
+      sessionType: args.systemType,
+    });
+    if (!health.canSendMessages) {
+      return {
+        success: false,
+        error: health.connected
+          ? `WhatsApp server stale (last ping ${health.minutesSincePing}min ago)`
+          : `WhatsApp ${args.systemType} server not connected. Scan QR code to connect.`,
+      };
+    }
+
     // Forward to existing integration
     const result = await ctx.runAction(
       (await import("./_generated/api")).internal.whatsapp_integration.sendWhatsAppMessage as any,
@@ -701,6 +714,19 @@ export const agentSendMessage = action({
       return { success: false, error: "Number is blacklisted" };
     }
 
+    // Health check: Verify OpenWA server is connected
+    const health = await ctx.runQuery(internal.whatsapp_openwa.checkServerHealth, {
+      sessionType: "admin",
+    });
+    if (!health.canSendMessages) {
+      return {
+        success: false,
+        error: health.connected
+          ? `WhatsApp server stale (last ping ${health.minutesSincePing}min ago)`
+          : `WhatsApp admin server not connected. Scan QR code to connect.`,
+      };
+    }
+
     // Check if recipient has active subscription
     const subs = await ctx.runQuery(internal.whatsapp_dual.getSubscriptions, {
       systemType: "admin",
@@ -776,6 +802,19 @@ export const enterpriseSendMessage = action({
     });
     if (blocked) {
       return { success: false, error: "Number is blacklisted" };
+    }
+
+    // Health check: Verify enterprise OpenWA server is connected
+    const health = await ctx.runQuery(internal.whatsapp_openwa.checkServerHealth, {
+      sessionType: "enterprise",
+    });
+    if (!health.canSendMessages) {
+      return {
+        success: false,
+        error: health.connected
+          ? `WhatsApp server stale (last ping ${health.minutesSincePing}min ago)`
+          : `WhatsApp enterprise server not connected. Scan QR code to connect.`,
+      };
     }
 
     // Check enterprise subscription
@@ -905,8 +944,22 @@ export const sendClientMessage = action({
       return { success: false, error: "No active WhatsApp subscription" };
     }
 
+    // STRICT ENFORCEMENT: Block if limit reached
     if (sub.messagesUsed >= sub.messagesLimit) {
-      return { success: false, error: "Message limit reached. Upgrade your plan." };
+      return { success: false, error: `Message limit reached (${sub.messagesUsed}/${sub.messagesLimit}). Upgrade your plan.` };
+    }
+
+    // Health check: Verify OpenWA server is connected before sending
+    const health = await ctx.runQuery(internal.whatsapp_openwa.checkServerHealth, {
+      sessionType: sub.systemType,
+    });
+    if (!health.canSendMessages) {
+      return {
+        success: false,
+        error: health.connected
+          ? `WhatsApp server stale (last ping ${health.minutesSincePing}min ago). Reconnecting...`
+          : `WhatsApp ${sub.systemType} server not connected. Scan QR code to connect.`,
+      };
     }
 
     // Actually queue the message via OpenWA

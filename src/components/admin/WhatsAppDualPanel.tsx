@@ -22,6 +22,8 @@ export function WhatsAppDualPanel({ adminToken }: { adminToken: string }) {
   const revenue: any = useQuery(api.whatsapp_dual.getRevenueReport, { period: 'monthly' })
   const adminSessionStatus: any = useQuery(api.whatsapp_openwa.getSessionStatus, { sessionType: 'admin' })
   const enterpriseSessionStatus: any = useQuery(api.whatsapp_openwa.getSessionStatus, { sessionType: 'enterprise' })
+  const adminHealth: any = useQuery(api.whatsapp_openwa.checkServerHealth, { sessionType: 'admin' })
+  const enterpriseHealth: any = useQuery(api.whatsapp_openwa.checkServerHealth, { sessionType: 'enterprise' })
   const adminContacts: any = useQuery(api.whatsapp_openwa.getContacts, { sessionType: 'admin' })
   const adminGroups: any = useQuery(api.whatsapp_openwa.getGroups, { sessionType: 'admin' })
   const masterKillSwitch: any = useQuery(api.whatsapp_dual.getMasterKillSwitchStatus, {})
@@ -271,22 +273,35 @@ export function WhatsAppDualPanel({ adminToken }: { adminToken: string }) {
 
           {(['admin', 'enterprise'] as const).map((sys) => {
             const sessStatus = sys === 'admin' ? adminSessionStatus : enterpriseSessionStatus
+            const health = sys === 'admin' ? adminHealth : enterpriseHealth
             const connected = sessStatus?.connected ?? false
+            const isStale = health?.isStale ?? false
 
             return (
               <div key={sys} className={`rounded-2xl border-l-4 p-5 transition-all ${
-                connected ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-slate-900 border-slate-800'
+                connected && !isStale ? 'bg-emerald-500/5 border-emerald-500/30' :
+                connected && isStale ? 'bg-amber-500/5 border-amber-500/30' :
+                'bg-slate-900 border-slate-800'
               }`}>
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <p className="font-black">{sys === 'admin' ? '👤 Admin Session' : '🏢 Enterprise Session'}</p>
                     <p className="text-[10px] text-slate-400 mt-1">Business: +234-9113393525</p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    connected ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-                  }`}>
-                    {connected ? '🟢 Connected' : '🔴 Disconnected'}
-                  </span>
+                  <div className="text-right">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                      connected && !isStale ? 'bg-emerald-500/10 text-emerald-400' :
+                      connected && isStale ? 'bg-amber-500/10 text-amber-400' :
+                      'bg-red-500/10 text-red-400'
+                    }`}>
+                      {connected && !isStale ? '🟢 Connected' :
+                       connected && isStale ? `⚠️ Stale (${health?.minutesSincePing || '?'}min)` :
+                       '🔴 Disconnected'}
+                    </span>
+                    {health?.canSendMessages === false && connected && (
+                      <p className="text-[9px] text-amber-400 mt-1">Cannot send messages — reconnect required</p>
+                    )}
+                  </div>
                 </div>
 
                 {sessStatus?.qr && !connected && (
