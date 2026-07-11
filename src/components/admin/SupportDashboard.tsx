@@ -27,6 +27,12 @@ export function SupportDashboard() {
   const interactions: any = useQuery(api.support_orchestrator.getRecentInteractions, { limit: 50 })
   const escalations: any = useQuery(api.support_orchestrator.getPendingEscalations)
   const status: any = useQuery(api.support_orchestrator.getOrchestratorStatus)
+  const agentStates: any = useQuery(api.support_orchestrator.getAgentStates)
+  const toggleAgent = useMutation(api.support_orchestrator.toggleAgent)
+
+  const handleToggleAgent = async (agentId: string, enabled: boolean) => {
+    await toggleAgent({ agentId, enabled })
+  }
 
   if (!analytics || !interactions) {
     return (
@@ -215,29 +221,38 @@ export function SupportDashboard() {
       )}
 
       {activeTab === 'agents' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {status?.agents?.map((agent: any) => {
-            const count = analytics.agentCounts[agent.id] || 0
-            return (
-              <div key={agent.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xl">{agent.icon}</span>
-                  <div>
-                    <p className="text-sm font-bold text-white">{agent.name}</p>
-                    <p className="text-[10px] text-slate-500">{agent.id}</p>
+        <div className="space-y-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+            <h3 className="text-sm font-black uppercase tracking-tight text-white mb-2">🤖 Agent Control</h3>
+            <p className="text-xs text-slate-400 mb-4">Enable or disable agents for the support orchestrator. Disabled agents won't receive routed messages from clients.</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {Object.entries(AGENT_NAMES).filter(([id]) => id !== 'GENERAL').map(([id, name]) => {
+                const enabled = agentStates?.[id] !== false
+                const count = analytics.agentCounts?.[id] || 0
+                return (
+                  <div key={id} className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                    enabled ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-slate-950 border-red-500/20 opacity-60'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{AGENT_ICONS[id]}</span>
+                      <div>
+                        <p className="text-sm font-bold text-white">{name}</p>
+                        <p className="text-[9px] text-slate-500">{id} · {count} interactions</p>
+                      </div>
+                    </div>
+                    <button onClick={() => handleToggleAgent(id, !enabled)}
+                      className={`w-11 h-6 rounded-full transition-all relative ${
+                        enabled ? 'bg-emerald-500' : 'bg-slate-700'
+                      }`}>
+                      <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${
+                        enabled ? 'left-5.5' : 'left-0.5'
+                      }`} />
+                    </button>
                   </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400">{count} interactions</span>
-                  <div className="w-16 h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-orange-500 rounded-full" style={{
-                      width: `${analytics.totalInteractions ? (count / analytics.totalInteractions) * 100 : 0}%`,
-                    }} />
-                  </div>
-                </div>
-              </div>
-            )
-          })}
+                )
+              })}
+            </div>
+          </div>
         </div>
       )}
 
