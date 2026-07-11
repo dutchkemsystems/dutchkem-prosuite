@@ -555,7 +555,9 @@ export function HermesDashboard({ adminToken }: HermesDashboardProps) {
 
       {toast && (
         <div className={`fixed bottom-6 right-6 px-5 py-3 rounded-2xl shadow-2xl z-50 animate-pulse ${
-          toast.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+          toast.type === 'success' ? 'bg-emerald-500 text-white' :
+          toast.type === 'info' ? 'bg-blue-500 text-white' :
+          'bg-red-500 text-white'
         }`}>
           <p className="text-sm font-bold">{toast.msg}</p>
         </div>
