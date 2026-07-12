@@ -129,7 +129,7 @@ const RETRY_DELAY_MS = 1000;
 // HEALTH TRACKING
 // ═══════════════════════════════════════════════════════════════════
 
-async function getProviderHealth(ctx: any): Promise<Record<string, { status: string; lastCheck: number; errorCount: number }>> {
+async function fetchProviderHealth(ctx: any): Promise<Record<string, { status: string; lastCheck: number; errorCount: number }>> {
   const allConfig = await ctx.db.query("system_config").collect();
   const configMap = new Map(allConfig.map((c) => [c.key, c.value]));
   
@@ -369,7 +369,7 @@ export const getProviderHealth = query({
   args: {},
   returns: v.any(),
   handler: async (ctx) => {
-    const health = await getProviderHealth(ctx);
+    const health = await fetchProviderHealth(ctx);
     const providers = Object.entries(PROVIDERS).map(([name, config]) => ({
       name,
       displayName: config.name,
