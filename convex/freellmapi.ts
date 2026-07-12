@@ -16,9 +16,11 @@ const MODEL_RECOMMENDATIONS: Record<string, string> = {
   academic: "auto",
   business: "tencent/hy3",
   content: "auto",
-  code: "auto",
+  code: "mistralai/codestral",
+  developer: "mistralai/devstral",
   vision: "auto",
   analysis: "tencent/hy3",
+  finance: "mistralai/magistral-medium",
   long_context: "tencent/hy3",
   embeddings: "text-embedding-3-small",
 };

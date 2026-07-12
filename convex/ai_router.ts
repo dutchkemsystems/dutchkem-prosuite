@@ -61,6 +61,18 @@ const TASK_PATTERNS: Record<string, { keywords: string[]; provider: string; mode
     provider: 'mimo',
     model: 'mimo-v2.5',
   },
+  code: {
+    keywords: ['code', 'programming', 'developer', 'script', 'function', 'bug', 'debug', 'api', 'database', 'sql', 'python', 'javascript', 'html', 'css', 'react', 'node'],
+    provider: 'mistral',
+    model: 'mistralai/codestral',
+    fallbackModel: 'groq',
+  },
+  research: {
+    keywords: ['research', 'analyze', 'study', 'investigate', 'deep dive', 'comprehensive', 'detailed analysis', 'literature'],
+    provider: 'mistral',
+    model: 'mistralai/magistral-medium',
+    fallbackModel: 'openrouter',
+  },
   nigerian_business: {
     keywords: ['Nigeria', 'Lagos', 'Abuja', 'Port Harcourt', 'Kano', 'naira', 'NGN', 'SME', 'small business', 'Nigerian', 'West Africa', 'Africa', 'Lagos business', 'Nigerian startup', 'tech company Nigeria', 'Kora Pay', 'Paystack', 'Flutterwave', 'bank transfer', 'POS', 'USSD'],
     provider: 'openrouter',
@@ -169,7 +181,7 @@ export const routeRequest = action({
     // Fallback sequence — only try enabled models
     // FreeLLMAPI is last in fallback (free tier, 161+ models from 18 providers)
     if (!result) {
-      const fallbackOrder = ['groq', 'openrouter', 'mimo', 'nvidia', 'aiml', 'tencent', 'freellmapi'];
+      const fallbackOrder = ['groq', 'openrouter', 'mimo', 'nvidia', 'aiml', 'tencent', 'mistral', 'freellmapi'];
       for (const provider of fallbackOrder) {
         if (provider === task.provider) continue;
         
@@ -333,6 +345,30 @@ export const callProvider = internalAction({
       });
 
       if (!response.ok) throw new Error(`Tencent Hy3 error: ${response.status}`);
+      const data = await response.json();
+      return { content: data.choices?.[0]?.message?.content || '' };
+    }
+
+    // Mistral AI via OpenRouter
+    if (args.provider === 'mistral') {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: args.model || 'mistralai/mistral-large-3',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: args.input },
+          ],
+          temperature: 0.7,
+          max_tokens: 4096,
+        }),
+      });
+
+      if (!response.ok) throw new Error(`Mistral error: ${response.status}`);
       const data = await response.json();
       return { content: data.choices?.[0]?.message?.content || '' };
     }

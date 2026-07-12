@@ -56,6 +56,13 @@ const MODEL_CONFIGS = [
     providerType: "chat+long_context",
     description: "FREE 1M context window model via OpenRouter — excellent for business analysis and long documents",
   },
+  {
+    modelName: "mistral",
+    displayName: "Mistral AI",
+    icon: "🌀",
+    providerType: "chat+code+reasoning",
+    description: "Versatile AI via OpenRouter — Mistral Large 3 (256K context), Small 4, Codestral, Magistral Medium",
+  },
 ];
 
 // ═══════════════════════════════════════════════════════════════════
