@@ -5,7 +5,7 @@ import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 
 // ═══════════════════════════════════════════════════════════════════
 // INTELLIGENT AI ROUTER
-// Automatically detects task types and routes to best AI provider
+// Routes through model_orchestrator for unified 9-provider failover
 // ═══════════════════════════════════════════════════════════════════
 
 const TASK_PATTERNS: Record<string, { keywords: string[]; provider: string; model: string }> = {
@@ -161,7 +161,31 @@ export const routeRequest = action({
       agentId: args.agentId,
     });
 
-    // Route to appropriate provider (respecting model toggles)
+    // ─── PRIMARY: Use unified orchestrator with 5-retry failover ───
+    try {
+      const orchestratorResult = await ctx.runAction(internal.model_orchestrator.orchestrate, {
+        input: args.input,
+        useCase: task.type,
+        costTier: "balanced",
+        systemPrompt: args.systemPrompt,
+      });
+
+      if (orchestratorResult.success) {
+        return {
+          success: true,
+          content: orchestratorResult.content,
+          provider: orchestratorResult.provider,
+          model: orchestratorResult.model,
+          useCase: orchestratorResult.useCase,
+          latencyMs: orchestratorResult.latencyMs,
+          attempt: orchestratorResult.attempt,
+        };
+      }
+    } catch (error: any) {
+      console.log(`[Router] Orchestrator failed: ${error.message}, falling back to legacy routing`);
+    }
+
+    // ─── FALLBACK: Legacy routing if orchestrator fails ───
     let result: any;
     let usedProvider = task.provider;
     const primaryEnabled = await ctx.runQuery(internal.model_toggle.checkModel, { modelName: task.provider });
@@ -179,7 +203,6 @@ export const routeRequest = action({
     }
 
     // Fallback sequence — only try enabled models
-    // FreeLLMAPI is last in fallback (free tier, 161+ models from 18 providers)
     if (!result) {
       const fallbackOrder = ['groq', 'openrouter', 'mimo', 'nvidia', 'aiml', 'tencent', 'mistral', 'freellmapi'];
       for (const provider of fallbackOrder) {
