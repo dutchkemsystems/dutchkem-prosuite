@@ -29,6 +29,78 @@ const AGENT_LIST = Object.entries(AGENT_MAP)
   .join("\n");
 
 // ═══════════════════════════════════════════════════════════════════
+// BUSINESS HOURS — Nigerian timezone (WAT = UTC+1)
+// ═══════════════════════════════════════════════════════════════════
+const BUSINESS_HOURS = {
+  start: 8,  // 8 AM WAT
+  end: 22,   // 10 PM WAT
+  timezone: "Africa/Lagos",
+  weekendEnabled: true, // Saturdays enabled
+};
+
+function isWithinBusinessHours(): boolean {
+  const now = new Date();
+  const watHour = (now.getUTCHours() + 1) % 24; // UTC+1
+  const dayOfWeek = now.getUTCDay(); // 0=Sun, 6=Sat
+  
+  // Check if weekend and weekends disabled
+  if (!BUSINESS_HOURS.weekendEnabled && (dayOfWeek === 0 || dayOfWeek === 6)) {
+    return false;
+  }
+  
+  return watHour >= BUSINESS_HOURS.start && watHour < BUSINESS_HOURS.end;
+}
+
+function getBusinessHoursMessage(): string {
+  const now = new Date();
+  const watHour = (now.getUTCHours() + 1) % 24;
+  const dayOfWeek = now.getUTCDay();
+  
+  if (!BUSINESS_HOURS.weekendEnabled && (dayOfWeek === 0 || dayOfWeek === 6)) {
+    return "We're currently closed for the weekend. Our support team is available Monday-Saturday, 8 AM - 10 PM WAT. Leave a message and we'll respond when we're back!";
+  }
+  
+  if (watHour < BUSINESS_HOURS.start) {
+    return `We open at ${BUSINESS_HOURS.start}:00 AM WAT. Our team will respond shortly!`;
+  }
+  
+  if (watHour >= BUSINESS_HOURS.end) {
+    return `We're closed for the day. Our team resumes at ${BUSINESS_HOURS.start}:00 AM WAT. Leave a message and we'll respond first thing!`;
+  }
+  
+  return "";
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// QUEUE MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════
+const MAX_CONCURRENT_PER_AGENT = 5;
+const MAX_TOTAL_CONCURRENT = 50;
+
+async function getQueuePosition(ctx: any): Promise<number> {
+  const allConfig = await ctx.db.query("system_config").collect();
+  const configMap = new Map(allConfig.map((c) => [c.key, c.value]));
+  
+  let totalActive = 0;
+  const agentIds = ["A1","A2","A3","A4","A5","A6","A7","A8","A9","A10","A11","A12","A13","A14","A15"];
+  for (const id of agentIds) {
+    totalActive += (configMap.get(`agent_active_conversations_${id}`) as number) || 0;
+  }
+  
+  return Math.max(0, totalActive - MAX_TOTAL_CONCURRENT + 1);
+}
+
+async function isAgentAvailable(ctx: any, agentId: string): Promise<boolean> {
+  const key = `agent_active_conversations_${agentId}`;
+  const config = await ctx.db
+    .query("system_config")
+    .withIndex("by_key", (q) => q.eq("key", key))
+    .first();
+  const load = (config?.value as number) || 0;
+  return load < MAX_CONCURRENT_PER_AGENT;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // LLM CALL HELPER
 // ═══════════════════════════════════════════════════════════════════
 async function callNVIDIA(model: string, systemPrompt: string, userMessage: string): Promise<string> {
@@ -190,6 +262,41 @@ export const processMessage = action({
       (await import("./_generated/api")).api.support_orchestrator.getAgentStates
     );
     const agentLoad = await fetchAgentLoad(ctx);
+
+    // Step 0: Business hours check
+    const withinHours = isWithinBusinessHours();
+    const hoursMessage = getBusinessHoursMessage();
+
+    // Step 0.5: Queue check — if all agents at max capacity
+    const queuePosition = await getQueuePosition(ctx);
+    if (queuePosition > 0) {
+      // Queue the message — client gets queue position
+      const queueId = await ctx.runMutation(
+        (await import("./_generated/api")).api.support_orchestrator.queueMessage,
+        {
+          userId,
+          message: args.message,
+          conversationHistory: history,
+          position: queuePosition,
+        }
+      );
+      return {
+        success: true,
+        queued: true,
+        queuePosition,
+        estimatedWait: `${queuePosition * 30} seconds`,
+        response: withinHours
+          ? `You're in position ${queuePosition} in our support queue. Estimated wait: ~${queuePosition * 30} seconds. Our team is handling other requests and will get to you shortly! 🙏`
+          : `You're in position ${queuePosition} in our support queue. ${hoursMessage}`,
+        agentId: "QUEUE",
+        agentName: "Support Queue",
+        icon: "⏳",
+        routed: false,
+        confidence: "none",
+        responseTimeMs: Date.now() - startTime,
+        shouldPromptLogin: false,
+      };
+    }
 
     // Step 1: Classify intent via LLM
     const intent = await classifyIntent(args.message, history);
@@ -383,6 +490,83 @@ export const processMessage = action({
         shouldPromptLogin: false,
       };
     }
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// MUTATION: Queue a message when all agents are busy
+// ═══════════════════════════════════════════════════════════════════
+export const queueMessage = mutation({
+  args: {
+    userId: v.string(),
+    message: v.string(),
+    conversationHistory: v.optional(v.array(v.object({ role: v.string(), content: v.string() }))),
+    position: v.number(),
+  },
+  returns: v.id("support_interactions"),
+  handler: async (ctx, args) => {
+    const id = await ctx.db.insert("support_interactions", {
+      userId: args.userId,
+      message: args.message,
+      response: `[QUEUED - Position ${args.position}] Your message has been queued. A support agent will respond shortly.`,
+      agentId: "QUEUE",
+      agentName: "Support Queue",
+      confidence: "none",
+      routed: false,
+      sentiment: "neutral",
+      responseTimeMs: 0,
+      createdAt: Date.now(),
+    });
+    return id;
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// QUERY: Get business hours status
+// ═══════════════════════════════════════════════════════════════════
+export const getBusinessHoursStatus = query({
+  args: {},
+  returns: v.any(),
+  handler: async () => {
+    const withinHours = isWithinBusinessHours();
+    const message = getBusinessHoursMessage();
+    return {
+      withinHours,
+      message,
+      hours: `${BUSINESS_HOURS.start}:00 - ${BUSINESS_HOURS.end}:00 WAT`,
+      timezone: BUSINESS_HOURS.timezone,
+      weekendEnabled: BUSINESS_HOURS.weekendEnabled,
+    };
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// QUERY: Get queue status
+// ═══════════════════════════════════════════════════════════════════
+export const getQueueStatus = query({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const allConfig = await ctx.db.query("system_config").collect();
+    const configMap = new Map(allConfig.map((c) => [c.key, c.value]));
+    
+    const agentIds = ["A1","A2","A3","A4","A5","A6","A7","A8","A9","A10","A11","A12","A13","A14","A15"];
+    const agentLoads: Record<string, number> = {};
+    let totalActive = 0;
+    
+    for (const id of agentIds) {
+      const load = (configMap.get(`agent_active_conversations_${id}`) as number) || 0;
+      agentLoads[id] = load;
+      totalActive += load;
+    }
+    
+    return {
+      totalActive,
+      maxConcurrent: MAX_TOTAL_CONCURRENT,
+      maxPerAgent: MAX_CONCURRENT_PER_AGENT,
+      agentLoads,
+      availableSlots: Math.max(0, MAX_TOTAL_CONCURRENT - totalActive),
+    };
   },
 });
 
