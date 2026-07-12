@@ -23,6 +23,7 @@ import { ClientNotificationPrefs } from '~/components/ClientNotificationPrefs';
 import { ClientPerformanceSummary } from '~/components/ClientPerformanceSummary';
 import { getExistingSubscription, isPushSupported, subscribeToPush, subscriptionToJSON, unsubscribeFromPush } from '~/lib/push';
 import { AgentBrowser } from '~/components/dashboard/AgentBrowser';
+import { AgentMonitoringDashboard } from '~/components/dashboard/AgentMonitoringDashboard';
 import { CreditPackages } from '~/components/dashboard/CreditPackages';
 import { HistoryPanel } from '~/components/dashboard/HistoryPanel';
 import { SupportChat } from '~/components/dashboard/SupportChat';
@@ -281,9 +282,7 @@ function DashboardContent() {
           
           {activeTab === "overview" && <Overview data={data} setActiveTab={setActiveTab} setModal={setModal} setShowAgentBrowser={setShowAgentBrowser} setShowCredits={setShowCredits} setShowHistory={setShowHistory} setShowSupport={setShowSupport} />}
           {activeTab === "activity" && (
-            <div className="">
-              <AgentBrowser isOpen={true} onClose={() => setActiveTab("overview")} mode="page" agentEnhancement={data.agentEnhancement} />
-            </div>
+            <ActivityTab data={data} />
           )}
           {activeTab === "subscriptions" && (
             <div className="space-y-8">
@@ -594,6 +593,35 @@ function Header({ user, notifications }: { user: any, notifications: Array<any> 
         </div>
       </div>
     </header>
+  );
+}
+
+function ActivityTab({ data }: { data: any }) {
+  const [activityTab, setActivityTab] = useState<'browse' | 'monitor'>('browse');
+
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-1 bg-slate-800 rounded-xl p-1 max-w-md">
+        <button onClick={() => setActivityTab('browse')}
+          className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all ${
+            activityTab === 'browse' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white'
+          }`}>
+          🤖 Browse Agents
+        </button>
+        <button onClick={() => setActivityTab('monitor')}
+          className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all ${
+            activityTab === 'monitor' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white'
+          }`}>
+          📊 Monitor
+        </button>
+      </div>
+      {activityTab === 'browse' && (
+        <AgentBrowser isOpen={true} onClose={() => {}} mode="page" agentEnhancement={data.agentEnhancement} />
+      )}
+      {activityTab === 'monitor' && (
+        <AgentMonitoringDashboard />
+      )}
+    </div>
   );
 }
 
