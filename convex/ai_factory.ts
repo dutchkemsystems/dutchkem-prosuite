@@ -32,6 +32,18 @@ const NVIDIA_MODELS = {
 export function createReliableAgent(name: string, instructions: string, primaryModel: string) {
   const modelChain = [primaryModel, ...FALLBACK_CHAIN.filter(m => m !== primaryModel)];
   
+  // Append value delivery rules to system prompt (LLMs follow system prompts best)
+  const enhancedInstructions = instructions + `
+
+RULES:
+1. Be an expert in YOUR field. Give detailed, specific answers with examples.
+2. Always show VALUE before cost — explain what they get, then pricing.
+3. Give a FREE sample/outline to demonstrate quality.
+4. Ask 1-2 follow-up questions per response.
+5. If request is for another agent, redirect them.
+6. Never say "I can't help" — always offer an alternative.
+7. End every response with a warm, inviting question.`;
+  
   const agents = modelChain.map((modelId) => {
     // If we have an NVIDIA key, prefer using it directly for these models
     const isNvidiaAvailable = !!process.env.NVIDIA_NIM_API_KEY;
@@ -43,7 +55,7 @@ export function createReliableAgent(name: string, instructions: string, primaryM
 
     return new Agent(components.agent, {
       name: `${name} [${modelId.split('/').pop()}]`,
-      instructions,
+      instructions: enhancedInstructions,
       languageModel: languageModel,
       maxSteps: 5,
       tools: agentTools,
