@@ -127,6 +127,21 @@ export function createChatModule(agentKey: string) {
         userId: userId ?? undefined,
         skipEmbeddings: true,
       });
+
+      // Log interaction to support_orchestrator analytics (unified metrics)
+      try {
+        await ctx.runMutation(internal.support_orchestrator.logInteraction, {
+          userId: userId || "anonymous",
+          message: prompt.substring(0, 200),
+          response: "[Agent Chat] Response queued",
+          agentId: config.agentId,
+          agentName: config.name,
+          confidence: "high",
+          routed: true,
+          responseTimeMs: 0,
+        });
+      } catch (e) { /* Don't block on analytics */ }
+
       await ctx.scheduler.runAfter(0, (internal as any)[`${agentKey}_chat`].generateResponse, {
         threadId,
         promptMessageId: messageId,
