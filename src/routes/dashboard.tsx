@@ -34,6 +34,17 @@ import { ClientWhatsApp } from '~/components/dashboard/ClientWhatsApp';
 import CustomerSupportChat from '~/components/CustomerSupportChat';
 import { MyTasks } from '~/components/dashboard/MyTasks';
 
+// Orphan panels (previously built but unwired)
+const PredictiveAnalyticsPanel = lazy(() => import("~/components/admin/PredictiveAnalyticsPanel").then(m => ({ default: m.PredictiveAnalyticsPanel })));
+const MarketingFunnelPanel = lazy(() => import("~/components/admin/MarketingFunnelPanel").then(m => ({ default: m.MarketingFunnelPanel })));
+const VoiceVideoPanel = lazy(() => import("~/components/admin/VoiceVideoPanel").then(m => ({ default: m.VoiceVideoPanel })));
+const WhiteLabelPanel = lazy(() => import("~/components/admin/WhiteLabelPanel").then(m => ({ default: m.WhiteLabelPanel })));
+const SalesAgentPanel = lazy(() => import("~/components/admin/SalesAgentPanel").then(m => ({ default: m.SalesAgentPanel })));
+const OpenDesignPanel = lazy(() => import("~/components/admin/OpenDesignPanel").then(m => ({ default: m.OpenDesignPanel })));
+const DynamicPricingPanel = lazy(() => import("~/components/admin/DynamicPricingPanel").then(m => ({ default: m.DynamicPricingPanel })));
+const UltimatePlatformPanel = lazy(() => import("~/components/admin/UltimatePlatformPanel").then(m => ({ default: m.UltimatePlatformPanel })));
+const BlockchainPanel = lazy(() => import("~/components/admin/BlockchainPanel").then(m => ({ default: m.BlockchainPanel })));
+
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,
 })
@@ -266,6 +277,15 @@ function DashboardContent() {
             <TabButton active={activeTab === "history"} onClick={() => { setActiveTab("history"); setSidebarOpen(false); }} icon="📜" label="Full History" />
             <TabButton active={activeTab === "my-tasks"} onClick={() => { setActiveTab("my-tasks"); setSidebarOpen(false); }} icon="📋" label="My Tasks" />
             <TabButton active={activeTab === "support"} onClick={() => { setActiveTab("support"); setSidebarOpen(false); }} icon="💬" label="Support" />
+            <TabButton active={activeTab === "predictive"} onClick={() => { setActiveTab("predictive"); setSidebarOpen(false); }} icon="🔮" label="Predictive Analytics" />
+            <TabButton active={activeTab === "marketing-funnel"} onClick={() => { setActiveTab("marketing-funnel"); setSidebarOpen(false); }} icon="📧" label="Marketing Funnel" />
+            <TabButton active={activeTab === "voice-video"} onClick={() => { setActiveTab("voice-video"); setSidebarOpen(false); }} icon="🎬" label="Voice & Video" />
+            <TabButton active={activeTab === "white-label"} onClick={() => { setActiveTab("white-label"); setSidebarOpen(false); }} icon="🏷️" label="White-Label AI" />
+            <TabButton active={activeTab === "sales-agent"} onClick={() => { setActiveTab("sales-agent"); setSidebarOpen(false); }} icon="💰" label="AI Sales Agent" />
+            <TabButton active={activeTab === "open-design"} onClick={() => { setActiveTab("open-design"); setSidebarOpen(false); }} icon="🎨" label="Open Design" />
+            <TabButton active={activeTab === "dynamic-pricing"} onClick={() => { setActiveTab("dynamic-pricing"); setSidebarOpen(false); }} icon="💲" label="Dynamic Pricing" />
+            <TabButton active={activeTab === "ultimate"} onClick={() => { setActiveTab("ultimate"); setSidebarOpen(false); }} icon="🚀" label="Ultimate Platform" />
+            <TabButton active={activeTab === "blockchain"} onClick={() => { setActiveTab("blockchain"); setSidebarOpen(false); }} icon="⛓️" label="Blockchain" />
           </nav>
         </div>
         <div className="mt-auto p-4 md:p-6 border-t border-slate-800">
@@ -338,6 +358,15 @@ function DashboardContent() {
               <SupportChat isOpen={true} onClose={() => setActiveTab("overview")} />
             </div>
           )}
+          {activeTab === "predictive" && <Suspense fallback={<DashboardSpinner />}><PredictiveAnalyticsPanel /></Suspense>}
+          {activeTab === "marketing-funnel" && <Suspense fallback={<DashboardSpinner />}><MarketingFunnelPanel /></Suspense>}
+          {activeTab === "voice-video" && <Suspense fallback={<DashboardSpinner />}><VoiceVideoPanel /></Suspense>}
+          {activeTab === "white-label" && <Suspense fallback={<DashboardSpinner />}><WhiteLabelPanel adminToken="" /></Suspense>}
+          {activeTab === "sales-agent" && <Suspense fallback={<DashboardSpinner />}><SalesAgentPanel adminToken="" /></Suspense>}
+          {activeTab === "open-design" && <Suspense fallback={<DashboardSpinner />}><OpenDesignPanel adminToken="" /></Suspense>}
+          {activeTab === "dynamic-pricing" && <Suspense fallback={<DashboardSpinner />}><DynamicPricingPanel /></Suspense>}
+          {activeTab === "ultimate" && <Suspense fallback={<DashboardSpinner />}><UltimatePlatformPanel /></Suspense>}
+          {activeTab === "blockchain" && <Suspense fallback={<DashboardSpinner />}><BlockchainPanel /></Suspense>}
         </div>
         <Footer />
 
