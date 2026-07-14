@@ -71,6 +71,17 @@ const RecurringBillingPanel = lazy(() => import("~/components/admin/RecurringBil
 const ClientAnalyticsDashboard = lazy(() => import("~/components/ClientAnalyticsWidgets").then(m => ({ default: m.ClientAnalyticsDashboard })));
 const TaxDashboardPanel = lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.TaxDashboardPanel })));
 
+// Orphan panels (previously built but unwired)
+const PredictiveAnalyticsPanel = lazy(() => import("~/components/admin/PredictiveAnalyticsPanel").then(m => ({ default: m.PredictiveAnalyticsPanel })));
+const MarketingFunnelPanel = lazy(() => import("~/components/admin/MarketingFunnelPanel").then(m => ({ default: m.MarketingFunnelPanel })));
+const VoiceVideoPanel = lazy(() => import("~/components/admin/VoiceVideoPanel").then(m => ({ default: m.VoiceVideoPanel })));
+const WhiteLabelPanel = lazy(() => import("~/components/admin/WhiteLabelPanel").then(m => ({ default: m.WhiteLabelPanel })));
+const SalesAgentPanel = lazy(() => import("~/components/admin/SalesAgentPanel").then(m => ({ default: m.SalesAgentPanel })));
+const OpenDesignPanel = lazy(() => import("~/components/admin/OpenDesignPanel").then(m => ({ default: m.OpenDesignPanel })));
+const DynamicPricingPanel = lazy(() => import("~/components/admin/DynamicPricingPanel").then(m => ({ default: m.DynamicPricingPanel })));
+const UltimatePlatformPanel = lazy(() => import("~/components/admin/UltimatePlatformPanel").then(m => ({ default: m.UltimatePlatformPanel })));
+const BlockchainPanel = lazy(() => import("~/components/admin/BlockchainPanel").then(m => ({ default: m.BlockchainPanel })));
+
 export const Route = createFileRoute('/admin/dashboard')({
   component: AdminDashboardPage,
   errorComponent: ({ error }) => (
@@ -196,6 +207,15 @@ function AdminDashboardPage() {
           <AdminTab active={activeTab === "whatsapp-dual"} onClick={() => setActiveTab("whatsapp-dual")} icon="📱" label="WhatsApp Dual" onClose={() => setSidebarOpen(false)} />
           <AdminTab active={activeTab === "hermes"} onClick={() => setActiveTab("hermes")} icon="🤖" label="Hermes AI" onClose={() => setSidebarOpen(false)} />
           <AdminTab active={activeTab === "support-orch"} onClick={() => setActiveTab("support-orch")} icon="🎧" label="Support Orchestrator" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "predictive"} onClick={() => setActiveTab("predictive")} icon="🔮" label="Predictive Analytics" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "marketing-funnel"} onClick={() => setActiveTab("marketing-funnel")} icon="📧" label="Marketing Funnel" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "voice-video"} onClick={() => setActiveTab("voice-video")} icon="🎬" label="Voice & Video" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "white-label"} onClick={() => setActiveTab("white-label")} icon="🏷️" label="White-Label AI" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "sales-agent"} onClick={() => setActiveTab("sales-agent")} icon="💰" label="AI Sales Agent" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "open-design"} onClick={() => setActiveTab("open-design")} icon="🎨" label="Open Design" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "dynamic-pricing"} onClick={() => setActiveTab("dynamic-pricing")} icon="💲" label="Dynamic Pricing" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "ultimate"} onClick={() => setActiveTab("ultimate")} icon="🚀" label="Ultimate Platform" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "blockchain"} onClick={() => setActiveTab("blockchain")} icon="⛓️" label="Blockchain" onClose={() => setSidebarOpen(false)} />
         </nav>
         <div className="p-4 border-t border-slate-800"><button onClick={handleLogout} className="w-full py-3 bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-red-500/30">Sign Out</button></div>
       </aside>
@@ -260,6 +280,15 @@ function AdminDashboardPage() {
             {activeTab === "whatsapp-dual" && <WhatsAppDualPanel adminToken={adminToken} />}
             {activeTab === "hermes" && <HermesDashboard adminToken={adminToken} />}
             {activeTab === "support-orch" && <SupportDashboard />}
+            {activeTab === "predictive" && <PredictiveAnalyticsPanel />}
+            {activeTab === "marketing-funnel" && <MarketingFunnelPanel />}
+            {activeTab === "voice-video" && <VoiceVideoPanel />}
+            {activeTab === "white-label" && <WhiteLabelPanel adminToken={adminToken} />}
+            {activeTab === "sales-agent" && <SalesAgentPanel adminToken={adminToken} />}
+            {activeTab === "open-design" && <OpenDesignPanel adminToken={adminToken} />}
+            {activeTab === "dynamic-pricing" && <DynamicPricingPanel />}
+            {activeTab === "ultimate" && <UltimatePlatformPanel />}
+            {activeTab === "blockchain" && <BlockchainPanel />}
           </AdminSuspense>
         </div>
         <Footer />
