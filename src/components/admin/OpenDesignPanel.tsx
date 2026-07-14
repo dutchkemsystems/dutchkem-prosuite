@@ -39,7 +39,7 @@ export function OpenDesignPanel({ adminToken }: OpenDesignPanelProps) {
   const [generating, setGenerating] = useState(false)
   const [result, setResult] = useState<any>(null)
 
-  const generateDesign = useMutation(api.ad_designer.createDesign)
+  const generateDesign = useMutation(api.ad_designer.createNewAdDesign)
   const generateAIImage = useMutation(api.ai_image_generator.generateImage)
 
   const filteredTemplates = QUICK_TEMPLATES.filter(t => t.category === activeCategory)
