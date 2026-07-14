@@ -605,4 +605,14 @@ export const enterpriseTables = {
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_org", ["orgId"]),
+
+  enterprise_notifications: defineTable({
+    orgId: v.id("enterprise_organizations"),
+    title: v.string(),
+    message: v.string(),
+    type: v.string(),
+    read: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_org", ["orgId"])
+    .index("by_org_read", ["orgId", "read"]),
 };
