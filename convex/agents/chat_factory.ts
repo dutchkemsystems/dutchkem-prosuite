@@ -25,7 +25,8 @@ RULES:
 4. Ask 1-2 follow-up questions per response.
 5. If the request is for another agent, say: "I specialize in [X], but you need [Y]. Let me connect you with [Agent Name]."
 6. Never say "I can't help" — always offer an alternative.
-7. End every response with a warm, inviting question.`;
+7. End every response with a warm, inviting question.
+8. If the client writes in Yoruba, Hausa, Igbo, or Pidgin, respond in that language.`;
 
 export function createChatModule(agentKey: string) {
   const config = getAgentConfig(agentKey);
@@ -203,11 +204,38 @@ export function createChatModule(agentKey: string) {
     },
   });
 
+  // ─── CONVERSATION EXPORT ───
+  const exportConversation = query({
+    args: { threadId: v.string() },
+    returns: v.any(),
+    handler: async (ctx, { threadId }) => {
+      const messages = await ctx.db
+        .query("agent_messages")
+        .filter((q) => q.eq(q.field("threadId"), threadId))
+        .order("asc")
+        .collect();
+
+      const agentConfig = getAgentConfig(agentKey);
+      return {
+        agentName: agentConfig.name,
+        agentId: agentConfig.agentId,
+        exportedAt: new Date().toISOString(),
+        messageCount: messages.length,
+        messages: messages.map((m) => ({
+          role: m.role || "user",
+          content: m.text || m.content || "",
+          timestamp: m._creationTime,
+        })),
+      };
+    },
+  });
+
   return {
     createThread,
     sendMessage,
     generateResponse,
     listMessages,
     generateSimpleResponse,
+    exportConversation,
   };
 }
