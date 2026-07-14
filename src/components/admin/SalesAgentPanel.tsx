@@ -17,10 +17,11 @@ const STAGE_COLORS: Record<string, string> = {
 }
 
 interface SalesAgentPanelProps {
-  adminToken: string
+  adminToken?: string
+  token?: string
 }
 
-export function SalesAgentPanel({ adminToken }: SalesAgentPanelProps) {
+export function SalesAgentPanel({ adminToken, token }: SalesAgentPanelProps) {
   const [activeTab, setActiveTab] = useState<'pipeline' | 'analytics' | 'leads'>('pipeline')
   const [showAddLead, setShowAddLead] = useState(false)
   const [newLead, setNewLead] = useState({ name: '', email: '', phone: '', interest: '', source: 'website' })

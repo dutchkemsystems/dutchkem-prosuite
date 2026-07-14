@@ -13,17 +13,19 @@ const PLAN_FEATURES = {
 }
 
 interface WhiteLabelPanelProps {
-  adminToken: string
+  adminToken?: string
+  token?: string
 }
 
-export function WhiteLabelPanel({ adminToken }: WhiteLabelPanelProps) {
+export function WhiteLabelPanel({ adminToken, token }: WhiteLabelPanelProps) {
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({
     companyName: '', customDomain: '', primaryColor: '#FF6B35', secondaryColor: '#1E1E1E',
     plan: 'basic' as 'basic' | 'pro' | 'enterprise',
   })
 
-  const customers: any = useQuery(api.revenue_outcomes.getWhiteLabelCustomers, adminToken ? { adminToken } : 'skip')
+  const authArgs = adminToken ? { adminToken } : token ? { token } : 'skip'
+  const customers: any = useQuery(api.revenue_outcomes.getWhiteLabelCustomers, authArgs)
   const addCustomer = useMutation(api.revenue_outcomes.insertWhiteLabelCustomer)
 
   const handleAdd = async () => {

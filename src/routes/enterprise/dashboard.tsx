@@ -219,9 +219,9 @@ function EnterpriseDashboard() {
           {activeTab === 'emotional' && <EmotionalAITab token={token} />}
           {activeTab === 'wallet' && <ClientWalletDashboard />}
           {activeTab === 'client_payments' && <ClientPaymentsTab token={token} />}
-          {activeTab === 'sales_agent' && <div className="space-y-6"><SalesAgentPanel adminToken={token} /></div>}
+          {activeTab === 'sales_agent' && <div className="space-y-6"><SalesAgentPanel token={token} /></div>}
           {activeTab === 'marketing_funnel' && <div className="space-y-6"><MarketingFunnelPanel /></div>}
-          {activeTab === 'white_label' && <div className="space-y-6"><WhiteLabelPanel adminToken={token} /></div>}
+          {activeTab === 'white_label' && <div className="space-y-6"><WhiteLabelPanel token={token} /></div>}
           {activeTab === 'dynamic_pricing' && <div className="space-y-6"><DynamicPricingPanel /></div>}
           {activeTab === 'ultimate' && <div className="space-y-6"><UltimatePlatformPanel /></div>}
 

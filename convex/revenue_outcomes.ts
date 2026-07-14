@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { tryGetAdminSession } from "./auth_helpers";
+import { tryGetAdminSession, tryResolveEnterpriseAuth } from "./auth_helpers";
 
 export const getOutcomeRules = query({
   args: { adminToken: v.optional(v.string()) },
@@ -118,9 +118,10 @@ export const recordOutcome = mutation({
 // ─── WHITE-LABEL ─────────────────────────────────────────────
 
 export const getWhiteLabelCustomers = query({
-  args: { adminToken: v.optional(v.string()) },
+  args: { adminToken: v.optional(v.string()), token: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await tryGetAdminSession(ctx, args.adminToken);
+    const auth = await tryResolveEnterpriseAuth(ctx, args);
+    if (!auth) return [];
     return await ctx.db.query("white_label_customers").collect();
   },
 });
