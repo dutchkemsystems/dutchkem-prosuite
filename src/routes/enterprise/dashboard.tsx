@@ -17,6 +17,14 @@ import { SubscriptionRenewal } from '~/components/enterprise/SubscriptionRenewal
 import { ClientPaymentsTab } from '~/components/enterprise/capabilities/ClientPaymentsTab'
 import { OrdersTab, CustomersTab, ReportingTab, QRCodesTab, InvoicesTab, ReceiptsTab, AppointmentsTab, BusinessHoursTab, MarketingTab, TestimonialsTab, SurveysTab, LandingPagesTab, WhatsAppCommerceTab, ClientPortalTab } from '~/components/enterprise/EnterpriseFeatures'
 
+// Enterprise-grade panels (moved from admin)
+import { lazy } from 'react'
+const SalesAgentPanel = lazy(() => import('~/components/admin/SalesAgentPanel').then(m => ({ default: m.SalesAgentPanel })))
+const MarketingFunnelPanel = lazy(() => import('~/components/admin/MarketingFunnelPanel').then(m => ({ default: m.MarketingFunnelPanel })))
+const WhiteLabelPanel = lazy(() => import('~/components/admin/WhiteLabelPanel').then(m => ({ default: m.WhiteLabelPanel })))
+const DynamicPricingPanel = lazy(() => import('~/components/admin/DynamicPricingPanel').then(m => ({ default: m.DynamicPricingPanel })))
+const UltimatePlatformPanel = lazy(() => import('~/components/admin/UltimatePlatformPanel').then(m => ({ default: m.UltimatePlatformPanel })))
+
 export const Route = createFileRoute('/enterprise/dashboard')({
   component: EnterpriseDashboard,
 })
@@ -103,6 +111,11 @@ function EnterpriseDashboard() {
     { id: 'emotional', icon: '💖', label: 'Emotional AI' },
     { id: 'wallet', icon: '💰', label: 'My Wallet' },
     { id: 'client_payments', icon: '💳', label: 'Client Payments' },
+    { id: 'sales_agent', icon: '💰', label: 'AI Sales Agent' },
+    { id: 'marketing_funnel', icon: '📧', label: 'Marketing Funnel' },
+    { id: 'white_label', icon: '🏷️', label: 'White-Label AI' },
+    { id: 'dynamic_pricing', icon: '💲', label: 'Dynamic Pricing' },
+    { id: 'ultimate', icon: '🚀', label: 'Ultimate Platform' },
   ]
 
   // Add feature tabs that admin has deployed
@@ -206,6 +219,11 @@ function EnterpriseDashboard() {
           {activeTab === 'emotional' && <EmotionalAITab token={token} />}
           {activeTab === 'wallet' && <ClientWalletDashboard />}
           {activeTab === 'client_payments' && <ClientPaymentsTab token={token} />}
+          {activeTab === 'sales_agent' && <div className="space-y-6"><SalesAgentPanel adminToken={token} /></div>}
+          {activeTab === 'marketing_funnel' && <div className="space-y-6"><MarketingFunnelPanel /></div>}
+          {activeTab === 'white_label' && <div className="space-y-6"><WhiteLabelPanel adminToken={token} /></div>}
+          {activeTab === 'dynamic_pricing' && <div className="space-y-6"><DynamicPricingPanel /></div>}
+          {activeTab === 'ultimate' && <div className="space-y-6"><UltimatePlatformPanel /></div>}
 
           {/* Dynamic feature tabs — rendered from admin-configured feature list */}
           {featureTabs.map((tab) => {
