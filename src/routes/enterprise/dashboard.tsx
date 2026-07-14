@@ -16,6 +16,7 @@ import { EnterpriseUsageDashboard } from '~/components/enterprise/EnterpriseUsag
 import { SubscriptionRenewal } from '~/components/enterprise/SubscriptionRenewal'
 import { ClientPaymentsTab } from '~/components/enterprise/capabilities/ClientPaymentsTab'
 import { OrdersTab, CustomersTab, ReportingTab, QRCodesTab, InvoicesTab, ReceiptsTab, AppointmentsTab, BusinessHoursTab, MarketingTab, TestimonialsTab, SurveysTab, LandingPagesTab, WhatsAppCommerceTab, ClientPortalTab } from '~/components/enterprise/EnterpriseFeatures'
+import { EnterpriseNotificationBell } from '~/components/enterprise/EnterpriseNotificationBell'
 
 // Enterprise-grade panels (moved from admin)
 import { lazy } from 'react'
@@ -194,6 +195,7 @@ function EnterpriseDashboard() {
             </p>
           </div>
           <div className="flex items-center gap-4">
+            <EnterpriseNotificationBell token={token} />
             <div className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
               org.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
               org.status === 'trial' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' :
