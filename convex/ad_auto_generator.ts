@@ -287,7 +287,7 @@ export const getTelegramConnection = internalQuery({
   returns: v.any(),
   handler: async (ctx) => {
     return await ctx.db.query("platform_connections")
-      .filter((q: any) => q.eq(q.field("platformId"), "telegram"))
+      .withIndex("by_platform", (q) => q.eq("platformId", "telegram"))
       .first();
   },
 });
@@ -373,10 +373,8 @@ export const getProductionStats = query({
 
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
     const recentProductions = await ctx.db.query("mimo_health_logs")
-      .filter((q) => 
-        q.gte(q.field("timestamp"), oneDayAgo).and(
-          q.gt(q.field("component"), "adgen_").and(q.lt(q.field("component"), "adgen_z"))
-        )
+      .withIndex("by_component_timestamp", (q) => 
+        q.gte("component", "adgen_").lt("component", "adgen_z").gte("timestamp", oneDayAgo)
       )
       .collect();
 

@@ -67,7 +67,10 @@ export const socialTables = {
     followersCount: v.optional(v.number()),
   })
     .index("by_admin", ["adminId"])
-    .index("by_admin_platform", ["adminId", "platformId"]),
+    .index("by_admin_platform", ["adminId", "platformId"])
+    .index("by_platform", ["platformId"])
+    .index("by_isConnected", ["isConnected"])
+    .index("by_platformId_isConnected", ["platformId", "isConnected"]),
   token_refresh_logs: defineTable({
     platform: v.string(),
     adminId: v.optional(v.string()),
