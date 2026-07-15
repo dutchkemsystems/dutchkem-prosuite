@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import { tryGetAdminSession } from "../auth_helpers";
+import { hashPasswordPure } from "../crypto_pure";
 
 function generateTempPassword(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
@@ -73,7 +74,8 @@ export const resetOrganizationPassword = mutation({
     if (!identity) return { success: false, error: "Unauthorized" };
     const org = await ctx.db.get("enterprise_organizations", args.orgId);
     if (!org) return { success: false, error: "Organization not found" };
-    await ctx.db.patch(args.orgId, { passwordHash: args.newPassword, updatedAt: Date.now() });
+    const hashedPassword = await hashPasswordPure(args.newPassword);
+    await ctx.db.patch(args.orgId, { passwordHash: hashedPassword, updatedAt: Date.now() });
     await ctx.db.insert("enterprise_audit_logs", {
       eventType: "ORG_PASSWORD_RESET", actor: identity._id,
       action: "reset_org_password", target: args.orgId,
@@ -97,7 +99,8 @@ export const resetOrgUserPassword = mutation({
     const user = await ctx.db.get("enterprise_org_users", args.userId);
     if (!user) return { success: false, error: "User not found" };
     const newPassword = args.newPassword || generateTempPassword();
-    await ctx.db.patch(args.userId, { passwordHash: newPassword, mustChangePassword: true, updatedAt: Date.now() });
+    const hashedPassword = await hashPasswordPure(newPassword);
+    await ctx.db.patch(args.userId, { passwordHash: hashedPassword, mustChangePassword: true, updatedAt: Date.now() });
     await ctx.db.insert("enterprise_audit_logs", {
       eventType: "USER_PASSWORD_RESET", actor: identity._id,
       action: "reset_user_password", target: args.userId,

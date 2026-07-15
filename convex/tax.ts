@@ -335,10 +335,8 @@ export const getAnnualTransactions = internalQuery({
   args: { startOfYear: v.number(), endOfYear: v.number() },
   returns: v.any(),
   handler: async (ctx, args) => {
-    return await ctx.db.query("tax_transactions")
-      .filter(q => q.gte(q.field("date"), args.startOfYear))
-      .filter(q => q.lte(q.field("date"), args.endOfYear))
-      .collect();
+    const all = await ctx.db.query("tax_transactions").take(5000);
+    return all.filter((t: any) => t.date >= args.startOfYear && t.date <= args.endOfYear);
   },
 });
 

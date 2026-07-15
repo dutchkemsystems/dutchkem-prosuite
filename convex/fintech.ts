@@ -1,4 +1,4 @@
-﻿import { v } from "convex/values";
+import { v } from "convex/values";
 import { action, internalAction, internalMutation, mutation, query } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { tryGetAdminSessionInAction, tryGetAdminSession } from "./auth_helpers";
@@ -129,9 +129,8 @@ export const connectBank = mutation({
     const userId = session?._id || "system";
 
     const existing = await ctx.db.query("beneficiaries")
-      .filter(q => q.eq(q.field("bankCode"), args.bankCode))
-      .filter(q => q.eq(q.field("encryptedAccountNumber"), args.accountNumber))
-      .first();
+      .collect()
+      .find((b: any) => b.bankCode === args.bankCode && b.encryptedAccountNumber === args.accountNumber);
 
     if (existing) {
       return { success: false, error: "Account already connected" };

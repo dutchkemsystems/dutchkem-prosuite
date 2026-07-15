@@ -63,7 +63,7 @@ export const requestPasswordChange = mutation({
       createdAt: Date.now(),
     });
 
-    // Send notification email (simulated - in production use AWS SES)
+    // Log email notification for audit trail
     const emailContent = {
       to: user.email,
       subject: "Password Change Request - Dutchkem Ventures",

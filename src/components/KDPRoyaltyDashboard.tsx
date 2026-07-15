@@ -1,4 +1,4 @@
-﻿import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { useMutation } from "convex/react";
 import { useState } from "react";
@@ -20,27 +20,67 @@ export function KDPRoyaltyDashboard({ userId: _userId }: { userId: any }) {
     const file = e.target.files?.[0];
     if (!file || !selectedProjectId) return;
 
-    const mockDashboardData = {
-      totalSold: 342,
-      totalRevenue: 4850.75,
-      averagePrice: 14.18,
-      returns: 12,
-      penaltyCharges: 45.00,
-      netRoyalties: 4805.75,
-      monthlyTrend: [
-        { month: "2026-01", sales: 45, revenue: 675.00 },
-        { month: "2026-02", sales: 52, revenue: 780.00 },
-        { month: "2026-03", sales: 68, revenue: 1020.00 },
-        { month: "2026-04", sales: 71, revenue: 1065.00 },
-        { month: "2026-05", sales: 106, revenue: 1310.75 },
-      ],
+    // Read and parse CSV file
+    const text = await file.text();
+    const lines = text.split('\n').filter((line: string) => line.trim());
+    const headers = lines[0]?.toLowerCase().split(',').map((h: string) => h.trim()) || [];
+
+    // Find column indices for common KDP report fields
+    const dateIdx = headers.findIndex((h: string) => h.includes('date') || h.includes('period'));
+    const unitsIdx = headers.findIndex((h: string) => h.includes('unit') || h.includes('sold') || h.includes('qty'));
+    const royaltyIdx = headers.findIndex((h: string) => h.includes('royalt') || h.includes('revenue') || h.includes('earn'));
+    const returnIdx = headers.findIndex((h: string) => h.includes('return'));
+
+    let totalSold = 0;
+    let totalRevenue = 0;
+    let totalReturns = 0;
+    const monthlyData: Record<string, { sales: number; revenue: number }> = {};
+
+    // Parse data rows
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map((c: string) => c.trim());
+      if (cols.length < 2) continue;
+
+      const units = unitsIdx >= 0 ? parseFloat(cols[unitsIdx]) || 0 : 0;
+      const royalty = royaltyIdx >= 0 ? parseFloat(cols[royaltyIdx]?.replace(/[$,]/g, '')) || 0 : 0;
+      const returns = returnIdx >= 0 ? parseFloat(cols[returnIdx]) || 0 : 0;
+
+      totalSold += units;
+      totalRevenue += royalty;
+      totalReturns += returns;
+
+      // Aggregate by month
+      const dateStr = dateIdx >= 0 ? cols[dateIdx] : '';
+      const monthMatch = dateStr.match(/(\d{4})[/-](\d{2})/);
+      if (monthMatch) {
+        const monthKey = `${monthMatch[1]}-${monthMatch[2]}`;
+        if (!monthlyData[monthKey]) monthlyData[monthKey] = { sales: 0, revenue: 0 };
+        monthlyData[monthKey].sales += units;
+        monthlyData[monthKey].revenue += royalty;
+      }
+    }
+
+    // Convert monthly data to trend array sorted by month
+    const monthlyTrend = Object.entries(monthlyData)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, data]) => ({ month, ...data }));
+
+    const penaltyCharges = totalRevenue * 0.005; // Estimate 0.5% penalty charges
+    const dashboardData = {
+      totalSold,
+      totalRevenue,
+      averagePrice: totalSold > 0 ? totalRevenue / totalSold : 0,
+      returns: totalReturns,
+      penaltyCharges,
+      netRoyalties: totalRevenue - penaltyCharges,
+      monthlyTrend,
     };
 
     const now = new Date();
     await setRoyaltyData({
       projectId: selectedProjectId as any,
       csvDataUrl: URL.createObjectURL(file),
-      dashboardData: mockDashboardData,
+      dashboardData,
       month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
       year: now.getFullYear(),
     });

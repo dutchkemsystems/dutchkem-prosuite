@@ -125,7 +125,9 @@ export const getDashboardData = query({
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .take(20);
       subscriptions = allSubs.filter((s: any) => s.status === "active");
-    } catch {}
+    } catch (e: any) {
+      console.error("[Dashboard] Failed to fetch subscriptions:", e?.message);
+    }
 
     let projects: any[] = [];
     try {
@@ -134,7 +136,9 @@ export const getDashboardData = query({
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .order("desc")
         .take(10);
-    } catch {}
+    } catch (e: any) {
+      console.error("[Dashboard] Failed to fetch projects:", e?.message);
+    }
 
     let notifications: any[] = [];
     try {
@@ -143,14 +147,17 @@ export const getDashboardData = query({
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .order("desc")
         .take(10);
-    } catch {}
+    } catch (e: any) {
+      console.error("[Dashboard] Failed to fetch notifications:", e?.message);
+    }
 
     let mergedNotifications: any[] = [];
     try {
       const allNotifications = await ctx.db.query("notifications").order("desc").take(50);
       const broadcasts = allNotifications.filter((n: any) => !n.userId && !notifications.some((pn: any) => pn._id === n._id)).slice(0, 5);
       mergedNotifications = [...notifications, ...broadcasts].sort((a: any, b: any) => b.createdAt - a.createdAt).slice(0, 15);
-    } catch {
+    } catch (e: any) {
+      console.error("[Dashboard] Failed to merge notifications:", e?.message);
       mergedNotifications = notifications;
     }
 
@@ -160,7 +167,9 @@ export const getDashboardData = query({
         .query("payment_methods")
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .take(10);
-    } catch {}
+    } catch (e: any) {
+      console.error("[Dashboard] Failed to fetch payment methods:", e?.message);
+    }
 
     let sessions: any[] = [];
     try {
@@ -169,7 +178,9 @@ export const getDashboardData = query({
         .withIndex("by_user", (q) => q.eq("userId", userId))
         .order("desc")
         .take(5);
-    } catch {}
+    } catch (e: any) {
+      console.error("[Dashboard] Failed to fetch sessions:", e?.message);
+    }
 
     // Use index-based query instead of full table scan for referrals
     let referredCount = 0;
@@ -185,7 +196,9 @@ export const getDashboardData = query({
         date: u._creationTime,
         commission: 500,
       }));
-    } catch {}
+    } catch (e: any) {
+      console.error("[Dashboard] Failed to fetch referrals:", e?.message);
+    }
 
     let totalEarned = 0;
     try {
@@ -196,7 +209,9 @@ export const getDashboardData = query({
       totalEarned = referralPayouts
         .filter((p: any) => p.type === "referral")
         .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-    } catch {}
+    } catch (e: any) {
+      console.error("[Dashboard] Failed to fetch payout history:", e?.message);
+    }
 
     const availableBalance = (user as any).balance ?? 0;
     const activeSubscription = subscriptions[0];
@@ -209,7 +224,9 @@ export const getDashboardData = query({
         enhanced: Boolean(s.enabled ?? false),
         toolCount: Number(s.toolCount ?? 0),
       }));
-    } catch {}
+    } catch (e: any) {
+      console.error("[Dashboard] Failed to fetch agent settings:", e?.message);
+    }
 
     return {
       user: {

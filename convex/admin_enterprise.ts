@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { tryGetAdminSession } from "./auth_helpers";
+import { hashPasswordPure } from "./crypto_pure";
 
 function generateTempPassword(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
@@ -45,10 +46,11 @@ export const createOrganization = mutation({
       ? args.adminPassword
       : generateTempPassword();
     const now = Date.now();
+    const hashedPassword = await hashPasswordPure(tempPassword);
     const orgId = await ctx.db.insert("enterprise_organizations", {
       name: args.name,
       email: args.email,
-      passwordHash: tempPassword,
+      passwordHash: hashedPassword,
       industry: args.industry || "",
       size: args.size || "",
       phone: args.phone || "",
@@ -77,7 +79,7 @@ export const createOrganization = mutation({
       orgId,
       name: adminUserName,
       email: adminUserEmail,
-      passwordHash: tempPassword,
+      passwordHash: hashedPassword,
       role: "org_admin",
       status: "active",
       mustChangePassword: true,
@@ -127,11 +129,12 @@ export const createOrgAdminUser = mutation({
 
     const tempPassword = generateTempPassword();
     const now = Date.now();
+    const hashedPassword = await hashPasswordPure(tempPassword);
     const userId = await ctx.db.insert("enterprise_org_users", {
       orgId: args.orgId,
       name: args.name,
       email: args.email,
-      passwordHash: tempPassword,
+      passwordHash: hashedPassword,
       role: "org_admin",
       status: "active",
       mustChangePassword: true,
@@ -199,8 +202,9 @@ export const resetOrgUserPassword = mutation({
     if (!user) return { error: "User not found" };
 
     const tempPassword = generateTempPassword();
+    const hashedPassword = await hashPasswordPure(tempPassword);
     await ctx.db.patch(args.userId, {
-      passwordHash: tempPassword,
+      passwordHash: hashedPassword,
       mustChangePassword: true,
       updatedAt: Date.now(),
     });

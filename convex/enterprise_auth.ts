@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { tryGetAdminSession } from "./auth_helpers";
+import { hashPasswordPure, verifyPasswordPure } from "./crypto_pure";
 
 /** Generate a temporary password */
 export const generateTempPassword = internalMutation({
@@ -36,10 +37,12 @@ export const register = mutation({
     if (existing) return { error: "Organization already registered" };
 
     const now = Date.now();
+    const hashedPassword = await hashPasswordPure(args.passwordHash);
+    const hashedAdminPassword = await hashPasswordPure(args.adminPassword);
     const orgId = await ctx.db.insert("enterprise_organizations", {
       name: args.name,
       email: args.email,
-      passwordHash: args.passwordHash,
+      passwordHash: hashedPassword,
       industry: args.industry,
       size: args.size,
       phone: args.phone,
@@ -60,7 +63,7 @@ export const register = mutation({
       orgId,
       name: args.adminName,
       email: args.adminEmail,
-      passwordHash: args.adminPassword,
+      passwordHash: hashedAdminPassword,
       role: "org_admin",
       status: "active",
       mustChangePassword: false,
@@ -69,9 +72,10 @@ export const register = mutation({
       updatedAt: now,
     });
 
+    const token = await ctx.runQuery(internal.auth_helpers.generateToken);
     await ctx.db.insert("enterprise_sessions", {
       orgId,
-      token: await ctx.runQuery(internal.auth_helpers.generateToken),
+      token,
       isCurrent: true,
       expiresAt: now + (7 * 24 * 60 * 60 * 1000),
       createdAt: now,
@@ -117,14 +121,14 @@ export const login = mutation({
     if (!org) return { error: "Invalid credentials" };
 
     // Check password against organization password OR org_user password
-    let passwordMatch = org.passwordHash === args.password;
+    let passwordMatch = await verifyPasswordPure(args.password, org.passwordHash);
 
     // Also check org_users table
     if (!passwordMatch) {
       const orgUser = await ctx.db.query("enterprise_org_users")
         .withIndex("by_email", (q) => q.eq("email", args.email))
         .first();
-      if (orgUser && orgUser.passwordHash === args.password) {
+      if (orgUser && await verifyPasswordPure(args.password, orgUser.passwordHash)) {
         passwordMatch = true;
       }
     }
@@ -132,7 +136,7 @@ export const login = mutation({
     if (!passwordMatch) return { error: "Invalid credentials" };
 
     const now = Date.now();
-    const token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    const token = await ctx.runQuery(internal.auth_helpers.generateToken);
 
     await ctx.db.insert("enterprise_sessions", {
       orgId: org._id,
@@ -145,8 +149,8 @@ export const login = mutation({
     // Invalidate old sessions
     const existingSessions = await ctx.db.query("enterprise_sessions")
       .withIndex("by_org", (q) => q.eq("orgId", org._id))
-      .filter((q) => q.eq(q.field("isCurrent"), true))
-      .collect();
+      .collect()
+      .filter((s) => s.isCurrent === true);
     for (const session of existingSessions) {
       if (session.token !== token) {
         await ctx.db.patch(session._id, { isCurrent: false });

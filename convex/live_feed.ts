@@ -95,31 +95,39 @@ export const getAgentPerformance = query({
   returns: v.any(),
   handler: async (ctx) => {
     const agentIds = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12', 'A13', 'A14', 'A15'];
-    const performance = [];
 
-    for (const agentId of agentIds) {
-      const conversations = await ctx.db
-        .query("agent_conversations")
-        .filter(q => q.eq(q.field("agentId"), agentId))
-        .collect();
+    // Bulk query all conversations and messages, then aggregate in memory
+    const allConversations = await ctx.db.query("agent_conversations").take(500);
+    const allMessages = await ctx.db.query("agent_messages").take(1000);
 
-      // Count messages in each conversation to estimate activity
-      let totalMessages = 0;
-      for (const conv of conversations) {
-        const msgs = await ctx.db
-          .query("agent_messages")
-          .filter(q => q.eq(q.field("conversationId"), conv._id))
-          .collect();
-        totalMessages += msgs.length;
-      }
+    // Build lookup maps for efficient aggregation
+    const conversationsByAgent = new Map<string, number>();
+    const messagesByConversation = new Map<string, number>();
 
-      performance.push({
-        name: agentId,
-        completed: totalMessages,
-        pending: conversations.length,
-        avgTime: totalMessages > 0 ? "5.2" : "0",
-      });
+    for (const conv of allConversations) {
+      const agentId = conv.agentId;
+      conversationsByAgent.set(agentId, (conversationsByAgent.get(agentId) || 0) + 1);
     }
+
+    for (const msg of allMessages) {
+      const convId = msg.conversationId;
+      messagesByConversation.set(convId, (messagesByConversation.get(convId) || 0) + 1);
+    }
+
+    // Count messages per agent by summing their conversations' message counts
+    const messagesByAgent = new Map<string, number>();
+    for (const conv of allConversations) {
+      const agentId = conv.agentId;
+      const msgCount = messagesByConversation.get(conv._id) || 0;
+      messagesByAgent.set(agentId, (messagesByAgent.get(agentId) || 0) + msgCount);
+    }
+
+    const performance = agentIds.map(agentId => ({
+      name: agentId,
+      completed: messagesByAgent.get(agentId) || 0,
+      pending: conversationsByAgent.get(agentId) || 0,
+      avgTime: (messagesByAgent.get(agentId) || 0) > 0 ? "5.2" : "0",
+    }));
 
     return performance;
   },
