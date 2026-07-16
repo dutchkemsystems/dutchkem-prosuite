@@ -15,6 +15,8 @@ import { ApiAccessManager } from '~/components/enterprise/ApiAccessManager'
 import { EnterpriseUsageDashboard } from '~/components/enterprise/EnterpriseUsageDashboard'
 import { SubscriptionRenewal } from '~/components/enterprise/SubscriptionRenewal'
 import { ClientPaymentsTab } from '~/components/enterprise/capabilities/ClientPaymentsTab'
+import { EcommerceTab } from '~/components/enterprise/capabilities/EcommerceTab'
+import { TelegramCommerceTab } from '~/components/enterprise/capabilities/TelegramCommerceTab'
 import { OrdersTab, CustomersTab, ReportingTab, QRCodesTab, InvoicesTab, ReceiptsTab, AppointmentsTab, BusinessHoursTab, MarketingTab, TestimonialsTab, SurveysTab, LandingPagesTab, WhatsAppCommerceTab, ClientPortalTab } from '~/components/enterprise/EnterpriseFeatures'
 import { EnterpriseNotificationBell } from '~/components/enterprise/EnterpriseNotificationBell'
 
@@ -42,9 +44,9 @@ const FEATURE_TABS: Record<string, { id: string; icon: string; label: string; co
   marketing: { id: 'marketing', icon: '📣', label: 'SMS Marketing', component: MarketingTab },
   email_marketing: { id: 'email_marketing', icon: '✉️', label: 'Email Marketing', component: MarketingTab },
   business_hours: { id: 'business_hours', icon: '🕐', label: 'Business Hours', component: BusinessHoursTab },
-  ecommerce: { id: 'ecommerce', icon: '🛒', label: 'E-commerce', component: null },
+  ecommerce: { id: 'ecommerce', icon: '🛒', label: 'E-commerce', component: EcommerceTab },
   whatsapp: { id: 'whatsapp', icon: '💬', label: 'WhatsApp Store', component: WhatsAppCommerceTab },
-  telegram: { id: 'telegram', icon: '🤖', label: 'Telegram Commerce', component: null },
+  telegram: { id: 'telegram', icon: '🤖', label: 'Telegram Commerce', component: TelegramCommerceTab },
   landing_pages: { id: 'landing_pages', icon: '🌐', label: 'Landing Pages', component: LandingPagesTab },
   surveys: { id: 'surveys', icon: '📋', label: 'Surveys', component: SurveysTab },
   testimonials: { id: 'testimonials', icon: '⭐', label: 'Testimonials', component: TestimonialsTab },
