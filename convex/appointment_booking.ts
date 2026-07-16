@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { action, query, mutation, internalMutation, internalQuery } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // APPOINTMENT BOOKING SYSTEM
@@ -126,19 +127,19 @@ export const cancelBooking = mutation({
   args: { bookingId: v.string(), adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const booking = await ctx.db.get(args.bookingId as any);
+    const booking = await ctx.db.get(args.bookingId as Id<"appointment_bookings">);
     if (!booking) return { success: false, error: "Booking not found" };
 
-    await ctx.db.patch(args.bookingId as any, {
+    await ctx.db.patch(args.bookingId as Id<"appointment_bookings">, {
       status: "cancelled",
       updatedAt: Date.now(),
     });
 
     // Decrement booking count on the slot
-    const slot = await ctx.db.get((booking as any).slotId);
-    if (slot && (slot as any).currentBookings > 0) {
-      await ctx.db.patch((slot as any)._id, {
-        currentBookings: (slot as any).currentBookings - 1,
+    const slot = await ctx.db.get(booking.slotId as Id<"appointment_slots">);
+    if (slot && slot.currentBookings > 0) {
+      await ctx.db.patch(slot._id, {
+        currentBookings: slot.currentBookings - 1,
       });
     }
 
@@ -213,7 +214,7 @@ export const getSlot = internalQuery({
   args: { slotId: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.slotId as any);
+    return await ctx.db.get(args.slotId as Id<"appointment_slots">);
   },
 });
 
@@ -232,7 +233,7 @@ export const createBooking = internalMutation({
   returns: v.string(),
   handler: async (ctx, args) => {
     return await ctx.db.insert("appointment_bookings", {
-      slotId: args.slotId as any,
+      slotId: args.slotId,
       clientName: args.clientName,
       clientEmail: args.clientEmail,
       clientPhone: args.clientPhone,
@@ -251,10 +252,10 @@ export const incrementBookings = internalMutation({
   args: { slotId: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const slot = await ctx.db.get(args.slotId as any);
+    const slot = await ctx.db.get(args.slotId as Id<"appointment_slots">);
     if (slot) {
-      await ctx.db.patch(args.slotId as any, {
-        currentBookings: ((slot as any).currentBookings || 0) + 1,
+      await ctx.db.patch(args.slotId as Id<"appointment_slots">, {
+        currentBookings: (slot.currentBookings || 0) + 1,
       });
     }
   },

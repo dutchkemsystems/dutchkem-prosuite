@@ -144,7 +144,7 @@ export const listScheduledPosts = query({
     if (status) {
       posts = await ctx.db
         .query("trypost_scheduled_posts")
-        .withIndex("by_status", (q) => q.eq("status", status as any))
+        .withIndex("by_status", (q) => q.eq("status", status as "draft" | "scheduled" | "publishing" | "published" | "failed"))
         .order("desc")
         .take(take);
     } else {
@@ -530,7 +530,7 @@ export const schedulePostInternal = internalMutation({
       status: "scheduled",
       hashtags: args.hashtags,
       aiGenerated: true,
-      createdBy: "orchestrator" as any,
+      createdBy: "orchestrator",
       createdAt: Date.now(),
     });
     return String(id);
@@ -555,7 +555,7 @@ export const _insertCarousel = internalMutation({
       slides: args.slides,
       aiPrompt: args.aiPrompt,
       generatedBy: args.generatedBy,
-      status: args.status as any,
+      status: args.status as "draft" | "scheduled" | "publishing" | "published" | "failed",
       scheduledFor: args.scheduledFor,
       createdAt: Date.now(),
     });
@@ -578,10 +578,10 @@ export const _scheduleCarousel = internalMutation({
       timezone: "Africa/Lagos",
       status: "scheduled",
       aiGenerated: true,
-      createdBy: "system" as any,
+      createdBy: "system",
       createdAt: Date.now(),
     });
-    await ctx.db.patch(args.carouselId, { status: "scheduled" as any });
+    await ctx.db.patch(args.carouselId, { status: "scheduled" as "draft" | "scheduled" | "publishing" | "published" | "failed" });
   },
 });
 
@@ -741,7 +741,7 @@ export const executeDailyPosting = internalAction({
     let totalPublished = 0;
 
     for (const wf of workflows) {
-      if (wf.triggerType === "schedule" && (wf.triggerConfig as any)?.hourSlot === args.hourSlot) {
+      if (wf.triggerType === "schedule" && (wf.triggerConfig as Record<string, any>)?.hourSlot === args.hourSlot) {
         const runId = await ctx.runMutation(internalAny._startWorkflowRun, {
           workflowId: wf._id,
           triggeredBy: `cron-${args.hourSlot}`,
@@ -845,7 +845,7 @@ export const _createDailyPost = internalMutation({
       timezone: "Africa/Lagos",
       status: "scheduled",
       workflowId: args.workflowId,
-      createdBy: "system" as any,
+      createdBy: "system",
       createdAt: Date.now(),
     });
   },
@@ -1190,7 +1190,7 @@ export const addMedia = mutation({
       sizeBytes: args.sizeBytes,
       width: args.width,
       height: args.height,
-      uploadedBy: identity._id as any,
+      uploadedBy: identity._id,
       createdAt: Date.now(),
     });
     return { authError: false, mediaId: id };
@@ -1256,7 +1256,7 @@ export const createTemplate = mutation({
       platforms: args.platforms,
       variables,
       useCount: 0,
-      createdBy: identity._id as any,
+      createdBy: identity._id,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
