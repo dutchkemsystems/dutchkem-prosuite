@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // CUSTOMER DATABASE (CRM)
@@ -60,10 +61,10 @@ export const updateCustomer = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const customer = await ctx.db.get(args.customerId as any);
+    const customer = await ctx.db.get(args.customerId as Id<"customers">);
     if (!customer) return { success: false, error: "Customer not found" };
 
-    const updates: any = { updatedAt: Date.now() };
+    const updates: Record<string, any> = { updatedAt: Date.now() };
     if (args.name !== undefined) updates.name = args.name;
     if (args.email !== undefined) updates.email = args.email;
     if (args.phone !== undefined) updates.phone = args.phone;
@@ -71,7 +72,7 @@ export const updateCustomer = mutation({
     if (args.tags !== undefined) updates.tags = args.tags;
     if (args.notes !== undefined) updates.notes = args.notes;
 
-    await ctx.db.patch(args.customerId as any, updates);
+    await ctx.db.patch(args.customerId as Id<"customers">, updates);
     return { success: true, customerId: args.customerId };
   },
 });
@@ -80,9 +81,9 @@ export const deleteCustomer = mutation({
   args: { customerId: v.string(), adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const customer = await ctx.db.get(args.customerId as any);
+    const customer = await ctx.db.get(args.customerId as Id<"customers">);
     if (!customer) return { success: false, error: "Customer not found" };
-    await ctx.db.delete(args.customerId as any);
+    await ctx.db.delete(args.customerId as Id<"customers">);
     return { success: true, message: "Customer deleted" };
   },
 });
@@ -91,12 +92,12 @@ export const getCustomer = query({
   args: { customerId: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const customer = await ctx.db.get(args.customerId as any);
+    const customer = await ctx.db.get(args.customerId as Id<"customers">);
     if (!customer) return null;
 
     const orders = await ctx.db
       .query("orders")
-      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId as any))
+      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
       .order("desc")
       .take(20);
 
@@ -135,11 +136,11 @@ export const addCustomerTag = mutation({
   args: { customerId: v.string(), tag: v.string(), adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const customer = await ctx.db.get(args.customerId as any);
+    const customer = await ctx.db.get(args.customerId as Id<"customers">);
     if (!customer) return { success: false, error: "Customer not found" };
 
     const tags = [...new Set([...(customer.tags || []), args.tag])];
-    await ctx.db.patch(args.customerId as any, { tags, updatedAt: Date.now() });
+    await ctx.db.patch(args.customerId as Id<"customers">, { tags, updatedAt: Date.now() });
     return { success: true, tags };
   },
 });
@@ -148,11 +149,11 @@ export const removeCustomerTag = mutation({
   args: { customerId: v.string(), tag: v.string(), adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const customer = await ctx.db.get(args.customerId as any);
+    const customer = await ctx.db.get(args.customerId as Id<"customers">);
     if (!customer) return { success: false, error: "Customer not found" };
 
     const tags = (customer.tags || []).filter((t: string) => t !== args.tag);
-    await ctx.db.patch(args.customerId as any, { tags, updatedAt: Date.now() });
+    await ctx.db.patch(args.customerId as Id<"customers">, { tags, updatedAt: Date.now() });
     return { success: true, tags };
   },
 });
@@ -161,11 +162,11 @@ export const addLoyaltyPoints = mutation({
   args: { customerId: v.string(), points: v.number(), reason: v.optional(v.string()), adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const customer = await ctx.db.get(args.customerId as any);
+    const customer = await ctx.db.get(args.customerId as Id<"customers">);
     if (!customer) return { success: false, error: "Customer not found" };
 
     const newPoints = (customer.loyaltyPoints || 0) + args.points;
-    await ctx.db.patch(args.customerId as any, { loyaltyPoints: newPoints, updatedAt: Date.now() });
+    await ctx.db.patch(args.customerId as Id<"customers">, { loyaltyPoints: newPoints, updatedAt: Date.now() });
 
     return { success: true, points: newPoints, added: args.points, reason: args.reason || "manual" };
   },

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { action, query, mutation, internalMutation, internalQuery } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // SMS MARKETING CAMPAIGNS
@@ -123,19 +124,19 @@ export const getCampaignStats = query({
   args: { campaignId: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const campaign = await ctx.db.get(args.campaignId as any);
+    const campaign = await ctx.db.get(args.campaignId as Id<"sms_campaigns">);
     if (!campaign) return null;
     return {
-      name: (campaign as any).name,
-      sentCount: (campaign as any).sentCount,
-      deliveredCount: (campaign as any).deliveredCount,
-      failedCount: (campaign as any).failedCount,
-      clickCount: (campaign as any).clickCount,
-      recipientCount: (campaign as any).recipientCount,
-      deliveryRate: (campaign as any).recipientCount > 0
-        ? ((campaign as any).deliveredCount / (campaign as any).recipientCount * 100).toFixed(1) + "%"
+      name: campaign.name,
+      sentCount: campaign.sentCount,
+      deliveredCount: campaign.deliveredCount,
+      failedCount: campaign.failedCount,
+      clickCount: campaign.clickCount,
+      recipientCount: campaign.recipientCount,
+      deliveryRate: campaign.recipientCount > 0
+        ? ((campaign.deliveredCount / campaign.recipientCount) * 100).toFixed(1) + "%"
         : "0%",
-      status: (campaign as any).status,
+      status: campaign.status,
     };
   },
 });
@@ -280,7 +281,7 @@ export const getCampaign = internalQuery({
   args: { campaignId: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.campaignId as any);
+    return await ctx.db.get(args.campaignId as Id<"sms_campaigns">);
   },
 });
 
@@ -293,7 +294,7 @@ export const updateCampaignStats = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.campaignId as any, {
+    await ctx.db.patch(args.campaignId as Id<"sms_campaigns">, {
       sentCount: args.sentCount,
       failedCount: args.failedCount,
       deliveredCount: args.sentCount - args.failedCount,
