@@ -282,9 +282,10 @@ export const sendInvoiceEmail = action({
       return { success: false, error: "Unauthorized" };
     }
 
-    // Get invoice
-    const invoices = await ctx.db.query("invoices").collect();
-    const invoice = invoices.find((inv: any) => inv.invoiceId === args.invoiceId);
+    // Get invoice using index
+    const invoice = await ctx.db.query("invoices")
+      .withIndex("by_invoice_id", (q) => q.eq("invoiceId", args.invoiceId))
+      .first();
     if (!invoice) {
       return { success: false, error: "Invoice not found" };
     }
@@ -316,8 +317,9 @@ export const markInvoiceSent = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const invoices = await ctx.db.query("invoices").collect();
-    const invoice = invoices.find((inv: any) => inv.invoiceId === args.invoiceId);
+    const invoice = await ctx.db.query("invoices")
+      .withIndex("by_invoice_id", (q) => q.eq("invoiceId", args.invoiceId))
+      .first();
     if (invoice) {
       await ctx.db.patch(invoice._id, {
         status: "sent",

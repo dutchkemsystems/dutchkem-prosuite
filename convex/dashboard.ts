@@ -153,9 +153,14 @@ export const getDashboardData = query({
 
     let mergedNotifications: any[] = [];
     try {
-      const allNotifications = await ctx.db.query("notifications").order("desc").take(50);
-      const broadcasts = allNotifications.filter((n: any) => !n.userId && !notifications.some((pn: any) => pn._id === n._id)).slice(0, 5);
-      mergedNotifications = [...notifications, ...broadcasts].sort((a: any, b: any) => b.createdAt - a.createdAt).slice(0, 15);
+      // Get broadcast notifications (userId is null) using the by_user index
+      const broadcasts = await ctx.db.query("notifications")
+        .withIndex("by_user", (q) => q.eq("userId", undefined as any))
+        .order("desc")
+        .take(5);
+      // Filter out duplicates and merge with user notifications
+      const uniqueBroadcasts = broadcasts.filter((n: any) => !notifications.some((pn: any) => pn._id === n._id));
+      mergedNotifications = [...notifications, ...uniqueBroadcasts].sort((a: any, b: any) => b.createdAt - a.createdAt).slice(0, 15);
     } catch (e: any) {
       console.error("[Dashboard] Failed to merge notifications:", e?.message);
       mergedNotifications = notifications;

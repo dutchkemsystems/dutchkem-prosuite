@@ -576,6 +576,14 @@ crons.interval(
   {}
 );
 
+// 🔄 Composio token sync (every 30 minutes - syncs fresh tokens from Composio API)
+crons.interval(
+  "composio token sync",
+  { minutes: 30 },
+  internal.composio_token_sync.syncComposioTokens,
+  {}
+);
+
 // 📊 Refresh follower counts for connected platforms (every 12 hours)
 crons.interval(
   "refresh social follower counts",
@@ -618,6 +626,50 @@ crons.cron(
   "0 6 * * *",
   internal.whatsapp_dual.checkExpiredSubscriptions,
   {}
+);
+
+// ═══════════════════════════════════════════════════════════════════
+// SOCIAL AUTOMATION ENGINE — Generate & Post Content
+// ═══════════════════════════════════════════════════════════════════
+
+// Auto-generate and post content every 4 hours (6x/day)
+crons.interval(
+  "social automation post tick",
+  { hours: 4 },
+  internal.social_automation.scheduledPostTick,
+  {}
+);
+
+// Refresh all social platform tokens every 6 hours
+crons.interval(
+  "social token refresh",
+  { hours: 6 },
+  internal.social.refreshExpiredTokens,
+  {}
+);
+
+// ═══════════════════════════════════════════════════════════════════
+// DRIP DELIVERY ENGINE — Send scheduled messages
+// ═══════════════════════════════════════════════════════════════════
+
+// Check and send due drip messages every 15 minutes
+crons.interval(
+  "drip delivery tick",
+  { minutes: 15 },
+  internal.drip_delivery.deliveryTick,
+  {}
+);
+
+// ═══════════════════════════════════════════════════════════════════
+// EMAIL PROCESSOR — Send pending email notifications
+// ═══════════════════════════════════════════════════════════════════
+
+// Process pending emails every 5 minutes (requires RESEND_API_KEY)
+crons.interval(
+  "email processor tick",
+  { minutes: 5 },
+  internal.email_processor.processPendingEmails,
+  { batchSize: 10 }
 );
 
 export default crons;
