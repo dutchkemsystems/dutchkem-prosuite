@@ -213,7 +213,7 @@ export const getDashboardData = query({
       console.error("[Dashboard] Failed to fetch payout history:", e?.message);
     }
 
-    const availableBalance = (user as any).balance ?? 0;
+    const availableBalance = user.balance ?? 0;
     const activeSubscription = subscriptions[0];
 
     // Bounded query for agent enhancement settings
@@ -231,11 +231,11 @@ export const getDashboardData = query({
     return {
       user: {
         _id: String(user._id),
-        name: String((user as any).name ?? ""),
-        image: (user as any).image ? String((user as any).image) : undefined,
-        email: String((user as any).email ?? ""),
-        balance: Number((user as any).balance ?? 0),
-        referralCode: String((user as any).referralCode ?? ""),
+        name: String(user.name ?? ""),
+        image: user.image ? String(user.image) : undefined,
+        email: String(user.email ?? ""),
+        balance: Number(user.balance ?? 0),
+        referralCode: String(user.referralCode ?? ""),
         subscription: activeSubscription ? {
           plan: String(activeSubscription.plan ?? "monthly"),
           status: String(activeSubscription.status ?? "active"),

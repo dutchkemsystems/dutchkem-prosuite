@@ -1,4 +1,4 @@
-﻿import { v } from "convex/values";
+import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
 /**
@@ -280,10 +280,10 @@ export const performSweep = mutation({
               narration: args.remarks || `Daily sweep - ${sweepId}`,
               bank_account: {
                 bank: beneficiary.bankCode,
-                account: (beneficiary as any).encryptedAccountNumber,
+                account: beneficiary.encryptedAccountNumber,
               },
               customer: {
-                name: (beneficiary as any).encryptedAccountName || "Unknown",
+                name: beneficiary.encryptedAccountName || "Unknown",
                 email: "dutchkemdeveloper@gmail.com",
               },
             },
@@ -316,7 +316,7 @@ export const performSweep = mutation({
 
         // Deduct from main wallet
         const newBalance = mainWallet.balance - sweepAmount;
-        await ctx.db.patch("system_wallets", mainWallet._id, {
+        await ctx.db.patch(mainWallet._id, {
           balance: newBalance,
           lastUpdated: Date.now(),
         });
@@ -331,7 +331,7 @@ export const performSweep = mutation({
           status: "completed",
           kora_reference: reference,
           timestamp: Date.now(),
-          notes: args.remarks || `Sweep to ${(beneficiary as any).encryptedAccountName}`,
+          notes: args.remarks || `Sweep to ${beneficiary.encryptedAccountName}`,
         });
 
         // Generate receipt
@@ -341,8 +341,8 @@ export const performSweep = mutation({
           date: new Date().toISOString(),
           amount: sweepAmount,
           from: "Main Wallet",
-          to: `${beneficiary.bankName} - ${(beneficiary as any).encryptedAccountName}`,
-          accountNumber: "****" + ((beneficiary as any).encryptedAccountNumber || "").slice(-4),
+          to: `${beneficiary.bankName} - ${beneficiary.encryptedAccountName}`,
+          accountNumber: "****" + (beneficiary.encryptedAccountNumber || "").slice(-4),
           bankCode: beneficiary.bankCode,
           reference,
           koraReference: result.data?.reference || reference,

@@ -74,7 +74,7 @@ export const get2FAStatus = query({
     if (!userId) return { enabled: false };
 
     const user = await ctx.db.get("users", userId);
-    return { enabled: (user as any)?.adminTwoFactorEnabled ?? false };
+    return { enabled: user?.adminTwoFactorEnabled ?? false };
   },
 });
 
@@ -89,8 +89,8 @@ export const requestReferralPayout = mutation({
     if (!user) return { error: "User not found" };
 
     const conversions = await ctx.db.query("referral_conversions")
-      .withIndex("by_referrer", q => q.eq("referrerId", userId as any))
-      .filter(q => q.eq(q.field("status"), "earned"))
+      .withIndex("by_referrer", q => q.eq("referrerId", userId as string))
+      .filter(q => q.eq("status", "earned"))
       .collect();
 
     const totalAvailable = conversions.reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
@@ -100,7 +100,7 @@ export const requestReferralPayout = mutation({
     }
 
     await ctx.db.insert("referral_payouts", {
-      userId: userId as any,
+      userId: userId as string,
       amount: totalAvailable,
       status: "pending",
       period: new Date().toISOString().substring(0, 7),
@@ -152,8 +152,8 @@ export const ensureReferralCode = mutation({
     const user = await ctx.db.get("users", userId);
     if (!user) return { referralCode: "", generated: false };
 
-    if ((user as any).referralCode) {
-      return { referralCode: (user as any).referralCode, generated: false };
+    if (user.referralCode) {
+      return { referralCode: user.referralCode, generated: false };
     }
 
     const referralCode = generateReferralCode();

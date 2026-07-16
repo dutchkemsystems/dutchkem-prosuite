@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { tryGetAdminSession } from "./auth_helpers";
 
 // Helper for shared logic
 async function fetchSweepSettings(ctx: import("./_generated/server").QueryCtx) {
@@ -53,8 +54,8 @@ export const getAdminStats = query({
   returns: v.any(),
   handler: async (ctx, args) => {
     if (!args.adminToken) return { authError: true };
-    const session: any = await ctx.db.get(args.adminToken as any);
-    if (!session || !session.userId || session.userType !== "admin" || session.isRevoked) return { authError: true };
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) return { authError: true };
     const now = Date.now();
 const dayAgo = now - (24 * 60 * 60 * 1000);
 const weekAgo = now - (7 * 24 * 60 * 60 * 1000);
@@ -154,8 +155,8 @@ export const getEarningsSummary = query({
     returns: v.any(),
     handler: async (ctx, args) => {
         if (!args.adminToken) return { authError: true };
-        const session: any = await ctx.db.get(args.adminToken as any);
-        if (!session || !session.userId || session.userType !== "admin" || session.isRevoked) return { authError: true };
+        const identity = await tryGetAdminSession(ctx, args.adminToken);
+        if (!identity) return { authError: true };
         const now = Date.now();
         const startOfDay = new Date().setHours(0, 0, 0, 0);
         const startOfWeek = now - (7 * 24 * 60 * 60 * 1000);
@@ -507,8 +508,8 @@ export const listAllUsers = query({
   returns: v.any(),
   handler: async (ctx, args) => {
     if (!args.adminToken) return [];
-    const session: any = await ctx.db.get(args.adminToken as any);
-    if (!session || !session.userId || session.userType !== "admin" || session.isRevoked) return [];
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) return [];
     return await ctx.db.query("users").order("desc").collect();
   },
 });
@@ -641,15 +642,15 @@ export const getAdminProfile = query({
   handler: async (ctx, args) => {
     // Use admin session to identify the correct admin user
     let adminUser: any = null;
-    
+
     if (args.adminToken) {
       // Validate session and get the admin user
-      const session: any = await ctx.db.get(args.adminToken as any);
-      if (session && session.userId && session.userType === "admin" && !session.isRevoked) {
-        adminUser = await ctx.db.get(session.userId);
+      const identity = await tryGetAdminSession(ctx, args.adminToken);
+      if (identity) {
+        adminUser = await ctx.db.get("users", identity._id);
       }
     }
-    
+
     // Fallback: find admin by role if no session
     if (!adminUser) {
       adminUser = await ctx.db.query("users")
@@ -698,24 +699,13 @@ export const getUpgradeStatus = query({
 
 // ── Admin Subscription CRUD ──
 
-async function validateAdminSession(ctx: import("./_generated/server").MutationCtx, adminToken: string) {
-  const session: any = await ctx.db.get(adminToken as any);
-  if (session && session.userId && session.userType === "admin" && !session.isRevoked) {
-    return await ctx.db.get(session.userId);
-  }
-  return null;
-}
-
 export const listSubscriptions = query({
   args: { adminToken: v.optional(v.string()) },
   returns: v.any(),
   handler: async (ctx, args) => {
     if (!args.adminToken) return { authError: true, data: [] };
-    const adminUser = await (async () => {
-      const session: any = await ctx.db.get(args.adminToken as any);
-      return session && session.userId && session.userType === "admin" && !session.isRevoked ? await ctx.db.get(session.userId) : null;
-    })();
-    if (!adminUser) return { authError: true, data: [] };
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) return { authError: true, data: [] };
     const subs = await ctx.db.query("subscriptions").collect();
     const users = await ctx.db.query("users").collect();
     const userMap: Record<string, any> = {};
@@ -740,10 +730,10 @@ export const updateSubscription = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const adminUser = await validateAdminSession(ctx, args.adminToken);
-    if (!adminUser) return { authError: true };
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) return { authError: true };
 
-    const patch: any = {};
+    const patch: Record<string, any> = {};
     if (args.status) patch.status = args.status;
     if (args.plan) patch.plan = args.plan;
     if (args.autoRenew !== undefined) patch.autoRenew = args.autoRenew;
@@ -751,7 +741,7 @@ export const updateSubscription = mutation({
     await ctx.db.patch("subscriptions", args.subscriptionId, patch);
 
     await ctx.runMutation(internal.admin.logAdminAction, {
-      adminEmail: (adminUser as any).email,
+      adminEmail: identity.email,
       action: "UPDATE_SUBSCRIPTION",
       details: `Updated sub ${args.subscriptionId}: ${Object.keys(patch).join(", ")}`,
       ip: "internal",
@@ -765,8 +755,8 @@ export const cancelSubscription = mutation({
   args: { adminToken: v.string(), subscriptionId: v.id("subscriptions") },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const adminUser = await validateAdminSession(ctx, args.adminToken);
-    if (!adminUser) return { authError: true };
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) return { authError: true };
 
     await ctx.db.patch("subscriptions", args.subscriptionId, {
       status: "canceled",
@@ -774,7 +764,7 @@ export const cancelSubscription = mutation({
     });
 
     await ctx.runMutation(internal.admin.logAdminAction, {
-      adminEmail: (adminUser as any).email,
+      adminEmail: identity.email,
       action: "CANCEL_SUBSCRIPTION",
       details: `Canceled subscription: ${args.subscriptionId}`,
       ip: "internal",
@@ -792,8 +782,8 @@ export const extendSubscription = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const adminUser = await validateAdminSession(ctx, args.adminToken);
-    if (!adminUser) return { authError: true };
+    const identity = await tryGetAdminSession(ctx, args.adminToken);
+    if (!identity) return { authError: true };
 
     const sub = await ctx.db.get("subscriptions", args.subscriptionId);
     if (!sub) return { error: "Subscription not found" };
@@ -805,7 +795,7 @@ export const extendSubscription = mutation({
     });
 
     await ctx.runMutation(internal.admin.logAdminAction, {
-      adminEmail: (adminUser as any).email,
+      adminEmail: identity.email,
       action: "EXTEND_SUBSCRIPTION",
       details: `Extended sub ${args.subscriptionId} by ${args.days} days (new end: ${new Date(newEndsAt).toISOString()})`,
       ip: "internal",
