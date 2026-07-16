@@ -52,7 +52,7 @@ export const initiatePayment = action({
             planName: args.planName,
             type: "agent_subscription",
           },
-          redirect_url: `${typeof window !== 'undefined' ? window.location.origin : 'https://dutchkem-prosuite-app.vercel.app'}/payment/callback`,
+          redirect_url: "https://dutchkem-prosuite-app.vercel.app/payment/callback",
         }),
       });
 

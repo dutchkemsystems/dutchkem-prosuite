@@ -132,7 +132,7 @@ export const runDailyTaxDeduction = internalMutation({
         notes: "Automated daily PIT deduction (Sole Proprietorship)"
     });
 
-    console.log(`✅ Daily tax deduction: ₦${dailyTax.toFixed(2)} moved to tax wallet.`);
+    console.log(`[TAX] Daily deduction: ₦${dailyTax.toFixed(2)} moved to tax wallet.`);
     return null;
   }
 });
@@ -170,7 +170,7 @@ export const runDailyInterestAccrual = internalMutation({
         lastUpdated: Date.now(),
     });
 
-    console.log(`✅ Interest accrued: ₦${interestEarned.toFixed(2)} credited to Main Wallet.`);
+    console.log(`[TAX] Interest accrued: ₦${interestEarned.toFixed(2)} credited to Main Wallet.`);
     return null;
   }
 });

@@ -14,6 +14,23 @@ const QUALITY_PRESETS: Record<string, { width: number; height: number; fps: numb
   "4k": { width: 3840, height: 2160, fps: 30 },
 };
 
+// Base64 encoding without btoa() (not available in Convex actions)
+const B64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+function binaryToBase64(binary: string): string {
+  let result = "";
+  for (let i = 0; i < binary.length; i += 3) {
+    const b1 = binary.charCodeAt(i);
+    const b2 = i + 1 < binary.length ? binary.charCodeAt(i + 1) : 0;
+    const b3 = i + 2 < binary.length ? binary.charCodeAt(i + 2) : 0;
+    const triplet = (b1 << 16) | (b2 << 8) | b3;
+    result += B64_CHARS[(triplet >> 18) & 0x3f];
+    result += B64_CHARS[(triplet >> 12) & 0x3f];
+    result += i + 1 < binary.length ? B64_CHARS[(triplet >> 6) & 0x3f] : "=";
+    result += i + 2 < binary.length ? B64_CHARS[triplet & 0x3f] : "=";
+  }
+  return result;
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // STEP 1: DEVELOP STORY
 // ═══════════════════════════════════════════════════════════════════
@@ -127,12 +144,42 @@ export const assembleVideo = action({
       });
       if (!story) return { success: false, error: "Story not found" };
 
-      const finalUrl = story.finalVideoUrl || story.scenes?.[0]?.videoUrl || "";
+      // If we already have a final video, return it
+      if (story.finalVideoUrl) {
+        return {
+          success: true,
+          videoUrl: story.finalVideoUrl,
+          duration: story.storyData?.totalDuration || 30,
+          source: "existing",
+        };
+      }
 
+      // Try to generate a single video from the story prompt
+      const prompt = story.storyData?.synopsis || story.prompt || "DutchKem promotional video";
+      const clipUrl = await generateVideoClip(prompt, story.quality || "hd");
+
+      if (clipUrl) {
+        // Update the story with the new video URL
+        await ctx.runMutation(internal.video_production.updateStoryVideo, {
+          storyId: args.storyId,
+          videoUrl: clipUrl,
+        });
+
+        return {
+          success: true,
+          videoUrl: clipUrl,
+          duration: story.storyData?.totalDuration || 30,
+          source: "generated",
+        };
+      }
+
+      // Fall back to first scene URL
+      const fallbackUrl = story.scenes?.[0]?.videoUrl || "";
       return {
-        success: true,
-        videoUrl: finalUrl,
-        duration: story.storyData?.scenes?.reduce((s: number, sc: any) => s + (sc.durationSeconds || 5), 0) || 30,
+        success: !!fallbackUrl,
+        videoUrl: fallbackUrl,
+        duration: story.storyData?.totalDuration || 30,
+        source: "fallback",
       };
     } catch (e: any) {
       return { success: false, error: e.message };
@@ -236,8 +283,8 @@ async function generateVideoClip(prompt: string, quality: string): Promise<strin
     try {
       const url = await generateWithHuggingFace(prompt, hfToken);
       if (url) return url;
-    } catch (e) {
-      console.log("HuggingFace failed:", e);
+    } catch (e: any) {
+      console.error("[VIDEO] HuggingFace failed:", e?.message || e);
     }
   }
 
@@ -247,8 +294,8 @@ async function generateVideoClip(prompt: string, quality: string): Promise<strin
     try {
       const url = await generateWithReplicate(prompt, replicateToken);
       if (url) return url;
-    } catch (e) {
-      console.log("Replicate failed:", e);
+    } catch (e: any) {
+      console.error("[VIDEO] Replicate failed:", e?.message || e);
     }
   }
 
@@ -275,7 +322,7 @@ async function generateWithReplicate(prompt: string, token: string): Promise<str
   });
 
   if (!createRes.ok) {
-    console.log("Replicate create failed:", createRes.status);
+    console.error("[VIDEO] Replicate create failed: HTTP", createRes.status);
     return null;
   }
 
@@ -307,7 +354,7 @@ async function generateWithReplicate(prompt: string, token: string): Promise<str
     }
 
     if (status.status === "failed" || status.status === "canceled") {
-      console.log("Replicate prediction failed:", status.error);
+      console.error("[VIDEO] Replicate prediction failed:", status.error);
       return null;
     }
   }
@@ -349,7 +396,7 @@ async function generateWithHuggingFace(prompt: string, apiKey: string): Promise<
                 binary += String.fromCharCode(chunk[j]);
               }
             }
-            return `data:video/mp4;base64,${btoa(binary)}`;
+            return `data:video/mp4;base64,${binaryToBase64(binary)}`;
           }
         }
       }
@@ -403,12 +450,12 @@ async function generateNarration(text: string): Promise<string | null> {
                   binary += String.fromCharCode(chunk[j]);
                 }
               }
-              return `data:audio/wav;base64,${btoa(binary)}`;
+              return `data:audio/wav;base64,${binaryToBase64(binary)}`;
             }
           }
         }
-      } catch (e) {
-        console.log(`TTS model ${tts.model} failed:`, e);
+      } catch (e: any) {
+        console.error(`[VIDEO] TTS model ${tts.model} failed:`, e?.message || e);
         continue;
       }
     }
@@ -452,8 +499,8 @@ async function generateNarration(text: string): Promise<string | null> {
           }
         }
       }
-    } catch (e) {
-      console.log("Replicate Bark TTS failed:", e);
+    } catch (e: any) {
+      console.error("[VIDEO] Replicate Bark TTS failed:", e?.message || e);
     }
   }
 
@@ -584,7 +631,7 @@ animate();
   for (let i = 0; i < data.length; i++) {
     binary += String.fromCharCode(data[i]);
   }
-  return `data:text/html;base64,${btoa(binary)}`;
+  return `data:text/html;base64,${binaryToBase64(binary)}`;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -621,8 +668,8 @@ async function generateStoryWithAI(prompt: string) {
           return JSON.parse(jsonMatch[0]);
         }
       }
-    } catch (e) {
-      console.log("NVIDIA story generation failed:", e);
+    } catch (e: any) {
+      console.error("[VIDEO] NVIDIA story generation failed:", e?.message || e);
     }
   }
 
@@ -669,6 +716,27 @@ export const saveStory = internalMutation({
       updatedAt: Date.now(),
     });
     return storyId;
+  },
+});
+
+export const updateStoryVideo = internalMutation({
+  args: {
+    storyId: v.string(),
+    videoUrl: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const story = await ctx.db.query("video_productions")
+      .withIndex("by_id", (q) => q.eq("_id", args.storyId as any))
+      .first();
+    if (story) {
+      await ctx.db.patch(story._id, {
+        finalVideoUrl: args.videoUrl,
+        status: "completed",
+        updatedAt: Date.now(),
+      });
+    }
+    return null;
   },
 });
 

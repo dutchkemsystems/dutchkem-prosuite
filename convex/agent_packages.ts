@@ -203,7 +203,7 @@ export const initiateAgentPackagePurchase = mutation({
           packageName: pkg.name,
           userId: args.userId,
         },
-        redirect_url: `${typeof window !== "undefined" ? window.location.origin : "https://dutchkem-prosuite-app.vercel.app"}/payment/callback`,
+        redirect_url: "https://dutchkem-prosuite-app.vercel.app/payment/callback",
       }),
     });
 
