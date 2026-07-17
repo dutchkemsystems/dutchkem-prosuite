@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 
 const emptyReturn = {
   user: {
@@ -13,13 +14,13 @@ const emptyReturn = {
     subscription: undefined as { plan: string; status: string } | undefined,
   },
   stats: { activeSubscriptions: 0, totalSpentThisMonth: 0, completedProjects: 0, referralEarnings: 0, savingsThisMonth: 0 },
-  subscriptions: [] as any[],
-  projects: [] as any[],
-  notifications: [] as any[],
-  paymentMethods: [] as any[],
-  referrals: { friendsSignedUp: 0, totalEarned: 0, pendingEarnings: 0, availableBalance: 0, history: [] as any[] },
-  sessions: [] as any[],
-  agentEnhancement: [] as any[],
+  subscriptions: [],
+  projects: [],
+  notifications: [],
+  paymentMethods: [],
+  referrals: { friendsSignedUp: 0, totalEarned: 0, pendingEarnings: 0, availableBalance: 0, history: [] },
+  sessions: [],
+  agentEnhancement: [],
 };
 
 export const getDashboardData = query({
@@ -155,7 +156,7 @@ export const getDashboardData = query({
     try {
       // Get broadcast notifications (userId is null) using the by_user index
       const broadcasts = await ctx.db.query("notifications")
-        .withIndex("by_user", (q) => q.eq("userId", undefined as any))
+        .withIndex("by_user", (q) => q.eq("userId", undefined as Id<"users"> | undefined))
         .order("desc")
         .take(5);
       // Filter out duplicates and merge with user notifications

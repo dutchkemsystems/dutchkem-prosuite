@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // TEAM ACCOUNTS (B2B) — Multi-user access, roles, team billing
@@ -61,7 +62,7 @@ export const createTeam = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    const userId = identity.subject as any;
+    const userId = identity.subject as Id<"users">;
     const planConfig = TEAM_PLANS[args.plan];
 
     // Check if user already owns a team
@@ -104,7 +105,7 @@ export const getUserTeams = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return [];
 
-    const userId = identity.subject as any;
+    const userId = identity.subject as Id<"users">;
 
     // Get teams where user is a member
     const memberships = await ctx.db
@@ -180,7 +181,7 @@ export const inviteMember = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    const userId = identity.subject as any;
+    const userId = identity.subject as Id<"users">;
 
     // Check if user is authorized
     const membership = await ctx.db
@@ -234,7 +235,7 @@ export const acceptInvite = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    const userId = identity.subject as any;
+    const userId = identity.subject as Id<"users">;
 
     const invite = await ctx.db
       .query("team_invites")
@@ -285,7 +286,7 @@ export const removeMember = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    const userId = identity.subject as any;
+    const userId = identity.subject as Id<"users">;
 
     // Check authorization
     const membership = await ctx.db
@@ -344,7 +345,7 @@ export const updateMemberRole = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    const userId = identity.subject as any;
+    const userId = identity.subject as Id<"users">;
 
     // Check authorization (only owner can change roles)
     const membership = await ctx.db

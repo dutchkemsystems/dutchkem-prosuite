@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action, query, mutation, internalMutation, internalQuery } from "./_generated/server";
 import { api } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // TELEGRAM BOT COMMERCE
@@ -124,31 +125,31 @@ export const addToCart = mutation({
   args: { userId: v.string(), productId: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const product = await ctx.db.get(args.productId as any);
+    const product = await ctx.db.get(args.productId as Id<"products">);
     if (!product) return { success: false, error: "Product not found" };
-    if ((product as any).stock <= 0) return { success: false, error: "Out of stock" };
+    if (product.stock <= 0) return { success: false, error: "Out of stock" };
 
     const cart = await ctx.db.query("telegram_carts").withIndex("by_user", (q) => q.eq("userId", args.userId)).first();
 
     if (cart) {
-      const items = [...(cart as any).items];
-      const existing = items.findIndex((i: any) => i.productId === args.productId);
+      const items = [...cart.items];
+      const existing = items.findIndex((i) => i.productId === args.productId);
       if (existing >= 0) {
         items[existing].quantity += 1;
       } else {
-        items.push({ productId: args.productId, name: (product as any).name, price: (product as any).price, quantity: 1 });
+        items.push({ productId: args.productId, name: product.name, price: product.price, quantity: 1 });
       }
       await ctx.db.patch(cart._id, { items, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("telegram_carts", {
         userId: args.userId,
-        items: [{ productId: args.productId, name: (product as any).name, price: (product as any).price, quantity: 1 }],
+        items: [{ productId: args.productId, name: product.name, price: product.price, quantity: 1 }],
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
     }
 
-    return { success: true, productName: (product as any).name };
+    return { success: true, productName: product.name };
   },
 });
 
@@ -186,7 +187,7 @@ export const clearCart = mutation({
   args: { cartId: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.delete(args.cartId as any);
+    await ctx.db.delete(args.cartId as Id<"telegram_carts">);
   },
 });
 

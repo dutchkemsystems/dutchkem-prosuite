@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { action, mutation, internalMutation, internalQuery, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { tryGetAdminSession } from "./auth_helpers";
+import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // KORA PAY CHECKOUT — Client & Enterprise Payment Integration
@@ -280,7 +281,7 @@ export const initiateWhatsAppSubscription = action({
     }
 
     // Get the tier details
-    const tier = await ctx.runQuery(internal.whatsapp_dual.getTierById, { tierId: args.tierId as any });
+    const tier = await ctx.runQuery(internal.whatsapp_dual.getTierById, { tierId: args.tierId as Id<"whatsapp_pricing_tiers"> });
     if (!tier) {
       return { success: false, error: "Tier not found", debug: { tierId: args.tierId } };
     }
@@ -408,7 +409,7 @@ export const verifyPayment = action({
       const data = await response.json();
       if (data.status) {
         const status = data.data?.status || "unknown";
-        const amount = data.data?.amount;
+        const amount = typeof data.data?.amount === "string" ? parseFloat(data.data.amount) : data.data?.amount;
 
         if (status === "success") {
           const pending = await ctx.runQuery(internal.kora_checkout.getPendingByReference, {
@@ -450,7 +451,7 @@ export const verifyPayment = action({
               await ctx.runMutation(internal.whatsapp_dual.createSubscriptionInternal, {
                 userId,
                 systemType,
-                tierId: tierId as any,
+                tierId: tierId as Id<"whatsapp_pricing_tiers">,
                 phoneNumber,
               });
             }
@@ -536,7 +537,7 @@ export const handleKoraWebhook = internalMutation({
             await ctx.runMutation(internal.whatsapp_dual.createSubscriptionInternal, {
               userId,
               systemType,
-              tierId: tierId as any,
+              tierId: tierId as Id<"whatsapp_pricing_tiers">,
               phoneNumber,
             });
           }
@@ -649,7 +650,7 @@ export const activateUserSubscription = internalMutation({
     // Check for existing active subscription
     const existing = await ctx.db
       .query("subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId as any))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId as Id<"users">))
       .filter((q) => q.eq(q.field("status"), "active"))
       .first();
 
@@ -661,7 +662,7 @@ export const activateUserSubscription = internalMutation({
       });
     } else {
       await ctx.db.insert("subscriptions", {
-        userId: args.userId as any,
+        userId: args.userId as Id<"users">,
         plan: args.billingCycle === "annual" ? "yearly" : "monthly",
         service: "standard",
         status: "active",
@@ -706,7 +707,7 @@ export const activateEnterpriseAddon = internalMutation({
       : undefined;
 
     await ctx.db.insert("enterprise_addon_subscriptions", {
-      orgId: args.orgId as any,
+      orgId: args.orgId as Id<"enterprise_organizations">,
       addonId: addon.addonId,
       addonName: addon.name,
       status: "active",

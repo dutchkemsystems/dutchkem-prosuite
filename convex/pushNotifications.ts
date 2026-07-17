@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { api } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // PUSH NOTIFICATIONS — Web Push API integration
@@ -13,7 +15,7 @@ export const getSubscriptions = query({
     if (!identity) return [];
     return await ctx.db
       .query("push_subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", identity.subject as any))
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject as Id<"users">))
       .collect();
   },
 });
@@ -33,7 +35,7 @@ export const subscribe = mutation({
     // Check if subscription already exists
     const existing = await ctx.db
       .query("push_subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", identity.subject as any))
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject as Id<"users">))
       .collect();
 
     const alreadyExists = existing.some((s) => s.endpoint === args.endpoint);
@@ -47,7 +49,7 @@ export const subscribe = mutation({
     }
 
     await ctx.db.insert("push_subscriptions", {
-      userId: identity.subject as any,
+      userId: identity.subject as Id<"users">,
       endpoint: args.endpoint,
       p256dh: args.p256dh,
       auth: args.auth,
@@ -68,7 +70,7 @@ export const unsubscribe = mutation({
 
     const subs = await ctx.db
       .query("push_subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", identity.subject as any))
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject as Id<"users">))
       .collect();
 
     for (const sub of subs) {
@@ -88,7 +90,7 @@ export const isSubscribed = query({
 
     const subs = await ctx.db
       .query("push_subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", identity.subject as any))
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject as Id<"users">))
       .collect();
 
     return subs.length > 0;
@@ -167,7 +169,7 @@ export const sendPushBroadcast = action({
   },
   handler: async (ctx, args) => {
     const subs = await ctx.runQuery(
-      "pushNotifications:getAllSubscriptions" as any,
+      api.pushNotifications.getAllSubscriptions,
       {}
     );
 
@@ -221,7 +223,7 @@ export const sendPushBroadcast = action({
         // Remove expired/invalid subscriptions
         if (err.statusCode === 404 || err.statusCode === 410) {
           await ctx.runMutation(
-            "pushNotifications:removeSubscription" as any,
+            api.pushNotifications.removeSubscription,
             { endpoint: sub.endpoint }
           );
         }
