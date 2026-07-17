@@ -160,7 +160,7 @@ export const deleteOrganization = mutation({
     if (!identity) return { success: false, error: "Unauthorized" };
     const org = await ctx.db.get("enterprise_organizations", args.orgId);
     if (!org) return { success: false, error: "Organization not found" };
-    await ctx.db.patch(args.orgId, { status: "suspended" as any, updatedAt: Date.now() });
+    await ctx.db.patch(args.orgId, { status: "suspended" as "trial" | "active" | "suspended" | "expired", updatedAt: Date.now() });
     await ctx.db.insert("enterprise_audit_logs", {
       eventType: "ORG_DELETED", actor: identity._id,
       action: "delete_organization", target: args.orgId,
@@ -184,7 +184,7 @@ export const suspendOrganization = mutation({
     const org = await ctx.db.get("enterprise_organizations", args.orgId);
     if (!org) return { success: false, error: "Organization not found" };
     const suspendUntil = Date.now() + (args.days * 24 * 60 * 60 * 1000);
-    await ctx.db.patch(args.orgId, { status: "suspended" as any, updatedAt: Date.now() });
+    await ctx.db.patch(args.orgId, { status: "suspended" as "trial" | "active" | "suspended" | "expired", updatedAt: Date.now() });
     await ctx.db.insert("enterprise_audit_logs", {
       eventType: "ORG_SUSPENDED", actor: identity._id,
       action: "suspend_organization", target: args.orgId,
@@ -207,7 +207,7 @@ export const unsuspendOrganization = mutation({
     if (!identity) return { success: false, error: "Unauthorized" };
     const org = await ctx.db.get("enterprise_organizations", args.orgId);
     if (!org) return { success: false, error: "Organization not found" };
-    await ctx.db.patch(args.orgId, { status: "active" as any, updatedAt: Date.now() });
+    await ctx.db.patch(args.orgId, { status: "active" as "trial" | "active" | "suspended" | "expired", updatedAt: Date.now() });
     await ctx.db.insert("enterprise_audit_logs", {
       eventType: "ORG_UNSUSPENDED", actor: identity._id,
       action: "unsuspend_organization", target: args.orgId,
@@ -231,7 +231,7 @@ export const freezeOrganization = mutation({
     const org = await ctx.db.get("enterprise_organizations", args.orgId);
     if (!org) return { success: false, error: "Organization not found" };
     const frozenUntil = Date.now() + (args.days * 24 * 60 * 60 * 1000);
-    await ctx.db.patch(args.orgId, { status: "suspended" as any, updatedAt: Date.now() });
+    await ctx.db.patch(args.orgId, { status: "suspended" as "trial" | "active" | "suspended" | "expired", updatedAt: Date.now() });
     await ctx.db.insert("enterprise_audit_logs", {
       eventType: "ORG_FROZEN", actor: identity._id,
       action: "freeze_organization", target: args.orgId,
@@ -254,7 +254,7 @@ export const thawOrganization = mutation({
     if (!identity) return { success: false, error: "Unauthorized" };
     const org = await ctx.db.get("enterprise_organizations", args.orgId);
     if (!org) return { success: false, error: "Organization not found" };
-    await ctx.db.patch(args.orgId, { status: "active" as any, updatedAt: Date.now() });
+    await ctx.db.patch(args.orgId, { status: "active" as "trial" | "active" | "suspended" | "expired", updatedAt: Date.now() });
     await ctx.db.insert("enterprise_audit_logs", {
       eventType: "ORG_THAWED", actor: identity._id,
       action: "thaw_organization", target: args.orgId,
@@ -277,7 +277,7 @@ export const lockOrganization = mutation({
     if (!identity) return { success: false, error: "Unauthorized" };
     const org = await ctx.db.get("enterprise_organizations", args.orgId);
     if (!org) return { success: false, error: "Organization not found" };
-    await ctx.db.patch(args.orgId, { status: "suspended" as any, updatedAt: Date.now() });
+    await ctx.db.patch(args.orgId, { status: "suspended" as "trial" | "active" | "suspended" | "expired", updatedAt: Date.now() });
     await ctx.db.insert("enterprise_audit_logs", {
       eventType: "ORG_LOCKED", actor: identity._id,
       action: "lock_organization", target: args.orgId,
@@ -300,7 +300,7 @@ export const unlockOrganization = mutation({
     if (!identity) return { success: false, error: "Unauthorized" };
     const org = await ctx.db.get("enterprise_organizations", args.orgId);
     if (!org) return { success: false, error: "Organization not found" };
-    await ctx.db.patch(args.orgId, { status: "active" as any, updatedAt: Date.now() });
+    await ctx.db.patch(args.orgId, { status: "active" as "trial" | "active" | "suspended" | "expired", updatedAt: Date.now() });
     await ctx.db.insert("enterprise_audit_logs", {
       eventType: "ORG_UNLOCKED", actor: identity._id,
       action: "unlock_organization", target: args.orgId,
@@ -327,7 +327,7 @@ export const upgradeOrganization = mutation({
     if (!identity) return { success: false, error: "Unauthorized" };
     const org = await ctx.db.get("enterprise_organizations", args.orgId);
     if (!org) return { success: false, error: "Organization not found" };
-    await ctx.db.patch(args.orgId, { plan: args.newPlan, status: "active" as any, updatedAt: Date.now() });
+    await ctx.db.patch(args.orgId, { plan: args.newPlan, status: "active" as "trial" | "active" | "suspended" | "expired", updatedAt: Date.now() });
     await ctx.db.insert("enterprise_audit_logs", {
       eventType: "ORG_UPGRADED", actor: identity._id,
       action: "upgrade_organization", target: args.orgId,

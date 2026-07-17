@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { action, query, mutation } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // CUSTOMER FEEDBACK & SURVEYS
@@ -47,7 +48,7 @@ export const submitResponse = mutation({
   returns: v.any(),
   handler: async (ctx, args) => {
     const responseId = await ctx.db.insert("survey_responses", {
-      surveyId: args.surveyId as any,
+      surveyId: args.surveyId,
       respondentName: args.respondentName || "Anonymous",
       respondentEmail: args.respondentEmail || "",
       answers: args.answers,
@@ -57,10 +58,10 @@ export const submitResponse = mutation({
     });
 
     // Increment response count
-    const survey = await ctx.db.get(args.surveyId as any);
+    const survey = await ctx.db.get(args.surveyId as Id<"surveys">);
     if (survey) {
-      await ctx.db.patch(args.surveyId as any, {
-        responseCount: ((survey as any).responseCount || 0) + 1,
+      await ctx.db.patch(args.surveyId as Id<"surveys">, {
+        responseCount: (survey.responseCount || 0) + 1,
       });
     }
 
@@ -72,12 +73,12 @@ export const getSurveyResults = query({
   args: { surveyId: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const survey = await ctx.db.get(args.surveyId as any);
+    const survey = await ctx.db.get(args.surveyId as Id<"surveys">);
     if (!survey) return null;
 
     const responses = await ctx.db
       .query("survey_responses")
-      .withIndex("by_survey", (q) => q.eq("surveyId", args.surveyId as any))
+      .withIndex("by_survey", (q) => q.eq("surveyId", args.surveyId))
       .take(500);
 
     // NPS calculation
@@ -101,7 +102,7 @@ export const getSurveyResults = query({
     }));
 
     return {
-      survey: { name: (survey as any).name, type: (survey as any).type },
+      survey: { name: survey.name, type: survey.type },
       totalResponses: responses.length,
       nps,
       npsBreakdown: { promoters, passives, detractors },
