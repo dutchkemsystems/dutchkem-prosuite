@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action, query, mutation } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { api } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
 // CUSTOMER FEEDBACK & SURVEYS
@@ -82,7 +83,7 @@ export const getSurveyResults = query({
       .take(500);
 
     // NPS calculation
-    const ratings = responses.filter((r: any) => r.rating > 0).map((r: any) => r.rating);
+    const ratings = responses.filter((r) => r.rating > 0).map((r) => r.rating);
     const avgRating = ratings.length > 0 ? ratings.reduce((s: number, r: number) => s + r, 0) / ratings.length : 0;
     const promoters = ratings.filter((r: number) => r >= 9).length;
     const passives = ratings.filter((r: number) => r >= 7 && r < 9).length;
@@ -90,11 +91,11 @@ export const getSurveyResults = query({
     const nps = ratings.length > 0 ? Math.round(((promoters - detractors) / ratings.length) * 100) : 0;
 
     // CSAT (rating 1-5)
-    const csatRatings = responses.filter((r: any) => r.rating >= 1 && r.rating <= 5).map((r: any) => r.rating);
+    const csatRatings = responses.filter((r) => r.rating >= 1 && r.rating <= 5).map((r) => r.rating);
     const csat = csatRatings.length > 0 ? (csatRatings.reduce((s: number, r: number) => s + r, 0) / csatRatings.length / 5 * 100).toFixed(1) : "0";
 
     // Testimonials
-    const testimonials = responses.filter((r: any) => r.testimonial).map((r: any) => ({
+    const testimonials = responses.filter((r) => r.testimonial).map((r) => ({
       name: r.respondentName,
       text: r.testimonial,
       rating: r.rating,
@@ -128,10 +129,10 @@ export const generateSurveyPage = action({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const survey = await ctx.runQuery("survey_commerce:getSurveyForPage" as any, { surveyId: args.surveyId });
+    const survey = await ctx.runQuery(api.survey_commerce.getSurveyForPage, { surveyId: args.surveyId });
     if (!survey) return { success: false, error: "Survey not found" };
 
-    const questionsHtml = (survey.questions || []).map((q: any, i: number) => {
+    const questionsHtml = (survey.questions || []).map((q, i) => {
       if (q.type === "rating") {
         return `<div class="q"><p>${i + 1}. ${q.question}</p><div class="stars">${[1,2,3,4,5].map(s => `<button type="button" onclick="selectRating(${i},${s})" class="star" data-q="${i}" data-v="${s}">★</button>`).join("")}</div><input type="hidden" name="q${i}" id="q${i}"></div>`;
       }

@@ -27,7 +27,7 @@ export const getOrganizationPasswords = query({
       .collect();
     return {
       orgPassword: org.passwordHash,
-      users: users.map((u: any) => ({
+      users: users.map((u) => ({
         _id: u._id, name: u.name, email: u.email, password: u.passwordHash,
         role: u.role, status: u.status, mustChangePassword: u.mustChangePassword,
       })),
