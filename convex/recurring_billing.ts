@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action, mutation, internalMutation, internalQuery, query } from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // RECURRING BILLING
@@ -101,13 +102,13 @@ export const sendRenewalReminder = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     // Mark reminder as sent
-    await ctx.db.patch(args.subscriptionId as any, {
+    await ctx.db.patch(args.subscriptionId as Id<"subscriptions">, {
       reminderSent: true,
       reminderSentAt: Date.now(),
     });
 
     // Get user details
-    const user = await ctx.db.get(args.userId as any);
+    const user = await ctx.db.get(args.userId as Id<"users">);
     if (!user) return null;
 
     // Store notification
@@ -148,7 +149,7 @@ export const initiateAutoRenewal = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     // Get subscription details
-    const subscription = await ctx.db.get(args.subscriptionId as any);
+    const subscription = await ctx.db.get(args.subscriptionId as Id<"subscriptions">);
     if (!subscription) return null;
 
     // Get plan pricing
@@ -173,7 +174,7 @@ export const initiateAutoRenewal = internalMutation({
     });
 
     // Mark subscription as pending renewal
-    await ctx.db.patch(args.subscriptionId as any, {
+    await ctx.db.patch(args.subscriptionId as Id<"subscriptions">, {
       pendingRenewal: true,
       renewalReference: reference,
     });
@@ -235,12 +236,12 @@ export const completeRenewalPayment = internalMutation({
         });
 
         // Extend subscription
-        const subscription = await ctx.db.get(renewal.subscriptionId as any);
+        const subscription = await ctx.db.get(renewal.subscriptionId as Id<"subscriptions">);
         if (subscription) {
-          const currentExpiry = (subscription as any).expiresAt || Date.now();
+          const currentExpiry = subscription.expiresAt || Date.now();
           const newExpiry = currentExpiry + 30 * 24 * 60 * 60 * 1000; // Add 30 days
 
-          await ctx.db.patch(renewal.subscriptionId as any, {
+          await ctx.db.patch(renewal.subscriptionId as Id<"subscriptions">, {
             expiresAt: newExpiry,
             pendingRenewal: false,
             renewalReference: undefined,
@@ -339,7 +340,7 @@ export const updateAutoRenew = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.subscriptionId as any, {
+    await ctx.db.patch(args.subscriptionId as Id<"subscriptions">, {
       autoRenew: args.autoRenew,
       updatedAt: Date.now(),
     });

@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { action, internalAction, internalMutation, mutation, query } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { tryGetAdminSessionInAction, tryGetAdminSession } from "./auth_helpers";
+import type { Id } from "./_generated/dataModel";
 
 /**
  * FINTECH INTEGRATION - Kora Pay + Nigerian Banks
@@ -99,13 +100,13 @@ export const getConnectedAccounts = query({
   returns: v.any(),
   handler: async (ctx) => {
     const beneficiaries = await ctx.db.query("beneficiaries").collect();
-    
+
     return beneficiaries.map(b => ({
       id: b._id,
       bankName: b.bankName,
       bankCode: b.bankCode,
-      accountName: (b as any).encryptedAccountName || "N/A",
-      accountNumber: "****" + ((b as any).encryptedAccountNumber || "0000").slice(-4),
+      accountName: b.encryptedAccountName || "N/A",
+      accountNumber: "****" + (b.encryptedAccountNumber || "0000").slice(-4),
       isDefault: b.isDefault,
     }));
   },
@@ -137,7 +138,7 @@ export const connectBank = mutation({
     }
 
     await ctx.db.insert("beneficiaries", {
-      userId: userId as any,
+      userId: userId as string,
       bankCode: args.bankCode,
       bankName: args.bankName,
       encryptedAccountNumber: args.accountNumber,
@@ -253,7 +254,7 @@ export const initiateTransfer = mutation({
       }
 
       // Get the beneficiary
-      const beneficiary = await ctx.db.get(args.beneficiaryId as any);
+      const beneficiary = await ctx.db.get(args.beneficiaryId as Id<"beneficiaries">);
       if (!beneficiary) {
         return { success: false, error: "Account not found" };
       }
@@ -281,9 +282,9 @@ export const initiateTransfer = mutation({
           otp,
           amount: args.amount,
           beneficiaryId: args.beneficiaryId,
-          beneficiaryName: (beneficiary as any).encryptedAccountName || "Unknown",
-          bankName: (beneficiary as any).bankName || "Unknown",
-          bankCode: (beneficiary as any).bankCode || "Unknown",
+          beneficiaryName: beneficiary.encryptedAccountName || "Unknown",
+          bankName: beneficiary.bankName || "Unknown",
+          bankCode: beneficiary.bankCode || "Unknown",
           purpose: args.purpose || "Transfer",
           createdAt: Date.now(),
           expiresAt: otpExpiry,
