@@ -159,8 +159,7 @@ export const getTodayAnalytics = internalQuery({
   returns: v.any(),
   handler: async (ctx, args) => {
     return await ctx.db.query("ad_analytics")
-      .withIndex("by_campaign_date", (q) => q.eq("campaignId", args.campaignId).eq("date", args.date))
-      .filter((q) => q.eq(q.field("platform"), args.platform))
+      .withIndex("by_campaign_date_platform", (q) => q.eq("campaignId", args.campaignId).eq("date", args.date).eq("platform", args.platform))
       .first();
   },
 });
@@ -172,15 +171,12 @@ export const getExistingAlert = internalQuery({
     const startOfDay = new Date(args.date).getTime();
     const endOfDay = startOfDay + 24 * 60 * 60 * 1000;
     
-    return await ctx.db.query("ad_budget_alerts")
-      .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId))
-      .filter((q) => 
-        q.eq(q.field("platform"), args.platform) &&
-        q.eq(q.field("alertType"), args.alertType) &&
-        q.gte(q.field("createdAt"), startOfDay) &&
-        q.lt(q.field("createdAt"), endOfDay)
+    const results = await ctx.db.query("ad_budget_alerts")
+      .withIndex("by_campaign_platform_alertType", (q) =>
+        q.eq("campaignId", args.campaignId).eq("platform", args.platform).eq("alertType", args.alertType).gte("createdAt", startOfDay)
       )
-      .first();
+      .take(5);
+    return results.find((r) => r.createdAt < endOfDay) ?? null;
   },
 });
 
@@ -212,8 +208,7 @@ export const autoPauseCampaign = internalMutation({
   handler: async (ctx, args) => {
     // Mark all scheduled ads for this platform as paused
     const scheduledAds = await ctx.db.query("ad_ads")
-      .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId))
-      .filter((q) => q.eq(q.field("platform"), args.platform) && q.eq(q.field("status"), "scheduled"))
+      .withIndex("by_campaign_platform_status", (q) => q.eq("campaignId", args.campaignId).eq("platform", args.platform).eq("status", "scheduled"))
       .collect();
 
     for (const ad of scheduledAds) {
@@ -222,8 +217,7 @@ export const autoPauseCampaign = internalMutation({
 
     // Create auto-pause alert
     const rules = await ctx.db.query("ad_budget_rules")
-      .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId))
-      .filter((q) => q.eq(q.field("platform"), args.platform))
+      .withIndex("by_campaign_platform", (q) => q.eq("campaignId", args.campaignId).eq("platform", args.platform))
       .first();
 
     if (rules) {
@@ -473,14 +467,16 @@ export const getBudgetAlerts = query({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return [];
 
-    let query = ctx.db.query("ad_budget_alerts")
-      .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId));
-
+    let queryBuilder;
     if (!args.includeAcknowledged) {
-      query = query.filter((q) => q.eq(q.field("acknowledged"), false));
+      queryBuilder = ctx.db.query("ad_budget_alerts")
+        .withIndex("by_campaign_acknowledged", (q) => q.eq("campaignId", args.campaignId).eq("acknowledged", false));
+    } else {
+      queryBuilder = ctx.db.query("ad_budget_alerts")
+        .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId));
     }
 
-    return await query.order("desc").take(50);
+    return await queryBuilder.order("desc").take(50);
   },
 });
 

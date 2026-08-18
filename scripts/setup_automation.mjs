@@ -1,7 +1,14 @@
 import { ConvexClient } from 'convex/browser';
 import { api } from './convex/_generated/api.js';
 
-const client = new ConvexClient('https://warmhearted-aardvark-280.convex.cloud');
+const ADMIN_TEST_EMAIL = process.env.ADMIN_TEST_EMAIL || 'admin@dutchkem.com';
+const ADMIN_TEST_PASSWORD = process.env.ADMIN_TEST_PASSWORD;
+if (!ADMIN_TEST_PASSWORD) {
+  console.error('❌ ERROR: ADMIN_TEST_PASSWORD environment variable not set');
+  process.exit(1);
+}
+
+const client = new ConvexClient(process.env.CONVEX_URL || 'https://warmhearted-aardvark-280.convex.cloud');
 
 async function main() {
   console.log('═══════════════════════════════════════════════════════════════');
@@ -9,7 +16,7 @@ async function main() {
   console.log('═══════════════════════════════════════════════════════════════\n');
 
   // Login
-  const login = await client.mutation(api.admin_auth.adminLogin, { email: 'admin@dutchkem.com', password: 'XeHtkj6y%JdFAFe#', deviceId: 'auto-setup' });
+  const login = await client.mutation(api.admin_auth.adminLogin, { email: ADMIN_TEST_EMAIL, password: ADMIN_TEST_PASSWORD, deviceId: 'auto-setup' });
   const T = login.token;
   console.log('✅ Admin logged in\n');
 

@@ -19,6 +19,7 @@ export const FALLBACK_CHAIN = [
   "meta-llama/llama-3.1-70b-instruct",
   "mistralai/mistral-large-3",
   "tencent/hy3",
+  "cerebras/llama-3.3-70b",
   "meta-llama/llama-3-8b-instruct"
 ];
 

@@ -4,12 +4,18 @@ import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
 import schema from "./schema";
 import { api } from "./_generated/api";
+import { register as registerAgentComponent } from "@convex-dev/agent/test";
 
 const modules = import.meta.glob("./**/*.ts");
 
+// LLM-dependent tests require a live model API key (OPENROUTER_API_KEY /
+// NVIDIA_NIM_API_KEY) — gate them so the default `npm test` is deterministic.
+const RUN_LLM_TESTS = process.env.RUN_LLM_TESTS === "true";
+
 describe("Cross-Agent Routing", () => {
-  test("finance agent suggests academic pro for thesis request", async () => {
+  test.skipIf(!RUN_LLM_TESTS)("finance agent suggests academic pro for thesis request", async () => {
     const t = convexTest(schema, modules);
+    registerAgentComponent(t);
     const response: string = await t.action(
       api.finance_chat.generateSimpleResponse,
       { prompt: "I need help writing my thesis on financial markets" }
@@ -24,8 +30,9 @@ describe("Cross-Agent Routing", () => {
     ).toBe(true);
   });
 
-  test("academic agent suggests finance pro for budget question", async () => {
+  test.skipIf(!RUN_LLM_TESTS)("academic agent suggests finance pro for budget question", async () => {
     const t = convexTest(schema, modules);
+    registerAgentComponent(t);
     const response: string = await t.action(
       api.academic_chat.generateSimpleResponse,
       { prompt: "How do I create a personal budget plan?" }
@@ -38,8 +45,9 @@ describe("Cross-Agent Routing", () => {
     ).toBe(true);
   });
 
-  test("agent handles own domain correctly", async () => {
+  test.skipIf(!RUN_LLM_TESTS)("agent handles own domain correctly", async () => {
     const t = convexTest(schema, modules);
+    registerAgentComponent(t);
     const response: string = await t.action(
       api.finance_chat.generateSimpleResponse,
       { prompt: "Help me create a budget for my small business" }

@@ -42,6 +42,53 @@ async function generateWithPollinations(prompt: string, width: number, height: n
   return null;
 }
 
+// ─── AI/ML API (aiml) - Free 4K image generation ───
+async function generateWithAiml(prompt: string, width: number, height: number): Promise<string | null> {
+  try {
+    const fullPrompt = `${prompt}, high quality, professional, 4K, photorealistic`;
+    // AI/ML API uses Replicate-compatible endpoint
+    const apiKey = process.env.REPLICATE_API_TOKEN;
+    if (!apiKey) return null;
+
+    const response = await fetch("https://api.replicate.com/v1/predictions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Token ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        version: "stability-ai/sdxl",
+        input: {
+          prompt: fullPrompt,
+          width: Math.min(width, 1024),
+          height: Math.min(height, 1024),
+          num_inference_steps: 50,
+          guidance_scale: 7.5,
+        },
+      }),
+    });
+
+    if (response.ok) {
+      const prediction = await response.json() as any;
+      // Poll for completion
+      for (let i = 0; i < 30; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        const poll = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+          headers: { "Authorization": `Token ${apiKey}` },
+        });
+        const result = await poll.json() as any;
+        if (result.status === "succeeded" && result.output) {
+          return Array.isArray(result.output) ? result.output[0] : result.output;
+        }
+        if (result.status === "failed") return null;
+      }
+    }
+  } catch (e: any) {
+    console.error("[POSTER] AI/ML API failed:", e?.message || e);
+  }
+  return null;
+}
+
 // ─── NVIDIA NIM (Requires API key) ───
 async function generateWithNvidia(prompt: string, width: number, height: number): Promise<string | null> {
   const apiKey = process.env.NVIDIA_NIM_API_KEY;
@@ -120,15 +167,19 @@ async function generateWithReplicate(prompt: string, width: number, height: numb
 
 // ─── MULTI-TIER GENERATION ───
 async function generatePosterImage(prompt: string, width: number, height: number): Promise<{ url: string; provider: string } | null> {
-  // Tier 1: Pollinations.ai (free)
+  // Tier 1: AI/ML API (aiml) - Free 4K image generation
+  const aiml = await generateWithAiml(prompt, width, height);
+  if (aiml) return { url: aiml, provider: "AI/ML API (Free 4K)" };
+
+  // Tier 2: Pollinations.ai (free)
   const pollinations = await generateWithPollinations(prompt, width, height);
   if (pollinations) return { url: pollinations, provider: "Pollinations.ai (Free)" };
 
-  // Tier 2: NVIDIA NIM
+  // Tier 3: NVIDIA NIM
   const nvidia = await generateWithNvidia(prompt, width, height);
   if (nvidia) return { url: nvidia, provider: "NVIDIA NIM" };
 
-  // Tier 3: Replicate
+  // Tier 4: Replicate
   const replicate = await generateWithReplicate(prompt, width, height);
   if (replicate) return { url: replicate, provider: "Replicate" };
 

@@ -628,10 +628,39 @@ export const getObservability = query({
 export const refreshToolCatalog = internalAction({
   args: {},
   returns: v.any(),
-  handler: async () => {
-    // In production, this would refresh the cached tool catalog from
-    // the live Composio API. We log the heartbeat for observability.
-    return { success: true, refreshedAt: Date.now(), toolkits: POPULAR_TOOLKITS.length };
+  handler: async (ctx) => {
+    const apiKey = process.env.COMPOSIO_API_KEY;
+    if (!apiKey) return { success: false, error: "COMPOSIO_API_KEY not configured" };
+
+    try {
+      // Fetch toolkits from Composio API
+      const res = await fetch("https://backend.composio.dev/api/v3.1/toolkits?limit=50", {
+        headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
+      });
+
+      if (!res.ok) {
+        return { success: false, error: `Composio API ${res.status}` };
+      }
+
+      const data = await res.json() as any;
+      const toolkits = data.toolkits || data.items || data || [];
+      const count = Array.isArray(toolkits) ? toolkits.length : 0;
+
+      // Log the refresh for observability
+      await ctx.runMutation(internal.composioEnhanced._logCatalogRefresh, {
+        toolkitsFound: count,
+        status: "success",
+      });
+
+      return { success: true, refreshedAt: Date.now(), toolkitsFound: count };
+    } catch (e: any) {
+      await ctx.runMutation(internal.composioEnhanced._logCatalogRefresh, {
+        toolkitsFound: 0,
+        status: "error",
+        error: e.message,
+      });
+      return { success: false, error: e.message };
+    }
   },
 });
 
@@ -658,7 +687,7 @@ export const _getExpiredSessions = internalQuery({
   handler: async (ctx, { now }) => {
     return await ctx.db
       .query("composio_sessions")
-      .filter((q) => q.lt(q.field("expiresAt"), now))
+      .withIndex("by_expires_at", (q) => q.lt("expiresAt", now))
       .collect();
   },
 });
@@ -668,6 +697,25 @@ export const _deleteSession = internalMutation({
   returns: v.null(),
   handler: async (ctx, { id }) => {
     await ctx.db.delete(id);
+  },
+});
+
+export const _logCatalogRefresh = internalMutation({
+  args: {
+    toolkitsFound: v.number(),
+    status: v.string(),
+    error: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.insert("composio_enhancement_logs", {
+      agentId: "system",
+      action: "catalog_refresh",
+      details: JSON.stringify({ toolkitsFound: args.toolkitsFound, error: args.error }),
+      adminId: "cron",
+      timestamp: Date.now(),
+    });
+    return null;
   },
 });
 

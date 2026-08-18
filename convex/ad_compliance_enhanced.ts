@@ -342,16 +342,24 @@ export const getComplianceHistory = query({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return [];
 
-    let q = ctx.db.query("mimo_health_logs")
-      .filter((q) => q.gte(q.field("timestamp"), Date.now() - 7 * 24 * 60 * 60 * 1000));
+    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
     if (args.platform) {
-      q = q.filter((q) => q.eq(q.field("component"), `compliance_${args.platform}`));
-    } else {
-      q = q.filter((q) => q.gt(q.field("component"), "compliance_").and(q.lt(q.field("component"), "compliance_z")));
+      return await ctx.db.query("mimo_health_logs")
+        .withIndex("by_component_timestamp", (q) =>
+          q.eq("component", `compliance_${args.platform}`).gte("timestamp", oneWeekAgo)
+        )
+        .order("desc")
+        .take(args.limit || 50);
     }
 
-    return await q.order("desc").take(args.limit || 50);
+    const allResults = await ctx.db.query("mimo_health_logs")
+      .withIndex("by_timestamp", (q) => q.gte("timestamp", oneWeekAgo))
+      .order("desc")
+      .collect();
+    return allResults
+      .filter((r) => r.component.startsWith("compliance_"))
+      .slice(0, args.limit || 50);
   },
 });
 
@@ -371,8 +379,7 @@ export const seedPlatformRules = mutation({
       // Add prohibited words as rules
       for (const word of rules.prohibitedWords) {
         const existing = await ctx.db.query("ad_compliance_rules")
-          .withIndex("by_platform", (q) => q.eq("platform", platform))
-          .filter((q) => q.eq(q.field("pattern"), word))
+          .withIndex("by_platform_pattern", (q) => q.eq("platform", platform).eq("pattern", word))
           .first();
 
         if (!existing) {
@@ -445,13 +452,10 @@ export const getComplianceStats = query({
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
     const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
-    const recentChecks = await ctx.db.query("mimo_health_logs")
-      .filter((q) => 
-        q.gte(q.field("timestamp"), oneWeekAgo).and(
-          q.gt(q.field("component"), "compliance_").and(q.lt(q.field("component"), "compliance_z"))
-        )
-      )
+    const allRecent = await ctx.db.query("mimo_health_logs")
+      .withIndex("by_timestamp", (q) => q.gte("timestamp", oneWeekAgo))
       .collect();
+    const recentChecks = allRecent.filter((r) => r.component.startsWith("compliance_"));
 
     const todayChecks = recentChecks.filter((c) => c.timestamp >= oneDayAgo);
     const passedChecks = recentChecks.filter((c) => c.status === "healthy");

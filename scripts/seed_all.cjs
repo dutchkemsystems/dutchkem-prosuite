@@ -1,5 +1,10 @@
 const { ConvexClient } = require("convex/browser");
 
+const adminToken = process.env.ADMIN_SESSION_TOKEN || "";
+if (!adminToken) {
+  throw new Error("ADMIN_SESSION_TOKEN environment variable is not set");
+}
+
 const ALL_IDS = [
   "S1","S2","S3","S4","S5","M1","M2","M3","M4","M5",
   "H1","H2","H3","H4","H5","H6","H7","H8","H9","H10",
@@ -48,7 +53,7 @@ async function main() {
     try {
       const result = await client.mutation("seed_companies:seedBatch", {
         companyIds: batch,
-        adminToken: "qn73vh7zdwbyx7857h06r2a7f9893d06",
+        adminToken,
       });
       totalCreated += result.created;
       totalSkipped += result.skipped;

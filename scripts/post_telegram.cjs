@@ -1,5 +1,8 @@
 const FLYER_URL = "https://dutchkem-prosuite-app.vercel.app";
-const BOT_TOKEN = "8867377741:AAEgaGAezFRI8iTgbRr2dvBzWvJiP2McofE";
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
+if (!BOT_TOKEN) {
+  throw new Error("TELEGRAM_BOT_TOKEN environment variable is not set");
+}
 const CHANNEL_ID = "-1004382430452";
 
 const POSTS = [

@@ -2,7 +2,8 @@ import { v } from "convex/values";
 import { action, internalMutation, internalQuery, mutation, query } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { tryGetAdminSession, tryGetAdminSessionInAction } from "../auth_helpers";
-import { PLATFORM_CONFIGS } from "./platform_configs";
+import { PLATFORM_CONFIGS, SUPPORTED_PLATFORMS, TRYPOST_PLATFORMS } from "./platform_configs";
+import { uuidV4, generateCodeVerifier, generateCodeChallenge, getPlatformClientId, getPlatformClientSecret, getRedirectUri, exchangeCodeForToken, fetchUserInfo } from "./platform_actions";
 
 export const generateOAuthUrl = action({
   args: {
@@ -208,12 +209,20 @@ export async function postToPlatformHandler(ctx: any, args: any): Promise<any> {
     adminId,
   });
   
-  // Final fallback: try system
+  // Fallback: try system
   if (!connection || !connection.isConnected) {
     connection = await ctx.runQuery(internal.social.getConnectionForPlatform, {
       platform: args.platform,
       adminId: "system",
     });
+  }
+  
+  // Final fallback: search ALL connections for this platform using internal query
+  if (!connection || !connection.isConnected) {
+    const allConnections = await ctx.runQuery(internal.social.getAllConnectionsForPlatform, {
+      platform: args.platform,
+    });
+    connection = allConnections.find((c: any) => c.isConnected) || null;
   }
   
   if (!connection || !connection.isConnected) throw new Error("Platform not connected");
@@ -399,6 +408,17 @@ export const getConnectionForPlatform = internalQuery({
         q.eq("adminId", adminId).eq("platformId", platform)
       )
       .first();
+  },
+});
+
+// INTERNAL: Get ALL connections for a platform (any admin)
+export const getAllConnectionsForPlatform = internalQuery({
+  args: { platform: v.string() },
+  handler: async (ctx, { platform }) => {
+    return await ctx.db
+      .query("platform_connections")
+      .withIndex("by_platform", (q) => q.eq("platformId", platform))
+      .collect();
   },
 });
 
@@ -592,7 +612,7 @@ export const getOAuthStatus = query({
 // ═══════════════════════════════════════════════════════════════════
 const COMPOSIO_BASE = "https://backend.composio.dev/api/v3.1";
 
-async function composioFetch(apiKey: string, path: string, init?: RequestInit): Promise<any> {
+export async function composioFetch(apiKey: string, path: string, init?: RequestInit): Promise<any> {
   const res = await fetch(`${COMPOSIO_BASE}${path}`, {
     ...init,
     headers: {
@@ -606,7 +626,7 @@ async function composioFetch(apiKey: string, path: string, init?: RequestInit): 
   return text ? JSON.parse(text) : {};
 }
 
-async function getOrCreateAuthConfigId(apiKey: string, toolkit: string): Promise<string> {
+export async function getOrCreateAuthConfigId(apiKey: string, toolkit: string): Promise<string> {
   // Cross-check: for "x" try both "x" and "twitter"; for "twitter" try both
   const toolkitVariants = toolkit === "x" || toolkit === "twitter"
     ? ["x", "twitter"]

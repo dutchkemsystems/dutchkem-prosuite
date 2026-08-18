@@ -66,17 +66,7 @@ export const deleteWorkflow = mutation({
 
 export const getWorkflows = query({
   args: {},
-  returns: v.array(v.object({
-    _id: v.id("workflows"),
-    name: v.string(),
-    description: v.optional(v.string()),
-    trigger: v.any(),
-    actions: v.any(),
-    isActive: v.boolean(),
-    lastTriggered: v.optional(v.number()),
-    triggerCount: v.number(),
-    createdAt: v.number(),
-  })),
+  returns: v.any(),
   handler: async (ctx, args) => {
     return await ctx.db.query("workflows").collect();
   },
@@ -84,12 +74,7 @@ export const getWorkflows = query({
 
 export const getActiveWorkflows = query({
   args: {},
-  returns: v.array(v.object({
-    _id: v.id("workflows"),
-    name: v.string(),
-    trigger: v.any(),
-    actions: v.any(),
-  })),
+  returns: v.any(),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("workflows")
@@ -234,12 +219,7 @@ export const updateTriggerCount = internalMutation({
 
 export const getWorkflowExecutions = query({
   args: { workflowId: v.id("workflows") },
-  returns: v.array(v.object({
-    _id: v.id("workflow_executions"),
-    status: v.string(),
-    executedActions: v.any(),
-    executedAt: v.number(),
-  })),
+  returns: v.any(),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("workflow_executions")

@@ -1,5 +1,6 @@
 node_modules
 .dutchkem-prosuite/node_modules
+.mimocode
 server/
 
 # Environment files (NEVER commit secrets)
@@ -65,3 +66,19 @@ coverage/
 .vscode/
 *.swp
 *.swo
+
+# WhatsApp / agent session data (NEVER commit credentials)
+auth/
+auth/
+
+# Local session / run state
+.omo/
+
+# Third-party / unrelated working folders
+OpenMontage/
+
+# Downloaded binaries
+flyctl.zip
+
+# Generated marketing output
+promotional-content/output/

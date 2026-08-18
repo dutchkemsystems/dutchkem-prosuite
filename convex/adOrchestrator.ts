@@ -416,7 +416,7 @@ export const getPendingApprovals = query({
     if (!identity) return [];
 
     const content = await ctx.db.query("ad_generated_content")
-      .filter(q => q.eq(q.field("status"), "pending"))
+      .withIndex("by_status", q => q.eq("status", "pending"))
       .order("desc")
       .take(20);
     return content;
@@ -771,7 +771,7 @@ export const getAnalytics = query({
     const since = now - periodMs;
 
     const logs = await ctx.db.query("ad_posting_logs")
-      .filter(q => q.gte(q.field("timestamp"), since))
+      .withIndex("by_timestamp", q => q.gte("timestamp", since))
       .order("desc")
       .take(100);
 

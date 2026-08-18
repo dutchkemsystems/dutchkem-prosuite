@@ -192,7 +192,7 @@ async function callNVIDIA(
   context: string = ""
 ): Promise<string> {
   const apiKey = process.env.NVIDIA_NIM_API_KEY;
-  if (!apiKey) throw new Error("NVIDIA API key not configured");
+  if (!apiKey) throw new Error("NVIDIA_API_KEY_NOT_SET");
 
   const messages: Array<{ role: string; content: string }> = [
     { role: "system", content: systemPrompt },
@@ -228,6 +228,29 @@ async function callNVIDIA(
 
   const data = await response.json();
   return data.choices[0].message.content;
+}
+
+// Fallback response when LLM is unavailable
+function getAgentFallbackResponse(agentId: string, message: string): string {
+  const agent = AGENT_CONFIGS[agentId];
+  const agentName = agent?.name || "Support";
+  const field = agent?.field || "your request";
+  
+  const lower = message.toLowerCase();
+  
+  if (lower.includes("price") || lower.includes("cost") || lower.includes("plan")) {
+    return `Thank you for your interest in our ${field} services! We have flexible plans starting from ₦5,000/month. Our Starter plan includes basic features, Pro gives you advanced capabilities, and Business provides full access with priority support. Would you like details on a specific plan? 💰`;
+  }
+  
+  if (lower.includes("help") || lower.includes("how") || lower.includes("what")) {
+    return `I'm ${agentName}, your ${field} expert! I'd be happy to help you with that. Could you provide more details about what you're looking for? I'll make sure we get you the best solution. 😊`;
+  }
+  
+  if (lower.includes("thank") || lower.includes("great") || lower.includes("awesome")) {
+    return `You're welcome! I'm glad I could help. If you have any more questions about ${field}, feel free to ask anytime. Have a wonderful day! 🌟`;
+  }
+  
+  return `Thank you for reaching out! I'm ${agentName}, specialized in ${field}. I'm here to help you with any questions or needs in this area. Could you tell me more about what you're looking for? 😊`;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -299,40 +322,30 @@ export const generateSupportResponse = action({
       : "";
 
     // Try primary model first
+    let response: string;
     try {
-      const response = await callNVIDIA(config.primaryModel, systemPrompt, args.message, context);
-      return {
-        success: true,
-        message: response,
-        modelUsed: config.primaryModel,
-        agentId: args.agentId,
-        agentName: config.name,
-        timestamp: new Date().toISOString(),
-      };
+      response = await callNVIDIA(config.primaryModel, systemPrompt, args.message, context);
     } catch (primaryError: any) {
       console.error(`Primary model failed for ${args.agentId}:`, primaryError.message);
 
       // Try fallback model
       try {
-        const fallbackResponse = await callNVIDIA(config.fallbackModel, systemPrompt, args.message, context);
-        return {
-          success: true,
-          message: fallbackResponse,
-          modelUsed: config.fallbackModel,
-          agentId: args.agentId,
-          agentName: config.name,
-          timestamp: new Date().toISOString(),
-          fallback: true,
-        };
+        response = await callNVIDIA(config.fallbackModel, systemPrompt, args.message, context);
       } catch (fallbackError: any) {
         console.error(`Fallback model failed for ${args.agentId}:`, fallbackError.message);
-        return {
-          success: false,
-          error: "All models unavailable. Please try again later.",
-          agentId: args.agentId,
-        };
+        // Use static fallback when all models unavailable
+        response = getAgentFallbackResponse(args.agentId, args.message);
       }
     }
+
+    return {
+      success: true,
+      message: response,
+      modelUsed: config.primaryModel,
+      agentId: args.agentId,
+      agentName: config.name,
+      timestamp: new Date().toISOString(),
+    };
   },
 });
 

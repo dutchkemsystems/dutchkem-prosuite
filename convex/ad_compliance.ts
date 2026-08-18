@@ -28,8 +28,7 @@ export const seedDefaultRules = mutation({
     let inserted = 0;
     for (const rule of DEFAULT_RULES) {
       const existing = await ctx.db.query("ad_compliance_rules")
-        .withIndex("by_platform", (q) => q.eq("platform", rule.platform))
-        .filter((q) => q.eq(q.field("ruleName"), rule.ruleName))
+        .withIndex("by_platform_rule", (q) => q.eq("platform", rule.platform).eq("ruleName", rule.ruleName))
         .first();
       if (!existing) {
         await ctx.db.insert("ad_compliance_rules", { ...rule, replacement: undefined, createdAt: Date.now() });

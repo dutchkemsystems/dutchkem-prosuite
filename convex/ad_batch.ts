@@ -95,7 +95,7 @@ export const getOptimalTimeForPlatform = internalQuery({
   returns: v.any(),
   handler: async (ctx, args) => {
     const rec = await ctx.db.query("ad_scheduling_recommendations")
-      .filter((q) => q.eq(q.field("platform"), args.platform))
+      .withIndex("by_platform", (q) => q.eq("platform", args.platform))
       .first();
     
     return rec?.recommendations || [];

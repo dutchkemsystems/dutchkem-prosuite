@@ -100,7 +100,7 @@ export const connectBluesky = action({
 // ═══════════════════════════════════════════════════════════════════
 // PLATFORM API HELPERS
 // ═══════════════════════════════════════════════════════════════════
-function getPlatformClientId(platform: string): string {
+export function getPlatformClientId(platform: string): string {
   const map: Record<string, string | undefined> = {
     x: process.env.X_CLIENT_ID, linkedin: process.env.LINKEDIN_CLIENT_ID,
     facebook: process.env.FACEBOOK_APP_ID, instagram: process.env.FACEBOOK_APP_ID,
@@ -111,7 +111,7 @@ function getPlatformClientId(platform: string): string {
   return map[platform] || "";
 }
 
-function getPlatformClientSecret(platform: string): string {
+export function getPlatformClientSecret(platform: string): string {
   const map: Record<string, string | undefined> = {
     x: process.env.X_CLIENT_SECRET, linkedin: process.env.LINKEDIN_CLIENT_SECRET,
     facebook: process.env.FACEBOOK_APP_SECRET, instagram: process.env.FACEBOOK_APP_SECRET,
@@ -122,12 +122,12 @@ function getPlatformClientSecret(platform: string): string {
   return map[platform] || "";
 }
 
-function getRedirectUri(platform: string): string {
+export function getRedirectUri(platform: string): string {
   const baseUrl = process.env.CONVEX_SITE_URL || "https://warmhearted-aardvark-280.convex.site";
   return `${baseUrl}/api/social/callback/${platform}`;
 }
 
-async function exchangeCodeForToken(
+export async function exchangeCodeForToken(
   platform: string, code: string, clientId: string, clientSecret: string,
   redirectUri: string, codeVerifier?: string
 ): Promise<any> {
@@ -156,7 +156,7 @@ async function exchangeCodeForToken(
   return res.json();
 }
 
-async function fetchUserInfo(
+export async function fetchUserInfo(
   platform: string, accessToken: string
 ): Promise<{ id: string; username: string; name: string }> {
   try {
@@ -413,6 +413,34 @@ async function postToPlatformApi(
           body: JSON.stringify({ content }),
         });
         return res.ok ? { success: true, postId: "discord_msg" } : { success: false, error: "Discord post failed" };
+      }
+      case "telegram": {
+        const chatId = process.env.TELEGRAM_CHAT_ID || "";
+        if (!chatId) return { success: false, error: "TELEGRAM_CHAT_ID not configured in Convex env vars" };
+        const payload: any = { chat_id: chatId, text: content, parse_mode: "Markdown" };
+        if (mediaUrls && mediaUrls.length > 0) {
+          payload.photo = mediaUrls[0];
+          payload.caption = content;
+          delete payload.parse_mode;
+          const res = await fetch(`https://api.telegram.org/bot${accessToken}/sendPhoto`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await res.json();
+          return res.ok
+            ? { success: true, postId: String(data.result?.message_id || "telegram_msg") }
+            : { success: false, error: data.description || "Telegram photo send failed" };
+        }
+        const res = await fetch(`https://api.telegram.org/bot${accessToken}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        return res.ok
+          ? { success: true, postId: String(data.result?.message_id || "telegram_msg") }
+          : { success: false, error: data.description || "Telegram send failed" };
       }
       default:
         return { success: false, error: `Direct posting not yet implemented for ${platform}` };
@@ -956,7 +984,7 @@ export const canvaListTemplates = action({
 // ═══════════════════════════════════════════════════════════════════
 
 // Safe random bytes — Convex action runtime has no `crypto` global
-function safeRandomBytes(n: number): Uint8Array {
+export function safeRandomBytes(n: number): Uint8Array {
   const bytes = new Uint8Array(n);
   if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
     crypto.getRandomValues(bytes);
@@ -966,7 +994,7 @@ function safeRandomBytes(n: number): Uint8Array {
   return bytes;
 }
 
-function uuidV4(): string {
+export function uuidV4(): string {
   const bytes = safeRandomBytes(16);
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
@@ -996,12 +1024,12 @@ function base64UrlFromBytes(bytes: Uint8Array): string {
 }
 
 // FIX: Generates verifier directly from raw bytes — no binary string intermediary
-function generateCodeVerifier(): string {
+export function generateCodeVerifier(): string {
   const bytes = safeRandomBytes(32);
   return base64UrlFromBytes(bytes);
 }
 
-function generateCodeChallenge(verifier: string): string {
+export function generateCodeChallenge(verifier: string): string {
   const utf8: Array<number> = [];
   for (let i = 0; i < verifier.length; i++) {
     const c = verifier.charCodeAt(i);

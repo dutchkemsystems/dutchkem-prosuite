@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1080px; height: 1080px; overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif; }
+  .poster {
+    width: 1080px; height: 1080px;
+    background: linear-gradient(135deg, #0a0a2e 0%, #1a1a4e 30%, #2d1b69 60%, #0a0a2e 100%);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    position: relative; overflow: hidden;
+  }
+  .glow-circle {
+    position: absolute; width: 600px; height: 600px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(99,102,241,0.3) 0%, transparent 70%);
+    top: -100px; right: -100px;
+  }
+  .glow-circle-2 {
+    position: absolute; width: 400px; height: 400px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(168,85,247,0.25) 0%, transparent 70%);
+    bottom: -50px; left: -50px;
+  }
+  .content { position: relative; z-index: 2; text-align: center; padding: 60px; }
+  .badge {
+    display: inline-block; background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white; padding: 12px 32px; border-radius: 50px; font-size: 22px;
+    font-weight: 700; letter-spacing: 2px; margin-bottom: 40px; text-transform: uppercase;
+  }
+  h1 {
+    color: white; font-size: 72px; font-weight: 900; line-height: 1.1;
+    margin-bottom: 24px; text-shadow: 0 4px 30px rgba(99,102,241,0.5);
+  }
+  h1 span { color: #a78bfa; }
+  .subtitle {
+    color: rgba(255,255,255,0.8); font-size: 28px; line-height: 1.5;
+    margin-bottom: 50px; max-width: 700px;
+  }
+  .features {
+    display: flex; gap: 30px; margin-bottom: 50px; flex-wrap: wrap; justify-content: center;
+  }
+  .feature {
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(167,139,250,0.3);
+    border-radius: 16px; padding: 20px 28px; color: white; font-size: 20px;
+    backdrop-filter: blur(10px);
+  }
+  .feature .icon { font-size: 28px; margin-right: 8px; }
+  .cta {
+    display: inline-block; background: linear-gradient(135deg, #f59e0b, #f97316);
+    color: white; padding: 22px 60px; border-radius: 60px; font-size: 26px;
+    font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+    box-shadow: 0 8px 40px rgba(245,158,11,0.4); text-decoration: none;
+  }
+  .url {
+    color: rgba(255,255,255,0.5); font-size: 18px; margin-top: 30px;
+    letter-spacing: 1px;
+  }
+  .grid-lines {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background-image:
+      linear-gradient(rgba(99,102,241,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(99,102,241,0.05) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+</style>
+</head>
+<body>
+<div class="poster">
+  <div class="glow-circle"></div>
+  <div class="glow-circle-2"></div>
+  <div class="grid-lines"></div>
+  <div class="content">
+    <div class="badge">Dutchkem Ventures</div>
+    <h1>15 AI Agents<br><span>Working 24/7</span><br>For Your Business</h1>
+    <p class="subtitle">Enterprise-grade AI platform built for the Nigerian market. Academic, Business, Content, Finance, and 11 more specialists.</p>
+    <div class="features">
+      <div class="feature"><span class="icon">🎓</span> Academic Pro</div>
+      <div class="feature"><span class="icon">💼</span> Business Pro</div>
+      <div class="feature"><span class="icon">✍️</span> Content Pro</div>
+      <div class="feature"><span class="icon">💰</span> Finance Pro</div>
+      <div class="feature"><span class="icon">🎬</span> MediaStudio</div>
+      <div class="feature"><span class="icon">🚀</span> ServiceMart</div>
+    </div>
+    <a class="cta" href="https://dutchkem-prosuite-app.vercel.app">Activate AI Now</a>
+    <p class="url">dutchkem-prosuite-app.vercel.app</p>
+  </div>
+</div>
+</body>
+</html>

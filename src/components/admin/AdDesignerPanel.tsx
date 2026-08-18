@@ -144,12 +144,19 @@ export function AdDesignerPanel({ adminToken }: AdDesignerPanelProps) {
     link.click()
   }
 
+  const postToTelegram = useMutation(api.ad_designer.postDesignToTelegram)
+
   const handlePostToTelegram = async () => {
     if (!preview) return
     try {
-      showToast('success', 'Design ready for posting!')
+      await postToTelegram({
+        adminToken,
+        imageUrl: preview,
+        caption: `${design.headline} - ${design.cta}`,
+      })
+      showToast('success', 'Posted to Telegram successfully!')
     } catch (err: any) {
-      showToast('error', err.message || 'Failed to post')
+      showToast('error', err.message || 'Failed to post to Telegram')
     }
   }
 

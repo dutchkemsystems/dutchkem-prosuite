@@ -1,8 +1,12 @@
 const { ConvexClient } = require("convex/browser");
 
+const adminToken = process.env.ADMIN_SESSION_TOKEN || "";
+if (!adminToken) {
+  throw new Error("ADMIN_SESSION_TOKEN environment variable is not set");
+}
+
 async function main() {
   const client = new ConvexClient("https://warmhearted-aardvark-280.convex.cloud");
-  const adminToken = "qn73vh7zdwbyx7857h06r2a7f9893d06";
   let pass = 0, fail = 0;
 
   const test = (name, result) => {

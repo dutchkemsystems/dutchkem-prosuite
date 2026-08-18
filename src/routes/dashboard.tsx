@@ -1,7 +1,7 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useConvexAuth, useConvex, useMutation, useAction } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
-import { Suspense, useCallback, useEffect, useRef, useState } from "react"
+import React, { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import {
   CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis
@@ -35,10 +35,10 @@ import CustomerSupportChat from '~/components/CustomerSupportChat';
 import { MyTasks } from '~/components/dashboard/MyTasks';
 
 // Client-facing panels (kept)
-const PredictiveAnalyticsPanel = lazy(() => import("~/components/admin/PredictiveAnalyticsPanel").then(m => ({ default: m.PredictiveAnalyticsPanel })));
-const VoiceVideoPanel = lazy(() => import("~/components/admin/VoiceVideoPanel").then(m => ({ default: m.VoiceVideoPanel })));
-const OpenDesignPanel = lazy(() => import("~/components/admin/OpenDesignPanel").then(m => ({ default: m.OpenDesignPanel })));
-const BlockchainPanel = lazy(() => import("~/components/admin/BlockchainPanel").then(m => ({ default: m.BlockchainPanel })));
+const PredictiveAnalyticsPanel = React.lazy(() => import("~/components/admin/PredictiveAnalyticsPanel").then(m => ({ default: m.PredictiveAnalyticsPanel })));
+const VoiceVideoPanel = React.lazy(() => import("~/components/admin/VoiceVideoPanel").then(m => ({ default: m.VoiceVideoPanel })));
+const OpenDesignPanel = React.lazy(() => import("~/components/admin/OpenDesignPanel").then(m => ({ default: m.OpenDesignPanel })));
+const BlockchainPanel = React.lazy(() => import("~/components/admin/BlockchainPanel").then(m => ({ default: m.BlockchainPanel })));
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardPage,

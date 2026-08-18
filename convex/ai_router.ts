@@ -204,7 +204,7 @@ export const routeRequest = action({
 
     // Fallback sequence — only try enabled models
     if (!result) {
-      const fallbackOrder = ['groq', 'openrouter', 'mimo', 'nvidia', 'aiml', 'tencent', 'mistral', 'freellmapi'];
+      const fallbackOrder = ['cerebras', 'groq', 'openrouter', 'mimo', 'nvidia', 'aiml', 'tencent', 'mistral', 'freellmapi'];
       for (const provider of fallbackOrder) {
         if (provider === task.provider) continue;
         

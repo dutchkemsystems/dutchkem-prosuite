@@ -33,9 +33,17 @@ const PROVIDERS: Record<string, {
     capabilities: ["chat", "tools", "streaming", "long_context"],
     models: ["tencent/hy3"],
   },
+  cerebras: {
+    name: "Cerebras",
+    priority: 3,
+    cost: 0,
+    category: "ultra_fast",
+    capabilities: ["chat", "tools", "streaming", "reasoning"],
+    models: ["meta-llama/llama-3.3-70b-instruct:free"],
+  },
   mistral: {
     name: "Mistral AI",
-    priority: 3,
+    priority: 4,
     cost: 0.15,
     category: "versatile",
     capabilities: ["chat", "tools", "streaming", "code", "reasoning", "web_search"],
@@ -43,31 +51,31 @@ const PROVIDERS: Record<string, {
   },
   groq: {
     name: "GROQ",
-    priority: 4,
+    priority: 5,
     cost: 0.25,
     category: "fast",
     capabilities: ["chat", "tools", "streaming"],
-    models: ["llama3-70b-8192"],
+    models: ["meta-llama/llama-3.3-70b-instruct:free"],
   },
   openrouter: {
     name: "OpenRouter",
-    priority: 5,
+    priority: 6,
     cost: 0.15,
     category: "balanced",
     capabilities: ["chat", "tools", "streaming", "vision"],
-    models: ["nvidia/llama-3.3-70b-instruct:free"],
+    models: ["meta-llama/llama-3.3-70b-instruct:free"],
   },
   nvidia: {
     name: "NVIDIA NIM",
-    priority: 6,
+    priority: 7,
     cost: 0.20,
     category: "specialized",
     capabilities: ["chat", "tools", "streaming", "complex"],
-    models: ["meta/llama-3.3-70b-instruct"],
+    models: ["meta-llama/llama-3.3-70b-instruct:free"],
   },
   aiml: {
     name: "AI/ML API",
-    priority: 7,
+    priority: 8,
     cost: 0.10,
     category: "design",
     capabilities: ["design", "image_generation"],
@@ -75,7 +83,7 @@ const PROVIDERS: Record<string, {
   },
   mimo: {
     name: "MiMo-V2.5",
-    priority: 8,
+    priority: 9,
     cost: 0.05,
     category: "agentic",
     capabilities: ["chat", "tools", "streaming", "agentic"],
@@ -85,28 +93,28 @@ const PROVIDERS: Record<string, {
 
 // ─── USE CASE MAPPING ───
 const USE_CASE_MAPPING: Record<string, string[]> = {
-  chat: ["freellmapi", "tencent", "groq", "openrouter", "mimo"],
-  academic: ["openrouter", "tencent", "mistral", "nvidia", "mimo"],
-  business: ["openrouter", "tencent", "mistral", "nvidia", "mimo"],
-  content: ["groq", "openrouter", "tencent", "mistral"],
-  code: ["mistral", "groq", "openrouter", "freellmapi"],
-  design: ["aiml", "freellmapi", "groq", "openrouter"],
-  analysis: ["openrouter", "tencent", "mistral", "nvidia"],
-  research: ["mistral", "openrouter", "tencent", "freellmapi"],
-  finance: ["mistral", "openrouter", "tencent", "freellmapi"],
-  agentic: ["mistral", "mimo", "nvidia", "openrouter"],
-  long_context: ["tencent", "mistral", "freellmapi", "mimo"],
-  translation: ["tencent", "mistral", "groq", "openrouter"],
-  real_time: ["groq", "mistral", "freellmapi"],
-  video: ["mimo", "aiml", "openrouter"],
+  chat: ["freellmapi", "tencent", "cerebras", "groq", "openrouter", "mistral", "nvidia", "mimo"],
+  academic: ["openrouter", "tencent", "cerebras", "mistral", "nvidia", "mimo"],
+  business: ["openrouter", "tencent", "cerebras", "mistral", "nvidia", "mimo"],
+  content: ["groq", "openrouter", "cerebras", "tencent", "mistral", "nvidia"],
+  code: ["mistral", "groq", "cerebras", "openrouter", "freellmapi", "nvidia"],
+  design: ["aiml", "freellmapi", "cerebras", "groq", "openrouter", "nvidia"],
+  analysis: ["openrouter", "tencent", "cerebras", "mistral", "nvidia", "mimo"],
+  research: ["mistral", "openrouter", "cerebras", "tencent", "freellmapi", "nvidia"],
+  finance: ["mistral", "openrouter", "cerebras", "tencent", "freellmapi", "nvidia"],
+  agentic: ["mistral", "mimo", "nvidia", "cerebras", "openrouter", "groq"],
+  long_context: ["tencent", "mistral", "cerebras", "freellmapi", "mimo", "nvidia"],
+  translation: ["tencent", "mistral", "cerebras", "groq", "openrouter", "nvidia"],
+  real_time: ["cerebras", "groq", "mistral", "freellmapi", "nvidia"],
+  video: ["mimo", "aiml", "openrouter", "cerebras", "nvidia"],
 };
 
 // ─── COST OPTIMIZATION TIERS ───
 const COST_TIERS: Record<string, string[]> = {
-  free: ["freellmapi", "tencent"],
-  budget: ["freellmapi", "tencent", "mimo", "aiml"],
-  balanced: ["freellmapi", "tencent", "groq", "openrouter", "mistral"],
-  performance: ["groq", "mistral", "nvidia"],
+  free: ["freellmapi", "tencent", "cerebras"],
+  budget: ["freellmapi", "tencent", "cerebras", "mimo", "aiml"],
+  balanced: ["freellmapi", "tencent", "cerebras", "groq", "openrouter", "mistral"],
+  performance: ["cerebras", "groq", "mistral", "nvidia"],
   premium: ["nvidia", "mistral"],
 };
 
@@ -114,6 +122,7 @@ const COST_TIERS: Record<string, string[]> = {
 const RATE_LIMITS: Record<string, number> = {
   freellmapi: 100,
   tencent: 50,
+  cerebras: 30,
   mistral: 60,
   groq: 60,
   openrouter: 50,
@@ -142,25 +151,11 @@ async function fetchProviderHealth(ctx: any): Promise<Record<string, { status: s
 }
 
 async function updateProviderHealth(ctx: any, providerName: string, status: string, error?: string) {
-  const key = `provider_health_${providerName}`;
-  const existing = await ctx.db
-    .query("system_config")
-    .withIndex("by_key", (q) => q.eq("key", key))
-    .first();
-
-  const current = existing?.value as any || { status: "healthy", lastCheck: 0, errorCount: 0 };
-  const updated = {
+  await ctx.runMutation(internal.model_orchestrator.updateProviderHealthMutation, {
+    providerName,
     status,
-    lastCheck: Date.now(),
-    errorCount: status === "healthy" ? 0 : (current.errorCount || 0) + 1,
-    lastError: error || current.lastError,
-  };
-
-  if (existing) {
-    await ctx.db.patch(existing._id, { value: updated, updatedAt: Date.now() });
-  } else {
-    await ctx.db.insert("system_config", { key, value: updated, updatedAt: Date.now() });
-  }
+    error,
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -202,10 +197,13 @@ function selectProviders(
   const tierProviders = COST_TIERS[costTier] || COST_TIERS.balanced;
   candidates = candidates.filter((p) => tierProviders.includes(p));
 
-  // Filter by health
+  // Filter by health — include healthy and degraded (with low error count)
   candidates = candidates.filter((p) => {
     const h = health[p];
-    return h && h.status === "healthy" && h.errorCount < 5;
+    if (!h) return false;
+    if (h.status === "healthy") return true;
+    if (h.status === "degraded" && h.errorCount < 3) return true;
+    return false;
   });
 
   // Exclude already-tried providers
@@ -229,18 +227,21 @@ async function callProvider(
   const systemPrompt = args.systemPrompt || "You are a helpful assistant for Dutchkem Ventures.";
   const model = args.model || PROVIDERS[providerName]?.models[0] || "auto";
 
-  if (providerName === "groq") {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  // NVIDIA uses its own API endpoint
+  if (providerName === "nvidia") {
+    const nvidiaModel = "meta/llama-3.3-70b-instruct";
+    const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: args.input }], temperature: 0.7, max_tokens: 1024 }),
+      headers: { Authorization: `Bearer ${process.env.NVIDIA_NIM_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: nvidiaModel, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: args.input }], temperature: 0.7, max_tokens: 1024 }),
     });
-    if (!response.ok) throw new Error(`GROQ error: ${response.status}`);
+    if (!response.ok) throw new Error(`nvidia error: ${response.status}`);
     const data = await response.json();
-    return { content: data.choices?.[0]?.message?.content || "", model };
+    return { content: data.choices?.[0]?.message?.content || "", model: nvidiaModel };
   }
 
-  if (providerName === "openrouter" || providerName === "tencent" || providerName === "mistral") {
+  // All other providers route through OpenRouter
+  if (providerName === "groq" || providerName === "openrouter" || providerName === "tencent" || providerName === "mistral" || providerName === "cerebras" || providerName === "aiml" || providerName === "mimo") {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`, "Content-Type": "application/json" },
@@ -282,8 +283,13 @@ export const orchestrate = action({
     const useCase = args.useCase || "chat";
     const costTier = args.costTier || "balanced";
 
-    // Get provider health
-    const health = await ctx.runQuery(internal.model_orchestrator.getProviderHealth);
+    // Get provider health (raw format for selectProviders)
+    const healthData = await ctx.runQuery(internal.model_orchestrator.getProviderHealth);
+    // Transform to health[p] format expected by selectProviders
+    const health: Record<string, any> = {};
+    for (const p of healthData.providers) {
+      health[p.name] = p.health;
+    }
 
     // Select providers
     let candidates = selectProviders(useCase, costTier, health);
@@ -425,7 +431,67 @@ export const logRequest = internalMutation({
       responseTimeMs: args.latencyMs || 0,
       errorMessage: args.error,
       tokenCount: args.tokens || 0,
+      timestamp: Date.now(),
     });
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// PROVIDER HEALTH MUTATION
+// ═══════════════════════════════════════════════════════════════════
+
+export const updateProviderHealthMutation = internalMutation({
+  args: {
+    providerName: v.string(),
+    status: v.string(),
+    error: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const key = `provider_health_${args.providerName}`;
+    const existing = await ctx.db
+      .query("system_config")
+      .withIndex("by_key", (q) => q.eq("key", key))
+      .first();
+
+    const current = existing?.value as any || { status: "healthy", lastCheck: 0, errorCount: 0 };
+    const updated = {
+      status: args.status,
+      lastCheck: Date.now(),
+      errorCount: args.status === "healthy" ? 0 : (current.errorCount || 0) + 1,
+      lastError: args.error || current.lastError,
+    };
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { value: updated, updatedAt: Date.now() });
+    } else {
+      await ctx.db.insert("system_config", { key, value: updated, updatedAt: Date.now() });
+    }
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// RESET ALL PROVIDER HEALTH
+// ═══════════════════════════════════════════════════════════════════
+
+export const resetAllProviderHealth = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const providers = ["freellmapi", "tencent", "cerebras", "mistral", "groq", "openrouter", "nvidia", "aiml", "mimo"];
+    for (const name of providers) {
+      const key = `provider_health_${name}`;
+      const existing = await ctx.db
+        .query("system_config")
+        .withIndex("by_key", (q) => q.eq("key", key))
+        .first();
+      const healthy = { status: "healthy", lastCheck: Date.now(), errorCount: 0 };
+      if (existing) {
+        await ctx.db.patch(existing._id, { value: healthy, updatedAt: Date.now() });
+      } else {
+        await ctx.db.insert("system_config", { key, value: healthy, updatedAt: Date.now() });
+      }
+    }
   },
 });
 
@@ -449,7 +515,11 @@ export const streamOrchestrate = action({
     const useCase = args.useCase || "chat";
     const costTier = args.costTier || "balanced";
 
-    const health = await ctx.runQuery(internal.model_orchestrator.getProviderHealth);
+    const healthData = await ctx.runQuery(internal.model_orchestrator.getProviderHealth);
+    const health: Record<string, any> = {};
+    for (const p of healthData.providers) {
+      health[p.name] = p.health;
+    }
     let candidates = selectProviders(useCase, costTier, health);
     if (candidates.length === 0) {
       candidates = Object.keys(PROVIDERS).filter((p) => health[p]?.status === "healthy");
@@ -468,7 +538,7 @@ export const streamOrchestrate = action({
           const model = args.model || PROVIDERS[providerName]?.models[0] || "auto";
           let fullContent = "";
 
-          if (providerName === "groq" || providerName === "openrouter" || providerName === "tencent" || providerName === "mistral") {
+          if (providerName === "groq" || providerName === "openrouter" || providerName === "tencent" || providerName === "mistral" || providerName === "cerebras") {
             const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
               method: "POST",
               headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`, "Content-Type": "application/json" },

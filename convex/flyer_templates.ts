@@ -398,38 +398,64 @@ export const generateFullAiFlyer = action({
     styleIndex: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const apiKey = process.env.NVIDIA_NIM_API_KEY;
-    if (!apiKey) throw new Error("NVIDIA_NIM_API_KEY not configured");
-
     const size = PLATFORM_SIZES[args.platform] || { w: FLYER_WIDTH, h: FLYER_HEIGHT };
     const prompt = `Professional marketing flyer for "${args.headline}". ${args.subheadline || ''} Call to action: "${args.cta}". Modern business design, high quality, clean layout, professional typography, brand colors. Size ${size.w}x${size.h}. No text on the image, just visual design elements.`;
 
-    const response = await fetch("https://integrate.api.nvidia.com/v1/images/generations", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "qwen/qwen-image-2512",
+    // Tier 1: AI/ML API (aiml) - Free 4K image generation
+    try {
+      const aimlResult = await ctx.runAction(internal.ai_image_generator.generateImage, {
+        adminToken: "system",
         prompt,
-        n: 1,
-        response_format: "b64_json",
-        width: size.w,
-        height: size.h,
-      }),
+        model: "sdxl",
+        width: Math.min(size.w, 1024),
+        height: Math.min(size.h, 1024),
+      });
+      if (aimlResult.success && aimlResult.imageUrl) {
+        return aimlResult.imageUrl;
+      }
+    } catch (e: any) {
+      console.log("[FLYER] AI/ML API failed:", e?.message || e);
+    }
+
+    // Tier 2: NVIDIA NIM fallback
+    const apiKey = process.env.NVIDIA_NIM_API_KEY;
+    if (apiKey) {
+      try {
+        const response = await fetch("https://integrate.api.nvidia.com/v1/images/generations", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "qwen/qwen-image-2512",
+            prompt,
+            n: 1,
+            response_format: "b64_json",
+            width: size.w,
+            height: size.h,
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.data && result.data[0] && result.data[0].b64_json) {
+            return `data:image/png;base64,${result.data[0].b64_json}`;
+          }
+        }
+      } catch (e: any) {
+        console.log("[FLYER] NVIDIA failed:", e?.message || e);
+      }
+    }
+
+    // Tier 3: SVG fallback
+    return await ctx.runAction(internal.flyer_templates.generateFlyerSvgOnly, {
+      headline: args.headline,
+      subheadline: args.subheadline,
+      cta: args.cta,
+      platform: args.platform,
+      styleIndex: args.styleIndex,
     });
-
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`NVIDIA Qwen API error ${response.status}: ${err}`);
-    }
-
-    const result = await response.json();
-    if (result.data && result.data[0] && result.data[0].b64_json) {
-      return `data:image/png;base64,${result.data[0].b64_json}`;
-    }
-    throw new Error("No image data in NVIDIA Qwen response");
   },
 });
 

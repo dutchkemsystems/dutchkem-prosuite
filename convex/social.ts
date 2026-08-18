@@ -6,7 +6,7 @@ export { storeOAuthState, getOAuthState, deleteOAuthState } from "./social/oauth
 export {
   generateOAuthUrl, handleOAuthCallback, savePlatformConnection,
   postToPlatform, getConnectedPlatforms, diagnosticGetAllConnections,
-  manualPost, getPlatformsFromDb, getConnectionForPlatform,
+  manualPost, getPlatformsFromDb, getConnectionForPlatform, getAllConnectionsForPlatform,
   disconnectPlatform, disconnectAllPlatforms, updatePostingSettings,
   logPost, getSocialStats, getPlatformAnalytics, getOAuthStatus,
 } from "./social/core";

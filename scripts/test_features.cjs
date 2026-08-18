@@ -1,5 +1,10 @@
 const { ConvexClient } = require("convex/browser");
 
+const adminToken = process.env.ADMIN_SESSION_TOKEN || "";
+if (!adminToken) {
+  throw new Error("ADMIN_SESSION_TOKEN environment variable is not set");
+}
+
 async function main() {
   const client = new ConvexClient("https://warmhearted-aardvark-280.convex.cloud");
 
@@ -11,7 +16,7 @@ async function main() {
   const save = await client.mutation("enterprise_features:saveConfig", {
     orgId: "test-org-001",
     features: ["orders", "customers", "reports", "invoices", "qrcodes"],
-    adminToken: "qn73vh7zdwbyx7857h06r2a7f9893d06",
+    adminToken,
   });
   console.log("Save result:", JSON.stringify(save));
 
@@ -30,7 +35,7 @@ async function main() {
   const update = await client.mutation("enterprise_features:saveConfig", {
     orgId: "test-org-001",
     features: ["orders", "customers", "reports", "invoices", "qrcodes", "whatsapp", "telegram", "landing_pages", "surveys", "testimonials"],
-    adminToken: "qn73vh7zdwbyx7857h06r2a7f9893d06",
+    adminToken,
   });
   console.log("Update result:", JSON.stringify(update));
 
@@ -53,7 +58,7 @@ async function main() {
   await client.mutation("enterprise_features:saveConfig", {
     orgId: "test-org-001",
     features: [],
-    adminToken: "qn73vh7zdwbyx7857h06r2a7f9893d06",
+    adminToken,
   });
   console.log("Test data cleaned up.");
 

@@ -112,3 +112,45 @@ export const createPayout = internalMutation({
     await ctx.db.insert("referral_payouts", { userId: args.userId, amount: args.amount, status: "pending", period: new Date().toISOString().substring(0, 7), createdAt: Date.now() });
   },
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// ADMIN QUERIES — Platform-wide stats (replaces stubbed referral_system.ts)
+// ═══════════════════════════════════════════════════════════════════
+
+export const getPlatformReferralStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const codes = await ctx.db.query("referral_codes").collect();
+    const conversions = await ctx.db.query("referral_conversions").collect();
+    const payouts = await ctx.db.query("referral_payouts").collect();
+
+    const totalReferrals = conversions.length;
+    const activeReferrers = codes.filter(c => c.totalRefs > 0).length;
+    const totalEarnings = conversions.reduce((sum, c) => sum + (c.commission || 0), 0);
+    const totalPaid = payouts.filter(p => p.status === "completed").reduce((sum, p) => sum + p.amount, 0);
+    const pendingPayout = payouts.filter(p => p.status === "pending").reduce((sum, p) => sum + p.amount, 0);
+
+    return {
+      totalReferrals,
+      activeReferrers,
+      totalEarnings,
+      totalPaid,
+      pendingPayout,
+      conversionRate: codes.length > 0 ? ((totalReferrals / codes.length) * 100).toFixed(1) + "%" : "0%",
+      topReferrers: codes.sort((a, b) => b.totalRefs - a.totalRefs).slice(0, 10),
+    };
+  },
+});
+
+export const getReferralRewards = query({
+  args: {},
+  handler: async () => {
+    return [
+      { referrals: 1, reward: "₦1,000 credit", description: "For each friend who signs up" },
+      { referrals: 5, reward: "₦10,000 credit + 5% bonus", description: "Bonus for 5 referrals (Bronze tier)" },
+      { referrals: 20, reward: "₦25,000 credit + 10% bonus", description: "Bonus for 20 referrals (Silver tier)" },
+      { referrals: 100, reward: "Free month subscription", description: "Free month for 100 referrals (Gold tier)" },
+      { referrals: 500, reward: "Lifetime premium access", description: "Lifetime premium for 500 referrals (Diamond tier)" },
+    ];
+  },
+});

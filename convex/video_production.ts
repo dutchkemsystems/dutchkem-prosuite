@@ -639,8 +639,30 @@ animate();
 // ═══════════════════════════════════════════════════════════════════
 
 async function generateStoryWithAI(prompt: string) {
-  const nvidiaKey = process.env.NVIDIA_NIM_API_KEY;
+  // Tier 1: Tencent Hy3 (Free) - for script generation
+  try {
+    const tencentResult = await ctx.runAction(internal.freellmapi.chatCompletion, {
+      messages: [
+        { role: "system", content: "You are a professional video scriptwriter. Return ONLY valid JSON." },
+        { role: "user", content: `${prompt}\n\nReturn JSON: {"title":"...","synopsis":"...","scenes":[{"sceneNumber":1,"visualDescription":"...","narration":"...","durationSeconds":5}]}` },
+      ],
+      model: "tencent/hy3",
+      temperature: 0.7,
+      maxTokens: 1500,
+    });
 
+    if (tencentResult.content) {
+      const jsonMatch = tencentResult.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+    }
+  } catch (e: any) {
+    console.log("[VIDEO] Tencent Hy3 failed:", e?.message || e);
+  }
+
+  // Tier 2: NVIDIA NIM fallback
+  const nvidiaKey = process.env.NVIDIA_NIM_API_KEY;
   if (nvidiaKey) {
     try {
       const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {

@@ -49,7 +49,9 @@ export const ad_engineTables = {
     createdAt: v.number(),
   }).index("by_campaign", ["campaignId"])
     .index("by_status", ["status"])
-    .index("by_status_and_scheduled", ["status", "scheduledFor"]),
+    .index("by_status_and_scheduled", ["status", "scheduledFor"])
+    .index("by_campaign_platform_status", ["campaignId", "platform", "status"])
+    .index("by_createdAt", ["createdAt"]),
   ad_flyers: defineTable({
     campaignId: v.optional(v.id("ad_campaigns")),
     prompt: v.string(),
@@ -78,7 +80,8 @@ export const ad_engineTables = {
     .index("by_campaign", ["campaignId"])
     .index("by_date", ["date"])
     .index("by_ad_date", ["adId", "date"])
-    .index("by_campaign_date", ["campaignId", "date"]),
+    .index("by_campaign_date", ["campaignId", "date"])
+    .index("by_campaign_date_platform", ["campaignId", "date", "platform"]),
   ad_budget_rules: defineTable({
     campaignId: v.id("ad_campaigns"),
     platform: v.string(),
@@ -92,7 +95,8 @@ export const ad_engineTables = {
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_campaign", ["campaignId"])
-    .index("by_platform", ["platform"]),
+    .index("by_platform", ["platform"])
+    .index("by_campaign_platform", ["campaignId", "platform"]),
   ad_budget_alerts: defineTable({
     campaignId: v.id("ad_campaigns"),
     platform: v.string(),
@@ -111,7 +115,9 @@ export const ad_engineTables = {
     createdAt: v.number(),
   }).index("by_campaign", ["campaignId"])
     .index("by_acknowledged", ["acknowledged"])
-    .index("by_createdAt", ["createdAt"]),
+    .index("by_createdAt", ["createdAt"])
+    .index("by_campaign_platform_alertType", ["campaignId", "platform", "alertType"])
+    .index("by_campaign_acknowledged", ["campaignId", "acknowledged"]),
   ad_ab_tests: defineTable({
     campaignId: v.id("ad_campaigns"),
     name: v.string(),
@@ -154,7 +160,9 @@ export const ad_engineTables = {
     enabled: v.boolean(),
     createdAt: v.number(),
   }).index("by_platform", ["platform"])
-    .index("by_category", ["category"]),
+    .index("by_category", ["category"])
+    .index("by_platform_rule", ["platform", "ruleName"])
+    .index("by_platform_pattern", ["platform", "pattern"]),
   ad_compliance_logs: defineTable({
     adId: v.id("ad_ads"),
     campaignId: v.id("ad_campaigns"),
@@ -258,6 +266,10 @@ export const ad_engineTables = {
     cta: v.string(),
     hashtags: v.array(v.string()),
     targetAudience: v.string(),
+    imageUrl: v.optional(v.string()),
+    type: v.optional(v.string()),
+    agentId: v.optional(v.string()),
+    url: v.optional(v.string()),
     socialPosts: v.array(v.object({
       templateId: v.string(),
       style: v.string(),
@@ -275,7 +287,9 @@ export const ad_engineTables = {
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
   }).index("by_created", ["createdAt"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_type", ["type"])
+    .index("by_type_agentId", ["type", "agentId"]),
   ad_posting_logs: defineTable({
     contentId: v.id("ad_generated_content"),
     platforms: v.array(v.string()),
@@ -313,7 +327,8 @@ export const ad_engineTables = {
     createdAt: v.number(),
   }).index("by_ad", ["adId"])
     .index("by_campaign", ["campaignId"])
-    .index("by_type", ["conversionType"]),
+    .index("by_type", ["conversionType"])
+    .index("by_campaign_created", ["campaignId", "createdAt"]),
   ad_scheduling_recommendations: defineTable({
     campaignId: v.id("ad_campaigns"),
     platform: v.string(),
@@ -331,7 +346,8 @@ export const ad_engineTables = {
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_campaign", ["campaignId"])
-    .index("by_campaign_platform", ["campaignId", "platform"]),
+    .index("by_campaign_platform", ["campaignId", "platform"])
+    .index("by_platform", ["platform"]),
   ad_webhook_configs: defineTable({
     platform: v.string(),
     campaignId: v.id("ad_campaigns"),

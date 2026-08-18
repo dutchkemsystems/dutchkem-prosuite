@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1080px; height: 1080px; overflow: hidden; font-family: 'Segoe UI', Arial, sans-serif; }
+  .poster {
+    width: 1080px; height: 1080px;
+    background: linear-gradient(135deg, #1a0533 0%, #2d1066 40%, #7c3aed 100%);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    position: relative; overflow: hidden;
+  }
+  .particle { position: absolute; width: 4px; height: 4px; background: rgba(167,139,250,0.6); border-radius: 50%; }
+  .p1 { top: 15%; left: 20%; } .p2 { top: 25%; right: 15%; } .p3 { bottom: 30%; left: 10%; }
+  .p4 { top: 40%; left: 80%; } .p5 { bottom: 20%; right: 25%; } .p6 { top: 70%; left: 30%; }
+  .content { position: relative; z-index: 2; text-align: center; padding: 60px; }
+  .emoji-top { font-size: 80px; margin-bottom: 30px; }
+  h1 {
+    color: white; font-size: 74px; font-weight: 900; line-height: 1.1;
+    margin-bottom: 20px;
+  }
+  h1 span { background: linear-gradient(135deg, #c084fc, #f472b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .subtitle {
+    color: rgba(255,255,255,0.7); font-size: 26px; line-height: 1.5;
+    margin-bottom: 45px; max-width: 650px;
+  }
+  .perks {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    margin-bottom: 50px; max-width: 700px;
+  }
+  .perk {
+    background: rgba(255,255,255,0.06); border-radius: 12px; padding: 18px 20px;
+    color: white; font-size: 19px; text-align: left;
+    border: 1px solid rgba(192,132,252,0.2);
+  }
+  .perk .check { color: #a78bfa; margin-right: 10px; font-weight: bold; }
+  .cta {
+    display: inline-block; background: linear-gradient(135deg, #a855f7, #ec4899);
+    color: white; padding: 22px 60px; border-radius: 60px; font-size: 26px;
+    font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+    box-shadow: 0 8px 40px rgba(168,85,247,0.4); text-decoration: none;
+  }
+  .url { color: rgba(255,255,255,0.4); font-size: 18px; margin-top: 25px; }
+</style>
+</head>
+<body>
+<div class="poster">
+  <div class="particle p1"></div><div class="particle p2"></div><div class="particle p3"></div>
+  <div class="particle p4"></div><div class="particle p5"></div><div class="particle p6"></div>
+  <div class="content">
+    <div class="emoji-top">🚀</div>
+    <h1>Your 24/7<br><span>Digital Workforce</span></h1>
+    <p class="subtitle">AI agents that work while you sleep. Scale without hiring. Start in minutes.</p>
+    <div class="perks">
+      <div class="perk"><span class="check">✓</span> AI agents work while you sleep</div>
+      <div class="perk"><span class="check">✓</span> Scale without hiring staff</div>
+      <div class="perk"><span class="check">✓</span> Start in under 5 minutes</div>
+      <div class="perk"><span class="check">✓</span> No coding required</div>
+      <div class="perk"><span class="check">✓</span> WhatsApp integration</div>
+      <div class="perk"><span class="check">✓</span> Kora Pay payments</div>
+    </div>
+    <a class="cta" href="https://dutchkem-prosuite-app.vercel.app">Start Your Trial</a>
+    <p class="url">dutchkem-prosuite-app.vercel.app</p>
+  </div>
+</div>
+</body>
+</html>

@@ -1,6 +1,9 @@
 const https = require("https");
 
-const token = "r8_9CV0GBQ3gPHLzE5Iz0A4HSyJ8l2oVXG1zYYkQ";
+const token = process.env.REPLICATE_API_TOKEN || "";
+if (!token) {
+  throw new Error("REPLICATE_API_TOKEN environment variable is not set");
+}
 const prompt = "A modern futuristic city skyline with neon lights and digital overlays";
 
 // Test Replicate API

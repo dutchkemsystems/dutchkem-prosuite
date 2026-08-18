@@ -57,6 +57,13 @@ const MODEL_CONFIGS = [
     description: "FREE 1M context window model via OpenRouter — excellent for business analysis and long documents",
   },
   {
+    modelName: "cerebras",
+    displayName: "Cerebras",
+    icon: "⚡",
+    providerType: "ultra_fast",
+    description: "Ultra-fast FREE inference via OpenRouter — GLM-4.7, GPT-OSS-120B, Gemma-4-31B",
+  },
+  {
     modelName: "mistral",
     displayName: "Mistral AI",
     icon: "🌀",

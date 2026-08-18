@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+.tanstack
+.env
+.env.local
+*.log
+.git
+.vercel
+backup-*
+OpenMontage
+promotional-content

@@ -1,7 +1,14 @@
 import { ConvexClient } from 'convex/browser';
 import { api } from './convex/_generated/api.js';
 
-const client = new ConvexClient('https://warmhearted-aardvark-280.convex.cloud');
+const ADMIN_TEST_EMAIL = process.env.ADMIN_TEST_EMAIL || 'admin@dutchkem.com';
+const ADMIN_TEST_PASSWORD = process.env.ADMIN_TEST_PASSWORD;
+if (!ADMIN_TEST_PASSWORD) {
+  console.error('❌ ERROR: ADMIN_TEST_PASSWORD environment variable not set');
+  process.exit(1);
+}
+
+const client = new ConvexClient(process.env.CONVEX_URL || 'https://warmhearted-aardvark-280.convex.cloud');
 
 async function main() {
   console.log('═══════════════════════════════════════════════════════════════');
@@ -10,7 +17,7 @@ async function main() {
 
   // 1. Get a real user ID from the admin session
   console.log('🔐 Step 1: Get real user ID');
-  const login = await client.mutation(api.admin_auth.adminLogin, { email: 'admin@dutchkem.com', password: 'XeHtkj6y%JdFAFe#', deviceId: '2fa-test' });
+  const login = await client.mutation(api.admin_auth.adminLogin, { email: ADMIN_TEST_EMAIL, password: ADMIN_TEST_PASSWORD, deviceId: '2fa-test' });
   
   // Get admin user's actual ID from the admin profile
   const profile = await client.query(api.admin.getAdminProfile, { adminToken: login.token });

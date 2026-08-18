@@ -113,10 +113,8 @@ export const getTokenStatusForPlatform = internalQuery({
   handler: async (ctx, args) => {
     const now = Date.now();
     const conn = await ctx.db.query("platform_connections")
-      .filter((q) => 
-        q.eq(q.field("platformId"), args.platform).and(
-          q.eq(q.field("isConnected"), true)
-        )
+      .withIndex("by_platformId_isConnected", (q) =>
+        q.eq("platformId", args.platform).eq("isConnected", true)
       )
       .first();
 
@@ -193,14 +191,22 @@ export const getPreCheckHistory = query({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return [];
 
-    let q = ctx.db.query("mimo_health_logs")
-      .filter((q) => q.gt(q.field("component"), "precheck_").and(q.lt(q.field("component"), "precheck_z")));
-
     if (args.platform) {
-      q = q.filter((q) => q.eq(q.field("component"), `precheck_${args.platform}`));
+      return await ctx.db.query("mimo_health_logs")
+        .withIndex("by_component_timestamp", (q) =>
+          q.eq("component", `precheck_${args.platform}`)
+        )
+        .order("desc")
+        .take(args.limit || 20);
     }
 
-    return await q.order("desc").take(args.limit || 20);
+    const allResults = await ctx.db.query("mimo_health_logs")
+      .withIndex("by_timestamp", (q) => q.gte("timestamp", 0))
+      .order("desc")
+      .collect();
+    return allResults
+      .filter((r) => r.component.startsWith("precheck_"))
+      .slice(0, args.limit || 20);
   },
 });
 
@@ -214,13 +220,10 @@ export const getPreCheckStats = query({
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
     const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
-    const recentChecks = await ctx.db.query("mimo_health_logs")
-      .filter((q) => 
-        q.gte(q.field("timestamp"), oneWeekAgo).and(
-          q.gt(q.field("component"), "precheck_").and(q.lt(q.field("component"), "precheck_z"))
-        )
-      )
+    const allRecent = await ctx.db.query("mimo_health_logs")
+      .withIndex("by_timestamp", (q) => q.gte("timestamp", oneWeekAgo))
       .collect();
+    const recentChecks = allRecent.filter((r) => r.component.startsWith("precheck_"));
 
     const todayChecks = recentChecks.filter((c) => c.timestamp >= oneDayAgo);
     const passedChecks = recentChecks.filter((c) => c.status === "healthy");

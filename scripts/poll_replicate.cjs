@@ -1,6 +1,9 @@
 const https = require("https");
 
-const token = "r8_9CV0GBQ3gPHLzE5Iz0A4HSyJ8l2oVXG1zYYkQ";
+const token = process.env.REPLICATE_API_TOKEN || "";
+if (!token) {
+  throw new Error("REPLICATE_API_TOKEN environment variable is not set");
+}
 const predId = "wyk9tpvvtsrmy0cyzq3smf023g";
 
 function poll() {

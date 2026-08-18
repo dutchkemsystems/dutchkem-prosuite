@@ -328,7 +328,48 @@ export const autoReconnectIntegrations = action({
   args: {},
   returns: v.any(),
   handler: async (ctx): Promise<any> => {
-    return { reconnected: 0, message: "Auto-reconnect placeholder" };
+    const apiKey = process.env.COMPOSIO_API_KEY;
+    if (!apiKey) return { reconnected: 0, error: "COMPOSIO_API_KEY not configured" };
+
+    try {
+      // Get all auth configs
+      const configs: any[] = await ctx.runQuery(internal.composio_admin._getAllAuthConfigs);
+      const now = Date.now();
+      let reconnected = 0;
+      let failed = 0;
+
+      for (const config of configs) {
+        // Check if config is expired or about to expire (within 1 hour)
+        if (config.expiresAt && config.expiresAt < now + 3600000) {
+          try {
+            // Try to refresh by creating a new connection link
+            const res = await fetch("https://backend.composio.dev/api/v3.1/connected_accounts", {
+              method: "POST",
+              headers: {
+                "x-api-key": apiKey,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                auth_config_id: config.authConfigId,
+                toolkit: config.toolkit,
+              }),
+            });
+
+            if (res.ok) {
+              reconnected++;
+            } else {
+              failed++;
+            }
+          } catch {
+            failed++;
+          }
+        }
+      }
+
+      return { reconnected, failed, total: configs.length };
+    } catch (e: any) {
+      return { reconnected: 0, error: e.message };
+    }
   },
 });
 

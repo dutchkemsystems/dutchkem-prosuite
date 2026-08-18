@@ -19,7 +19,8 @@ export const gamificationTables = {
     awardedAt: v.number(),
     milestone: v.optional(v.string()),
   }).index("by_user", ["userId"])
-    .index("by_badge", ["badgeId"]),
+    .index("by_badge", ["badgeId"])
+    .index("by_user_badge", ["userId", "badgeId"]),
   leaderboard_entries: defineTable({
     userId: v.id("users"),
     period: v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"), v.literal("all_time")),

@@ -343,8 +343,7 @@ export const processPayout = mutation({
         // Update payout record
         const payout = await ctx.db
           .query("referral_payouts")
-          .withIndex("by_user", (q) => q.eq("userId", withdrawal.userId))
-          .filter((q) => q.eq(q.field("status"), "processing"))
+          .withIndex("by_user_status", (q) => q.eq("userId", withdrawal.userId).eq("status", "processing"))
           .first();
 
         if (payout) {

@@ -157,8 +157,7 @@ export const getHistoricalPerformance = internalQuery({
     for (let i = 0; i < args.days; i++) {
       const date = new Date(now - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const dayAnalytics = await ctx.db.query("ad_analytics")
-        .withIndex("by_campaign_date", (q) => q.eq("campaignId", args.campaignId).eq("date", date))
-        .filter((q) => q.eq(q.field("platform"), args.platform))
+        .withIndex("by_campaign_date_platform", (q) => q.eq("campaignId", args.campaignId).eq("date", date).eq("platform", args.platform))
         .collect();
       
       for (const entry of dayAnalytics) {
@@ -223,12 +222,11 @@ export const getSchedulingRecommendations = query({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return [];
 
-    let q = ctx.db.query("ad_scheduling_recommendations")
-      .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId));
-
-    if (args.platform) {
-      q = q.filter((q) => q.eq(q.field("platform"), args.platform));
-    }
+    let q = args.platform
+      ? ctx.db.query("ad_scheduling_recommendations")
+          .withIndex("by_campaign_platform", (q) => q.eq("campaignId", args.campaignId).eq("platform", args.platform))
+      : ctx.db.query("ad_scheduling_recommendations")
+          .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId));
 
     return await q.collect();
   },

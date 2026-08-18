@@ -23,7 +23,7 @@ export const autoPostTick = internalAction({
 
     const results: Array<{ platform: string; status: string; flyerId?: string; error?: string }> = [];
 
-    for (const platform of enabledPlatforms.slice(0, 3)) {
+    for (const platform of enabledPlatforms) {
       try {
         const flyerResult = await ctx.runAction(internal.flyer_engine.generateFlyerInternal, {
           platform,
@@ -41,12 +41,14 @@ export const autoPostTick = internalAction({
           flyerId: flyerResult.flyerId,
           error: postResult.error,
         });
-      } catch (err) {
+      } catch (err: any) {
+        const errorMsg = err instanceof Error ? err.message : "Unknown error";
         results.push({
           platform,
           status: "error",
-          error: err instanceof Error ? err.message : "Unknown error",
+          error: errorMsg,
         });
+        console.error(`[FlyerPost] ${platform} error:`, errorMsg);
       }
     }
 
@@ -113,11 +115,12 @@ export const postToPlatform = internalAction({
 
         return { success: true, postUrl: socialResult.postUrl };
       } else {
+        // Log the failure
         await ctx.runMutation(internal.flyer_engine.recordPostingLog, {
           flyerId: args.flyerId,
           platform: args.platform,
           status: "failed",
-          error: socialResult.error,
+          error: socialResult.error || "Unknown error",
           durationMs: duration,
         });
 
@@ -167,33 +170,19 @@ export const postViaSocialEngine = internalAction({
   },
   handler: async (ctx, args) => {
     try {
-      // Try TryPost first (works without connected platforms)
-      try {
-        const postId = await ctx.runMutation(internal.trypost.schedulePostInternal, {
-          content: args.content,
-          platforms: [args.platform],
-          scheduledFor: Date.now(),
-        });
-        return {
-          success: true,
-          postUrl: undefined,
-          queueId: postId,
-        };
-      } catch (trypostErr: any) {
-        // Fall back to social engine if TryPost fails
-        const result = await ctx.runAction(api.social.postToPlatform, {
-          platform: args.platform,
-          content: args.content,
-          mediaUrls: [args.imageUrl],
-          adminToken: "flyer_engine_internal",
-        });
+      // Try social engine directly (works with system-level connection lookup)
+      const result = await ctx.runAction(api.social.postToPlatform, {
+        platform: args.platform,
+        content: args.content,
+        mediaUrls: [args.imageUrl],
+        adminToken: "flyer_engine_internal",
+      });
 
-        return {
-          success: true,
-          postUrl: (result as any)?.postUrl || undefined,
-          queueId: undefined,
-        };
-      }
+      return {
+        success: true,
+        postUrl: (result as any)?.postUrl || undefined,
+        queueId: undefined,
+      };
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Social engine posting failed";
 

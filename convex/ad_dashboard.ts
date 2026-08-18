@@ -149,12 +149,9 @@ export const getPerformanceTimeline = query({
     for (let i = 0; i < days; i++) {
       const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       
-      let query = ctx.db.query("ad_analytics")
-        .withIndex("by_date", (q) => q.eq("date", date));
-
-      if (args.campaignId) {
-        query = query.filter((q) => q.eq(q.field("campaignId"), args.campaignId));
-      }
+      let query = args.campaignId
+        ? ctx.db.query("ad_analytics").withIndex("by_campaign_date", (q) => q.eq("campaignId", args.campaignId).eq("date", date))
+        : ctx.db.query("ad_analytics").withIndex("by_date", (q) => q.eq("date", date));
 
       const dayAnalytics = await query.collect();
 
@@ -193,7 +190,7 @@ export const getTopPerformingAds = query({
 
     const adsWithMetrics = ads.map(ad => {
       const ctr = ad.impressions > 0 ? (ad.clicks / ad.impressions) * 100 : 0;
-      const conversionRate = ad.clicks > 0 ? (ad.clicks / ad.clicks) * 100 : 0;
+      const conversionRate = ad.clicks > 0 ? (ad.engagements / ad.clicks) * 100 : 0;
       
       return {
         ...ad,
@@ -275,7 +272,7 @@ export const getRealTimeMetrics = query({
     // Get metrics from the last hour
     const oneHourAgo = Date.now() - 60 * 60 * 1000;
     const recentAds = await ctx.db.query("ad_ads")
-      .filter((q) => q.gte(q.field("createdAt"), oneHourAgo))
+      .withIndex("by_createdAt", (q) => q.gte("createdAt", oneHourAgo))
       .collect();
 
     // Get recent analytics

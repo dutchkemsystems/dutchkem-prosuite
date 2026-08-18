@@ -424,8 +424,7 @@ export const userHasBadge = internalQuery({
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("user_badges")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .filter((ub) => (ub as any).badgeId === args.badgeId)
+      .withIndex("by_user_badge", (q) => q.eq("userId", args.userId).eq("badgeId", args.badgeId))
       .first();
     return !!existing;
   },

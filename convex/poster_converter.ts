@@ -243,7 +243,7 @@ export const getTelegramConnection = internalQuery({
   returns: v.any(),
   handler: async (ctx) => {
     return await ctx.db.query("platform_connections")
-      .filter((q: any) => q.eq(q.field("platformId"), "telegram"))
+      .withIndex("by_platform", (q: any) => q.eq("platformId", "telegram"))
       .first();
   },
 });
@@ -297,7 +297,7 @@ export const getReadyPosters = query({
 
     return await ctx.db
       .query("ad_generated_content")
-      .filter((q) => q.eq(q.field("type"), "poster"))
+      .withIndex("by_type", (q) => q.eq("type", "poster"))
       .order("desc")
       .take(args.limit || 20);
   },
@@ -312,11 +312,7 @@ export const getAgentPoster = query({
 
     return await ctx.db
       .query("ad_generated_content")
-      .filter((q) => 
-        q.eq(q.field("type"), "poster").and(
-          q.eq(q.field("agentId"), args.agentId)
-        )
-      )
+      .withIndex("by_type_agentId", (q) => q.eq("type", "poster").eq("agentId", args.agentId))
       .first();
   },
 });

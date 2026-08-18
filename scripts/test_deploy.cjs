@@ -1,8 +1,17 @@
 const { ConvexClient } = require("convex/browser");
 
+const adminToken = process.env.ADMIN_SESSION_TOKEN || "";
+if (!adminToken) {
+  throw new Error("ADMIN_SESSION_TOKEN environment variable is not set");
+}
+
+const enterpriseTestPassword = process.env.ENTERPRISE_TEST_PASSWORD || "";
+if (!enterpriseTestPassword) {
+  throw new Error("ENTERPRISE_TEST_PASSWORD environment variable is not set");
+}
+
 async function main() {
   const client = new ConvexClient("https://warmhearted-aardvark-280.convex.cloud");
-  const adminToken = "qn73vh7zdwbyx7857h06r2a7f9893d06";
 
   console.log("=== STEP 1: Create test enterprise orgs ===");
 
@@ -19,7 +28,7 @@ async function main() {
       const id = await client.mutation("enterprise_auth:registerOrg", {
         name: org.name,
         email: org.email,
-        password: "Test123!",
+        password: enterpriseTestPassword,
         industry: org.industry,
         plan: org.plan,
       });

@@ -191,15 +191,15 @@ export const getConversionsByCampaign = query({
     if (!identity) return [];
 
     let query = ctx.db.query("ad_conversions")
-      .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId));
+      .withIndex("by_campaign_created", (q) => q.eq("campaignId", args.campaignId));
 
     if (args.startDate) {
       const startTs = new Date(args.startDate).getTime();
-      query = query.filter((q) => q.gte(q.field("createdAt"), startTs));
+      query = query.filter((q) => q.gte("createdAt", startTs));
     }
     if (args.endDate) {
       const endTs = new Date(args.endDate).getTime() + 24 * 60 * 60 * 1000;
-      query = query.filter((q) => q.lt(q.field("createdAt"), endTs));
+      query = query.filter((q) => q.lt("createdAt", endTs));
     }
 
     return await query.order("desc").take(1000);

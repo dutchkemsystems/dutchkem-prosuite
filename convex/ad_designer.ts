@@ -5,6 +5,7 @@ import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 
 // ═══════════════════════════════════════════════════════════════════
 // AD DESIGNER - Creates NEW poster/flyer designs from scratch
+// Uses Pollinations.ai (free) → NVIDIA NIM → Replicate for image gen
 // ═══════════════════════════════════════════════════════════════════
 
 const DESIGN_STYLES = {
@@ -83,6 +84,7 @@ export const createNewAdDesign = action({
     const designData = {
       id: designId,
       headline: args.headline,
+      description: args.body,
       subheadline: args.subheadline || "",
       body: args.body,
       cta: args.cta,
@@ -92,20 +94,44 @@ export const createNewAdDesign = action({
       colors,
       dimensions: template.dimensions,
       platforms: template.platforms,
+      hashtags: [],
+      targetAudience: "general",
       createdBy: session._id,
       createdAt: Date.now(),
     };
 
     // Generate actual image using canvas
     const imageResult = await ctx.runAction(internal.ad_designer.generateDesignImage, {
-      ...designData,
+      id: designData.id,
+      headline: designData.headline,
+      subheadline: designData.subheadline,
+      body: designData.body,
+      cta: designData.cta,
+      url: designData.url,
+      template: designData.template,
+      style: designData.style,
+      colors: designData.colors,
+      dimensions: designData.dimensions,
+      platforms: designData.platforms,
     });
 
     // Save design to database
     const savedDesign = await ctx.runMutation(internal.ad_designer.saveDesign, {
-      ...designData,
-      imageUrl: imageResult.imageUrl,
+      id: designData.id,
+      headline: designData.headline,
+      subheadline: designData.subheadline,
+      body: designData.body,
+      cta: designData.cta,
+      url: designData.url,
+      template: designData.template,
+      style: designData.style,
+      colors: designData.colors,
+      dimensions: designData.dimensions,
+      platforms: designData.platforms,
+      imageUrl: imageResult.imageUrl || "",
       status: "ready",
+      createdBy: designData.createdBy,
+      createdAt: designData.createdAt,
     });
 
     return {
@@ -122,7 +148,7 @@ export const createNewAdDesign = action({
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// GENERATE DESIGN IMAGE
+// GENERATE DESIGN IMAGE - Uses Pollinations.ai (free) → NVIDIA → Replicate
 // ═══════════════════════════════════════════════════════════════════
 
 export const generateDesignImage = internalAction({
@@ -141,15 +167,40 @@ export const generateDesignImage = internalAction({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    // Generate actual image URL
-    const imageUrl = `https://dutchkem-prosuite-app.vercel.app/api/design/${args.id}.jpg`;
-    const downloadUrl = `https://dutchkem-prosuite-app.vercel.app/api/design/download/${args.id}.jpg`;
+    const w = args.dimensions?.width || 1080;
+    const h = args.dimensions?.height || 1080;
 
-    return {
-      success: true,
-      imageUrl,
-      downloadUrl,
-    };
+    const prompt = `${args.style} style ${args.template} advertisement design, headline: "${args.headline}", ${args.subheadline ? `subheadline: "${args.subheadline}",` : ""} call to action: "${args.cta}", ${args.body}, professional, high quality, 4K, clean design`;
+
+    // Tier 1: Pollinations.ai (free)
+    try {
+      const encoded = encodeURIComponent(prompt);
+      const pollUrl = `https://image.pollinations.ai/prompt/${encoded}?width=${w}&height=${h}&nologo=true&seed=${Date.now()}`;
+      const response = await fetch(pollUrl, { redirect: "follow" });
+      if (response.ok && response.url) {
+        return { success: true, imageUrl: response.url, downloadUrl: response.url, provider: "Pollinations.ai (Free)" };
+      }
+    } catch (e) { /* fallback */ }
+
+    // Tier 2: NVIDIA NIM
+    const nvidiaKey = process.env.NVIDIA_NIM_API_KEY;
+    if (nvidiaKey) {
+      try {
+        const response = await fetch("https://integrate.api.nvidia.com/v1/models/black-forest-labs/flux.1-schnell/infer", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${nvidiaKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt, width: w, height: h, steps: 4 }),
+        });
+        if (response.ok) {
+          const data = await response.json() as any;
+          if (data.artifacts?.[0]?.base64) {
+            return { success: true, imageUrl: `data:image/png;base64,${data.artifacts[0].base64}`, downloadUrl: `data:image/png;base64,${data.artifacts[0].base64}`, provider: "NVIDIA NIM" };
+          }
+        }
+      } catch (e) { /* fallback */ }
+    }
+
+    return { success: false, error: "All image providers failed" };
   },
 });
 
@@ -288,7 +339,16 @@ export const saveDesign = internalMutation({
   handler: async (ctx, args) => {
     const id = await ctx.db.insert("ad_generated_content", {
       type: "design",
-      ...args,
+      headline: args.headline,
+      description: args.body,
+      cta: args.cta,
+      hashtags: [],
+      targetAudience: "general",
+      url: args.url,
+      socialPosts: [],
+      status: args.status,
+      usedCount: 0,
+      createdAt: args.createdAt,
     });
     return id;
   },
@@ -386,5 +446,60 @@ export const getDesignStyles = query({
       id: key,
       ...value,
     }));
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// DESIGN QUALITY CHECK — MiMo-V2.5 (Free)
+// ═══════════════════════════════════════════════════════════════════
+
+export const checkDesignQuality = action({
+  args: {
+    headline: v.string(),
+    body: v.string(),
+    cta: v.string(),
+    template: v.string(),
+    style: v.string(),
+  },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    try {
+      const result = await ctx.runAction(internal.freellmapi.chatCompletion, {
+        messages: [
+          {
+            role: "system",
+            content: `You are a design quality checker for marketing materials. Evaluate the ad design and provide:
+1. Quality score (1-10)
+2. Strengths (list 2-3)
+3. Improvements (list 2-3)
+4. Platform suitability rating
+
+Be concise and actionable. Return JSON: {"score": number, "strengths": [...], "improvements": [...], "platformFit": "excellent/good/needs-work"}`,
+          },
+          {
+            role: "user",
+            content: `Headline: "${args.headline}"
+Body: "${args.body}"
+CTA: "${args.cta}"
+Template: ${args.template}
+Style: ${args.style}`,
+          },
+        ],
+        model: "mimo-v2.5",
+        temperature: 0.3,
+        maxTokens: 500,
+      });
+
+      if (result.content) {
+        const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          return { success: true, ...JSON.parse(jsonMatch[0]) };
+        }
+      }
+
+      return { success: false, error: "Could not parse quality check response" };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
   },
 });

@@ -3,7 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query"
 import { convexQuery } from "@convex-dev/react-query"
 import { useConvexAuth, useConvex } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
-import { lazy, useEffect, useState } from "react"
+import React, { useEffect, useState } from "react"
 import { api } from "../../../convex/_generated/api"
 import { CompanyLogo } from "~/components/CompanyLogo";
 import { useSocket } from "~/lib/socket";
@@ -11,76 +11,80 @@ import { InactivityLogout } from "~/components/InactivityLogout";
 import { AdminSuspense, AdminTab, Footer, LoadingScreen } from "~/components/admin/panels/shared";
 
 // Extracted panel modules (lazy-loaded)
-const SocialEnginePanel = lazy(() => import("~/components/admin/panels/social-panels").then(m => ({ default: m.SocialEnginePanel })));
-const GuardianWatchPanel = lazy(() => import("~/components/admin/panels/social-panels").then(m => ({ default: m.GuardianWatchPanel })));
-const DailySweepStatusPanel = lazy(() => import("~/components/admin/panels/finance-panels").then(m => ({ default: m.DailySweepStatusPanel })));
-const CharityDashboardPanel = lazy(() => import("~/components/admin/panels/finance-panels").then(m => ({ default: m.CharityDashboardPanel })));
-const FreelancerMarketplacePanel = lazy(() => import("~/components/admin/panels/finance-panels").then(m => ({ default: m.FreelancerMarketplacePanel })));
-const SecurityHubPanel = lazy(() => import("~/components/admin/panels/admin-panels").then(m => ({ default: m.SecurityHubPanel })));
-const AuditTrailPanel = lazy(() => import("~/components/admin/panels/admin-panels").then(m => ({ default: m.AuditTrailPanel })));
-const HolidayDiscountsPanel = lazy(() => import("~/components/admin/panels/admin-panels").then(m => ({ default: m.HolidayDiscountsPanel })));
-const AutoUpdatesPanel = lazy(() => import("~/components/admin/panels/admin-panels").then(m => ({ default: m.AutoUpdatesPanel })));
-const AdminProfileCard = lazy(() => import("~/components/admin/panels/admin-panels").then(m => ({ default: m.AdminProfileCard })));
-const ManualAgentTaskPanel = lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.ManualAgentTaskPanel })));
-const StatsOverview = lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.StatsOverview })));
-const RecentTransactions = lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.RecentTransactions })));
-const FreelancerPanel = lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.FreelancerPanel })));
-const CloudMemoryPanel = lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.CloudMemoryPanel })));
-const VoiceROIPanel = lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.VoiceROIPanel })));
-const LiveChatsPanel = lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.LiveChatsPanel })));
-const APICostsPanel = lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.APICostsPanel })));
-const PlatformAnalyticsPanel = lazy(() => import("~/components/admin/panels/ai-panels").then(m => ({ default: m.PlatformAnalyticsPanel })));
-const UserManagementPanel = lazy(() => import("~/components/admin/panels/ai-panels").then(m => ({ default: m.UserManagementPanel })));
-const UnifiedAnalyticsPanel = lazy(() => import("~/components/admin/panels/ai-panels").then(m => ({ default: m.UnifiedAnalyticsPanel })));
-const SyntheticIntelPanel = lazy(() => import("~/components/admin/panels/ai-panels").then(m => ({ default: m.SyntheticIntelPanel })));
-const AdEnginePanel = lazy(() => import("~/components/admin/panels/ai-panels").then(m => ({ default: m.AdEnginePanel })));
+const SocialEnginePanel = React.lazy(() => import("~/components/admin/panels/social-panels").then(m => ({ default: m.SocialEnginePanel })));
+const GuardianWatchPanel = React.lazy(() => import("~/components/admin/panels/social-panels").then(m => ({ default: m.GuardianWatchPanel })));
+const DailySweepStatusPanel = React.lazy(() => import("~/components/admin/panels/finance-panels").then(m => ({ default: m.DailySweepStatusPanel })));
+const CharityDashboardPanel = React.lazy(() => import("~/components/admin/panels/finance-panels").then(m => ({ default: m.CharityDashboardPanel })));
+const FreelancerMarketplacePanel = React.lazy(() => import("~/components/admin/panels/finance-panels").then(m => ({ default: m.FreelancerMarketplacePanel })));
+const SecurityHubPanel = React.lazy(() => import("~/components/admin/panels/admin-panels").then(m => ({ default: m.SecurityHubPanel })));
+const AuditTrailPanel = React.lazy(() => import("~/components/admin/panels/admin-panels").then(m => ({ default: m.AuditTrailPanel })));
+const HolidayDiscountsPanel = React.lazy(() => import("~/components/admin/panels/admin-panels").then(m => ({ default: m.HolidayDiscountsPanel })));
+const AutoUpdatesPanel = React.lazy(() => import("~/components/admin/panels/admin-panels").then(m => ({ default: m.AutoUpdatesPanel })));
+const AdminProfileCard = React.lazy(() => import("~/components/admin/panels/admin-panels").then(m => ({ default: m.AdminProfileCard })));
+const ManualAgentTaskPanel = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.ManualAgentTaskPanel })));
+const StatsOverview = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.StatsOverview })));
+const RecentTransactions = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.RecentTransactions })));
+const FreelancerPanel = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.FreelancerPanel })));
+const CloudMemoryPanel = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.CloudMemoryPanel })));
+const VoiceROIPanel = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.VoiceROIPanel })));
+const LiveChatsPanel = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.LiveChatsPanel })));
+const APICostsPanel = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.APICostsPanel })));
+const PlatformAnalyticsPanel = React.lazy(() => import("~/components/admin/panels/ai-panels").then(m => ({ default: m.PlatformAnalyticsPanel })));
+const UserManagementPanel = React.lazy(() => import("~/components/admin/panels/ai-panels").then(m => ({ default: m.UserManagementPanel })));
+const UnifiedAnalyticsPanel = React.lazy(() => import("~/components/admin/panels/ai-panels").then(m => ({ default: m.UnifiedAnalyticsPanel })));
+const SyntheticIntelPanel = React.lazy(() => import("~/components/admin/panels/ai-panels").then(m => ({ default: m.SyntheticIntelPanel })));
+const AdEnginePanel = React.lazy(() => import("~/components/admin/panels/ai-panels").then(m => ({ default: m.AdEnginePanel })));
 
 // Lazy-loaded external panels
-const LiveFeed = lazy(() => import("~/components/LiveFeed").then(m => ({ default: m.LiveFeed })));
-const LiveCharts = lazy(() => import("~/components/LiveCharts").then(m => ({ default: m.LiveCharts })));
-const PaymentMonitor = lazy(() => import("~/components/PaymentMonitor").then(m => ({ default: m.PaymentMonitor })));
-const SupportDashboard = lazy(() => import("~/components/admin/SupportDashboard").then(m => ({ default: m.SupportDashboard })));
-const ComposioAdminHub = lazy(() => import("~/components/ComposioAdminHub").then(m => ({ default: m.ComposioAdminHub })));
-const RenewalsTithePanel = lazy(() => import("~/components/RenewalsTithePanel").then(m => ({ default: m.RenewalsTithePanel })));
-const ComposioObservability = lazy(() => import("~/components/ComposioObservability").then(m => ({ default: m.ComposioObservability })));
-const TryPostScheduler = lazy(() => import("~/components/TryPostScheduler").then(m => ({ default: m.TryPostScheduler })));
-const AutoHealDashboard = lazy(() => import("~/components/AutoHealDashboard").then(m => ({ default: m.AutoHealDashboard })));
-const ComposioEnhancementPanel = lazy(() => import("~/components/ComposioEnhancementPanel").then(m => ({ default: m.ComposioEnhancementPanel })));
-const TaxCompliancePanel = lazy(() => import("~/components/TaxCompliancePanel").then(m => ({ default: m.TaxCompliancePanel })));
-const EnterprisePortalAdmin = lazy(() => import("~/components/enterprise/EnterprisePortalAdmin").then(m => ({ default: m.EnterprisePortalAdmin })));
-const AdminEnterpriseHub = lazy(() => import("~/components/admin/AdminEnterpriseHub").then(m => ({ default: m.AdminEnterpriseHub })));
-const MimoControlPanel = lazy(() => import("~/components/admin/MimoControlPanel").then(m => ({ default: m.MimoControlPanel })));
-const RapidAPIFallbackDashboard = lazy(() => import("~/components/admin/RapidAPIFallbackDashboard").then(m => ({ default: m.RapidAPIFallbackDashboard })));
-const RevenueHub = lazy(() => import("~/components/admin/RevenueHub").then(m => ({ default: m.RevenueHub })));
-const AutoFlyerDashboard = lazy(() => import("~/components/admin/AutoFlyerDashboard"));
-const CurrencyConverter = lazy(() => import("~/components/admin/CurrencyConverter"));
-const AdAutomationHub = lazy(() => import("~/components/admin/enterprise/AdAutomationHub"));
-const AdDesignerPanel = lazy(() => import("~/components/admin/AdDesignerPanel").then(m => ({ default: m.AdDesignerPanel })));
-const WhatsAppHub = lazy(() => import("~/components/admin/WhatsAppHub").then(m => ({ default: m.WhatsAppHub })));
-const AdminPayoutDashboard = lazy(() => import("~/components/admin/enterprise/AdminPayoutDashboard"));
-const EnterprisePaymentsReadOnly = lazy(() => import("~/components/admin/EnterprisePaymentsReadOnly").then(m => ({ default: m.EnterprisePaymentsReadOnly })));
-const ModelTogglePanel = lazy(() => import("~/components/admin/ModelTogglePanel").then(m => ({ default: m.ModelTogglePanel })));
-const ModelAnalyticsPanel = lazy(() => import("~/components/admin/ModelAnalyticsPanel").then(m => ({ default: m.ModelAnalyticsPanel })));
-const WhatsAppDualPanel = lazy(() => import("~/components/admin/WhatsAppDualPanel").then(m => ({ default: m.WhatsAppDualPanel })));
-const HermesDashboard = lazy(() => import("~/components/admin/HermesDashboard").then(m => ({ default: m.HermesDashboard })));
-const FreeLLMAPIPanel = lazy(() => import("~/components/admin/FreeLLMAPIPanel").then(m => ({ default: m.FreeLLMAPIPanel })));
-const PaymentAnalyticsPanel = lazy(() => import("~/components/admin/PaymentAnalyticsPanel").then(m => ({ default: m.PaymentAnalyticsPanel })));
-const RefundsPanel = lazy(() => import("~/components/admin/RefundsPanel").then(m => ({ default: m.RefundsPanel })));
-const InvoicesPanel = lazy(() => import("~/components/admin/InvoicesPanel").then(m => ({ default: m.InvoicesPanel })));
-const RecurringBillingPanel = lazy(() => import("~/components/admin/RecurringBillingPanel").then(m => ({ default: m.RecurringBillingPanel })));
-const ClientAnalyticsDashboard = lazy(() => import("~/components/ClientAnalyticsWidgets").then(m => ({ default: m.ClientAnalyticsDashboard })));
-const TaxDashboardPanel = lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.TaxDashboardPanel })));
+const LiveFeed = React.lazy(() => import("~/components/LiveFeed").then(m => ({ default: m.LiveFeed })));
+const LiveCharts = React.lazy(() => import("~/components/LiveCharts").then(m => ({ default: m.LiveCharts })));
+const PaymentMonitor = React.lazy(() => import("~/components/PaymentMonitor").then(m => ({ default: m.PaymentMonitor })));
+const SupportDashboard = React.lazy(() => import("~/components/admin/SupportDashboard").then(m => ({ default: m.SupportDashboard })));
+const ComposioAdminHub = React.lazy(() => import("~/components/ComposioAdminHub").then(m => ({ default: m.ComposioAdminHub })));
+const RenewalsTithePanel = React.lazy(() => import("~/components/RenewalsTithePanel").then(m => ({ default: m.RenewalsTithePanel })));
+const ComposioObservability = React.lazy(() => import("~/components/ComposioObservability").then(m => ({ default: m.ComposioObservability })));
+const TryPostScheduler = React.lazy(() => import("~/components/TryPostScheduler").then(m => ({ default: m.TryPostScheduler })));
+const AutoHealDashboard = React.lazy(() => import("~/components/AutoHealDashboard").then(m => ({ default: m.AutoHealDashboard })));
+const ComposioEnhancementPanel = React.lazy(() => import("~/components/ComposioEnhancementPanel").then(m => ({ default: m.ComposioEnhancementPanel })));
+const TaxCompliancePanel = React.lazy(() => import("~/components/TaxCompliancePanel").then(m => ({ default: m.TaxCompliancePanel })));
+const EnterprisePortalAdmin = React.lazy(() => import("~/components/enterprise/EnterprisePortalAdmin").then(m => ({ default: m.EnterprisePortalAdmin })));
+const AdminEnterpriseHub = React.lazy(() => import("~/components/admin/AdminEnterpriseHub").then(m => ({ default: m.AdminEnterpriseHub })));
+const MimoControlPanel = React.lazy(() => import("~/components/admin/MimoControlPanel").then(m => ({ default: m.MimoControlPanel })));
+const RapidAPIFallbackDashboard = React.lazy(() => import("~/components/admin/RapidAPIFallbackDashboard").then(m => ({ default: m.RapidAPIFallbackDashboard })));
+const RevenueHub = React.lazy(() => import("~/components/admin/RevenueHub").then(m => ({ default: m.RevenueHub })));
+const AutoFlyerDashboard = React.lazy(() => import("~/components/admin/AutoFlyerDashboard"));
+const CurrencyConverter = React.lazy(() => import("~/components/admin/CurrencyConverter"));
+const AdAutomationHub = React.lazy(() => import("~/components/admin/enterprise/AdAutomationHub"));
+const AdDesignerPanel = React.lazy(() => import("~/components/admin/AdDesignerPanel").then(m => ({ default: m.AdDesignerPanel })));
+const FlashSalesPanel = React.lazy(() => import("~/components/admin/FlashSalesPanel").then(m => ({ default: m.FlashSalesPanel })));
+const WhatsAppHub = React.lazy(() => import("~/components/admin/WhatsAppHub").then(m => ({ default: m.WhatsAppHub })));
+const AdminPayoutDashboard = React.lazy(() => import("~/components/admin/enterprise/AdminPayoutDashboard"));
+const EnterprisePaymentsReadOnly = React.lazy(() => import("~/components/admin/EnterprisePaymentsReadOnly").then(m => ({ default: m.EnterprisePaymentsReadOnly })));
+const ModelTogglePanel = React.lazy(() => import("~/components/admin/ModelTogglePanel").then(m => ({ default: m.ModelTogglePanel })));
+const ModelAnalyticsPanel = React.lazy(() => import("~/components/admin/ModelAnalyticsPanel").then(m => ({ default: m.ModelAnalyticsPanel })));
+const OrchestratorDashboard = React.lazy(() => import("~/components/admin/OrchestratorDashboard").then(m => ({ default: m.OrchestratorDashboard })));
+const MarketingAutomationDashboard = React.lazy(() => import("~/components/admin/MarketingAutomationDashboard").then(m => ({ default: m.MarketingAutomationDashboard })));
+const IntegrationsDashboard = React.lazy(() => import("~/components/admin/IntegrationsDashboard").then(m => ({ default: m.IntegrationsDashboard })));
+const WhatsAppDualPanel = React.lazy(() => import("~/components/admin/WhatsAppDualPanel").then(m => ({ default: m.WhatsAppDualPanel })));
+const HermesDashboard = React.lazy(() => import("~/components/admin/HermesDashboard").then(m => ({ default: m.HermesDashboard })));
+const FreeLLMAPIPanel = React.lazy(() => import("~/components/admin/FreeLLMAPIPanel").then(m => ({ default: m.FreeLLMAPIPanel })));
+const PaymentAnalyticsPanel = React.lazy(() => import("~/components/admin/PaymentAnalyticsPanel").then(m => ({ default: m.PaymentAnalyticsPanel })));
+const RefundsPanel = React.lazy(() => import("~/components/admin/RefundsPanel").then(m => ({ default: m.RefundsPanel })));
+const InvoicesPanel = React.lazy(() => import("~/components/admin/InvoicesPanel").then(m => ({ default: m.InvoicesPanel })));
+const RecurringBillingPanel = React.lazy(() => import("~/components/admin/RecurringBillingPanel").then(m => ({ default: m.RecurringBillingPanel })));
+const ClientAnalyticsDashboard = React.lazy(() => import("~/components/ClientAnalyticsWidgets").then(m => ({ default: m.ClientAnalyticsDashboard })));
+const TaxDashboardPanel = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.TaxDashboardPanel })));
 
 // Orphan panels (previously built but unwired)
-const PredictiveAnalyticsPanel = lazy(() => import("~/components/admin/PredictiveAnalyticsPanel").then(m => ({ default: m.PredictiveAnalyticsPanel })));
-const MarketingFunnelPanel = lazy(() => import("~/components/admin/MarketingFunnelPanel").then(m => ({ default: m.MarketingFunnelPanel })));
-const VoiceVideoPanel = lazy(() => import("~/components/admin/VoiceVideoPanel").then(m => ({ default: m.VoiceVideoPanel })));
-const WhiteLabelPanel = lazy(() => import("~/components/admin/WhiteLabelPanel").then(m => ({ default: m.WhiteLabelPanel })));
-const SalesAgentPanel = lazy(() => import("~/components/admin/SalesAgentPanel").then(m => ({ default: m.SalesAgentPanel })));
-const OpenDesignPanel = lazy(() => import("~/components/admin/OpenDesignPanel").then(m => ({ default: m.OpenDesignPanel })));
-const DynamicPricingPanel = lazy(() => import("~/components/admin/DynamicPricingPanel").then(m => ({ default: m.DynamicPricingPanel })));
-const UltimatePlatformPanel = lazy(() => import("~/components/admin/UltimatePlatformPanel").then(m => ({ default: m.UltimatePlatformPanel })));
-const BlockchainPanel = lazy(() => import("~/components/admin/BlockchainPanel").then(m => ({ default: m.BlockchainPanel })));
+const PredictiveAnalyticsPanel = React.lazy(() => import("~/components/admin/PredictiveAnalyticsPanel").then(m => ({ default: m.PredictiveAnalyticsPanel })));
+const MarketingFunnelPanel = React.lazy(() => import("~/components/admin/MarketingFunnelPanel").then(m => ({ default: m.MarketingFunnelPanel })));
+const VoiceVideoPanel = React.lazy(() => import("~/components/admin/VoiceVideoPanel").then(m => ({ default: m.VoiceVideoPanel })));
+const WhiteLabelPanel = React.lazy(() => import("~/components/admin/WhiteLabelPanel").then(m => ({ default: m.WhiteLabelPanel })));
+const SalesAgentPanel = React.lazy(() => import("~/components/admin/SalesAgentPanel").then(m => ({ default: m.SalesAgentPanel })));
+const OpenDesignPanel = React.lazy(() => import("~/components/admin/OpenDesignPanel").then(m => ({ default: m.OpenDesignPanel })));
+const DynamicPricingPanel = React.lazy(() => import("~/components/admin/DynamicPricingPanel").then(m => ({ default: m.DynamicPricingPanel })));
+const UltimatePlatformPanel = React.lazy(() => import("~/components/admin/UltimatePlatformPanel").then(m => ({ default: m.UltimatePlatformPanel })));
+const BlockchainPanel = React.lazy(() => import("~/components/admin/BlockchainPanel").then(m => ({ default: m.BlockchainPanel })));
 
 export const Route = createFileRoute('/admin/dashboard')({
   component: AdminDashboardPage,
@@ -203,6 +207,9 @@ function AdminDashboardPage() {
           <AdminTab active={activeTab === "recurring"} onClick={() => setActiveTab("recurring")} icon="🔁" label="Recurring Billing" onClose={() => setSidebarOpen(false)} />
           <AdminTab active={activeTab === "ai-models"} onClick={() => setActiveTab("ai-models")} icon="🤖" label="AI Model Toggle" onClose={() => setSidebarOpen(false)} />
           <AdminTab active={activeTab === "ai-analytics"} onClick={() => setActiveTab("ai-analytics")} icon="📊" label="AI Analytics" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "orchestrator"} onClick={() => setActiveTab("orchestrator")} icon="🔄" label="Model Orchestrator" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "marketing-auto"} onClick={() => setActiveTab("marketing-auto")} icon="📈" label="Marketing Auto" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "integrations"} onClick={() => setActiveTab("integrations")} icon="🔌" label="Integrations" onClose={() => setSidebarOpen(false)} />
           <AdminTab active={activeTab === "freellmapi"} onClick={() => setActiveTab("freellmapi")} icon="🆓" label="FreeLLMAPI" onClose={() => setSidebarOpen(false)} />
           <AdminTab active={activeTab === "whatsapp-dual"} onClick={() => setActiveTab("whatsapp-dual")} icon="📱" label="WhatsApp Dual" onClose={() => setSidebarOpen(false)} />
           <AdminTab active={activeTab === "hermes"} onClick={() => setActiveTab("hermes")} icon="🤖" label="Hermes AI" onClose={() => setSidebarOpen(false)} />
@@ -216,6 +223,7 @@ function AdminDashboardPage() {
           <AdminTab active={activeTab === "dynamic-pricing"} onClick={() => setActiveTab("dynamic-pricing")} icon="💲" label="Dynamic Pricing" onClose={() => setSidebarOpen(false)} />
           <AdminTab active={activeTab === "ultimate"} onClick={() => setActiveTab("ultimate")} icon="🚀" label="Ultimate Platform" onClose={() => setSidebarOpen(false)} />
           <AdminTab active={activeTab === "blockchain"} onClick={() => setActiveTab("blockchain")} icon="⛓️" label="Blockchain" onClose={() => setSidebarOpen(false)} />
+          <AdminTab active={activeTab === "flash-sales"} onClick={() => setActiveTab("flash-sales")} icon="⚡" label="Flash Sales" onClose={() => setSidebarOpen(false)} />
         </nav>
         <div className="p-4 border-t border-slate-800"><button onClick={handleLogout} className="w-full py-3 bg-red-600/20 hover:bg-red-600/40 text-red-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-red-500/30">Sign Out</button></div>
       </aside>
@@ -276,6 +284,9 @@ function AdminDashboardPage() {
             {activeTab === "recurring" && <RecurringBillingPanel adminToken={adminToken} />}
             {activeTab === "ai-models" && <ModelTogglePanel adminToken={adminToken} />}
             {activeTab === "ai-analytics" && <ModelAnalyticsPanel adminToken={adminToken} />}
+            {activeTab === "orchestrator" && <OrchestratorDashboard adminToken={adminToken} />}
+            {activeTab === "marketing-auto" && <MarketingAutomationDashboard adminToken={adminToken} />}
+            {activeTab === "integrations" && <IntegrationsDashboard adminToken={adminToken} />}
             {activeTab === "freellmapi" && <FreeLLMAPIPanel adminToken={adminToken} />}
             {activeTab === "whatsapp-dual" && <WhatsAppDualPanel adminToken={adminToken} />}
             {activeTab === "hermes" && <HermesDashboard adminToken={adminToken} />}
@@ -289,6 +300,7 @@ function AdminDashboardPage() {
             {activeTab === "dynamic-pricing" && <DynamicPricingPanel />}
             {activeTab === "ultimate" && <UltimatePlatformPanel />}
             {activeTab === "blockchain" && <BlockchainPanel />}
+            {activeTab === "flash-sales" && <FlashSalesPanel adminToken={adminToken} />}
           </AdminSuspense>
         </div>
         <Footer />

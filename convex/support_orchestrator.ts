@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action, query, mutation } from "./_generated/server";
+import { action, query, mutation, internalQuery, internalMutation } from "./_generated/server";
 
 // ═══════════════════════════════════════════════════════════════════
 // MULTI-AGENT SUPPORT ORCHESTRATOR
@@ -78,8 +78,10 @@ const MAX_CONCURRENT_PER_AGENT = 5;
 const MAX_TOTAL_CONCURRENT = 50;
 
 async function getQueuePosition(ctx: any): Promise<number> {
-  const allConfig = await ctx.db.query("system_config").collect();
-  const configMap = new Map(allConfig.map((c) => [c.key, c.value]));
+  const allConfig = await ctx.runQuery(
+    (await import("./_generated/api")).internal.support_orchestrator._getAllSystemConfig
+  );
+  const configMap = new Map(allConfig.map((c: any) => [c.key, c.value]));
   
   let totalActive = 0;
   const agentIds = ["A1","A2","A3","A4","A5","A6","A7","A8","A9","A10","A11","A12","A13","A14","A15"];
@@ -91,12 +93,10 @@ async function getQueuePosition(ctx: any): Promise<number> {
 }
 
 async function isAgentAvailable(ctx: any, agentId: string): Promise<boolean> {
-  const key = `agent_active_conversations_${agentId}`;
-  const config = await ctx.db
-    .query("system_config")
-    .withIndex("by_key", (q) => q.eq("key", key))
-    .first();
-  const load = (config?.value as number) || 0;
+  const load = await ctx.runQuery(
+    (await import("./_generated/api")).internal.support_orchestrator._getAgentLoad,
+    { agentId }
+  );
   return load < MAX_CONCURRENT_PER_AGENT;
 }
 
@@ -105,7 +105,7 @@ async function isAgentAvailable(ctx: any, agentId: string): Promise<boolean> {
 // ═══════════════════════════════════════════════════════════════════
 async function callNVIDIA(model: string, systemPrompt: string, userMessage: string): Promise<string> {
   const apiKey = process.env.NVIDIA_NIM_API_KEY;
-  if (!apiKey) throw new Error("NVIDIA API key not configured");
+  if (!apiKey) throw new Error("NVIDIA_API_KEY_NOT_SET");
 
   const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
     method: "POST",
@@ -130,6 +130,39 @@ async function callNVIDIA(model: string, systemPrompt: string, userMessage: stri
   return data.choices[0].message.content;
 }
 
+// Fallback response when LLM is unavailable
+function getFallbackResponse(message: string): string {
+  const lower = message.toLowerCase();
+  
+  // Pricing questions
+  if (lower.includes("price") || lower.includes("cost") || lower.includes("plan") || lower.includes("subscription")) {
+    return "We have flexible plans starting from ₦5,000/month! Our Starter plan gives you access to 3 AI agents, Pro gives you 10, and Business gives you all 15 agents with priority support. Would you like to know more about any specific plan? 💰";
+  }
+  
+  // Feature questions
+  if (lower.includes("feature") || lower.includes("what can") || lower.includes("how does") || lower.includes("agent")) {
+    return "Dutchkem Prosuite NG+ offers 15 specialized AI agents covering academic writing, business consulting, content creation, career coaching, finance, video production, and more! Each agent is an expert in their field. Which area interests you most? 🤖";
+  }
+  
+  // Getting started
+  if (lower.includes("start") || lower.includes("sign up") || lower.includes("register") || lower.includes("how to")) {
+    return "Getting started is easy! Visit our registration page, choose a plan that fits your needs, and you'll be up and running in minutes. Our AI agents are ready to help 24/7. Would you like me to guide you through the setup? 🚀";
+  }
+  
+  // Complaints
+  if (lower.includes("problem") || lower.includes("issue") || lower.includes("error") || lower.includes("bug")) {
+    return "I'm sorry to hear you're experiencing issues. Our support team is here to help! Could you describe what's happening in more detail? I'll make sure we get this resolved quickly. 💪";
+  }
+  
+  // General greeting
+  if (lower.includes("hello") || lower.includes("hi") || lower.includes("hey") || lower.includes("good")) {
+    return "Hello! 👋 Welcome to Dutchkem Prosuite NG+. I'm here to help with any questions about our AI platform. Whether it's pricing, features, or getting started — I've got you covered! What would you like to know? 😊";
+  }
+  
+  // Default
+  return "Thank you for your message! I'm here to help with anything about Dutchkem Prosuite NG+ — from our 15 AI agents to pricing and features. Could you tell me more about what you're looking for? 😊";
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // LOAD BALANCING — Track active conversations per agent
 // ═══════════════════════════════════════════════════════════════════
@@ -139,40 +172,31 @@ async function fetchAgentLoad(ctx: any): Promise<Record<string, number>> {
   const load: Record<string, number> = {};
   
   for (const id of agentIds) {
-    const key = `agent_active_conversations_${id}`;
-    const config = await ctx.db
-      .query("system_config")
-      .withIndex("by_key", (q) => q.eq("key", key))
-      .first();
-    load[id] = (config?.value as number) || 0;
+    try {
+      const config = await ctx.runQuery(
+        (await import("./_generated/api")).internal.support_orchestrator._getAgentLoad,
+        { agentId: id }
+      );
+      load[id] = (config as number) || 0;
+    } catch {
+      load[id] = 0;
+    }
   }
   return load;
 }
 
 async function incrementAgentLoad(ctx: any, agentId: string): Promise<void> {
-  const key = `agent_active_conversations_${agentId}`;
-  const existing = await ctx.db
-    .query("system_config")
-    .withIndex("by_key", (q) => q.eq("key", key))
-    .first();
-  const current = (existing?.value as number) || 0;
-  if (existing) {
-    await ctx.db.patch(existing._id, { value: current + 1, updatedAt: Date.now() });
-  } else {
-    await ctx.db.insert("system_config", { key, value: 1, description: `Active conversations for ${agentId}`, updatedAt: Date.now() });
-  }
+  await ctx.runMutation(
+    (await import("./_generated/api")).internal.support_orchestrator._incrementAgentLoad,
+    { agentId }
+  );
 }
 
 async function decrementAgentLoad(ctx: any, agentId: string): Promise<void> {
-  const key = `agent_active_conversations_${agentId}`;
-  const existing = await ctx.db
-    .query("system_config")
-    .withIndex("by_key", (q) => q.eq("key", key))
-    .first();
-  if (existing) {
-    const current = (existing.value as number) || 0;
-    await ctx.db.patch(existing._id, { value: Math.max(0, current - 1), updatedAt: Date.now() });
-  }
+  await ctx.runMutation(
+    (await import("./_generated/api")).internal.support_orchestrator._decrementAgentLoad,
+    { agentId }
+  );
 }
 
 // Find least-busy enabled agent from candidates
@@ -463,12 +487,17 @@ export const processMessage = action({
     // Step 2: Route to the classified agent
     if (intent.agentId === "GENERAL") {
       // General support — answer directly
+      let response: string;
       try {
-        const response = await callNVIDIA(
+        response = await callNVIDIA(
           "meta/llama-3.1-8b-instruct",
           "You are a friendly customer support agent for Dutchkem Ventures Prosuite NG+. Help with general questions about the platform, pricing, features, and getting started. Be warm, professional, use emojis. If the question is about a specific service, suggest the right agent.",
           args.message
         );
+      } catch {
+        // Fallback when NVIDIA is unavailable
+        response = getFallbackResponse(args.message);
+      }
 
         // Log the interaction
         const interactionId = await ctx.runMutation(
@@ -511,19 +540,6 @@ export const processMessage = action({
           responseTimeMs: Date.now() - startTime,
           shouldPromptLogin: false,
         };
-      } catch {
-        return {
-          success: true,
-          response: "I'm here to help! Could you tell me more about what you need? 😊",
-          agentId: "GENERAL",
-          agentName: "General Support",
-          icon: "💬",
-          routed: false,
-          confidence: "low",
-          responseTimeMs: Date.now() - startTime,
-          shouldPromptLogin: false,
-        };
-      }
     }
 
     // Step 3: Route to specific agent via customer_support
@@ -999,6 +1015,67 @@ export const toggleAgent = mutation({
         description: `Agent ${args.agentId} enabled state`,
         updatedAt: Date.now(),
       });
+    }
+    return null;
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// INTERNAL: Agent load management
+// ═══════════════════════════════════════════════════════════════════
+
+export const _getAgentLoad = internalQuery({
+  args: { agentId: v.string() },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const key = `agent_active_conversations_${args.agentId}`;
+    const config = await ctx.db
+      .query("system_config")
+      .withIndex("by_key", (q) => q.eq("key", key))
+      .first();
+    return (config?.value as number) || 0;
+  },
+});
+
+export const _getAllSystemConfig = internalQuery({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    return await ctx.db.query("system_config").collect();
+  },
+});
+
+export const _incrementAgentLoad = internalMutation({
+  args: { agentId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const key = `agent_active_conversations_${args.agentId}`;
+    const existing = await ctx.db
+      .query("system_config")
+      .withIndex("by_key", (q) => q.eq("key", key))
+      .first();
+    const current = (existing?.value as number) || 0;
+    if (existing) {
+      await ctx.db.patch(existing._id, { value: current + 1, updatedAt: Date.now() });
+    } else {
+      await ctx.db.insert("system_config", { key, value: 1, description: `Active conversations for ${args.agentId}`, updatedAt: Date.now() });
+    }
+    return null;
+  },
+});
+
+export const _decrementAgentLoad = internalMutation({
+  args: { agentId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const key = `agent_active_conversations_${args.agentId}`;
+    const existing = await ctx.db
+      .query("system_config")
+      .withIndex("by_key", (q) => q.eq("key", key))
+      .first();
+    if (existing) {
+      const current = (existing.value as number) || 0;
+      await ctx.db.patch(existing._id, { value: Math.max(0, current - 1), updatedAt: Date.now() });
     }
     return null;
   },

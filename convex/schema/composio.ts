@@ -141,7 +141,8 @@ export const composioTables = {
   })
     .index("by_session", ["sessionId"])
     .index("by_user", ["userId"])
-    .index("by_agent", ["agentId"]),
+    .index("by_agent", ["agentId"])
+    .index("by_expires_at", ["expiresAt"]),
   composio_enhancement_logs: defineTable({
     action: v.string(), // "enable", "disable", "auto-configure", "enable-all", "disable-all"
     agentId: v.string(),

@@ -18,6 +18,9 @@ const HEADLINES = [
   "AI That Delivers Results",
   "Unlock Your Potential With AI",
   "Revolutionize Your Workflow",
+  "Built for Nigeria, Powered by AI",
+  "15 Agents, Infinite Possibilities",
+  "Your Business Deserves World-Class AI",
 ];
 
 const SUBHEADLINES = [
@@ -31,6 +34,9 @@ const SUBHEADLINES = [
   "From startup to enterprise — we scale with you",
   "The all-in-one AI business platform",
   "Real results, real fast",
+  "Kora Pay integration for seamless payments",
+  "WhatsApp support built right in",
+  "Naira pricing for the Nigerian market",
 ];
 
 const CTAS = [
