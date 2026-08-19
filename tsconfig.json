@@ -1,6 +1,6 @@
 {
   "include": ["**/*.ts", "**/*.tsx", "public/script*.js"],
-  "exclude": ["trypost", "node_modules", "convex"],
+  "exclude": ["trypost", "node_modules", "convex", "server/openwa", "server/openwa-server", "OpenMontage"],
   "compilerOptions": {
     "target": "ES2022",
     "jsx": "react-jsx",
