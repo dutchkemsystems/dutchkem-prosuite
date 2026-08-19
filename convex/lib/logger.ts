@@ -5,6 +5,10 @@
  * severity level, and structured (key-value) context. Additive only —
  * existing `console.*` calls across the codebase are untouched.
  *
+ * Edge-runtime safe: does not import any Node-API or native packages.
+ * Error monitoring lives on the frontend (Sentry in `src/main.tsx`);
+ * Convex errors surface through structured `console.error` output.
+ *
  * Rules:
  * - No `btoa` / `crypto` usage here.
  * - Safe to call from queries, mutations, actions, and crons.
@@ -13,25 +17,6 @@
 export type LogLevel = "debug" | "info" | "warn" | "error"
 
 const LEVEL_ORDER: Record<LogLevel, number> = { debug: 10, info: 20, warn: 30, error: 40 }
-
-let sentryRef: { captureException?: (e: unknown, h?: Record<string, unknown>) => void; captureMessage?: (m: string, h?: Record<string, unknown>) => void } | null = null
-
-/**
- * Optionally attaches Sentry as an error sink. Imported lazily so the
- * logger stays safe in edge-runtime / test environments where the
- * Sentry SDK may not be installed.
- */
-export function initLoggerSentry(dsn?: string): void {
-  if (!dsn || sentryRef) return
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const Sentry = require("@sentry/node")
-    Sentry.init({ dsn, tracesSampleRate: 0.1 })
-    sentryRef = Sentry
-  } catch {
-    sentryRef = null
-  }
-}
 
 function formatMeta(meta?: Record<string, unknown>): string {
   if (!meta) return ""
@@ -70,9 +55,6 @@ export function createLogger(module: string, options?: { minLevel?: LogLevel }):
         break
       case "error":
         console.error(line)
-        if (sentryRef?.captureMessage) {
-          sentryRef.captureMessage(`[${module}] ${message}`, { level: "error", extra: meta ?? {} })
-        }
         break
     }
   }

@@ -76,7 +76,7 @@ See `.env.example` for the full list (169 documented variables). Critical groups
 
 ## Monitoring & Alerting
 
-- **Sentry:** initialized in `src/main.tsx` from `VITE_SENTRY_DSN`; Convex errors can be forwarded via `initLoggerSentry(SENTRY_DSN)`.
+- **Sentry:** initialized in `src/main.tsx` from `VITE_SENTRY_DSN` (frontend).
 - **Structured logging:** `createLogger("module")` in `convex/lib/logger.ts` — levels `debug|info|warn|error`, key-value metadata, `sanitize()` redacts secrets, `withError()` normalizes errors.
 - **Health endpoint:** `GET /api/health` on the Convex site returns `{ status, timestamp, version }`.
 - **CI:** GitHub Actions runs Gitleaks secret scan + `npm audit` on every push.

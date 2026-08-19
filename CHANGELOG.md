@@ -38,9 +38,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
   shell + `useMimoData` hook + 17 per-tab components.
 - Extracted dashboard business logic into `src/lib/hooks/useDashboardData.ts` (one-shot fetch with
   15s timeout) and `useDashboardActions.ts` (2FA, password, referral payout, referral code).
-- Sentry error tracking: `@sentry/react` initialized in `src/main.tsx` from `VITE_SENTRY_DSN`;
-  `initLoggerSentry()` in `convex/lib/logger.ts` forwards Convex error logs to Sentry when
-  `SENTRY_DSN` is set.
+- Sentry error tracking: `@sentry/react` initialized in `src/main.tsx` from `VITE_SENTRY_DSN`
+  (frontend-only; the Convex logger stays edge-runtime safe with no Node API imports).
 - Component/hook tests added: `CompanyLogo.test.tsx`, `useDashboardData.test.tsx` (5 hook tests),
   plus existing `StatCard`/`BackToTop`/`HolidayBanner`/`TrustedLogos` — 21 frontend tests total.
 - `docs/OPERATIONS.md`: production context (1.5M clients, ₦23.6B monthly volume, 99.5% uptime),
