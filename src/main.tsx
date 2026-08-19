@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import * as Sentry from '@sentry/react'
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { QueryClient } from '@tanstack/react-query'
 import { routerWithQueryClient } from '@tanstack/react-router-with-query'
@@ -12,6 +13,16 @@ import '~/styles/app.css'
 const CONVEX_URL = import.meta.env.VITE_CONVEX_URL
 if (!CONVEX_URL || CONVEX_URL === 'https://your-project.convex.cloud') {
   console.error('VITE_CONVEX_URL is missing or is the placeholder value')
+}
+
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || import.meta.env.SENTRY_DSN
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    environment: import.meta.env.MODE || 'production',
+    tracesSampleRate: 0.1,
+    integrations: [Sentry.browserTracingIntegration()],
+  })
 }
 
 const convexQueryClient = new ConvexQueryClient(CONVEX_URL || 'https://placeholder.convex.cloud')

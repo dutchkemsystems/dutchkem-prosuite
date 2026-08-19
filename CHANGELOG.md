@@ -36,6 +36,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this p
   `integrations`, `ops`, `index`) — no schema change, verified identical table set.
 - Refactored `MimoControlPanel.tsx` monolith (~2,000 lines) into `src/components/admin/mimo/`
   shell + `useMimoData` hook + 17 per-tab components.
+- Extracted dashboard business logic into `src/lib/hooks/useDashboardData.ts` (one-shot fetch with
+  15s timeout) and `useDashboardActions.ts` (2FA, password, referral payout, referral code).
+- Sentry error tracking: `@sentry/react` initialized in `src/main.tsx` from `VITE_SENTRY_DSN`;
+  `initLoggerSentry()` in `convex/lib/logger.ts` forwards Convex error logs to Sentry when
+  `SENTRY_DSN` is set.
+- Component/hook tests added: `CompanyLogo.test.tsx`, `useDashboardData.test.tsx` (5 hook tests),
+  plus existing `StatCard`/`BackToTop`/`HolidayBanner`/`TrustedLogos` — 21 frontend tests total.
+- `docs/OPERATIONS.md`: production context (1.5M clients, ₦23.6B monthly volume, 99.5% uptime),
+  deployment runbook, monitoring, and environment variable reference.
+- `terraform/main.tf`: AWS ECS Fargate + ALB IaC for the frontend container.
+- `k8s/deployment.yaml`: Deployment, Service, Ingress (cert-manager), and HPA manifests.
+- README: CI/tests/security badges, one-command Docker quick start, testing section with live-test
+  env flags, and operational context.
 
 ### Changed
 

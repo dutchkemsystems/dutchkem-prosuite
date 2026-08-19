@@ -2,6 +2,7 @@ import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useConvexAuth, useConvex, useMutation, useAction } from "convex/react"
 import { useAuthActions } from "@convex-dev/auth/react"
 import React, { Suspense, useCallback, useEffect, useRef, useState } from "react"
+import { useDashboardData } from '~/lib/hooks/useDashboardData';
 import {
   CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis
@@ -112,7 +113,6 @@ function DashboardPage() {
 function DashboardContent() {
   const { signOut } = useAuthActions();
   const navigate = useNavigate();
-  const convexClient = useConvex();
   const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [modal, setModal] = useState<string | null>(null);
@@ -120,8 +120,6 @@ function DashboardContent() {
   const [passwordMessage, setPasswordMessage] = useState("");
   const [tfaMessage, setTfaMessage] = useState("");
   const [payoutMessage, setPayoutMessage] = useState("");
-  const [data, setData] = useState<any>(undefined);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [showAccessGranted, setShowAccessGranted] = useState(false);
   const [showAgentBrowser, setShowAgentBrowser] = useState(false);
   const [showCredits, setShowCredits] = useState(false);
@@ -129,32 +127,8 @@ function DashboardContent() {
   const [showSupport, setShowSupport] = useState(false);
   const [showOrchestrator, setShowOrchestrator] = useState(false);
   const [autoAgent, setAutoAgent] = useState<string | null>(null);
-  const fetchedRef = useRef(false);
 
-  const fetchDashboard = useCallback(async () => {
-    try {
-      setLoadError(null);
-      setData(undefined);
-      fetchedRef.current = false;
-      const result = await Promise.race([
-        convexClient.query(api.dashboard.getDashboardData),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Dashboard request timed out. Please refresh.")), 15000)
-        ),
-      ]);
-      setData(result);
-      fetchedRef.current = true;
-    } catch (err: any) {
-      console.error("[Dashboard] Fetch error:", err);
-      setLoadError(err?.message || "Failed to load dashboard");
-    }
-  }, [convexClient]);
-
-  useEffect(() => {
-    if (!fetchedRef.current) {
-      fetchDashboard();
-    }
-  }, [fetchDashboard]);
+  const { data, loadError, refetch: fetchDashboard, setData } = useDashboardData();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -340,8 +314,8 @@ function DashboardContent() {
               <HistoryPanel isOpen={true} onClose={() => setActiveTab("overview")} />
             </div>
           )}
-          {activeTab === "my-tasks" && user && (
-            <MyTasks userId={user._id} />
+          {activeTab === "my-tasks" && data?.user && (
+            <MyTasks userId={data.user._id} />
           )}
           {activeTab === "support" && (
             <div className="">
