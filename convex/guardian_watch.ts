@@ -119,7 +119,7 @@ export const testSecurityLayers = internalAction({
     try {
       // Validate crypto_pure functions work correctly
       const { hashPasswordPure, verifyPasswordPure } = await import("./crypto_pure");
-      const testPassword = "guardian-watch-test-2026";
+      const testPassword = process.env.GUARDIAN_WATCH_TEST_PASSWORD ?? `gw-test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
       // Hash and verify
       const hashed = await hashPasswordPure(testPassword);

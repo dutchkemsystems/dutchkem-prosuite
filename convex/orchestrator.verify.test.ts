@@ -5,6 +5,10 @@ import { describe, it, expect } from "vitest";
 // Validates all 9 providers are correctly configured
 // ═══════════════════════════════════════════════════════════════════
 
+// Live provider-health assertions depend on the deployed backend having
+// live API keys — gate them so the default `npm test` is deterministic.
+const RUN_E2E = process.env.RUN_E2E === "true";
+
 const CONVEX_URL = process.env.CONVEX_URL || "https://warmhearted-aardvark-280.convex.cloud";
 
 async function queryConvex(query: string, args: Record<string, any> = {}) {
@@ -26,7 +30,7 @@ async function queryConvex(query: string, args: Record<string, any> = {}) {
 // PROVIDER CONFIGURATION TEST
 // ═══════════════════════════════════════════════════════════════════
 
-describe("Provider Configuration — 9 Providers", () => {
+describe.skipIf(!RUN_E2E)("Provider Configuration — 9 Providers", () => {
   it("Returns all 9 providers with correct structure", async () => {
     const res = await queryConvex("model_orchestrator:getProviderHealth");
 
@@ -83,7 +87,7 @@ describe("Provider Configuration — 9 Providers", () => {
 // USE CASE MAPPING TEST
 // ═══════════════════════════════════════════════════════════════════
 
-describe("Use Case Mapping — 14 Use Cases", () => {
+describe.skipIf(!RUN_E2E)("Use Case Mapping — 14 Use Cases", () => {
   it("Has all 14 use cases", async () => {
     const res = await queryConvex("model_orchestrator:getUseCaseMapping");
     const useCases = Object.keys(res);

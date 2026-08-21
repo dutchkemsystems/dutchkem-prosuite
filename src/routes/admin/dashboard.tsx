@@ -51,7 +51,7 @@ const EnterprisePortalAdmin = React.lazy(() => import("~/components/enterprise/E
 const AdminEnterpriseHub = React.lazy(() => import("~/components/admin/AdminEnterpriseHub").then(m => ({ default: m.AdminEnterpriseHub })));
 const MimoControlPanel = React.lazy(() => import("~/components/admin/MimoControlPanel").then(m => ({ default: m.MimoControlPanel })));
 const RapidAPIFallbackDashboard = React.lazy(() => import("~/components/admin/RapidAPIFallbackDashboard").then(m => ({ default: m.RapidAPIFallbackDashboard })));
-const RevenueHub = React.lazy(() => import("~/components/admin/RevenueHub").then(m => ({ default: m.RevenueHub })));
+const RevenueHub = React.lazy(() => import("~/components/admin/revenue").then(m => ({ default: m.RevenueHub })));
 const AutoFlyerDashboard = React.lazy(() => import("~/components/admin/AutoFlyerDashboard"));
 const CurrencyConverter = React.lazy(() => import("~/components/admin/CurrencyConverter"));
 const AdAutomationHub = React.lazy(() => import("~/components/admin/enterprise/AdAutomationHub"));
