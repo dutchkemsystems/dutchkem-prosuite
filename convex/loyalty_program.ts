@@ -60,7 +60,7 @@ export const getLoyaltyStatus = query({
     const kyc = await ctx.db.query("client_kyc_submissions")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .first();
-    if (kyc && kyc.status === "verified") {
+    if (kyc && kyc.status === "approved") {
       totalPoints += POINTS.kyc_completed;
     }
 
@@ -89,7 +89,7 @@ export const getLoyaltyStatus = query({
         subscriptions: subscriptions.length * POINTS.subscription_purchase,
         referrals: referrals.length * POINTS.referral_success,
         projects: completedProjects.length * POINTS.project_completed,
-        kyc: kyc && kyc.status === "verified" ? POINTS.kyc_completed : 0,
+        kyc: kyc && kyc.status === "approved" ? POINTS.kyc_completed : 0,
         activity: recentProjects.length > 0 ? POINTS.monthly_active : 0,
       },
     };

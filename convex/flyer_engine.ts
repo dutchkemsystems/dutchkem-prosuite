@@ -475,10 +475,10 @@ export const getQueueItems = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    let q = ctx.db.query("flyer_posting_queue").withIndex("by_status");
-    if (args.status) {
-      q = q.eq("status", args.status);
-    }
+    const status = args.status;
+    const q = status
+      ? ctx.db.query("flyer_posting_queue").withIndex("by_status", (iq) => iq.eq("status", status))
+      : ctx.db.query("flyer_posting_queue").withIndex("by_status");
     return await q.order("asc").take(args.limit || 50);
   },
 });

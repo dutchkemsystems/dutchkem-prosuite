@@ -173,8 +173,9 @@ export const getExistingAlert = internalQuery({
     
     const results = await ctx.db.query("ad_budget_alerts")
       .withIndex("by_campaign_platform_alertType", (q) =>
-        q.eq("campaignId", args.campaignId).eq("platform", args.platform).eq("alertType", args.alertType).gte("createdAt", startOfDay)
+        q.eq("campaignId", args.campaignId).eq("platform", args.platform).eq("alertType", args.alertType as "threshold_reached" | "budget_exceeded" | "auto_paused" | "optimization_applied")
       )
+      .filter((r) => r.gte(r.field("createdAt"), startOfDay))
       .take(5);
     return results.find((r) => r.createdAt < endOfDay) ?? null;
   },
@@ -185,7 +186,7 @@ export const createAlert = internalMutation({
     campaignId: v.id("ad_campaigns"),
     platform: v.string(),
     ruleId: v.id("ad_budget_rules"),
-    alertType: v.string(),
+    alertType: v.union(v.literal("threshold_reached"), v.literal("budget_exceeded"), v.literal("auto_paused"), v.literal("optimization_applied")),
     message: v.string(),
     currentSpend: v.number(),
     budgetLimit: v.number(),
@@ -275,8 +276,8 @@ export const autoOptimizeBudgets = internalAction({
       perf.score = (ctr * 1000) + (roas * 100) + (1 / Math.max(cpa, 1)) * 50;
     }
 
-    const totalBudget = rules.reduce((sum, r) => sum + r.currentDailyBudget, 0);
-    const totalScore = rules.reduce((sum, r) => {
+    const totalBudget = rules.reduce((sum: number, r: { currentDailyBudget: number }) => sum + r.currentDailyBudget, 0);
+    const totalScore = rules.reduce((sum: number, r: { platform: string }) => {
       const perf = platformPerf[r.platform];
       return sum + (perf?.score || 1);
     }, 0);
@@ -438,11 +439,11 @@ export const optimizeBudgets = mutation({
 export const checkCampaignBudgetAlerts = action({
   args: { adminToken: v.string(), campaignId: v.id("ad_campaigns") },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { authError: true };
 
-    const result = await ctx.runAction(internal.ad_budget.checkBudgetAlerts, { campaignId: args.campaignId });
+    const result: any = await ctx.runAction(internal.ad_budget.checkBudgetAlerts, { campaignId: args.campaignId });
     return result;
   },
 });

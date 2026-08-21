@@ -148,9 +148,13 @@ export const adminListKycSubmissions = query({
       const identity = await tryGetAdminSession(ctx, args.adminToken);
       if (!identity) return [];
 
-      let q = ctx.db.query("client_kyc_submissions").order("desc");
-      if (args.status) q = q.withIndex("by_status", (iq) => iq.eq("status", args.status as any));
-      return await q.take(100);
+      if (args.status) {
+        return await ctx.db.query("client_kyc_submissions")
+          .withIndex("by_status", (iq) => iq.eq("status", args.status as "not_submitted" | "pending" | "approved" | "rejected" | "expired"))
+          .order("desc")
+          .take(100);
+      }
+      return await ctx.db.query("client_kyc_submissions").order("desc").take(100);
     } catch (e) {
       console.error("[client_kyc] adminListKycSubmissions error:", e);
       return [];

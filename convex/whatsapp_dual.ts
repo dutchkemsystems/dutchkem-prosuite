@@ -537,14 +537,14 @@ export const sendWhatsAppMessage = action({
     adminToken: v.optional(v.string()),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     // Master kill switch check
     if (!isWhatsAppEnabled()) {
       return { success: false, error: "WhatsApp is disabled via environment variable (WHATSAPP_ENABLED=false)" };
     }
 
     // Check if system is enabled
-    const status = await ctx.runQuery(internal.whatsapp_dual.getSystemStatus, {
+    const status: any = await ctx.runQuery(internal.whatsapp_dual.getSystemStatus, {
       systemType: args.systemType,
     });
     if (!status.status?.isEnabled) {
@@ -552,7 +552,7 @@ export const sendWhatsAppMessage = action({
     }
 
     // Check blacklist
-    const blocked = await ctx.runQuery(internal.whatsapp_dual.isNumberBlocked, {
+    const blocked: any = await ctx.runQuery(internal.whatsapp_dual.isNumberBlocked, {
       phoneNumber: args.phoneNumber,
     });
     if (blocked) {
@@ -560,7 +560,7 @@ export const sendWhatsAppMessage = action({
     }
 
     // Health check: Verify OpenWA server is connected
-    const health = await ctx.runQuery(internal.whatsapp_openwa.checkServerHealth, {
+    const health: any = await ctx.runQuery(internal.whatsapp_openwa.checkServerHealth, {
       sessionType: args.systemType,
     });
     if (!health.canSendMessages) {
@@ -573,7 +573,7 @@ export const sendWhatsAppMessage = action({
     }
 
     // Forward to existing integration
-    const result = await ctx.runAction(
+    const result: any = await ctx.runAction(
       (await import("./_generated/api")).internal.whatsapp_integration.sendWhatsAppMessage as any,
       {
         adminToken: args.adminToken || "",

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action, internalMutation, internalQuery, query } from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // VIDEO PRODUCTION PIPELINE — REAL VIDEO GENERATION
@@ -53,7 +54,7 @@ Style: ${args.style || "modern"}
 
 Return JSON with: title, synopsis, scenes[] (each with: sceneNumber, visualDescription, narration, durationSeconds, cameraMovement).`;
 
-      const storyResult = await generateStoryWithAI(storyPrompt);
+      const storyResult = await generateStoryWithAI(ctx, storyPrompt);
 
       const storyId = await ctx.runMutation(internal.video_production.saveStory, {
         userId: "admin",
@@ -196,6 +197,7 @@ export const produceFullVideo = action({
     prompt: v.string(),
     genre: v.optional(v.string()),
     targetDuration: v.optional(v.number()),
+    style: v.optional(v.string()),
     quality: v.optional(v.string()),
     outputFormat: v.optional(v.string()),
     includeAudio: v.optional(v.boolean()),
@@ -205,7 +207,7 @@ export const produceFullVideo = action({
   handler: async (ctx, args) => {
     try {
       // Step 1: Generate AI script via NVIDIA
-      const storyResult = await generateStoryWithAI(args.prompt);
+      const storyResult = await generateStoryWithAI(ctx, args.prompt);
       const title = storyResult.title || "DutchKem Video";
       const synopsis = storyResult.synopsis || args.prompt;
       const targetDuration = args.targetDuration || 30;
@@ -511,7 +513,7 @@ async function generateNarration(text: string): Promise<string | null> {
 // CANVAS FALLBACK VIDEO
 // ═══════════════════════════════════════════════════════════════════
 
-function generateCanvasVideo(prompt: string, quality: string): string {
+export function generateCanvasVideo(prompt: string, quality: string): string {
   const lines = prompt.split(/\s+/);
   const title = lines.slice(0, 6).join(" ");
   const tagline = lines.slice(6, 12).join(" ") || "Experience the Future";
@@ -638,7 +640,7 @@ animate();
 // AI STORY GENERATION
 // ═══════════════════════════════════════════════════════════════════
 
-async function generateStoryWithAI(prompt: string) {
+async function generateStoryWithAI(ctx: any, prompt: string) {
   // Tier 1: Tencent Hy3 (Free) - for script generation
   try {
     const tencentResult = await ctx.runAction(internal.freellmapi.chatCompletion, {
@@ -770,7 +772,7 @@ export const saveSceneVideo = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const story = await ctx.db.get(args.storyId);
+    const story = await ctx.db.get("video_productions", args.storyId as Id<"video_productions">);
     if (!story) return;
 
     const scenes = [...(story.storyData?.scenes || [])];
@@ -778,7 +780,7 @@ export const saveSceneVideo = internalMutation({
       scenes[args.sceneIndex] = { ...scenes[args.sceneIndex], videoUrl: args.videoUrl };
     }
 
-    await ctx.db.patch(args.storyId, {
+    await ctx.db.patch(args.storyId as Id<"video_productions">, {
       storyData: { ...story.storyData, scenes },
       status: "scenes_complete",
       updatedAt: Date.now(),
@@ -786,7 +788,7 @@ export const saveSceneVideo = internalMutation({
 
     // If this is the first scene, set as final video URL too
     if (args.sceneIndex === 0) {
-      await ctx.db.patch(args.storyId, {
+      await ctx.db.patch(args.storyId as Id<"video_productions">, {
         finalVideoUrl: args.videoUrl,
         status: "completed",
         completedAt: Date.now(),
@@ -800,7 +802,7 @@ export const getStory = internalQuery({
   args: { storyId: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {
-    return await ctx.db.get("video_productions", args.storyId);
+    return await ctx.db.get("video_productions", args.storyId as Id<"video_productions">);
   },
 });
 
@@ -822,7 +824,7 @@ export const getProduction = query({
   args: { productionId: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {
-    return await ctx.db.get("video_productions", args.productionId);
+    return await ctx.db.get("video_productions", args.productionId as Id<"video_productions">);
   },
 });
 

@@ -18,16 +18,16 @@ export const sendBudgetAlertEmail = internalAction({
     percentUsed: v.number(),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     // Get campaign details
-    const campaign = await ctx.runQuery(internal.ad_alerts.getCampaignForAlert, { campaignId: args.campaignId });
+    const campaign: any = await ctx.runQuery(internal.ad_alerts.getCampaignForAlert, { campaignId: args.campaignId });
     if (!campaign) return { error: "Campaign not found" };
 
     // Get admin email
     const adminEmail = process.env.ALERT_EMAIL || "admin@dutchkem.com";
     
     // Format the email content
-    const subject = `⚠️ Budget Alert: ${args.alertType.replace(/_/g, " ").toUpperCase()} - ${campaign.name || "Campaign"}`;
+    const subject: string = `⚠️ Budget Alert: ${args.alertType.replace(/_/g, " ").toUpperCase()} - ${campaign.name || "Campaign"}`;
     
     const htmlContent = `
       <!DOCTYPE html>
@@ -97,7 +97,7 @@ export const sendBudgetAlertEmail = internalAction({
     const resendKey = process.env.RESEND_API_KEY;
     if (resendKey) {
       try {
-        const response = await fetch("https://api.resend.com/emails", {
+        const response: Response = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${resendKey}`,
@@ -112,7 +112,7 @@ export const sendBudgetAlertEmail = internalAction({
         });
 
         if (response.ok) {
-          const result = await response.json();
+          const result: any = await response.json();
           
           // Log the email send
           await ctx.runMutation(internal.ad_alerts.logAlertEmail, {
@@ -198,7 +198,6 @@ export const createPushNotification = internalMutation({
       title: args.title,
       message: args.message,
       type: args.type,
-      data: args.data,
       read: false,
       createdAt: Date.now(),
     });
@@ -295,11 +294,14 @@ export const getAlertHistory = query({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return [];
 
-    let q = ctx.db.query("ad_alert_emails").order("desc");
-    if (args.campaignId) {
-      q = q.withIndex("by_campaign", (iq) => iq.eq("campaignId", args.campaignId));
+    const campaignId = args.campaignId;
+    if (campaignId) {
+      return await ctx.db.query("ad_alert_emails")
+        .withIndex("by_campaign", (iq) => iq.eq("campaignId", campaignId))
+        .order("desc")
+        .take(args.limit || 50);
     }
 
-    return await q.take(args.limit || 50);
+    return await ctx.db.query("ad_alert_emails").order("desc").take(args.limit || 50);
   },
 });

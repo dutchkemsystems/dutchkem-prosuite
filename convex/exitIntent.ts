@@ -186,7 +186,8 @@ export const getPopupAnalytics = query({
       if (!stats.byType[popup.popupType]) {
         stats.byType[popup.popupType] = { shown: 0, dismissed: 0, converted: 0 };
       }
-      stats.byType[popup.popupType][popup.action]++;
+      const actionKey = popup.action as "shown" | "dismissed" | "converted";
+      stats.byType[popup.popupType][actionKey]++;
     }
 
     stats.conversionRate =

@@ -129,6 +129,7 @@ export const whatsappTables = {
     retryCount: v.number(),
     createdAt: v.number(),
     sentAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
   }).index("by_status", ["status"])
     .index("by_session", ["sessionType"])
     .index("by_created", ["createdAt"])

@@ -161,7 +161,7 @@ export const getAutoHealStats = query({
 
     // Count secrets detected
     const recentSecrets = await ctx.db.query("auto_heal_secrets")
-      .withIndex("by_run", (q) => q.gt("runId", ""))
+      .order("desc")
       .take(100);
 
     // Latest run
@@ -231,7 +231,7 @@ export const getSecurityDashboard = query({
     // Aggregate by component
     const frontendThreats = secLogs.filter(l => l.path?.startsWith("/api/") || l.path?.includes("xss") || l.path?.includes("csrf"));
     const backendThreats = secLogs.filter(l => l.path?.includes("admin") || l.path?.includes("config") || l.path?.includes("env"));
-    const agentThreats = mimoEvents.filter(e => e.eventType === "prompt_injection" || e.eventType === "data_exfiltration");
+    const agentThreats = mimoEvents.filter(e => e.eventType === "prompt_injection" || e.eventType === "data_exfiltration" || e.eventType === "injection_attempt" || e.eventType === "data_breach");
     const dashboardThreats = secLogs.filter(l => l.path?.includes("dashboard") || l.path?.includes("scan"));
 
     // Attack type breakdown
@@ -275,7 +275,7 @@ export const getSecurityDashboard = query({
       attackTypes,
       rateLimitedIps,
       recentEvents: [...mimoEvents.slice(0, 20), ...secLogs.slice(0, 20)]
-        .sort((a, b) => (b.timestamp || b.createdAt || 0) - (a.timestamp || a.createdAt || 0))
+        .sort((a, b) => ((b as any).timestamp || (b as any).createdAt || 0) - ((a as any).timestamp || (a as any).createdAt || 0))
         .slice(0, 30),
       activeBlocks: activeBlocks.slice(0, 20),
     };
@@ -373,7 +373,7 @@ export const logThreat = mutation({
     const now = Date.now();
 
     await ctx.db.insert("mimo_security_events", {
-      eventType: args.eventType,
+      eventType: args.eventType as any,
       severity: args.severity,
       source: args.source,
       description: args.description,

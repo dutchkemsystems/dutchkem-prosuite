@@ -65,7 +65,7 @@ export const createNewAdDesign = action({
     })),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { error: "Unauthorized" };
 
@@ -116,7 +116,7 @@ export const createNewAdDesign = action({
     });
 
     // Save design to database
-    const savedDesign = await ctx.runMutation(internal.ad_designer.saveDesign, {
+    const savedDesign: any = await ctx.runMutation(internal.ad_designer.saveDesign, {
       id: designData.id,
       headline: designData.headline,
       subheadline: designData.subheadline,
@@ -346,7 +346,7 @@ export const saveDesign = internalMutation({
       targetAudience: "general",
       url: args.url,
       socialPosts: [],
-      status: args.status,
+      status: args.status as "pending" | "approved" | "rejected" | "posted" | "ready",
       usedCount: 0,
       createdAt: args.createdAt,
     });

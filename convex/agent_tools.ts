@@ -1,10 +1,15 @@
-import { createTool } from "@convex-dev/agent";
-import { v } from "convex/values";
+﻿import { createTool } from "@convex-dev/agent";
+import { v, type Infer, type Validator } from "convex/values";
 import type { ToolCtx } from "@convex-dev/agent";
+import type { FlexibleSchema } from "@ai-sdk/provider-utils";
 
-// ═══════════════════════════════════════════════════════════════════
-// AGENT TOOLS — PDF Generation, DOCX Generation, Real-Time Data
-// ═══════════════════════════════════════════════════════════════════
+function convexSchema<T extends Validator<any, any, any>>(validator: T): FlexibleSchema<Infer<T>> {
+  return validator as unknown as FlexibleSchema<Infer<T>>;
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// AGENT TOOLS â€” PDF Generation, DOCX Generation, Real-Time Data
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Tool 1: Generate a PDF document from structured content
@@ -12,7 +17,7 @@ import type { ToolCtx } from "@convex-dev/agent";
 export const generatePDFTool = createTool({
   description: "Generate a professional PDF document from structured content. Use this when the user asks for a PDF, report, document, or downloadable file. Returns a base64-encoded PDF string.",
   title: "Generate PDF",
-  inputSchema: v.object({
+  inputSchema: convexSchema(v.object({
     title: v.string(),
     content: v.string(),
     sections: v.optional(v.array(v.object({
@@ -20,13 +25,13 @@ export const generatePDFTool = createTool({
       content: v.string(),
     }))),
     metadata: v.optional(v.record(v.string(), v.string())),
-  }),
-  outputSchema: v.object({
+  })),
+  outputSchema: convexSchema(v.object({
     success: v.boolean(),
     pdfBase64: v.optional(v.string()),
     fileName: v.string(),
     error: v.optional(v.string()),
-  }),
+  })),
   execute: async (ctx, input) => {
     try {
       const { jsPDF } = await import("jspdf");
@@ -112,20 +117,20 @@ export const generatePDFTool = createTool({
 export const generateDOCXTool = createTool({
   description: "Generate a professional Word document (DOCX) from structured content. Use this when the user asks for a Word document, .docx file, or professional document format.",
   title: "Generate DOCX",
-  inputSchema: v.object({
+  inputSchema: convexSchema(v.object({
     title: v.string(),
     content: v.string(),
     sections: v.optional(v.array(v.object({
       heading: v.string(),
       content: v.string(),
     }))),
-  }),
-  outputSchema: v.object({
+  })),
+  outputSchema: convexSchema(v.object({
     success: v.boolean(),
     docxBase64: v.optional(v.string()),
     fileName: v.string(),
     error: v.optional(v.string()),
-  }),
+  })),
   execute: async (ctx, input) => {
     try {
       const docx = await import("docx");
@@ -198,11 +203,11 @@ export const generateDOCXTool = createTool({
 export const webSearchTool = createTool({
   description: "Search the web for real-time information. Use this when the user asks about current events, prices, statistics, or any information that requires up-to-date data from the internet.",
   title: "Web Search",
-  inputSchema: v.object({
+  inputSchema: convexSchema(v.object({
     query: v.string(),
     numResults: v.optional(v.number()),
-  }),
-  outputSchema: v.object({
+  })),
+  outputSchema: convexSchema(v.object({
     success: v.boolean(),
     results: v.array(v.object({
       title: v.string(),
@@ -210,7 +215,7 @@ export const webSearchTool = createTool({
       snippet: v.string(),
     })),
     error: v.optional(v.string()),
-  }),
+  })),
   execute: async (ctx, input) => {
     try {
       const numResults = input.numResults || 5;
@@ -271,19 +276,19 @@ export const webSearchTool = createTool({
 export const exchangeRateTool = createTool({
   description: "Get current exchange rates between currencies. Use this when the user asks about currency conversion, exchange rates, or forex information.",
   title: "Exchange Rate",
-  inputSchema: v.object({
+  inputSchema: convexSchema(v.object({
     fromCurrency: v.string(),
     toCurrency: v.string(),
     amount: v.optional(v.number()),
-  }),
-  outputSchema: v.object({
+  })),
+  outputSchema: convexSchema(v.object({
     success: v.boolean(),
     fromCurrency: v.string(),
     toCurrency: v.string(),
     rate: v.number(),
     convertedAmount: v.optional(v.number()),
     error: v.optional(v.string()),
-  }),
+  })),
   execute: async (ctx, input) => {
     try {
       const from = input.fromCurrency.toUpperCase();
@@ -332,10 +337,10 @@ export const exchangeRateTool = createTool({
 export const weatherTool = createTool({
   description: "Get current weather information for a location. Use this when the user asks about weather, temperature, or climate conditions for travel planning or event planning.",
   title: "Weather Info",
-  inputSchema: v.object({
+  inputSchema: convexSchema(v.object({
     location: v.string(),
-  }),
-  outputSchema: v.object({
+  })),
+  outputSchema: convexSchema(v.object({
     success: v.boolean(),
     location: v.string(),
     temperature: v.optional(v.string()),
@@ -343,7 +348,7 @@ export const weatherTool = createTool({
     humidity: v.optional(v.string()),
     wind: v.optional(v.string()),
     error: v.optional(v.string()),
-  }),
+  })),
   execute: async (ctx, input) => {
     try {
       const response = await fetch(
@@ -363,7 +368,7 @@ export const weatherTool = createTool({
       return {
         success: true,
         location: input.location,
-        temperature: `${current.temp_C}°C / ${current.temp_F}°F`,
+        temperature: `${current.temp_C}Â°C / ${current.temp_F}Â°F`,
         condition: current.weatherDesc?.[0]?.value || "Unknown",
         humidity: `${current.humidity}%`,
         wind: `${current.windspeedKmph} km/h ${current.winddir16Point}`,
@@ -384,11 +389,11 @@ export const weatherTool = createTool({
 export const stockPriceTool = createTool({
   description: "Look up current stock or cryptocurrency prices. Use this when the user asks about stock prices, market data, or investment information.",
   title: "Stock Price",
-  inputSchema: v.object({
+  inputSchema: convexSchema(v.object({
     symbol: v.string(),
     type: v.optional(v.union(v.literal("stock"), v.literal("crypto"))),
-  }),
-  outputSchema: v.object({
+  })),
+  outputSchema: convexSchema(v.object({
     success: v.boolean(),
     symbol: v.string(),
     name: v.optional(v.string()),
@@ -396,7 +401,7 @@ export const stockPriceTool = createTool({
     currency: v.optional(v.string()),
     change24h: v.optional(v.string()),
     error: v.optional(v.string()),
-  }),
+  })),
   execute: async (ctx, input) => {
     try {
       const symbol = input.symbol.toUpperCase();
@@ -466,16 +471,16 @@ export const stockPriceTool = createTool({
 export const formatTableTool = createTool({
   description: "Format data into a structured table. Use this when the user asks for tabular data, comparisons, or structured formatting.",
   title: "Format Table",
-  inputSchema: v.object({
+  inputSchema: convexSchema(v.object({
     headers: v.array(v.string()),
     rows: v.array(v.array(v.string())),
     title: v.optional(v.string()),
-  }),
-  outputSchema: v.object({
+  })),
+  outputSchema: convexSchema(v.object({
     success: v.boolean(),
     markdown: v.string(),
     html: v.string(),
-  }),
+  })),
   execute: async (ctx, input) => {
     const { headers, rows, title } = input;
 
@@ -510,18 +515,18 @@ export const formatTableTool = createTool({
 export const nigeriaBusinessLookupTool = createTool({
   description: "Look up Nigerian business information including CAC registration, bank verification, and business data. Use this when users ask about Nigerian business verification or registration.",
   title: "Nigeria Business Lookup",
-  inputSchema: v.object({
+  inputSchema: convexSchema(v.object({
     query: v.string(),
     type: v.union(v.literal("cac"), v.literal("business_name"), v.literal("general")),
-  }),
-  outputSchema: v.object({
+  })),
+  outputSchema: convexSchema(v.object({
     success: v.boolean(),
     results: v.array(v.object({
       title: v.string(),
       detail: v.string(),
     })),
     error: v.optional(v.string()),
-  }),
+  })),
   execute: async (ctx, input) => {
     try {
       // For CAC lookups, we'd integrate with the CAC API when available
@@ -566,7 +571,7 @@ export const nigeriaBusinessLookupTool = createTool({
 export const generateXLSXTool = createTool({
   description: "Generate an Excel spreadsheet (XLSX) from structured data. Use this when the user asks for spreadsheets, financial data, budgets, or tabular data in Excel format.",
   title: "Generate Excel",
-  inputSchema: v.object({
+  inputSchema: convexSchema(v.object({
     title: v.string(),
     content: v.string(),
     tables: v.optional(v.array(v.object({
@@ -575,13 +580,13 @@ export const generateXLSXTool = createTool({
       rows: v.array(v.array(v.string())),
     }))),
     metadata: v.optional(v.record(v.string(), v.string())),
-  }),
-  outputSchema: v.object({
+  })),
+  outputSchema: convexSchema(v.object({
     success: v.boolean(),
     xlsxBase64: v.optional(v.string()),
     fileName: v.string(),
     error: v.optional(v.string()),
-  }),
+  })),
   execute: async (ctx, input) => {
     try {
       const ExcelJS = await import("exceljs");
@@ -671,7 +676,7 @@ export const generateXLSXTool = createTool({
 export const generatePPTXTool = createTool({
   description: "Generate a PowerPoint presentation (PPTX) from structured content. Use this when the user asks for presentations, slide decks, or pitch decks.",
   title: "Generate PowerPoint",
-  inputSchema: v.object({
+  inputSchema: convexSchema(v.object({
     title: v.string(),
     content: v.string(),
     sections: v.optional(v.array(v.object({
@@ -679,13 +684,13 @@ export const generatePPTXTool = createTool({
       content: v.string(),
     }))),
     metadata: v.optional(v.record(v.string(), v.string())),
-  }),
-  outputSchema: v.object({
+  })),
+  outputSchema: convexSchema(v.object({
     success: v.boolean(),
     pptxBase64: v.optional(v.string()),
     fileName: v.string(),
     error: v.optional(v.string()),
-  }),
+  })),
   execute: async (ctx, input) => {
     try {
       const PptxGenJS = await import("pptxgenjs");
@@ -814,18 +819,18 @@ export const generatePPTXTool = createTool({
 export const generateMP3Tool = createTool({
   description: "Generate an audio file (MP3) from text using text-to-speech. Use this when the user asks for audio narration, voiceover, or podcast-style content.",
   title: "Generate Audio",
-  inputSchema: v.object({
+  inputSchema: convexSchema(v.object({
     title: v.string(),
     content: v.string(),
     language: v.optional(v.string()),
-  }),
-  outputSchema: v.object({
+  })),
+  outputSchema: convexSchema(v.object({
     success: v.boolean(),
     mp3Base64: v.optional(v.string()),
     fileName: v.string(),
     duration: v.optional(v.string()),
     error: v.optional(v.string()),
-  }),
+  })),
   execute: async (ctx, input) => {
     try {
       // Note: Full TTS requires a service like ElevenLabs, Google TTS, or AWS Polly
@@ -855,7 +860,7 @@ export const generateMP3Tool = createTool({
 export const generateMP4Tool = createTool({
   description: "Generate a video script and production plan for MP4 video creation. Use this when the user asks for video content, video scripts, or video production plans.",
   title: "Generate Video Script",
-  inputSchema: v.object({
+  inputSchema: convexSchema(v.object({
     title: v.string(),
     content: v.string(),
     sections: v.optional(v.array(v.object({
@@ -863,8 +868,8 @@ export const generateMP4Tool = createTool({
       content: v.string(),
     }))),
     duration: v.optional(v.string()),
-  }),
-  outputSchema: v.object({
+  })),
+  outputSchema: convexSchema(v.object({
     success: v.boolean(),
     script: v.string(),
     scenes: v.array(v.object({
@@ -876,7 +881,7 @@ export const generateMP4Tool = createTool({
     totalDuration: v.string(),
     fileName: v.string(),
     error: v.optional(v.string()),
-  }),
+  })),
   execute: async (ctx, input) => {
     try {
       const contentLines = input.content.split("\n").filter((l) => l.trim());

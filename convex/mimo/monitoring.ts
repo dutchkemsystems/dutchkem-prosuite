@@ -293,9 +293,9 @@ export const getRecentLogs = query({
       stats: {
         total: logs.length,
         critical: logs.filter((l) => l.level === "critical").length,
-        error: logs.filter((l) => l.level === "high" || l.level === "error").length,
-        warning: logs.filter((l) => l.level === "medium" || l.level === "warning").length,
-        info: logs.filter((l) => l.level === "low" || l.level === "info").length,
+        error: logs.filter((l) => (l.level as string) === "high" || (l.level as string) === "error").length,
+        warning: logs.filter((l) => (l.level as string) === "medium" || (l.level as string) === "warning").length,
+        info: logs.filter((l) => (l.level as string) === "low" || (l.level as string) === "info").length,
       },
     };
   },
@@ -504,7 +504,7 @@ export const getApiHealth = query({
 // AGENT CHAT TESTING — Test all 15 agents with sample questions
 // ═══════════════════════════════════════════════════════════════════
 
-const AGENT_TEST_CONFIG = [
+export const AGENT_TEST_CONFIG = [
   {
     id: "A1", name: "Academic Writer", module: "academic_chat",
     questions: [

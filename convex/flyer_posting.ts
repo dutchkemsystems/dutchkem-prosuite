@@ -168,10 +168,10 @@ export const postViaSocialEngine = internalAction({
     content: v.string(),
     imageUrl: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     try {
       // Try social engine directly (works with system-level connection lookup)
-      const result = await ctx.runAction(api.social.postToPlatform, {
+      const result: any = await ctx.runAction(api.social.postToPlatform, {
         platform: args.platform,
         content: args.content,
         mediaUrls: [args.imageUrl],

@@ -224,7 +224,7 @@ export const getSchedulingRecommendations = query({
 
     let q = args.platform
       ? ctx.db.query("ad_scheduling_recommendations")
-          .withIndex("by_campaign_platform", (q) => q.eq("campaignId", args.campaignId).eq("platform", args.platform))
+          .withIndex("by_campaign_platform", (q) => q.eq("campaignId", args.campaignId).eq("platform", args.platform!))
       : ctx.db.query("ad_scheduling_recommendations")
           .withIndex("by_campaign", (q) => q.eq("campaignId", args.campaignId));
 

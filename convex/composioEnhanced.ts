@@ -711,7 +711,13 @@ export const _logCatalogRefresh = internalMutation({
     await ctx.db.insert("composio_enhancement_logs", {
       agentId: "system",
       action: "catalog_refresh",
-      details: JSON.stringify({ toolkitsFound: args.toolkitsFound, error: args.error }),
+      agentName: "system",
+      tools: [],
+      toolCount: 0,
+      previousState: false,
+      newState: false,
+      bulkOperation: true,
+      metadata: JSON.stringify({ toolkitsFound: args.toolkitsFound, error: args.error }),
       adminId: "cron",
       timestamp: Date.now(),
     });

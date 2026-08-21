@@ -3,7 +3,7 @@ import { action, internalMutation, internalQuery, mutation, query } from "../_ge
 import { internal } from "../_generated/api";
 import { tryGetAdminSession, tryGetAdminSessionInAction } from "../auth_helpers";
 import { PLATFORM_CONFIGS, SUPPORTED_PLATFORMS, TRYPOST_PLATFORMS } from "./platform_configs";
-import { uuidV4, generateCodeVerifier, generateCodeChallenge, getPlatformClientId, getPlatformClientSecret, getRedirectUri, exchangeCodeForToken, fetchUserInfo } from "./platform_actions";
+import { uuidV4, generateCodeVerifier, generateCodeChallenge, getPlatformClientId, getPlatformClientSecret, getRedirectUri, exchangeCodeForToken, fetchUserInfo, postToPlatformApi, postViaRapidAPIFallback } from "./platform_actions";
 
 export const generateOAuthUrl = action({
   args: {

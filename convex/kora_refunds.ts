@@ -121,7 +121,7 @@ export const storeRefund = internalMutation({
       reason: args.reason,
       adminId: args.adminId,
       koraRefundId: args.koraRefundId,
-      status: args.status,
+      status: args.status as "processing" | "completed" | "failed",
       createdAt: Date.now(),
     });
     return null;
@@ -145,7 +145,7 @@ export const handleRefundWebhook = internalMutation({
 
     for (const refund of refunds) {
       await ctx.db.patch("kora_refunds", refund._id, {
-        status: args.status,
+        status: args.status as "processing" | "completed" | "failed",
         completedAt: args.status === "completed" ? Date.now() : undefined,
         rawPayload: args.rawPayload,
       });
@@ -198,8 +198,9 @@ export const reverseCredits = internalMutation({
       // Log credit reversal
       await ctx.db.insert("credit_transactions", {
         userId: args.userId,
-        type: "reversal",
+        transactionType: "reversal",
         amount: -args.credits,
+        description: "Credit reversal for refund",
         reference: args.reference,
         createdAt: Date.now(),
       });

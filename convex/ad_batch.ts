@@ -354,11 +354,14 @@ export const getBatchOperations = query({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return [];
 
-    let q = ctx.db.query("ad_batch_operations").order("desc");
-    if (args.campaignId) {
-      q = q.withIndex("by_campaign", (iq) => iq.eq("campaignId", args.campaignId));
+    const campaignId = args.campaignId;
+    if (campaignId) {
+      return await ctx.db.query("ad_batch_operations")
+        .withIndex("by_campaign", (iq) => iq.eq("campaignId", campaignId))
+        .order("desc")
+        .take(args.limit || 20);
     }
 
-    return await q.take(args.limit || 20);
+    return await ctx.db.query("ad_batch_operations").order("desc").take(args.limit || 20);
   },
 });

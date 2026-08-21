@@ -1,18 +1,19 @@
-import { v } from "convex/values";
+﻿import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { tryGetAdminSession } from "./auth_helpers";
+import type { Id } from "./_generated/dataModel";
 
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // REFERRAL WITHDRAWAL SYSTEM
-// Clients earn from referrals, withdraw when balance reaches ₦15,000
+// Clients earn from referrals, withdraw when balance reaches â‚¦15,000
 // Admin charges 15% service fee, releases remaining to client
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 const MINIMUM_WITHDRAWAL = 15000;
 const SERVICE_FEE_PERCENT = 15;
 
-// ─── GET CLIENT REFERRAL BALANCE ───
+// â”€â”€â”€ GET CLIENT REFERRAL BALANCE â”€â”€â”€
 
 export const getClientReferralBalance = query({
   args: { userId: v.string() },
@@ -63,7 +64,7 @@ export const getClientReferralBalance = query({
   },
 });
 
-// ─── INITIATE WITHDRAWAL REQUEST ───
+// â”€â”€â”€ INITIATE WITHDRAWAL REQUEST â”€â”€â”€
 
 export const initiateWithdrawal = mutation({
   args: {
@@ -103,12 +104,12 @@ export const initiateWithdrawal = mutation({
 
     // Check minimum
     if (balance < MINIMUM_WITHDRAWAL) {
-      throw new Error(`Minimum withdrawal is ₦${MINIMUM_WITHDRAWAL.toLocaleString()}. Your balance: ₦${balance.toLocaleString()}`);
+      throw new Error(`Minimum withdrawal is â‚¦${MINIMUM_WITHDRAWAL.toLocaleString()}. Your balance: â‚¦${balance.toLocaleString()}`);
     }
 
     // Check if amount exceeds balance
     if (args.amount > balance) {
-      throw new Error(`Insufficient balance. Available: ₦${balance.toLocaleString()}`);
+      throw new Error(`Insufficient balance. Available: â‚¦${balance.toLocaleString()}`);
     }
 
     // Calculate fees
@@ -133,7 +134,7 @@ export const initiateWithdrawal = mutation({
     await ctx.db.insert("notifications", {
       userId: "admin",
       title: "New Withdrawal Request",
-      message: `Client requested ₦${args.amount.toLocaleString()} withdrawal. Service fee: ₦${serviceFee.toLocaleString()}. Net: ₦${netAmount.toLocaleString()}`,
+      message: `Client requested â‚¦${args.amount.toLocaleString()} withdrawal. Service fee: â‚¦${serviceFee.toLocaleString()}. Net: â‚¦${netAmount.toLocaleString()}`,
       type: "withdrawal",
       read: false,
       createdAt: Date.now(),
@@ -149,7 +150,7 @@ export const initiateWithdrawal = mutation({
   },
 });
 
-// ─── GET CLIENT WITHDRAWAL HISTORY ───
+// â”€â”€â”€ GET CLIENT WITHDRAWAL HISTORY â”€â”€â”€
 
 export const getClientWithdrawals = query({
   args: { userId: v.string() },
@@ -163,7 +164,7 @@ export const getClientWithdrawals = query({
   },
 });
 
-// ─── ADMIN: GET ALL WITHDRAWAL REQUESTS ───
+// â”€â”€â”€ ADMIN: GET ALL WITHDRAWAL REQUESTS â”€â”€â”€
 
 export const getWithdrawalRequests = query({
   args: {
@@ -175,15 +176,14 @@ export const getWithdrawalRequests = query({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return { authError: true };
 
-    let q = ctx.db.query("referral_withdrawal_requests").order("desc");
-    if (args.status) {
-      q = q.withIndex("by_status", (iq) => iq.eq("status", args.status));
-    }
+    const q = args.status
+      ? ctx.db.query("referral_withdrawal_requests").withIndex("by_status", (iq) => iq.eq("status", args.status as "pending" | "approved" | "rejected" | "processing" | "completed")).order("desc")
+      : ctx.db.query("referral_withdrawal_requests").order("desc");
     return await q.take(50);
   },
 });
 
-// ─── ADMIN: APPROVE WITHDRAWAL ───
+// â”€â”€â”€ ADMIN: APPROVE WITHDRAWAL â”€â”€â”€
 
 export const approveWithdrawal = mutation({
   args: {
@@ -195,7 +195,7 @@ export const approveWithdrawal = mutation({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
 
-    const withdrawal = await ctx.db.get("referral_withdrawal_requests", args.withdrawalId);
+    const withdrawal = await ctx.db.get("referral_withdrawal_requests", args.withdrawalId as Id<"referral_withdrawal_requests">);
     if (!withdrawal) throw new Error("Withdrawal not found");
     if (withdrawal.status !== "pending") throw new Error("Withdrawal already processed");
 
@@ -204,7 +204,7 @@ export const approveWithdrawal = mutation({
     const netAmount = withdrawal.requestedAmount - serviceFee;
 
     // Update withdrawal status
-    await ctx.db.patch(args.withdrawalId, {
+    await ctx.db.patch(args.withdrawalId as Id<"referral_withdrawal_requests">, {
       status: "approved",
       serviceFee,
       netAmount,
@@ -235,8 +235,8 @@ export const approveWithdrawal = mutation({
     // Notify client
     await ctx.db.insert("notifications", {
       userId: withdrawal.userId,
-      title: "Withdrawal Approved ✅",
-      message: `Your withdrawal of ₦${withdrawal.requestedAmount.toLocaleString()} has been approved. Service fee: ₦${serviceFee.toLocaleString()}. You will receive ₦${netAmount.toLocaleString()} in your bank account.`,
+      title: "Withdrawal Approved âœ…",
+      message: `Your withdrawal of â‚¦${withdrawal.requestedAmount.toLocaleString()} has been approved. Service fee: â‚¦${serviceFee.toLocaleString()}. You will receive â‚¦${netAmount.toLocaleString()} in your bank account.`,
       type: "payment",
       read: false,
       createdAt: Date.now(),
@@ -246,12 +246,12 @@ export const approveWithdrawal = mutation({
       success: true,
       serviceFee,
       netAmount,
-      message: `Withdrawal approved. Client will receive ₦${netAmount.toLocaleString()} after 15% service fee.`,
+      message: `Withdrawal approved. Client will receive â‚¦${netAmount.toLocaleString()} after 15% service fee.`,
     };
   },
 });
 
-// ─── ADMIN: REJECT WITHDRAWAL ───
+// â”€â”€â”€ ADMIN: REJECT WITHDRAWAL â”€â”€â”€
 
 export const rejectWithdrawal = mutation({
   args: {
@@ -264,10 +264,10 @@ export const rejectWithdrawal = mutation({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
 
-    const withdrawal = await ctx.db.get("referral_withdrawal_requests", args.withdrawalId);
+    const withdrawal = await ctx.db.get("referral_withdrawal_requests", args.withdrawalId as Id<"referral_withdrawal_requests">);
     if (!withdrawal) throw new Error("Withdrawal not found");
 
-    await ctx.db.patch(args.withdrawalId, {
+    await ctx.db.patch(args.withdrawalId as Id<"referral_withdrawal_requests">, {
       status: "rejected",
       rejectedAt: Date.now(),
       rejectedBy: identity._id,
@@ -277,8 +277,8 @@ export const rejectWithdrawal = mutation({
     // Notify client
     await ctx.db.insert("notifications", {
       userId: withdrawal.userId,
-      title: "Withdrawal Rejected ❌",
-      message: `Your withdrawal of ₦${withdrawal.requestedAmount.toLocaleString()} was rejected. Reason: ${args.reason}`,
+      title: "Withdrawal Rejected âŒ",
+      message: `Your withdrawal of â‚¦${withdrawal.requestedAmount.toLocaleString()} was rejected. Reason: ${args.reason}`,
       type: "payment",
       read: false,
       createdAt: Date.now(),
@@ -288,7 +288,7 @@ export const rejectWithdrawal = mutation({
   },
 });
 
-// ─── ADMIN: PROCESS PAYOUT (after approval) ───
+// â”€â”€â”€ ADMIN: PROCESS PAYOUT (after approval) â”€â”€â”€
 
 export const processPayout = mutation({
   args: {
@@ -300,7 +300,7 @@ export const processPayout = mutation({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
 
-    const withdrawal = await ctx.db.get("referral_withdrawal_requests", args.withdrawalId);
+    const withdrawal = await ctx.db.get("referral_withdrawal_requests", args.withdrawalId as Id<"referral_withdrawal_requests">);
     if (!withdrawal) throw new Error("Withdrawal not found");
     if (withdrawal.status !== "approved") throw new Error("Withdrawal not approved");
 
@@ -334,7 +334,7 @@ export const processPayout = mutation({
 
       if (result.status === "success") {
         // Update withdrawal status
-        await ctx.db.patch(args.withdrawalId, {
+        await ctx.db.patch(args.withdrawalId as Id<"referral_withdrawal_requests">, {
           status: "completed",
           completedAt: Date.now(),
           koraReference: result.data?.reference,
@@ -356,8 +356,8 @@ export const processPayout = mutation({
         // Notify client
         await ctx.db.insert("notifications", {
           userId: withdrawal.userId,
-          title: "Payout Completed ✅",
-          message: `You have received ₦${withdrawal.netAmount.toLocaleString()} in your bank account. Reference: ${result.data?.reference}`,
+          title: "Payout Completed âœ…",
+          message: `You have received â‚¦${withdrawal.netAmount.toLocaleString()} in your bank account. Reference: ${result.data?.reference}`,
           type: "payment",
           read: false,
           createdAt: Date.now(),
@@ -365,7 +365,7 @@ export const processPayout = mutation({
 
         return {
           success: true,
-          message: `Payout of ₦${withdrawal.netAmount.toLocaleString()} completed successfully.`,
+          message: `Payout of â‚¦${withdrawal.netAmount.toLocaleString()} completed successfully.`,
         };
       } else {
         return {
@@ -382,12 +382,12 @@ export const processPayout = mutation({
   },
 });
 
-// ─── GET WITHDRAWAL DETAILS ───
+// â”€â”€â”€ GET WITHDRAWAL DETAILS â”€â”€â”€
 
 export const getWithdrawalDetails = query({
   args: { withdrawalId: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {
-    return await ctx.db.get("referral_withdrawal_requests", args.withdrawalId);
+    return await ctx.db.get("referral_withdrawal_requests", args.withdrawalId as Id<"referral_withdrawal_requests">);
   },
 });

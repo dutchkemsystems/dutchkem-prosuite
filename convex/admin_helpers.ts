@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 
 /** Generate a random ID using crypto-safe randomness */
 export const genId = internalMutation({
@@ -45,7 +46,7 @@ export const validateAdminToken = internalQuery({
   args: { adminToken: v.string() },
   returns: v.boolean(),
   handler: async (ctx, args) => {
-    const session = await ctx.db.get(args.adminToken as any);
+    const session = await ctx.db.get("user_sessions", args.adminToken as Id<"user_sessions">);
     if (!session) return false;
     if (session.isRevoked) return false;
     if (session.expiresAt && session.expiresAt < Date.now()) return false;

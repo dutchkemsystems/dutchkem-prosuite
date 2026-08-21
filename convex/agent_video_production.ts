@@ -303,7 +303,7 @@ export const logVideoProduction = internalMutation({
   handler: async (ctx, args) => {
     await ctx.db.insert("mimo_health_logs", {
       component: `video_${args.agentId}`,
-      status: args.status === "completed" ? "healthy" : "error",
+      status: args.status === "completed" ? "healthy" : "degraded",
       responseTimeMs: 0,
       details: JSON.stringify(args),
       checksRun: 1,
@@ -329,13 +329,10 @@ export const getAgentVideoStats = query({
     if (!identity) return null;
 
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-    const recentVideos = await ctx.db.query("mimo_health_logs")
-      .filter((q) => 
-        q.gte(q.field("timestamp"), oneDayAgo).and(
-          q.gt(q.field("component"), "video_").and(q.lt(q.field("component"), "video_z"))
-        )
-      )
-      .collect();
+    const recentVideos = (await ctx.db.query("mimo_health_logs")
+      .withIndex("by_component", (q) => q.gte("component", "video_"))
+      .collect())
+      .filter((h) => h.component.startsWith("video_") && h.timestamp >= oneDayAgo);
 
     return {
       totalVideos: recentVideos.length,

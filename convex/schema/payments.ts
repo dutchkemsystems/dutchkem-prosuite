@@ -98,6 +98,8 @@ export const paymentsTables = {
     billingCycle: v.optional(v.string()),
     status: v.union(v.literal("pending"), v.literal("completed"), v.literal("failed")),
     processedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    rawPayload: v.optional(v.any()),
     createdAt: v.number(),
   }).index("by_user", ["userId"])
     .index("by_reference", ["reference"])
@@ -134,7 +136,7 @@ export const paymentsTables = {
     .index("by_invoice_id", ["invoiceId"])
     .index("by_reference", ["reference"])
     .index("by_user", ["userId"]),
-  renewal_transactions: defineTable({
+  subscription_renewal_transactions: defineTable({
     subscriptionId: v.string(),
     userId: v.string(),
     service: v.string(),

@@ -122,8 +122,7 @@ export const markEmailFailed = internalMutation({
   handler: async (ctx, args) => {
     await ctx.db.patch(args.emailId, {
       status: "failed",
-      error: args.error,
-      failedAt: Date.now(),
+      errorMessage: args.error,
     });
     return null;
   },
@@ -137,8 +136,8 @@ export const markEmailSkipped = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.emailId, {
-      status: "skipped",
-      error: args.reason,
+      status: "failed",
+      errorMessage: args.reason,
     });
     return null;
   },

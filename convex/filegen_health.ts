@@ -75,11 +75,7 @@ export const getComponentStatus = internalQuery({
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
     const recentLogs = await ctx.db
       .query("mimo_health_logs")
-      .filter((q) => 
-        q.eq(q.field("component"), args.component).and(
-          q.gte(q.field("timestamp"), cutoff)
-        )
-      )
+      .withIndex("by_component_timestamp", (q) => q.eq("component", args.component).gte("timestamp", cutoff))
       .collect();
 
     const hasErrors = recentLogs.some((log: any) => log.severity === "critical" || log.severity === "warning");
@@ -247,7 +243,7 @@ export const generateWithFallback = action({
       source,
       success: result.success,
       durationMs: duration,
-      timestamp: now,
+      timestamp: Date.now(),
     });
 
     return {
@@ -288,7 +284,7 @@ export const logGeneration = internalMutation({
   handler: async (ctx, args) => {
     await ctx.db.insert("mimo_health_logs", {
       component: `filegen_${args.type}`,
-      status: args.success ? "healthy" : "error",
+      status: args.success ? "healthy" : "down",
       responseTimeMs: args.durationMs,
       details: `Source: ${args.source}, Duration: ${args.durationMs}ms`,
       checksRun: 1,
@@ -320,8 +316,10 @@ export const getFileGenMetrics = query({
     // Get recent health logs for filegen
     const recentLogs = await ctx.db
       .query("mimo_health_logs")
-      .filter((q) => 
-        q.gte(q.field("timestamp"), oneDayAgo).and(
+      .withIndex("by_timestamp")
+      .filter((q) =>
+        q.and(
+          q.gte(q.field("timestamp"), oneDayAgo),
           q.or(
             q.eq(q.field("component"), "filegen_pdf"),
             q.eq(q.field("component"), "filegen_docx"),

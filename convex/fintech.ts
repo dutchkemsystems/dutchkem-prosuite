@@ -129,8 +129,8 @@ export const connectBank = mutation({
     const session = args.adminToken ? await tryGetAdminSession(ctx, args.adminToken) : null;
     const userId = session?._id || "system";
 
-    const existing = await ctx.db.query("beneficiaries")
-      .collect()
+    const existing = (await ctx.db.query("beneficiaries")
+      .collect())
       .find((b: any) => b.bankCode === args.bankCode && b.encryptedAccountNumber === args.accountNumber);
 
     if (existing) {
@@ -138,7 +138,7 @@ export const connectBank = mutation({
     }
 
     await ctx.db.insert("beneficiaries", {
-      userId: userId as string,
+      userId: userId as Id<"users">,
       bankCode: args.bankCode,
       bankName: args.bankName,
       encryptedAccountNumber: args.accountNumber,

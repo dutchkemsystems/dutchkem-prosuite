@@ -491,7 +491,12 @@ export const savePosterData = internalMutation({
     return await ctx.db.insert("ad_generated_content", {
       type: "poster",
       ...args,
-      status: "generated",
+      status: "pending",
+      description: args.subheadline || "",
+      hashtags: [],
+      targetAudience: "",
+      socialPosts: [],
+      usedCount: 0,
       createdAt: Date.now(),
     });
   },
@@ -513,7 +518,12 @@ export const saveFlyerData = internalMutation({
     return await ctx.db.insert("ad_generated_content", {
       type: "flyer",
       ...args,
-      status: "generated",
+      status: "pending",
+      description: args.headline || "",
+      hashtags: [],
+      targetAudience: "",
+      socialPosts: [],
+      usedCount: 0,
       createdAt: Date.now(),
     });
   },
@@ -536,7 +546,12 @@ export const saveVideoData = internalMutation({
     return await ctx.db.insert("ad_generated_content", {
       type: "video",
       ...args,
-      status: "generated",
+      status: "pending",
+      description: args.headline || "",
+      hashtags: [],
+      targetAudience: "",
+      socialPosts: [],
+      usedCount: 0,
       createdAt: Date.now(),
     });
   },
@@ -556,7 +571,7 @@ export const logGeneration = internalMutation({
   handler: async (ctx, args) => {
     await ctx.db.insert("mimo_health_logs", {
       component: `aigen_${args.type}`,
-      status: args.status === "success" ? "healthy" : "error",
+      status: args.status === "success" ? "healthy" : "down",
       responseTimeMs: 0,
       details: JSON.stringify(args),
       checksRun: 1,
@@ -583,7 +598,8 @@ export const getGeneratedImages = query({
 
     return await ctx.db
       .query("ad_generated_content")
-      .filter((q) => q.eq(q.field("type"), "poster").or(q.eq(q.field("type"), "flyer")))
+      .withIndex("by_type")
+      .filter((q) => q.or(q.eq(q.field("type"), "poster"), q.eq(q.field("type"), "flyer")))
       .order("desc")
       .take(args.limit || 20);
   },

@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { action, query, mutation } from "./_generated/server";
+import { api } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // SOCIAL PROOF WIDGETS
@@ -20,13 +22,17 @@ export const addTestimonial = mutation({
   returns: v.any(),
   handler: async (ctx, args) => {
     const id = await ctx.db.insert("testimonials", {
-      name: args.name,
-      role: args.role || "",
-      company: args.company || "",
-      text: args.text,
+      userId: "system" as Id<"users">,
+      userName: args.name,
+      userAvatar: args.avatarUrl,
+      service: args.company || "general",
       rating: args.rating,
-      avatarUrl: args.avatarUrl || "",
-      isPublished: args.isPublished ?? true,
+      title: args.role || "Customer testimonial",
+      content: args.text,
+      status: args.isPublished === false ? "pending" : "approved",
+      featured: false,
+      verified: false,
+      helpful: 0,
       createdAt: Date.now(),
     });
     return { success: true, testimonialId: id };
@@ -38,7 +44,7 @@ export const getTestimonials = query({
   returns: v.any(),
   handler: async (ctx, args) => {
     return await ctx.db.query("testimonials")
-      .filter((q) => q.eq(q.field("isPublished"), true))
+      .filter((q) => q.eq(q.field("status"), "approved"))
       .order("desc")
       .take(args.limit || 10);
   },
@@ -51,8 +57,8 @@ export const generateTestimonialWidget = action({
     count: v.optional(v.number()),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
-    const testimonials = await ctx.runQuery(api.social_proof.getTestimonials, { limit: args.count || 6 });
+  handler: async (ctx, args): Promise<any> => {
+    const testimonials: any = await ctx.runQuery(api.social_proof.getTestimonials, { limit: args.count || 6 });
     const count = testimonials.length;
     const avgRating = count > 0
       ? (testimonials.reduce((s: number, t: any) => s + t.rating, 0) / count).toFixed(1)
@@ -69,7 +75,7 @@ export const generateTestimonialWidget = action({
       </div>
     `).join("");
 
-    const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><style>
+    const html: string = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><style>
 *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,sans-serif;background:#f8f9fa;padding:40px}
 .header{text-align:center;margin-bottom:30px}.header h2{color:#333;font-size:24px}.header p{color:#666;font-size:13px}
 .stats{display:flex;justify-content:center;gap:30px;margin:20px 0}.stat{text-align:center}.stat .num{font-size:32px;font-weight:800;color:#FF6B35}.stat .label{font-size:11px;color:#999;text-transform:uppercase}

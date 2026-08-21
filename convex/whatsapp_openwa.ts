@@ -1,17 +1,17 @@
-import { v } from "convex/values";
+﻿import { v } from "convex/values";
 import { action, query, mutation, internalMutation, internalQuery } from "./_generated/server";
 import { tryGetAdminSessionInAction, tryGetAdminSession } from "./auth_helpers";
 
-// ═══════════════════════════════════════════════════════════════════
-// OPENWA INTEGRATION — DB-backed session management
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// OPENWA INTEGRATION â€” DB-backed session management
 // Session state lives in whatsapp_sessions table.
 // The local OpenWA server polls Convex for pending commands.
 // Business Number: +234-9113393525
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 const BUSINESS_NUMBER = "+2349113393525";
 
-// ─── SESSION STATUS (DB-backed) ───
+// â”€â”€â”€ SESSION STATUS (DB-backed) â”€â”€â”€
 
 export const getSessionStatus = query({
   args: { sessionType: v.union(v.literal("admin"), v.literal("enterprise")) },
@@ -38,7 +38,7 @@ export const getSessionStatus = query({
   },
 });
 
-// ─── HEALTH CHECK — Verify server is reachable and connected ───
+// â”€â”€â”€ HEALTH CHECK â€” Verify server is reachable and connected â”€â”€â”€
 
 export const checkServerHealth = query({
   args: { sessionType: v.union(v.literal("admin"), v.literal("enterprise")) },
@@ -67,7 +67,7 @@ export const checkServerHealth = query({
   },
 });
 
-// ─── SYSTEM CONFIG HELPERS (for reconnect flags) ───
+// â”€â”€â”€ SYSTEM CONFIG HELPERS (for reconnect flags) â”€â”€â”€
 
 export const getConfigByKey = internalQuery({
   args: { key: v.string() },
@@ -94,7 +94,7 @@ export const clearConfigKey = internalMutation({
   },
 });
 
-// ─── START SESSION ───
+// â”€â”€â”€ START SESSION â”€â”€â”€
 
 export const startSession = mutation({
   args: {
@@ -138,11 +138,11 @@ export const startSession = mutation({
       timestamp: now,
     });
 
-    return { success: true, status: "starting", sessionType: args.sessionType, message: "Session starting — OpenWA server will connect on next restart" };
+    return { success: true, status: "starting", sessionType: args.sessionType, message: "Session starting â€” OpenWA server will connect on next restart" };
   },
 });
 
-// ─── STOP SESSION ───
+// â”€â”€â”€ STOP SESSION â”€â”€â”€
 
 export const stopSession = mutation({
   args: {
@@ -182,7 +182,7 @@ export const stopSession = mutation({
   },
 });
 
-// ─── OPENWA SERVER: Report connection status (called by local server) ───
+// â”€â”€â”€ OPENWA SERVER: Report connection status (called by local server) â”€â”€â”€
 
 export const reportSessionStatus = mutation({
   args: {
@@ -224,7 +224,7 @@ export const reportSessionStatus = mutation({
   },
 });
 
-// ─── OPENWA SERVER: Get pending commands (polling endpoint) ───
+// â”€â”€â”€ OPENWA SERVER: Get pending commands (polling endpoint) â”€â”€â”€
 
 export const getPendingCommands = internalQuery({
   args: { sessionType: v.union(v.literal("admin"), v.literal("enterprise")) },
@@ -242,7 +242,7 @@ export const getPendingCommands = internalQuery({
   },
 });
 
-// ─── OPENWA SERVER: Report QR code ───
+// â”€â”€â”€ OPENWA SERVER: Report QR code â”€â”€â”€
 
 export const reportQR = mutation({
   args: {
@@ -270,7 +270,7 @@ export const reportQR = mutation({
   },
 });
 
-// ─── SEND TEXT MESSAGE (DB-queued, OpenWA server picks up) ───
+// â”€â”€â”€ SEND TEXT MESSAGE (DB-queued, OpenWA server picks up) â”€â”€â”€
 
 export const queueMessage = internalMutation({
   args: {
@@ -306,7 +306,7 @@ export const queueMessage = internalMutation({
   },
 });
 
-// ─── QUEUE IMAGE MESSAGE ───
+// â”€â”€â”€ QUEUE IMAGE MESSAGE â”€â”€â”€
 
 export const queueImageMessage = internalMutation({
   args: {
@@ -331,7 +331,7 @@ export const queueImageMessage = internalMutation({
   },
 });
 
-// ─── OPENWA SERVER: Get pending messages to send ───
+// â”€â”€â”€ OPENWA SERVER: Get pending messages to send â”€â”€â”€
 
 export const getPendingMessages = internalQuery({
   args: {
@@ -349,7 +349,7 @@ export const getPendingMessages = internalQuery({
   },
 });
 
-// ─── OPENWA SERVER: Mark message as sending ───
+// â”€â”€â”€ OPENWA SERVER: Mark message as sending â”€â”€â”€
 
 export const markMessageSending = internalMutation({
   args: { messageId: v.id("whatsapp_message_queue") },
@@ -359,7 +359,7 @@ export const markMessageSending = internalMutation({
   },
 });
 
-// ─── OPENWA SERVER: Mark message as sent ───
+// â”€â”€â”€ OPENWA SERVER: Mark message as sent â”€â”€â”€
 
 export const markMessageSent = internalMutation({
   args: {
@@ -376,7 +376,7 @@ export const markMessageSent = internalMutation({
   },
 });
 
-// ─── OPENWA SERVER: Mark message as failed ───
+// â”€â”€â”€ OPENWA SERVER: Mark message as failed â”€â”€â”€
 
 export const markMessageFailed = internalMutation({
   args: {
@@ -401,7 +401,7 @@ export const markMessageFailed = internalMutation({
   },
 });
 
-// ─── SEND TEXT (action wrapper for frontend) ───
+// â”€â”€â”€ SEND TEXT (action wrapper for frontend) â”€â”€â”€
 
 export const sendText = action({
   args: {
@@ -416,7 +416,7 @@ export const sendText = action({
     if (!session) return { success: false, error: "Unauthorized" };
 
     // Check if session is connected
-    const status = await ctx.runQuery((await import("./_generated/api")).default.whatsapp_openwa.getSessionStatus, {
+    const status = await ctx.runQuery((await import("./_generated/api")).api.whatsapp_openwa.getSessionStatus, {
       sessionType: args.sessionType,
     });
 
@@ -425,7 +425,7 @@ export const sendText = action({
     }
 
     // Queue the message for the OpenWA server to pick up
-    await ctx.runMutation((await import("./_generated/api")).default.whatsapp_openwa.queueMessage, {
+    await ctx.runMutation((await import("./_generated/api")).api.whatsapp_openwa.queueMessage, {
       sessionType: args.sessionType,
       to: args.to,
       message: args.message,
@@ -435,7 +435,7 @@ export const sendText = action({
   },
 });
 
-// ─── SEND IMAGE (action wrapper) ───
+// â”€â”€â”€ SEND IMAGE (action wrapper) â”€â”€â”€
 
 export const sendImage = action({
   args: {
@@ -446,11 +446,11 @@ export const sendImage = action({
     adminToken: v.optional(v.string()),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { success: false, error: "Unauthorized" };
 
-    const status = await ctx.runQuery((await import("./_generated/api")).default.whatsapp_openwa.getSessionStatus, {
+    const status: any = await ctx.runQuery((await import("./_generated/api")).api.whatsapp_openwa.getSessionStatus, {
       sessionType: args.sessionType,
     });
 
@@ -459,7 +459,7 @@ export const sendImage = action({
     }
 
     // Queue the image message
-    const queueId = await ctx.runMutation((await import("./_generated/api")).default.whatsapp_openwa.queueImageMessage, {
+    const queueId: any = await ctx.runMutation((await import("./_generated/api")).api.whatsapp_openwa.queueImageMessage, {
       sessionType: args.sessionType,
       to: args.to,
       imageUrl: args.imageUrl,
@@ -470,7 +470,7 @@ export const sendImage = action({
   },
 });
 
-// ─── SEND TO GROUP ───
+// â”€â”€â”€ SEND TO GROUP â”€â”€â”€
 
 export const sendToGroup = action({
   args: {
@@ -480,11 +480,11 @@ export const sendToGroup = action({
     adminToken: v.optional(v.string()),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { success: false, error: "Unauthorized" };
 
-    const status = await ctx.runQuery((await import("./_generated/api")).default.whatsapp_openwa.getSessionStatus, {
+    const status: any = await ctx.runQuery((await import("./_generated/api")).api.whatsapp_openwa.getSessionStatus, {
       sessionType: args.sessionType,
     });
 
@@ -493,7 +493,7 @@ export const sendToGroup = action({
     }
 
     // Queue group message (server handles group routing)
-    const queueId = await ctx.runMutation((await import("./_generated/api")).default.whatsapp_openwa.queueMessage, {
+    const queueId: any = await ctx.runMutation((await import("./_generated/api")).api.whatsapp_openwa.queueMessage, {
       sessionType: args.sessionType,
       to: `group:${args.groupId}`,
       message: args.message,
@@ -503,7 +503,7 @@ export const sendToGroup = action({
   },
 });
 
-// ─── GET CONTACTS ───
+// â”€â”€â”€ GET CONTACTS â”€â”€â”€
 
 export const getContacts = query({
   args: { sessionType: v.union(v.literal("admin"), v.literal("enterprise")) },
@@ -513,7 +513,7 @@ export const getContacts = query({
   },
 });
 
-// ─── GET GROUPS ───
+// â”€â”€â”€ GET GROUPS â”€â”€â”€
 
 export const getGroups = query({
   args: { sessionType: v.union(v.literal("admin"), v.literal("enterprise")) },
@@ -523,7 +523,7 @@ export const getGroups = query({
   },
 });
 
-// ─── BULK SEND ───
+// â”€â”€â”€ BULK SEND â”€â”€â”€
 
 export const bulkSendText = action({
   args: {
@@ -538,7 +538,7 @@ export const bulkSendText = action({
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { success: false, error: "Unauthorized" };
 
-    const status = await ctx.runQuery((await import("./_generated/api")).default.whatsapp_openwa.getSessionStatus, {
+    const status = await ctx.runQuery((await import("./_generated/api")).api.whatsapp_openwa.getSessionStatus, {
       sessionType: args.sessionType,
     });
 
@@ -548,7 +548,7 @@ export const bulkSendText = action({
 
     // Queue all messages
     for (const phone of args.recipients) {
-      await ctx.runMutation((await import("./_generated/api")).default.whatsapp_openwa.queueMessage, {
+      await ctx.runMutation((await import("./_generated/api")).api.whatsapp_openwa.queueMessage, {
         sessionType: args.sessionType,
         to: phone,
         message: args.message,
@@ -576,7 +576,7 @@ export const bulkSendImage = action({
     let queued = 0;
     for (const phone of args.recipients) {
       try {
-        await ctx.runMutation((await import("./_generated/api")).default.whatsapp_openwa.queueImageMessage, {
+        await ctx.runMutation((await import("./_generated/api")).api.whatsapp_openwa.queueImageMessage, {
           sessionType: args.sessionType,
           to: phone,
           imageUrl: args.imageUrl,
@@ -592,7 +592,7 @@ export const bulkSendImage = action({
   },
 });
 
-// ─── SEND IMAGE TO GROUP ───
+// â”€â”€â”€ SEND IMAGE TO GROUP â”€â”€â”€
 
 export const sendImageToGroup = action({
   args: {
@@ -607,7 +607,7 @@ export const sendImageToGroup = action({
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { success: false, error: "Unauthorized" };
 
-    const status = await ctx.runQuery((await import("./_generated/api")).default.whatsapp_openwa.getSessionStatus, {
+    const status = await ctx.runQuery((await import("./_generated/api")).api.whatsapp_openwa.getSessionStatus, {
       sessionType: args.sessionType,
     });
 
@@ -615,7 +615,7 @@ export const sendImageToGroup = action({
       return { success: false, error: `WhatsApp ${args.sessionType} session is not connected.` };
     }
 
-    const queueId = await ctx.runMutation((await import("./_generated/api")).default.whatsapp_openwa.queueImageMessage, {
+    const queueId = await ctx.runMutation((await import("./_generated/api")).api.whatsapp_openwa.queueImageMessage, {
       sessionType: args.sessionType,
       to: `group:${args.groupId}`,
       imageUrl: args.imageUrl,
@@ -626,7 +626,7 @@ export const sendImageToGroup = action({
   },
 });
 
-// ─── CRON: Session Health Check ───
+// â”€â”€â”€ CRON: Session Health Check â”€â”€â”€
 
 export const checkSessionHealth = internalMutation({
   args: {},
@@ -650,10 +650,10 @@ export const checkSessionHealth = internalMutation({
       if (session.status === "connected" && session.lastPingAt) {
         const timeSincePing = now - session.lastPingAt;
         if (timeSincePing > STALE_THRESHOLD_MS) {
-          // Session hasn't pinged in over 5 minutes — likely dead
+          // Session hasn't pinged in over 5 minutes â€” likely dead
           await ctx.db.patch(session._id, {
             status: "disconnected",
-            error: `Stale connection — no ping for ${Math.round(timeSincePing / 60000)} minutes`,
+            error: `Stale connection â€” no ping for ${Math.round(timeSincePing / 60000)} minutes`,
             disconnectedAt: now,
             updatedAt: now,
           });
@@ -665,7 +665,7 @@ export const checkSessionHealth = internalMutation({
         const startTime = session.updatedAt;
         const timeSinceStart = now - startTime;
         if (timeSinceStart > 10 * 60 * 1000) {
-          // Been "starting" for over 10 minutes — mark as failed
+          // Been "starting" for over 10 minutes â€” mark as failed
           await ctx.db.patch(session._id, {
             status: "disconnected",
             error: "Session failed to connect within 10 minutes",
@@ -693,7 +693,7 @@ export const checkSessionHealth = internalMutation({
   },
 });
 
-// ─── CRON: Cleanup Stuck Messages ───
+// â”€â”€â”€ CRON: Cleanup Stuck Messages â”€â”€â”€
 
 export const cleanupStuckMessages = internalMutation({
   args: {},
@@ -731,14 +731,14 @@ export const cleanupStuckMessages = internalMutation({
         // Failed after multiple retries
         await ctx.db.patch(msg._id, {
           status: "failed",
-          error: "Failed after multiple retries — OpenWA server may be offline",
+          error: "Failed after multiple retries â€” OpenWA server may be offline",
         });
       }
     }
   },
 });
 
-// ─── ADMIN: Get Failed Messages ───
+// â”€â”€â”€ ADMIN: Get Failed Messages â”€â”€â”€
 
 export const getFailedMessages = query({
   args: {
@@ -761,7 +761,7 @@ export const getFailedMessages = query({
   },
 });
 
-// ─── ADMIN: Retry Failed Message ───
+// â”€â”€â”€ ADMIN: Retry Failed Message â”€â”€â”€
 
 export const retryFailedMessage = mutation({
   args: {
@@ -788,7 +788,7 @@ export const retryFailedMessage = mutation({
   },
 });
 
-// ─── ADMIN: Delete Failed Message ───
+// â”€â”€â”€ ADMIN: Delete Failed Message â”€â”€â”€
 
 export const deleteFailedMessage = mutation({
   args: {

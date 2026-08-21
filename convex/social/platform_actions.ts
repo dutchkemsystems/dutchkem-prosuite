@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { action } from "../_generated/server";
+import { internal } from "../_generated/api";
 import { tryGetAdminSessionInAction } from "../auth_helpers";
 import { PLATFORM_CONFIGS } from "./platform_configs";
 
@@ -224,7 +225,7 @@ export async function fetchUserInfo(
   }
 }
 
-async function postToPlatformApi(
+export async function postToPlatformApi(
   platform: string, accessToken: string, content: string,
   mediaUrls?: Array<string>, _anonymous?: boolean
 ): Promise<{ success: boolean; postId?: string; error?: string }> {
@@ -453,7 +454,7 @@ async function postToPlatformApi(
 // ═══════════════════════════════════════════════════════════════════
 // RAPIDAPI FALLBACK — Used when primary posting fails
 // ═══════════════════════════════════════════════════════════════════
-async function postViaRapidAPIFallback(
+export async function postViaRapidAPIFallback(
   ctx: any, platformId: string, content: string, mediaUrls: string[]
 ): Promise<{ success: boolean; postId?: string; error?: string }> {
   const apiKey = process.env.RAPIDAPI_KEY;

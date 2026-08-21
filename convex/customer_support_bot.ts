@@ -24,7 +24,7 @@ export const handleSupportChat = action({
     sessionId: v.optional(v.string()),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const messageLower = args.message.toLowerCase();
 
     // Check FAQ responses
@@ -40,7 +40,7 @@ export const handleSupportChat = action({
     }
 
     // Check auto-response rules
-    const autoResponseMatch = await ctx.runMutation(
+    const autoResponseMatch: any = await ctx.runMutation(
       (await import("./_generated/api")).api.support_auto_response.matchAutoResponse,
       { message: args.message }
     );
@@ -56,7 +56,7 @@ export const handleSupportChat = action({
     }
 
     // If no FAQ or auto-response match, use AI router
-    const aiResponse = await ctx.runAction(internal.ai_router.routeRequest, {
+    const aiResponse: any = await ctx.runAction(internal.ai_router.routeRequest, {
       input: args.message,
       systemPrompt: 'You are a friendly customer support agent for DutchKem Ventures. Be helpful, professional, and concise. Always include the registration URL: https://dutchkem-prosuite-app.vercel.app/auth',
     });

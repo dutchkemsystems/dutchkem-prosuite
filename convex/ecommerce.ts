@@ -51,14 +51,14 @@ export const createOrder = action({
     adminToken: v.optional(v.string()),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     // Get product details
     const product = await ctx.runQuery(api.ecommerce.getProducts, {});
     const found = (product || []).find((p: any) => p._id === args.productId);
     if (!found) return { success: false, error: "Product not found" };
 
     // Delegate to order_management for persistence
-    const result = await ctx.runMutation(api.order_management.createOrder, {
+    const result: any = await ctx.runMutation(api.order_management.createOrder, {
       customerName: args.customerName,
       customerEmail: args.customerEmail,
       customerPhone: args.customerPhone,

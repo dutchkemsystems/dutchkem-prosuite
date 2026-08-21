@@ -336,8 +336,10 @@ export const getVideoAlerts = query({
     // Get recent health logs with warnings/errors
     const alerts = await ctx.db
       .query("mimo_health_logs")
-      .filter((q) => 
-        q.eq(q.field("component"), "video_system").and(
+      .withIndex("by_component")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("component"), "video_system"),
           q.or(q.eq(q.field("severity"), "warning"), q.eq(q.field("severity"), "critical"))
         )
       )

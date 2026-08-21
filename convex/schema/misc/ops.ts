@@ -212,6 +212,7 @@ export const opsTables = {
     severity: v.string(),
     userId: v.optional(v.string()),
     metadata: v.optional(v.any()),
+    blocked: v.optional(v.boolean()),
     timestamp: v.number(),
   }).index("by_type", ["eventType"])
     .index("by_timestamp", ["timestamp"])

@@ -260,13 +260,13 @@ export const getRecentLogs = query({
   args: { functionName: v.optional(v.string()), limit: v.optional(v.number()), errorsOnly: v.optional(v.boolean()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    let q = ctx.db.query("performance_logs").order("desc");
-
-    if (args.functionName) {
-      q = q.withIndex("by_function", (iq) => iq.eq("functionName", args.functionName!));
-    }
-
-    const logs = await q.take(args.limit || 50);
+    const functionName = args.functionName;
+    const logs = functionName
+      ? await ctx.db.query("performance_logs")
+          .withIndex("by_function", (iq) => iq.eq("functionName", functionName))
+          .order("desc")
+          .take(args.limit || 50)
+      : await ctx.db.query("performance_logs").order("desc").take(args.limit || 50);
 
     if (args.errorsOnly) {
       return logs.filter(l => !l.success);

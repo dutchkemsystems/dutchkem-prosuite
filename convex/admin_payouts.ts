@@ -24,8 +24,9 @@ export const adminListAllPayouts = query({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return [];
 
-    let q = ctx.db.query("client_payout_requests");
-    if (args.status) q = q.withIndex("by_status", (iq) => iq.eq("status", args.status as any));
+    const q = args.status
+      ? ctx.db.query("client_payout_requests").withIndex("by_status", (iq) => iq.eq("status", args.status as "pending" | "approved" | "processing" | "completed" | "failed" | "rejected"))
+      : ctx.db.query("client_payout_requests");
     return await q.order("desc").take(args.limit || 100);
   },
 });

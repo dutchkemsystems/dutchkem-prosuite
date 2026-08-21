@@ -1,7 +1,4 @@
 // Mimo core constants extracted from mimo_core.ts
-import { v } from "convex/values";
-import { query, mutation, action, internalMutation } from "./_generated/server";
-import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 
 // ═══════════════════════════════════════════════════════════════
 // MIMO V.2.5 — AUTONOMOUS INTELLIGENCE CORE
@@ -9,8 +6,8 @@ import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 // Complete autonomous intelligence system for Dutchkem Ventures.
 // ADDITIVE ONLY — existing features 100% intact.
 
-const COMPONENTS = ["convex", "vercel", "github", "api", "database", "agents", "payments", "security"] as const;
-const AGENTS = [
+export const COMPONENTS = ["convex", "vercel", "github", "api", "database", "agents", "payments", "security"] as const;
+export const AGENTS = [
   { id: "A1", name: "Academic Pro", capabilities: ["research", "writing", "analysis"] },
   { id: "A2", name: "Business Pro", capabilities: ["strategy", "planning", "consulting"] },
   { id: "A3", name: "Content Pro", capabilities: ["content", "social", "marketing"] },

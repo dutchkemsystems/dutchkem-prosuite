@@ -172,11 +172,10 @@ export const listCronJobs = query({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
 
-    let query = ctx.db.query("cron_jobs");
-    if (args.category) {
-      query = query.withIndex("by_category", (q) => q.eq("category", args.category));
-    }
-    return await query.collect();
+    const q = args.category
+      ? ctx.db.query("cron_jobs").withIndex("by_category", (i) => i.eq("category", args.category!)).collect()
+      : ctx.db.query("cron_jobs").collect();
+    return await q;
   },
 });
 
@@ -216,12 +215,10 @@ export const getCronExecutionHistory = query({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Not authenticated");
 
-    const limit = args.limit || 50;
-    let query = ctx.db.query("cron_executions");
-    if (args.status) {
-      query = query.withIndex("by_status", (q) => q.eq("status", args.status));
-    }
-    return await query.order("desc").take(limit);
+    const q = args.status
+      ? ctx.db.query("cron_executions").withIndex("by_status", (i) => i.eq("status", args.status as "success" | "failed" | "running")).order("desc").take(args.limit || 50)
+      : ctx.db.query("cron_executions").order("desc").take(args.limit || 50);
+    return await q;
   },
 });
 

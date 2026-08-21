@@ -287,7 +287,7 @@ export const logComplianceCheck = internalMutation({
   handler: async (ctx, args) => {
     await ctx.db.insert("mimo_health_logs", {
       component: `compliance_${args.platform}`,
-      status: args.passed ? "healthy" : "warning",
+      status: args.passed ? "healthy" : "degraded",
       responseTimeMs: 0,
       details: `Score: ${args.score}, Violations: ${args.violationsCount}, Auto-fixes: ${args.autoFixesCount}`,
       checksRun: 1,
@@ -414,13 +414,13 @@ export const batchCheckCompliance = action({
     })),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { error: "Unauthorized" };
 
-    const results = [];
+    const results: any[] = [];
     for (const ad of args.ads) {
-      const result = await ctx.runAction(internal.ad_compliance_enhanced.checkComplianceRealtime, {
+      const result: any = await ctx.runAction(internal.ad_compliance_enhanced.checkComplianceRealtime, {
         adminToken: args.adminToken,
         adCopy: ad.adCopy,
         headline: ad.headline,

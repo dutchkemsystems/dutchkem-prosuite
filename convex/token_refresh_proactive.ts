@@ -300,7 +300,6 @@ export const logRefreshAttempt = internalMutation({
       adminId: args.adminId,
       status: args.status as any,
       error: args.message,
-      oldExpiresAt: null,
       timestamp: args.timestamp,
     });
   },
@@ -319,7 +318,7 @@ export const logRefreshCycle = internalMutation({
   handler: async (ctx, args) => {
     await ctx.db.insert("mimo_health_logs", {
       component: "token_refresh",
-      status: args.failed === 0 ? "healthy" : args.critical > 0 ? "critical" : "warning",
+      status: args.failed === 0 ? "healthy" : args.critical > 0 ? "down" : "degraded",
       responseTimeMs: 0,
       details: JSON.stringify(args),
       checksRun: args.totalConnections,

@@ -115,6 +115,7 @@ export const integrationsTables = {
     createdAt: v.number(),
     expiresAt: v.number(),
     lastUsedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
   }).index("by_user", ["userId"])
     .index("by_key", ["apiKey"])
     .index("by_active", ["isActive"]),
@@ -128,10 +129,13 @@ export const integrationsTables = {
   }).index("by_key", ["apiKeyId"])
     .index("by_created", ["createdAt"]),
   exchange_rates: defineTable({
+    fromCurrency: v.string(),
+    toCurrency: v.string(),
+    rate: v.number(),
     source: v.string(),
-    rateNgnUsd: v.number(),
-    fetchedAt: v.number(),
-  }).index("by_fetched", ["fetchedAt"]),
+    effectiveDate: v.string(),
+    createdAt: v.number(),
+  }).index("by_currencies", ["fromCurrency", "toCurrency"]),
 
   teams: defineTable({
     name: v.string(),

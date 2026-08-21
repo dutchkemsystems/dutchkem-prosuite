@@ -22,12 +22,12 @@ export const preCheckAdPost = action({
     campaignId: v.optional(v.string()),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { error: "Unauthorized", canPost: false };
 
     // Run compliance check
-    const complianceResult = await ctx.runAction(internal.ad_compliance_enhanced.checkComplianceRealtime, {
+    const complianceResult: any = await ctx.runAction(internal.ad_compliance_enhanced.checkComplianceRealtime, {
       adminToken: args.adminToken,
       adCopy: args.adCopy,
       headline: args.headline,
@@ -37,12 +37,12 @@ export const preCheckAdPost = action({
     });
 
     // Check token status
-    const tokenStatus = await ctx.runQuery(internal.ad_compliance_precheck.getTokenStatusForPlatform, {
+    const tokenStatus: any = await ctx.runQuery(internal.ad_compliance_precheck.getTokenStatusForPlatform, {
       platform: args.platform,
     });
 
     // Determine if posting is allowed
-    const canPost = complianceResult.passed && tokenStatus.isConnected && !tokenStatus.isExpired;
+    const canPost: boolean = complianceResult.passed && tokenStatus.isConnected && !tokenStatus.isExpired;
 
     // Log the pre-check
     await ctx.runMutation(internal.ad_compliance_precheck.logPreCheck, {
@@ -160,7 +160,7 @@ export const logPreCheck = internalMutation({
   handler: async (ctx, args) => {
     await ctx.db.insert("mimo_health_logs", {
       component: `precheck_${args.platform}`,
-      status: args.canPost ? "healthy" : "warning",
+      status: args.canPost ? "healthy" : "degraded",
       responseTimeMs: 0,
       details: JSON.stringify({
         complianceScore: args.complianceScore,

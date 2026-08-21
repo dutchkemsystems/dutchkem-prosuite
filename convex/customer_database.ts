@@ -97,7 +97,7 @@ export const getCustomer = query({
 
     const orders = await ctx.db
       .query("orders")
-      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId))
+      .withIndex("by_customer", (q) => q.eq("customerId", args.customerId as Id<"customers">))
       .order("desc")
       .take(20);
 

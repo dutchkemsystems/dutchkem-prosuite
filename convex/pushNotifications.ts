@@ -167,8 +167,8 @@ export const sendPushBroadcast = action({
     url: v.optional(v.string()),
     tag: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
-    const subs = await ctx.runQuery(
+  handler: async (ctx, args): Promise<any> => {
+    const subs: any = await ctx.runQuery(
       api.pushNotifications.getAllSubscriptions,
       {}
     );

@@ -65,6 +65,7 @@ export const socialTables = {
     scopes: v.optional(v.string()),
     anonymousByDefault: v.optional(v.boolean()),
     followersCount: v.optional(v.number()),
+    lastTokenRefresh: v.optional(v.number()),
   })
     .index("by_admin", ["adminId"])
     .index("by_admin_platform", ["adminId", "platformId"])
@@ -130,7 +131,9 @@ export const socialTables = {
     productRecommendation: v.optional(v.string()),
     discountCode: v.optional(v.string()),
     isActive: v.boolean(),
+    createdBy: v.optional(v.string()),
     createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
   }).index("by_active", ["isActive"]),
   social_engagement_logs: defineTable({
     platform: v.string(),

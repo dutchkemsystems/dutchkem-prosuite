@@ -21,13 +21,7 @@ export const getListings = query({
       if (!identity) return { authError: true };
     }
 
-    let q = ctx.db.query("marketplace_listings");
-
-    if (args.isActive !== undefined) {
-      q = q.withIndex("by_active", (q) => q.eq("isActive", args.isActive!));
-    } else {
-      q = q.withIndex("by_active", (q) => q.eq("isActive", true));
-    }
+    const q = ctx.db.query("marketplace_listings").withIndex("by_active", (q) => q.eq("isActive", args.isActive ?? true));
 
     if (args.category) {
       const results = await q
@@ -339,7 +333,7 @@ export const purchaseListing = mutation({
 export const rateListing = mutation({
   args: {
     listingId: v.id("marketplace_listings"),
-    rating: v.number({ min: 1, max: 5 }),
+    rating: v.number(),
     adminToken: v.optional(v.string()),
   },
   returns: v.any(),

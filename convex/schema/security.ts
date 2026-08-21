@@ -7,6 +7,7 @@ export const securityTables = {
     ip: v.optional(v.string()),
     userId: v.optional(v.string()),
     path: v.optional(v.string()),
+    category: v.optional(v.string()),
     details: v.string(),
     severity: v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("critical")),
     resolved: v.boolean(),
@@ -105,10 +106,21 @@ export const securityTables = {
     createdAt: v.number(),
   }).index("by_request", ["otpRequestId"])
     .index("by_created", ["createdAt"]),
-  client_2fa: defineTable({
+client_2fa: defineTable({
     userId: v.string(),
     secret: v.string(),
     backupCodes: v.array(v.string()),
     isEnabled: v.boolean(),
   }).index("by_user", ["userId"]),
+  verification_records: defineTable({
+    type: v.string(),
+    data: v.string(),
+    metadata: v.optional(v.any()),
+    hash: v.string(),
+    previousHash: v.string(),
+    timestamp: v.number(),
+    verified: v.boolean(),
+  })
+    .index("by_type", ["type"])
+    .index("by_timestamp", ["timestamp"]),
 };

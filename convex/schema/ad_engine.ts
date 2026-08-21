@@ -286,6 +286,7 @@ export const ad_engineTables = {
     lastUsedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
+    videoUrl: v.optional(v.string()),
   }).index("by_created", ["createdAt"])
     .index("by_status", ["status"])
     .index("by_type", ["type"])

@@ -68,16 +68,15 @@ export const getRepetitionStats = query({
     const timeWindow = (args.timeWindowHours || 24) * 60 * 60 * 1000;
     const cutoff = now - timeWindow;
     
-    let q = ctx.db.query("support_interactions");
+    const base = ctx.db.query("support_interactions");
     
-    if (args.agentId) {
-      q = q.withIndex("by_agent", (q) => q.eq("agentId", args.agentId));
-    }
+    const q = args.agentId
+      ? base.withIndex("by_agent", (qq) => qq.eq("agentId", args.agentId!))
+      : base.withIndex("by_created", (qq) => qq.gte("createdAt", cutoff));
     
-    const interactions = await q
-      .filter((filter) => filter.gte(filter.field("createdAt"), cutoff))
+    const interactions = (await q
       .order("desc")
-      .take(100);
+      .take(100)).filter((i) => i.createdAt >= cutoff);
     
     // Calculate repetition metrics
     const responses = interactions

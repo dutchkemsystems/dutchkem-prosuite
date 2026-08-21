@@ -146,7 +146,7 @@ export const _recordVerification = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.insert("payment_verifications", {
-      reference: args.reference, amount: args.amount, status: args.status,
+      reference: args.reference, amount: args.amount, status: args.status as "approved" | "rejected" | "manual_review",
       reason: "Verified by Guardian AI Node", confidenceScore: args.confidenceScore,
       verifiedAt: Date.now(), agentId: args.agentId, service: args.service, userId: args.userId,
     });

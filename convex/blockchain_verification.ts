@@ -85,10 +85,9 @@ export const getVerifications = query({
   args: { type: v.optional(v.string()), limit: v.optional(v.number()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    let q = ctx.db.query("verification_records").order("desc");
-    if (args.type) {
-      q = q.filter((f) => f.eq(f.field("type"), args.type));
-    }
+    const q = args.type
+      ? ctx.db.query("verification_records").withIndex("by_type", (f) => f.eq("type", args.type!)).order("desc")
+      : ctx.db.query("verification_records").withIndex("by_timestamp").order("desc");
     return await q.take(args.limit || 50);
   },
 });

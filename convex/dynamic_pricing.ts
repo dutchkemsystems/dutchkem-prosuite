@@ -72,7 +72,7 @@ export const getPricingAnalytics = query({
   handler: async (ctx) => {
     const snapshots = await ctx.db.query("revenue_daily_snapshots").order("desc").take(30);
     const avgRevenue = snapshots.length > 0
-      ? Math.round(snapshots.reduce((sum, s) => sum + (s.revenue || 0), 0) / snapshots.length)
+      ? Math.round(snapshots.reduce((sum, s) => sum + (s.totalRevenueNgn || 0), 0) / snapshots.length)
       : 0;
     return {
       activeRules: PRICING_RULES.length,

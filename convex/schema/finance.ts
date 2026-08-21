@@ -53,6 +53,8 @@ export const financeTables = {
     dailyDeductionAmount: v.number(),
     daysInMonth: v.number(),
     isPaused: v.boolean(),
+    monthlyTitheTarget: v.optional(v.number()),
+    previousMonthRevenue: v.optional(v.number()),
   }),
   charity_transactions: defineTable({
     type: v.union(v.literal("DAILY_DEDUCTION"), v.literal("MONTHLY_TRANSFER")),
@@ -71,7 +73,8 @@ export const financeTables = {
       v.literal("DAILY_DEDUCTION"),
       v.literal("MONTHLY_TRANSFER"),
       v.literal("MANUAL_TRANSFER"),
-      v.literal("AUTO_TRANSFER")
+      v.literal("AUTO_TRANSFER"),
+      v.literal("MONTHLY_TARGET_SET")
     ),
     amountNgn: v.number(),
     balanceBefore: v.number(),

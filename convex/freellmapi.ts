@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { action, query, mutation, internalAction, internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
 // FREELLMAPI INTEGRATION

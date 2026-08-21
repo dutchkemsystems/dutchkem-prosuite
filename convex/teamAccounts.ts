@@ -147,7 +147,7 @@ export const getTeamDetails = query({
 
     const memberDetails = [];
     for (const member of members) {
-      const user = await ctx.db.get("users", member.userId);
+      const user = await ctx.db.get("users", member.userId as Id<"users">);
       memberDetails.push({
         ...member,
         userName: user?.name || "Unknown",
@@ -160,7 +160,7 @@ export const getTeamDetails = query({
     return {
       ...team,
       members: memberDetails,
-      planDetails: TEAM_PLANS[team.plan],
+      planDetails: TEAM_PLANS[team.plan as keyof typeof TEAM_PLANS],
     };
   },
 });
@@ -391,7 +391,7 @@ export const getTeamStats = query({
     return {
       teamName: team.name,
       plan: team.plan,
-      planDetails: TEAM_PLANS[team.plan],
+      planDetails: TEAM_PLANS[team.plan as keyof typeof TEAM_PLANS],
       memberCount: activeMembers,
       maxMembers: team.maxMembers,
       utilizationPercent: Math.round((activeMembers / team.maxMembers) * 100),

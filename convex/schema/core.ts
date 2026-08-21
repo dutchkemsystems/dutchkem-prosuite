@@ -31,6 +31,10 @@ export const coreTables = {
     adminLastLoginAt: v.optional(v.number()),
     adminAllowedIps: v.optional(v.array(v.string())),
     adminForcePasswordChange: v.optional(v.boolean()),
+    // Client 2FA
+    twoFactorEnabled: v.optional(v.boolean()),
+    twoFactorSecret: v.optional(v.string()),
+    currency: v.optional(v.string()),
   })
     .index("email", ["email"])
     .index("phone", ["phone"])
@@ -51,10 +55,20 @@ export const coreTables = {
     service: v.optional(v.union(v.literal("standard"), v.literal("kdp"))),
     status: v.union(v.literal("active"), v.literal("pending"), v.literal("canceled"), v.literal("expired"), v.literal("suspended")),
     endsAt: v.number(),
+    expiresAt: v.optional(v.number()),
     autoRenew: v.boolean(),
     paymentMethodId: v.optional(v.id("payment_methods")),
     failureCount: v.number(),
     nextRetryAt: v.optional(v.number()),
+    reminderSent: v.optional(v.boolean()),
+    reminderSentAt: v.optional(v.number()),
+    pendingRenewal: v.optional(v.boolean()),
+    renewalReference: v.optional(v.string()),
+    lastRenewedAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
+    suspendedAt: v.optional(v.number()),
+    suspensionReason: v.optional(v.string()),
+    stripeSubscriptionId: v.optional(v.string()),
   }).index("by_user", ["userId"])
     .index("by_status_and_endsAt", ["status", "endsAt"])
     .index("by_retry", ["status", "nextRetryAt"]),
@@ -117,6 +131,7 @@ export const coreTables = {
     icon: v.string(),
     added_at: v.number(),
     category: v.optional(v.string()),
+    status: v.optional(v.string()),
   }).index("by_agent", ["agent_id"])
     .index("by_added_at", ["added_at"]),
   service_updates: defineTable({
@@ -134,11 +149,12 @@ export const coreTables = {
     downloadUrl: v.optional(v.string()),
   }).index("by_user", ["userId"]),
   notifications: defineTable({
-    userId: v.optional(v.id("users")), // null means broadcast to all
+    userId: v.optional(v.string()), // null means broadcast to all, string can be user id or "admin"
     title: v.string(),
     message: v.string(),
     type: v.string(), // "payment", "project", "referral", "system", "broadcast"
     read: v.boolean(),
+    data: v.optional(v.any()),
     createdAt: v.number(),
   }).index("by_user", ["userId"]),
   payment_methods: defineTable({

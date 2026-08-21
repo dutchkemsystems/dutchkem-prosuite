@@ -1,14 +1,15 @@
-import { v } from "convex/values";
+﻿import { v } from "convex/values";
 import { mutation, query, internalAction, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { tryGetAdminSession } from "./auth_helpers";
+import type { Id } from "./_generated/dataModel";
 
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // PAYMENT IMPROVEMENTS
 // Exponential backoff, multi-currency, subscription pause, self-service refund
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-// ─── EXPONENTIAL BACKOFF FOR PAYMENT RETRIES ───
+// â”€â”€â”€ EXPONENTIAL BACKOFF FOR PAYMENT RETRIES â”€â”€â”€
 
 export const retryPaymentWithBackoff = internalAction({
   args: {
@@ -33,7 +34,7 @@ export const retryPaymentWithBackoff = internalAction({
   },
 });
 
-// ─── MULTI-CURRENCY SUPPORT ───
+// â”€â”€â”€ MULTI-CURRENCY SUPPORT â”€â”€â”€
 
 const EXCHANGE_RATES: Record<string, number> = {
   NGN: 1,
@@ -74,12 +75,12 @@ export const getSupportedCurrencies = query({
     return Object.keys(EXCHANGE_RATES).map(code => ({
       code,
       rate: EXCHANGE_RATES[code],
-      symbol: code === 'NGN' ? '₦' : code === 'USD' ? '$' : code === 'GBP' ? '£' : '€',
+      symbol: code === 'NGN' ? 'â‚¦' : code === 'USD' ? '$' : code === 'GBP' ? 'Â£' : 'â‚¬',
     }));
   },
 });
 
-// ─── SUBSCRIPTION PAUSE/RESUME ───
+// â”€â”€â”€ SUBSCRIPTION PAUSE/RESUME â”€â”€â”€
 
 export const pauseSubscription = mutation({
   args: {
@@ -90,11 +91,11 @@ export const pauseSubscription = mutation({
   handler: async (ctx, args) => {
     const sub = await ctx.db
       .query("subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .filter((q) => q.eq(q.field("status"), "active"))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId as Id<"users">))
+      .order("desc")
       .first();
 
-    if (!sub) throw new Error("No active subscription found");
+    if (!sub || sub.status !== "active") throw new Error("No active subscription found");
 
     await ctx.db.patch(sub._id, {
       status: "suspended",
@@ -114,11 +115,11 @@ export const resumeSubscription = mutation({
   handler: async (ctx, args) => {
     const sub = await ctx.db
       .query("subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .filter((q) => q.eq(q.field("status"), "suspended"))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId as Id<"users">))
+      .order("desc")
       .first();
 
-    if (!sub) throw new Error("No suspended subscription found");
+    if (!sub || sub.status !== "suspended") throw new Error("No suspended subscription found");
 
     // Extend the subscription by the time it was paused
     const pauseDuration = sub.suspendedAt ? Date.now() - sub.suspendedAt : 0;
@@ -140,7 +141,7 @@ export const getSubscriptionPauseStatus = query({
   handler: async (ctx, args) => {
     const sub = await ctx.db
       .query("subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId as Id<"users">))
       .first();
 
     if (!sub) return { hasSubscription: false, canPause: false, canResume: false };
@@ -156,7 +157,7 @@ export const getSubscriptionPauseStatus = query({
   },
 });
 
-// ─── SELF-SERVICE REFUND PORTAL ───
+// â”€â”€â”€ SELF-SERVICE REFUND PORTAL â”€â”€â”€
 
 export const requestRefund = mutation({
   args: {
@@ -165,7 +166,7 @@ export const requestRefund = mutation({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const sub = await ctx.db.get("subscriptions", args.subscriptionId);
+    const sub = await ctx.db.get("subscriptions", args.subscriptionId as Id<"subscriptions">);
     if (!sub) throw new Error("Subscription not found");
 
     // Check if within 14-day refund window
@@ -197,7 +198,7 @@ export const requestRefund = mutation({
     });
 
     // Cancel subscription
-    await ctx.db.patch(args.subscriptionId, {
+    await ctx.db.patch(args.subscriptionId as Id<"subscriptions">, {
       status: "canceled",
       autoRenew: false,
     });
@@ -217,7 +218,7 @@ export const getRefundStatus = query({
   handler: async (ctx, args) => {
     const refunds = await ctx.db
       .query("refunds")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId as Id<"users">))
       .order("desc")
       .take(10);
 
@@ -228,7 +229,7 @@ export const getRefundStatus = query({
   },
 });
 
-// ─── PAYMENT NOTIFICATIONS ───
+// â”€â”€â”€ PAYMENT NOTIFICATIONS â”€â”€â”€
 
 export const sendPaymentNotification = internalMutation({
   args: {
@@ -269,7 +270,7 @@ export const getPaymentNotifications = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("notifications")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId as Id<"users">))
       .filter((q) => q.eq(q.field("type"), "payment"))
       .order("desc")
       .take(20);

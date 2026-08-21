@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { tryGetAdminSession } from "./auth_helpers";
+import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // UNIFIED ADVERT ORCHESTRATOR
@@ -247,9 +248,9 @@ export const logPostingActivity = internalMutation({
     });
 
     // Update content usage count
-    const content = await ctx.db.get("unified_ad_content", args.contentId);
+    const content = await ctx.db.get("unified_ad_content", args.contentId as Id<"unified_ad_content">);
     if (content) {
-      await ctx.db.patch(args.contentId, {
+      await ctx.db.patch(args.contentId as Id<"unified_ad_content">, {
         usedCount: (content.usedCount || 0) + 1,
         lastUsedAt: now,
       });
@@ -320,7 +321,7 @@ export const executeScheduledPost = internalAction({
   args: { postId: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const post = await ctx.db.get("unified_scheduled_posts", args.postId);
+    const post = await ctx.runQuery(internal.unifiedOrchestrator.getScheduledPostById, { postId: args.postId });
     if (!post) return { success: false, error: "Post not found" };
 
     // Try TryPost first, then fallback to Composio
@@ -352,9 +353,8 @@ export const markPostPublished = internalMutation({
   args: { postId: v.string(), externalId: v.optional(v.string()) },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.postId, {
+    await ctx.db.patch(args.postId as Id<"unified_scheduled_posts">, {
       status: "published",
-      publishedAt: Date.now(),
       externalId: args.externalId,
     });
   },
@@ -364,7 +364,7 @@ export const markPostFailed = internalMutation({
   args: { postId: v.string(), error: v.string() },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.postId, {
+    await ctx.db.patch(args.postId as Id<"unified_scheduled_posts">, {
       status: "failed",
       error: args.error,
     });
@@ -377,7 +377,15 @@ export const getContentById = internalQuery({
   args: { contentId: v.string() },
   returns: v.any(),
   handler: async (ctx, args) => {
-    return await ctx.db.get("unified_ad_content", args.contentId);
+    return await ctx.db.get("unified_ad_content", args.contentId as Id<"unified_ad_content">);
+  },
+});
+
+export const getScheduledPostById = internalQuery({
+  args: { postId: v.string() },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    return await ctx.db.get("unified_scheduled_posts", args.postId as Id<"unified_scheduled_posts">);
   },
 });
 

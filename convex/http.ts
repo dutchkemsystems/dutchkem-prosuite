@@ -38,6 +38,10 @@ function manualBase64(input: string): string {
 const DASHBOARD_URL = process.env.DASHBOARD_URL || "https://dutchkem-prosuite-app.vercel.app/admin/dashboard";
 const LOCATION_ORIGIN = process.env.CONVEX_SITE_URL || "https://dutchkem-prosuite-app.vercel.app";
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // OTP RATE LIMITING (5 requests per hour per phone number)
 // ═══════════════════════════════════════════════════════════════════
@@ -320,10 +324,6 @@ http.route({
 
     const platformNames: Record<string, string> = { x: "X (Twitter)", linkedin: "LinkedIn", facebook: "Facebook", instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube", pinterest: "Pinterest", reddit: "Reddit", threads: "Threads", telegram: "Telegram", discord: "Discord", bluesky: "Bluesky" };
     const platformName = platformNames[platform] || platform;
-
-    function escapeHtml(str: string): string {
-      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
-    }
 
     const successHtml = (username: string) => {
       const safePlatform = escapeHtml(platform);

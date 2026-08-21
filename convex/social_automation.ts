@@ -316,7 +316,7 @@ export const scheduledPostTick = internalAction({
     const results: Array<{ platform: string; content: string; status: string; error?: string }> = [];
 
     // Get connected platforms
-    const connections = await ctx.db.query("platform_connections").collect();
+    const connections = await ctx.runQuery(internal.social_automation._getAllConnections);
     const connected = connections.filter((c: any) => c.isConnected && (!c.expiresAt || c.expiresAt > now));
 
     if (connected.length === 0) {

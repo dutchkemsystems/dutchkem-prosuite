@@ -140,12 +140,12 @@ const RETRY_DELAY_MS = 1000;
 
 async function fetchProviderHealth(ctx: any): Promise<Record<string, { status: string; lastCheck: number; errorCount: number }>> {
   const allConfig = await ctx.db.query("system_config").collect();
-  const configMap = new Map(allConfig.map((c) => [c.key, c.value]));
+  const configMap = new Map(allConfig.map((c: { key: string; value: any }) => [c.key, c.value]));
   
   const health: Record<string, { status: string; lastCheck: number; errorCount: number }> = {};
   for (const name of Object.keys(PROVIDERS)) {
     const h = configMap.get(`provider_health_${name}`);
-    health[name] = h || { status: "healthy", lastCheck: 0, errorCount: 0 };
+    health[name] = (h as { status: string; lastCheck: number; errorCount: number } | undefined) || { status: "healthy", lastCheck: 0, errorCount: 0 };
   }
   return health;
 }

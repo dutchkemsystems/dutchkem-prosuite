@@ -7,13 +7,13 @@ export const seedAdmin = mutation({
     password: v.string(),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const existing = await ctx.db
       .query("users")
       .withIndex("email", (q) => q.eq("email", "admin@dutchkem.com"))
       .first();
 
-    const passwordHash = await ctx.runMutation(internal.auth_helpers._hashPassword, { password: args.password });
+    const passwordHash: any = await ctx.runMutation(internal.auth_helpers._hashPassword, { password: args.password });
     if (existing) {
       console.log("Admin exists, updating hash");
       await ctx.db.patch("users", existing._id, {
@@ -23,7 +23,7 @@ export const seedAdmin = mutation({
       return existing._id;
     }
 
-    const adminId = await ctx.db.insert("users", {
+    const adminId: any = await ctx.db.insert("users", {
       email: "admin@dutchkem.com",
       name: "Super Admin",
       role: "admin",

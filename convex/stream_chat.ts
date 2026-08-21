@@ -24,9 +24,7 @@ const AGENT_SYSTEM_PROMPTS: Record<string, string> = {
   GENERAL: "You are a friendly customer support agent for Dutchkem Ventures Prosuite NG+. Help with general questions about the platform, pricing, features, and getting started. Be warm, professional, use emojis.",
 };
 
-export const streamChat = httpAction({
-  args: {},
-  handler: async (ctx, request) => {
+export const streamChat = httpAction(async (ctx, request) => {
     const body = await request.json();
     const { agentId, message, history } = body;
 
@@ -126,5 +124,4 @@ export const streamChat = httpAction({
         "Access-Control-Allow-Origin": "*",
       },
     });
-  },
 });

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation, action } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // PER-AGENT PACKAGE DEFINITIONS
@@ -110,7 +111,7 @@ export const getClientTasks = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("client_tasks")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId as Id<"users">))
       .order("desc")
       .collect();
   },
@@ -273,7 +274,7 @@ export const generateDeliverable = action({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const task = await ctx.runQuery(
+    const task: any = await ctx.runQuery(
       (await import("./_generated/api")).api.agent_packages.getClientTaskById,
       { taskId: args.taskId }
     );
@@ -320,13 +321,13 @@ export const generateDeliverable = action({
       event_budget: "Create a detailed event budget with line items, vendor quotes, payment schedules, and a 10% contingency buffer.",
     };
 
-    const systemPrompt = deliverablePrompts[task.deliverable] ||
+    const systemPrompt: string = deliverablePrompts[task.deliverable] ||
       "Create a professional deliverable based on the client's requirements. Be thorough, detailed, and deliver high quality.";
 
     const userMessage = args.clientRequest || `Please generate the ${task.packageName} deliverable for the client.`;
 
     try {
-      const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+      const response: Response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -344,8 +345,8 @@ export const generateDeliverable = action({
         signal: AbortSignal.timeout(60000),
       });
 
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || "Deliverable generated successfully.";
+      const data: any = await response.json();
+      const content: string = data.choices?.[0]?.message?.content || "Deliverable generated successfully.";
 
       // Update task with content
       await ctx.runMutation(

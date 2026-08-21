@@ -186,13 +186,16 @@ export const ai_memoryTables = {
       v.literal("suspicious_activity"),
       v.literal("blockade_enforced"),
       v.literal("scan_completed"),
-      v.literal("threat_neutralized")
+      v.literal("threat_neutralized"),
+      v.literal("manual_block"),
+      v.literal("prompt_injection"),
+      v.literal("data_exfiltration")
     ),
     severity: v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("critical")),
     source: v.string(),       // file path, IP, endpoint
     description: v.string(),
     pattern: v.optional(v.string()), // regex or signature matched
-    action: v.union(v.literal("blocked"), v.literal("quarantined"), v.literal("alerted"), v.literal("neutralized"), v.literal("scanned")),
+    action: v.union(v.literal("blocked"), v.literal("quarantined"), v.literal("alerted"), v.literal("neutralized"), v.literal("scanned"), v.literal("logged")),
     blocked: v.boolean(),
     resolved: v.boolean(),
     resolvedAt: v.optional(v.number()),

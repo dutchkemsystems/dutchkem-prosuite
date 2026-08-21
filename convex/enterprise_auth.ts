@@ -147,9 +147,9 @@ export const login = mutation({
     });
 
     // Invalidate old sessions
-    const existingSessions = await ctx.db.query("enterprise_sessions")
+    const existingSessions = (await ctx.db.query("enterprise_sessions")
       .withIndex("by_org", (q) => q.eq("orgId", org._id))
-      .collect()
+      .collect())
       .filter((s) => s.isCurrent === true);
     for (const session of existingSessions) {
       if (session.token !== token) {

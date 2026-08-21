@@ -233,7 +233,8 @@ export const postWithFallback = action({
     if (!identity) return { success: false, error: "Not authenticated", provider: "none" };
 
     const rapidCfg = RAPIDAPI_PLATFORMS[args.platform];
-    const isComposioFallback = rapidCfg?.type === "composio_fallback";
+    // All RAPIDAPI_PLATFORMS entries are exclusive (Composio-first fallback does not apply)
+    const isComposioFallback = false;
 
     // If this platform has a Composio fallback config, try Composio first via social engine
     if (isComposioFallback) {
@@ -311,7 +312,7 @@ export const postWithFallback = action({
       if (isComposioFallback) {
         const recentFailure = await ctx.runQuery(internal.rapidapi._getRecentFailure, { platformId: args.platform });
         if (recentFailure) {
-          await ctx.db.patch(recentFailure, { fallbackSuccess: true });
+          await ctx.runMutation(internal.rapidapi._markFallbackSuccess, { failureId: recentFailure._id });
         }
       }
 
@@ -398,6 +399,15 @@ export const _getRecentFailure = internalQuery({
   },
 });
 
+export const _markFallbackSuccess = internalMutation({
+  args: { failureId: v.id("composio_failure_logs") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch("composio_failure_logs", args.failureId, { fallbackSuccess: true });
+    return null;
+  },
+});
+
 // ═══════════════════════════════════════════════════════════════
 // POSTING MODE CONFIG
 // ═══════════════════════════════════════════════════════════════
@@ -472,7 +482,7 @@ export const postToAllPlatforms = action({
       try {
         if (postingMode === "rapidapi") {
           // RapidAPI only
-          const res = await ctx.action.postViaRapidAPI({
+          const res = await ctx.runAction(internal.rapidapi.postViaRapidAPI, {
             platform, content: args.content, mediaUrls: args.mediaUrls, adminToken: args.adminToken,
           });
           results.push({ platform, success: res.success, provider: "rapidapi", error: res.error });
@@ -516,7 +526,7 @@ export const postToAllPlatforms = action({
             const rapidCfg = RAPIDAPI_PLATFORMS[platform];
             if (rapidCfg && process.env.RAPIDAPI_KEY) {
               try {
-                const res = await ctx.action.postViaRapidAPI({
+                const res = await ctx.runAction(internal.rapidapi.postViaRapidAPI, {
                   platform, content: args.content, mediaUrls: args.mediaUrls, adminToken: args.adminToken,
                 });
                 if (res.success) {

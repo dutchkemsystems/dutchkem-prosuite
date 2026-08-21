@@ -27,7 +27,7 @@ export const getDashboardOverview = query({
 
     // Calculate metrics
     const totalCampaigns = campaigns.length;
-    const activeCampaigns = campaigns.filter(c => c.status === "active" || c.status === "running").length;
+    const activeCampaigns = campaigns.filter(c => c.status === "active").length;
     const totalAds = ads.length;
     const postedAds = ads.filter(a => a.status === "posted").length;
     const scheduledAds = ads.filter(a => a.status === "scheduled").length;
@@ -150,7 +150,7 @@ export const getPerformanceTimeline = query({
       const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       
       let query = args.campaignId
-        ? ctx.db.query("ad_analytics").withIndex("by_campaign_date", (q) => q.eq("campaignId", args.campaignId).eq("date", date))
+        ? ctx.db.query("ad_analytics").withIndex("by_campaign_date", (q) => q.eq("campaignId", args.campaignId!).eq("date", date))
         : ctx.db.query("ad_analytics").withIndex("by_date", (q) => q.eq("date", date));
 
       const dayAnalytics = await query.collect();

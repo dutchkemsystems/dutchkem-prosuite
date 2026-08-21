@@ -1,5 +1,7 @@
 import { v } from "convex/values";
 import { action, query, internalMutation, httpAction } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { generateCanvasVideo } from "./video_production";
 import { tryGetAdminSessionInAction } from "./auth_helpers";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -132,7 +134,7 @@ async function generateWithMiMo(prompt: string, duration: number, quality: strin
   const script = `Professional ${quality} video production:\n\n${prompt}\n\nDuration: ${duration} seconds\nStyle: Cinematic, high-quality production\nResolution: ${quality === '4k' ? '3840x2160' : quality === 'hd' ? '1920x1080' : '1280x720'}`;
 
   // Generate video URL using canvas with MiMo parameters
-  const videoUrl = await generateCanvasVideo(script, duration);
+  const videoUrl = await generateCanvasVideo(script, String(duration));
 
   return {
     success: true,
@@ -174,7 +176,7 @@ async function generateWithNVIDIA(prompt: string, apiKey: string, duration: numb
   const script = data.choices?.[0]?.message?.content || "";
 
   // Generate video URL using canvas
-  const videoUrl = await generateCanvasVideo(script, duration);
+  const videoUrl = await generateCanvasVideo(script, String(duration));
 
   return {
     success: true,

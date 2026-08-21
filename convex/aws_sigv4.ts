@@ -196,6 +196,7 @@ export interface SigV4Headers {
   "X-Amz-Date": string;
   "X-Amz-Content-Sha256": string;
   Authorization: string;
+  [key: string]: string;
 }
 
 export function signRequest(

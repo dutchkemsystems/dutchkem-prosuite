@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type QueryCtx } from "./_generated/server";
 import { tryGetAdminSession } from "./auth_helpers";
 import type { Id } from "./_generated/dataModel";
 
@@ -7,7 +7,7 @@ import type { Id } from "./_generated/dataModel";
 // SUB-ADMIN AUTH HELPER
 // ═══════════════════════════════════════════════════════════════
 async function validateSubAdmin(
-  ctx: { db: { get: (id: any) => Promise<any>; query: (table: string) => any } },
+  ctx: QueryCtx,
   subAdminToken: string | null | undefined,
 ): Promise<{ subAdmin: any; companyId: string; orgId: Id<"enterprise_organizations"> } | null> {
   if (!subAdminToken) return null;
@@ -16,7 +16,7 @@ async function validateSubAdmin(
   if (!session || session.isRevoked) return null;
   if (session.expiresAt && session.expiresAt < Date.now()) return null;
   if (session.userType !== "subadmin") return null;
-  const subAdmin = await ctx.db.get(session.userId);
+  const subAdmin: any = await ctx.db.get(session.userId);
   if (!subAdmin || subAdmin.status !== "active") return null;
   return { subAdmin, companyId: subAdmin.companyId, orgId: subAdmin.orgId };
 }

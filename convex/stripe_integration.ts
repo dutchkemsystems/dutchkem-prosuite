@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { action, mutation, query, httpAction, internalMutation } from "./_generated/server";
 import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // STRIPE INTEGRATION
@@ -112,7 +113,10 @@ export const handleStripeWebhook = httpAction(async (ctx, req) => {
       break;
   }
 
-  return { received: true };
+  return new Response(JSON.stringify({ received: true }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -135,16 +139,16 @@ export const handleCheckoutComplete = internalMutation({
       yearly: 365 * 24 * 60 * 60 * 1000,
     };
 
+    const plan = args.planId as "weekly" | "monthly" | "yearly";
+
     await ctx.db.insert("subscriptions", {
-      userId: args.userId,
-      plan: args.planId as any,
+      userId: args.userId as Id<"users">,
+      plan,
       status: "active",
-      amount: 0,
-      paymentMethod: "stripe",
+      endsAt: now + (durations[plan] || durations.monthly),
+      autoRenew: true,
+      failureCount: 0,
       stripeSubscriptionId: args.subscriptionId,
-      startDate: now,
-      endDate: now + (durations[args.planId] || durations.monthly),
-      createdAt: now,
     });
   },
 });
@@ -170,8 +174,8 @@ export const handleInvoicePaid = internalMutation({
       };
       
       await ctx.db.patch(subscription._id, {
-        endDate: subscription.endDate + (durations[subscription.plan] || durations.monthly),
-        lastPaymentDate: Date.now(),
+        endsAt: subscription.endsAt + (durations[subscription.plan] || durations.monthly),
+        updatedAt: Date.now(),
       });
     }
   },
@@ -190,8 +194,8 @@ export const handleSubscriptionCancelled = internalMutation({
 
     if (subscription) {
       await ctx.db.patch(subscription._id, {
-        status: "cancelled",
-        cancelledAt: Date.now(),
+        status: "canceled",
+        updatedAt: Date.now(),
       });
     }
   },

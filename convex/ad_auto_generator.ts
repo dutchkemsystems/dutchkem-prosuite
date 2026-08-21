@@ -44,7 +44,7 @@ export const generateVideoWithNvidia = action({
     platform: v.optional(v.string()),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { error: "Unauthorized" };
 
@@ -57,7 +57,7 @@ export const generateVideoWithNvidia = action({
     const videoPrompt = `${agent.script} Visual: ${agent.icon} ${agent.name} interface, dashboard, features, happy users. Style: modern, professional, tech-forward.`;
 
     try {
-      const videoResult = await ctx.runAction(internal.video_production.produceFullVideo, {
+      const videoResult: any = await ctx.runAction(internal.video_production.produceFullVideo, {
         title: `${agent.name} - ${agent.tagline}`,
         prompt: videoPrompt,
         genre: "promotional",
@@ -104,7 +104,7 @@ export const generatePoster = action({
     platform: v.optional(v.string()),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { error: "Unauthorized" };
 
@@ -122,7 +122,7 @@ export const generatePoster = action({
     };
 
     // Generate poster using docx library
-    const posterResult = await ctx.runAction(internal.ad_auto_generator.createPosterFile, {
+    const posterResult: any = await ctx.runAction(internal.ad_auto_generator.createPosterFile, {
       ...posterData,
       adminToken: args.adminToken,
     });
@@ -179,15 +179,15 @@ export const batchGenerateAll = action({
     platform: v.optional(v.string()),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { error: "Unauthorized" };
 
-    const results = [];
+    const results: any[] = [];
     for (const agent of AGENTS) {
       try {
         // Generate video
-        const videoResult = await ctx.runAction(internal.ad_auto_generator.generateVideoWithNvidia, {
+        const videoResult: any = await ctx.runAction(internal.ad_auto_generator.generateVideoWithNvidia, {
           adminToken: args.adminToken,
           agentId: agent.id,
           quality: args.quality,
@@ -216,7 +216,7 @@ export const batchGenerateAll = action({
       }
     }
 
-    const successCount = results.filter(r => r.video?.success && r.poster?.success).length;
+    const successCount = results.filter((r: any) => r.video?.success && r.poster?.success).length;
     return {
       success: successCount > 0,
       total: AGENTS.length,
@@ -239,7 +239,7 @@ export const postToTelegramWithUrl = action({
     posterUrl: v.string(),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { error: "Unauthorized" };
 
@@ -254,7 +254,7 @@ export const postToTelegramWithUrl = action({
     const message = `${agent.icon} ${agent.name} - ${agent.tagline}\n\n${agent.script}\n\nVideo: ${args.videoUrl}\nPoster: ${args.posterUrl}\n\nRegister: https://dutchkem-prosuite-app.vercel.app/auth\n\n#${agent.name.replace(/\s+/g, '')} #DutchKem #AI`;
 
     // Post to Telegram
-    const postResult = await ctx.runAction(internal.ad_auto_generator.postToTelegram, {
+    const postResult: any = await ctx.runAction(internal.ad_auto_generator.postToTelegram, {
       botToken: connection.accessToken,
       chatId: connection.platformUserId,
       content: message,
@@ -346,7 +346,7 @@ export const logProduction = internalMutation({
   handler: async (ctx, args) => {
     await ctx.db.insert("mimo_health_logs", {
       component: `adgen_${args.type}_${args.agentId}`,
-      status: args.status === "completed" ? "healthy" : "error",
+      status: args.status === "completed" ? "healthy" : "down",
       responseTimeMs: 0,
       details: JSON.stringify(args),
       checksRun: 1,
@@ -372,11 +372,9 @@ export const getProductionStats = query({
     if (!identity) return null;
 
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-    const recentProductions = await ctx.db.query("mimo_health_logs")
-      .withIndex("by_component_timestamp", (q) => 
-        q.gte("component", "adgen_").lt("component", "adgen_z").gte("timestamp", oneDayAgo)
-      )
-      .collect();
+    const recentProductions = (await ctx.db.query("mimo_health_logs")
+      .withIndex("by_timestamp", (q) => q.gte("timestamp", oneDayAgo))
+      .collect()).filter(p => p.component.startsWith("adgen_"));
 
     return {
       today: {

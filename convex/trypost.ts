@@ -555,7 +555,7 @@ export const _insertCarousel = internalMutation({
       slides: args.slides,
       aiPrompt: args.aiPrompt,
       generatedBy: args.generatedBy,
-      status: args.status as "draft" | "scheduled" | "publishing" | "published" | "failed",
+      status: args.status as "generating" | "ready" | "published" | "failed",
       scheduledFor: args.scheduledFor,
       createdAt: Date.now(),
     });
@@ -581,7 +581,7 @@ export const _scheduleCarousel = internalMutation({
       createdBy: "system",
       createdAt: Date.now(),
     });
-    await ctx.db.patch(args.carouselId, { status: "scheduled" as "draft" | "scheduled" | "publishing" | "published" | "failed" });
+    await ctx.db.patch(args.carouselId, { status: "ready" as "generating" | "ready" | "published" | "failed" });
   },
 });
 

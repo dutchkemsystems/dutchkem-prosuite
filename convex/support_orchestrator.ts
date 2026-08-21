@@ -547,7 +547,7 @@ export const processMessage = action({
       // Increment load for selected agent
       await incrementAgentLoad(ctx, selectedAgentId);
 
-      const result = await ctx.runAction(
+      const result: any = await ctx.runAction(
         (await import("./_generated/api")).api.customer_support.generateSupportResponse,
         {
           agentId: selectedAgentId,
@@ -557,7 +557,7 @@ export const processMessage = action({
       );
 
       const agentInfo = AGENT_MAP[selectedAgentId];
-      const responseText = result.message || "I'm here to help! Could you rephrase your question?";
+      const responseText: string = result.message || "I'm here to help! Could you rephrase your question?";
       const responseTimeMs = Date.now() - startTime;
 
       // Log interaction and get ID for escalation check
@@ -604,9 +604,9 @@ export const processMessage = action({
         }
       );
 
-      let finalResponse = responseText;
+      let finalResponse: string = responseText;
       if (repetitionCheck.isRepetitive) {
-        const retryResult = await ctx.runAction(
+        const retryResult: any = await ctx.runAction(
           (await import("./_generated/api")).api.customer_support.generateSupportResponse,
           {
             agentId: selectedAgentId,
@@ -620,7 +620,7 @@ export const processMessage = action({
 
       // Login prompt detection
       const shouldPromptLogin = finalResponse.includes("---LOGIN_PROMPT---");
-      let cleanedResponse = finalResponse;
+      let cleanedResponse: string = finalResponse;
       if (shouldPromptLogin) {
         cleanedResponse = finalResponse.replace(/---LOGIN_PROMPT---[\s\S]*?\[\/LOGIN_PROMPT\]/g, "").trim();
       }
@@ -818,7 +818,7 @@ export const logInteraction = mutation({
     sentiment: v.optional(v.string()),
     responseTimeMs: v.optional(v.number()),
   },
-  returns: v.optional(v.id("support_interactions")),
+  returns: v.id("support_interactions"),
   handler: async (ctx, args) => {
     const id = await ctx.db.insert("support_interactions", {
       userId: args.userId,
@@ -846,7 +846,7 @@ export const escalateInteraction = mutation({
     agentId: v.string(),
     reason: v.string(),
   },
-  returns: v.optional(v.id("support_escalations")),
+  returns: v.id("support_escalations"),
   handler: async (ctx, args) => {
     const now = Date.now();
     const id = await ctx.db.insert("support_escalations", {

@@ -23,7 +23,9 @@ function generateMatrix(data: string): boolean[][] {
     for(let row=0;row<SIZE;row++){
       for(let c=0;c<2;c++){
         const ac=col-c;if(ac<0||ac>=SIZE||m[row][ac])continue;
-        m[row][ac]=((h>>>(b%32))&1)^(((h*(b+1))>>>0)%3===0?1:0)===1;b++;
+        const bit = ((h >>> (b % 32)) & 1) ^ ((((h * (b + 1)) >>> 0) % 3 === 0) ? 1 : 0);
+        m[row][ac] = bit === 1;
+        b++;
       }
     }
   }

@@ -2,6 +2,20 @@ import { defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export const crmTables = {
+  marketing_campaigns: defineTable({
+    name: v.string(),
+    type: v.union(v.literal("email"), v.literal("whatsapp"), v.literal("sms")),
+    steps: v.array(v.any()),
+    trigger: v.string(),
+    status: v.union(v.literal("draft"), v.literal("active"), v.literal("paused")),
+    sentCount: v.number(),
+    openRate: v.number(),
+    clickRate: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_status", ["status"])
+    .index("by_type", ["type"])
+    .index("by_created", ["createdAt"]),
   lead_scores: defineTable({
     userId: v.id("users"),
     score: v.number(), // 0-100

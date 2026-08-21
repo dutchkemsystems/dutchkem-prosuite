@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action, internalAction, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
 // UNIFIED LEAD SCORING — Single source of truth
@@ -281,7 +282,7 @@ export const _getUserSubscriptions = internalQuery({
   returns: v.any(),
   handler: async (ctx, args) => {
     return await ctx.db.query("subscriptions")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId as Id<"users">))
       .collect();
   },
 });
@@ -291,7 +292,7 @@ export const _getUserProjects = internalQuery({
   returns: v.any(),
   handler: async (ctx, args) => {
     return await ctx.db.query("projects")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q) => q.eq("userId", args.userId as Id<"users">))
       .collect();
   },
 });
@@ -300,7 +301,7 @@ export const _checkPaymentHistory = internalQuery({
   args: { userId: v.string() },
   returns: v.boolean(),
   handler: async (ctx, args) => {
-    const payments = await ctx.db.query("payments")
+    const payments = await ctx.db.query("kora_pending_transactions")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
       .collect();
     return payments.some((p: any) => p.status === "completed");

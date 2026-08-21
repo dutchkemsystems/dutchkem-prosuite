@@ -397,7 +397,12 @@ export const savePosterData = internalMutation({
     return await ctx.db.insert("ad_generated_content", {
       type: "poster",
       ...args,
-      status: "generated",
+      description: args.subheadline || "",
+      targetAudience: "general",
+      hashtags: [],
+      socialPosts: [],
+      usedCount: 0,
+      status: "ready",
       createdAt: Date.now(),
     });
   },
@@ -420,7 +425,12 @@ export const saveFlyerData = internalMutation({
     return await ctx.db.insert("ad_generated_content", {
       type: "flyer",
       ...args,
-      status: "generated",
+      description: args.features.join(", "),
+      targetAudience: "general",
+      hashtags: [],
+      socialPosts: [],
+      usedCount: 0,
+      status: "ready",
       createdAt: Date.now(),
     });
   },
@@ -443,7 +453,12 @@ export const saveVideoData = internalMutation({
     return await ctx.db.insert("ad_generated_content", {
       type: "video",
       ...args,
-      status: "generated",
+      description: args.features.join(", "),
+      targetAudience: "general",
+      hashtags: [],
+      socialPosts: [],
+      usedCount: 0,
+      status: "ready",
       createdAt: Date.now(),
     });
   },

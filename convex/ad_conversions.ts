@@ -190,17 +190,17 @@ export const getConversionsByCampaign = query({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return [];
 
-    let query = ctx.db.query("ad_conversions")
-      .withIndex("by_campaign_created", (q) => q.eq("campaignId", args.campaignId));
+    const startTs = args.startDate ? new Date(args.startDate).getTime() : null;
+    const endTs = args.endDate ? new Date(args.endDate).getTime() + 24 * 60 * 60 * 1000 : null;
 
-    if (args.startDate) {
-      const startTs = new Date(args.startDate).getTime();
-      query = query.filter((q) => q.gte("createdAt", startTs));
-    }
-    if (args.endDate) {
-      const endTs = new Date(args.endDate).getTime() + 24 * 60 * 60 * 1000;
-      query = query.filter((q) => q.lt("createdAt", endTs));
-    }
+    const query = ctx.db.query("ad_conversions")
+      .withIndex("by_campaign_created", (q) => {
+        const base = q.eq("campaignId", args.campaignId);
+        if (startTs !== null && endTs !== null) return base.gte("createdAt", startTs).lt("createdAt", endTs);
+        if (startTs !== null) return base.gte("createdAt", startTs);
+        if (endTs !== null) return base.lt("createdAt", endTs);
+        return base;
+      });
 
     return await query.order("desc").take(1000);
   },

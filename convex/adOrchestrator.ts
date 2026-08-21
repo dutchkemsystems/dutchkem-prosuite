@@ -607,7 +607,7 @@ export const logPostingActivity = internalMutation({
 export const runAutoGenerateAndPost = internalAction({
   args: {},
   returns: v.any(),
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<any> => {
     // Check orchestrator status
     const status = await ctx.runQuery(internal.adOrchestrator.getOrchestratorStatusInternal);
     if (!status || !status.enabled || !status.autoGenerate) {
@@ -616,7 +616,7 @@ export const runAutoGenerateAndPost = internalAction({
 
     // Generate content
     const template = AD_TEMPLATES[Math.floor(Math.random() * AD_TEMPLATES.length)];
-    const contentResult = await ctx.runMutation(internal.adOrchestrator.generateContentInternal, {
+    const contentResult: any = await ctx.runMutation(internal.adOrchestrator.generateContentInternal, {
       headline: template.headline,
       description: template.description,
       cta: template.cta,

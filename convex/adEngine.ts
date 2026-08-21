@@ -434,7 +434,7 @@ export const generateSmartFlyer = action({
     targetAudience: v.optional(v.string()),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { authError: true };
 
@@ -452,7 +452,7 @@ Target: ${args.targetAudience || campaign.targetAudience || "general audience"}.
 ${platformTips}`;
 
     // Generate multiple variants
-    const result = await ctx.runAction(internal.adEngine.generateFlyer, {
+    const result: any = await ctx.runAction(internal.adEngine.generateFlyer, {
       prompt: smartPrompt,
       platform: args.platform,
       variants: 3,

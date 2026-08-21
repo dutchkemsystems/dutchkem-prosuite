@@ -96,10 +96,21 @@ export const getInvoices = query({
   args: { companyId: v.optional(v.string()), status: v.optional(v.string()), limit: v.optional(v.number()) },
   returns: v.any(),
   handler: async (ctx, args) => {
-    let q = ctx.db.query("ad_monetization_invoices").order("desc");
-    if (args.companyId) q = q.withIndex("by_company", (iq) => iq.eq("companyId", args.companyId));
-    else if (args.status) q = q.withIndex("by_status", (iq) => iq.eq("status", args.status as any));
-    return await q.take(args.limit || 50);
+    const companyId = args.companyId;
+    const status = args.status;
+    if (companyId) {
+      return await ctx.db.query("ad_monetization_invoices")
+        .withIndex("by_company", (iq) => iq.eq("companyId", companyId))
+        .order("desc")
+        .take(args.limit || 50);
+    }
+    if (status) {
+      return await ctx.db.query("ad_monetization_invoices")
+        .withIndex("by_status", (iq) => iq.eq("status", status as "pending" | "paid" | "overdue" | "cancelled"))
+        .order("desc")
+        .take(args.limit || 50);
+    }
+    return await ctx.db.query("ad_monetization_invoices").order("desc").take(args.limit || 50);
   },
 });
 

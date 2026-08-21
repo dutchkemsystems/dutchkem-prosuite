@@ -1,14 +1,14 @@
-import { v } from "convex/values";
+﻿import { v } from "convex/values";
 import { action, mutation, internalMutation, internalQuery, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // RECURRING BILLING
 // Automated subscription renewal reminders and auto-charge
-// ═══════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-// ─── CHECK EXPIRING SUBSCRIPTIONS ───
+// â”€â”€â”€ CHECK EXPIRING SUBSCRIPTIONS â”€â”€â”€
 export const checkExpiringSubscriptions = action({
   args: {},
   returns: v.object({
@@ -69,7 +69,7 @@ export const checkExpiringSubscriptions = action({
   },
 });
 
-// ─── GET EXPIRING SUBSCRIPTIONS ───
+// â”€â”€â”€ GET EXPIRING SUBSCRIPTIONS â”€â”€â”€
 export const getExpiringSubscriptions = internalQuery({
   args: {
     beforeTimestamp: v.number(),
@@ -90,7 +90,7 @@ export const getExpiringSubscriptions = internalQuery({
   },
 });
 
-// ─── SEND RENEWAL REMINDER ───
+// â”€â”€â”€ SEND RENEWAL REMINDER â”€â”€â”€
 export const sendRenewalReminder = internalMutation({
   args: {
     subscriptionId: v.string(),
@@ -113,7 +113,7 @@ export const sendRenewalReminder = internalMutation({
 
     // Store notification
     await ctx.db.insert("notifications", {
-      userId: args.userId,
+      userId: args.userId as Id<"users">,
       type: "subscription_renewal_reminder",
       title: "Subscription Renewal Reminder",
       message: `Your ${args.service} subscription (${args.plan}) expires on ${new Date(args.expiresAt).toLocaleDateString()}. Please ensure your payment method is up to date.`,
@@ -126,7 +126,7 @@ export const sendRenewalReminder = internalMutation({
     const body = `Hi ${user.name || 'there'},\n\nYour ${args.service} subscription (${args.plan}) expires on ${new Date(args.expiresAt).toLocaleDateString()}.\n\nPlease ensure your payment method is up to date to avoid service interruption.\n\nBest regards,\nDutchkem Ventures`;
 
     await ctx.db.insert("email_notifications", {
-      to: user.email,
+      to: user.email || "",
       subject,
       body,
       type: "subscription_renewal_reminder",
@@ -138,7 +138,7 @@ export const sendRenewalReminder = internalMutation({
   },
 });
 
-// ─── INITIATE AUTO-RENEWAL ───
+// â”€â”€â”€ INITIATE AUTO-RENEWAL â”€â”€â”€
 export const initiateAutoRenewal = internalMutation({
   args: {
     subscriptionId: v.string(),
@@ -162,7 +162,7 @@ export const initiateAutoRenewal = internalMutation({
 
     // Create pending renewal transaction
     const reference = `RENEW-${args.userId.slice(-8)}-${Date.now()}`;
-    await ctx.db.insert("renewal_transactions", {
+    await ctx.db.insert("subscription_renewal_transactions", {
       subscriptionId: args.subscriptionId,
       userId: args.userId,
       service: args.service,
@@ -183,7 +183,7 @@ export const initiateAutoRenewal = internalMutation({
   },
 });
 
-// ─── GET PLAN DETAILS ───
+// â”€â”€â”€ GET PLAN DETAILS â”€â”€â”€
 export const getPlanDetails = internalQuery({
   args: {
     service: v.string(),
@@ -213,7 +213,7 @@ export const getPlanDetails = internalQuery({
   },
 });
 
-// ─── COMPLETE RENEWAL PAYMENT ───
+// â”€â”€â”€ COMPLETE RENEWAL PAYMENT â”€â”€â”€
 export const completeRenewalPayment = internalMutation({
   args: {
     reference: v.string(),
@@ -223,7 +223,7 @@ export const completeRenewalPayment = internalMutation({
   handler: async (ctx, args) => {
     // Find renewal transaction
     const renewals = await ctx.db
-      .query("renewal_transactions")
+      .query("subscription_renewal_transactions")
       .filter((q) => q.eq(q.field("reference"), args.reference))
       .collect();
 
@@ -268,7 +268,7 @@ export const completeRenewalPayment = internalMutation({
   },
 });
 
-// ─── GET RENEWAL HISTORY ───
+// â”€â”€â”€ GET RENEWAL HISTORY â”€â”€â”€
 export const getRenewalHistory = query({
   args: {
     limit: v.optional(v.number()),
@@ -278,7 +278,7 @@ export const getRenewalHistory = query({
   returns: v.any(),
   handler: async (ctx, args) => {
     const limit = args.limit || 50;
-    let query = ctx.db.query("renewal_transactions");
+    let query = ctx.db.query("subscription_renewal_transactions");
 
     if (args.userId) {
       query = query.filter((q) => q.eq(q.field("userId"), args.userId));
@@ -302,7 +302,7 @@ export const getRenewalHistory = query({
   },
 });
 
-// ─── TOGGLE AUTO-RENEW ───
+// â”€â”€â”€ TOGGLE AUTO-RENEW â”€â”€â”€
 export const toggleAutoRenew = action({
   args: {
     subscriptionId: v.string(),
@@ -332,7 +332,7 @@ export const toggleAutoRenew = action({
   },
 });
 
-// ─── UPDATE AUTO-RENEW ───
+// â”€â”€â”€ UPDATE AUTO-RENEW â”€â”€â”€
 export const updateAutoRenew = internalMutation({
   args: {
     subscriptionId: v.string(),

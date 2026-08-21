@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action, mutation, internalMutation, query } from "./_generated/server";
+import { action, mutation, internalMutation, internalQuery, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -94,7 +94,7 @@ export const storeInvoice = internalMutation({
     packageId: v.string(),
     credits: v.number(),
     billingCycle: v.optional(v.string()),
-    status: v.string(),
+    status: v.union(v.literal("generated"), v.literal("sent"), v.literal("viewed")),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -283,9 +283,9 @@ export const sendInvoiceEmail = action({
     }
 
     // Get invoice using index
-    const invoice = await ctx.db.query("invoices")
-      .withIndex("by_invoice_id", (q) => q.eq("invoiceId", args.invoiceId))
-      .first();
+    const invoice = await ctx.runQuery(internal.invoices.getInvoiceByInvoiceId, {
+      invoiceId: args.invoiceId,
+    });
     if (!invoice) {
       return { success: false, error: "Invoice not found" };
     }
@@ -311,6 +311,16 @@ export const sendInvoiceEmail = action({
 });
 
 // ─── MARK INVOICE SENT ───
+export const getInvoiceByInvoiceId = internalQuery({
+  args: { invoiceId: v.string() },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    return await ctx.db.query("invoices")
+      .withIndex("by_invoice_id", (q) => q.eq("invoiceId", args.invoiceId))
+      .first();
+  },
+});
+
 export const markInvoiceSent = internalMutation({
   args: {
     invoiceId: v.string(),

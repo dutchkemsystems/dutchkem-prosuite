@@ -233,7 +233,17 @@ export const saveReadyPoster = internalMutation({
   handler: async (ctx, args) => {
     await ctx.db.insert("ad_generated_content", {
       type: "poster",
-      ...args,
+      headline: args.headline,
+      description: args.agentName || "",
+      cta: args.cta,
+      hashtags: [],
+      targetAudience: "general",
+      socialPosts: [],
+      url: args.url,
+      agentId: args.agentId,
+      status: args.status as "pending" | "approved" | "ready" | "posted" | "rejected",
+      usedCount: 0,
+      createdAt: args.createdAt,
     });
   },
 });

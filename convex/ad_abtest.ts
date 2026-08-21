@@ -161,9 +161,14 @@ export const listABTests = query({
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return [];
 
-    let q = ctx.db.query("ad_ab_tests").order("desc");
-    if (args.campaignId) q = q.withIndex("by_campaign", (iq) => iq.eq("campaignId", args.campaignId));
-    return await q.collect();
+    const campaignId = args.campaignId;
+    if (campaignId) {
+      return await ctx.db.query("ad_ab_tests")
+        .withIndex("by_campaign", (iq) => iq.eq("campaignId", campaignId))
+        .order("desc")
+        .collect();
+    }
+    return await ctx.db.query("ad_ab_tests").order("desc").collect();
   },
 });
 

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { action, mutation, query, internalAction, internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 
 // ═══════════════════════════════════════════════════════════════════

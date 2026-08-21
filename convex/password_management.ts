@@ -72,7 +72,7 @@ export const requestPasswordChange = mutation({
 
     // Store email notification log
     await ctx.db.insert("email_notifications", {
-      to: user.email,
+      to: user.email!,
       subject: emailContent.subject,
       body: emailContent.body,
       type: "password_change_request",
@@ -278,7 +278,7 @@ export const forcePasswordChange = mutation({
 
     // Send notification
     await ctx.db.insert("email_notifications", {
-      to: user.email,
+      to: user.email!,
       subject: "Password Change Required - Dutchkem Ventures",
       body: `An administrator has required you to change your password on your next login.\n\nThis is a security measure. Please update your password when you next sign in.`,
       type: "force_password_change",

@@ -127,7 +127,7 @@ export const addToCart = mutation({
   handler: async (ctx, args) => {
     const product = await ctx.db.get(args.productId as Id<"products">);
     if (!product) return { success: false, error: "Product not found" };
-    if (product.stock <= 0) return { success: false, error: "Out of stock" };
+    if ((product.stock ?? 0) <= 0) return { success: false, error: "Out of stock" };
 
     const cart = await ctx.db.query("telegram_carts").withIndex("by_user", (q) => q.eq("userId", args.userId)).first();
 
@@ -156,12 +156,12 @@ export const addToCart = mutation({
 export const checkout = action({
   args: { userId: v.string() },
   returns: v.any(),
-  handler: async (ctx, args) => {
-    const cart = await ctx.runQuery(api.telegram_commerce.getCart, { userId: args.userId });
+  handler: async (ctx, args): Promise<any> => {
+    const cart: any = await ctx.runQuery(api.telegram_commerce.getCart, { userId: args.userId });
     if (!cart || cart.items.length === 0) return { success: false, error: "Cart is empty" };
 
     const total = cart.items.reduce((s: number, i: any) => s + i.price * i.quantity, 0);
-    const orderResult = await ctx.runMutation(api.order_management.createOrder, {
+    const orderResult: any = await ctx.runMutation(api.order_management.createOrder, {
       customerName: "Telegram Customer",
       customerEmail: `${args.userId}@telegram.dutchkem`,
       items: cart.items.map((i: any) => ({ name: i.name, quantity: i.quantity, unitPrice: i.price })),
@@ -169,7 +169,7 @@ export const checkout = action({
     });
 
     // Clear cart
-    const cartDoc = await ctx.runQuery(api.telegram_commerce.getCart, { userId: args.userId });
+    const cartDoc: any = await ctx.runQuery(api.telegram_commerce.getCart, { userId: args.userId });
     if (cartDoc && cartDoc._id) {
       await ctx.runMutation(api.telegram_commerce.clearCart, { cartId: cartDoc._id });
     }

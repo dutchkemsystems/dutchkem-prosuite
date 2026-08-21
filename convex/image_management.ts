@@ -333,7 +333,12 @@ export const savePoster = internalMutation({
     const id = await ctx.db.insert("ad_generated_content", {
       type: "poster",
       ...args,
-      status: "generated",
+      description: args.subheadline || "",
+      targetAudience: "general",
+      hashtags: [],
+      socialPosts: [],
+      usedCount: 0,
+      status: "ready",
       createdAt: Date.now(),
     });
     return id;
@@ -358,7 +363,12 @@ export const saveFlyer = internalMutation({
     const id = await ctx.db.insert("ad_generated_content", {
       type: "flyer",
       ...args,
-      status: "generated",
+      description: args.features.join(", "),
+      targetAudience: "general",
+      hashtags: [],
+      socialPosts: [],
+      usedCount: 0,
+      status: "ready",
       createdAt: Date.now(),
     });
     return id;

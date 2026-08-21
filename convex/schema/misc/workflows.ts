@@ -70,21 +70,28 @@ export const workflowsTables = {
   admin_workflow_assignments: defineTable({
     templateId: v.id("admin_workflow_templates"),
     orgId: v.string(),
-    assignedBy: v.string(),
+    assignedBy: v.optional(v.string()),
+    customConfig: v.optional(v.any()),
+    deployedBy: v.optional(v.string()),
+    deployedAt: v.optional(v.number()),
     status: v.union(v.literal("active"), v.literal("paused"), v.literal("completed")),
-    createdAt: v.number(),
-    updatedAt: v.number(),
+    createdAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
   }).index("by_template", ["templateId"])
     .index("by_org", ["orgId"]),
 
   admin_workflow_executions: defineTable({
     templateId: v.id("admin_workflow_templates"),
-    assignmentId: v.id("admin_workflow_assignments"),
+    assignmentId: v.optional(v.id("admin_workflow_assignments")),
     orgId: v.string(),
+    triggeredBy: v.optional(v.string()),
+    triggerType: v.optional(v.string()),
+    inputData: v.optional(v.any()),
     status: v.union(v.literal("running"), v.literal("completed"), v.literal("failed")),
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
     result: v.optional(v.any()),
+    executionLog: v.optional(v.any()),
   }).index("by_template", ["templateId"])
     .index("by_assignment", ["assignmentId"]),
 

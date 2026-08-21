@@ -8,7 +8,7 @@ import { tryGetAdminSession, tryGetAdminSessionInAction } from "./auth_helpers";
 // Routes through model_orchestrator for unified 9-provider failover
 // ═══════════════════════════════════════════════════════════════════
 
-const TASK_PATTERNS: Record<string, { keywords: string[]; provider: string; model: string }> = {
+const TASK_PATTERNS: Record<string, { keywords: string[]; provider: string; model: string; fallbackModel?: string }> = {
   academic: {
     keywords: ['thesis', 'dissertation', 'research paper', 'literature review', 'methodology', 'academic', 'citation', 'reference', 'JAMB', 'WAEC', 'NECO', 'university', 'polytechnic', 'school', 'exam', 'study', 'lecture'],
     provider: 'openrouter',
@@ -481,7 +481,7 @@ export const logRouting = internalMutation({
   handler: async (ctx, args) => {
     await ctx.db.insert("mimo_health_logs", {
       component: `ai_router_${args.task}`,
-      status: args.success ? "healthy" : "error",
+      status: args.success ? "healthy" : "degraded",
       responseTimeMs: 0,
       details: JSON.stringify(args),
       checksRun: 1,
@@ -507,14 +507,11 @@ export const getRouterStats = query({
     if (!identity) return null;
 
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-    const recentLogs = await ctx.db
+    const recentLogs = (await ctx.db
       .query("mimo_health_logs")
-      .filter((q) => 
-        q.gte(q.field("timestamp"), oneDayAgo).and(
-          q.gt(q.field("component"), "ai_router_").and(q.lt(q.field("component"), "ai_router_z"))
-        )
-      )
-      .collect();
+      .withIndex("by_component", (q) => q.gte("component", "ai_router_"))
+      .collect())
+      .filter((h) => h.component.startsWith("ai_router_") && h.timestamp >= oneDayAgo);
 
     const byTask: Record<string, number> = {};
     const byProvider: Record<string, number> = {};

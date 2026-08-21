@@ -326,7 +326,7 @@ export const updateAnalytics = async (ctx: any, args: {
 
 async function verifyMetaSignature(body: any, signature: string, secret: string): Promise<boolean> {
   try {
-    const expectedSignature = "sha256=" + await sha256Hex(JSON.stringify(body), secret);
+    const expectedSignature = "sha256=" + sha256Hex(JSON.stringify(body));
     return signature === expectedSignature;
   } catch {
     return false;

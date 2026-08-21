@@ -63,6 +63,16 @@ export const sendOTP = action({
       deviceFingerprint: args.deviceFingerprint,
     });
 
+    // Persist fraud score for analytics
+    await ctx.runMutation(internal.aws_otp.storeFraudScore, {
+      identifier,
+      ipAddress: args.ipAddress,
+      deviceFingerprint: args.deviceFingerprint,
+      fraudScore: fraudResult.score,
+      riskLevel: fraudResult.riskLevel,
+      reason: (fraudResult.reasons && fraudResult.reasons.join(", ")) || "No issues detected",
+    });
+
     // 3. Dynamic routing based on fraud risk
     const isEmail = identifier.includes("@");
     let channel: string;
@@ -552,11 +562,12 @@ export const calculateFraudScore = internalQuery({
     }
 
     // 3. Untrusted device
-    if (args.deviceFingerprint) {
+    const deviceFingerprint = args.deviceFingerprint;
+    if (deviceFingerprint) {
       const trustedDevice = await ctx.db
         .query("aws_trusted_devices")
         .withIndex("by_fingerprint", (q) =>
-          q.eq("deviceFingerprint", args.deviceFingerprint)
+          q.eq("deviceFingerprint", deviceFingerprint)
         )
         .first();
       if (!trustedDevice || trustedDevice.trustedUntil < now) {
@@ -588,19 +599,31 @@ export const calculateFraudScore = internalQuery({
     else if (score >= 50) riskLevel = "high";
     else if (score >= 30) riskLevel = "medium";
 
-    // Store fraud score
-    await ctx.db.insert("aws_fraud_scores", {
+    return { score, riskLevel, reasons };
+  },
+});
+
+export const storeFraudScore = internalMutation({
+  args: {
+    identifier: v.string(),
+    ipAddress: v.optional(v.string()),
+    deviceFingerprint: v.optional(v.string()),
+    fraudScore: v.number(),
+    riskLevel: v.string(),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    return await ctx.db.insert("aws_fraud_scores", {
       identifier: args.identifier,
       ipAddress: args.ipAddress,
       deviceFingerprint: args.deviceFingerprint,
-      fraudScore: score,
-      riskLevel,
-      reason: reasons.join(", ") || "No issues detected",
+      fraudScore: args.fraudScore,
+      riskLevel: args.riskLevel,
+      reason: args.reason,
       createdAt: now,
       expiresAt: now + 24 * 60 * 60 * 1000,
     });
-
-    return { score, riskLevel, reasons };
   },
 });
 

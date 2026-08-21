@@ -20,8 +20,9 @@ export const referralsTables = {
   referral_payouts: defineTable({
     userId: v.string(),
     amount: v.number(),
-    status: v.union(v.literal("pending"), v.literal("processed"), v.literal("failed")),
+    status: v.union(v.literal("pending"), v.literal("processing"), v.literal("processed"), v.literal("failed"), v.literal("completed")),
     period: v.string(),
+    koraReference: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_user", ["userId"]).index("by_status", ["status"]).index("by_user_status", ["userId", "status"]),
   referral_withdrawal_requests: defineTable({
@@ -33,7 +34,7 @@ export const referralsTables = {
     bankName: v.string(),
     accountNumber: v.string(),
     accountName: v.string(),
-    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"), v.literal("completed")),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"), v.literal("processing"), v.literal("completed")),
     approvedAt: v.optional(v.number()),
     approvedBy: v.optional(v.string()),
     rejectedAt: v.optional(v.number()),

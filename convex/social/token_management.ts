@@ -1,8 +1,87 @@
 import { v } from "convex/values";
-import { internalAction, internalMutation, mutation, query } from "../_generated/server";
+import { action, internalAction, internalMutation, internalQuery, query } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { PLATFORM_CONFIGS, SUPPORTED_PLATFORMS } from "./platform_configs";
+import { getPlatformClientId, getPlatformClientSecret } from "./platform_actions";
 
+// ═══════════════════════════════════════════════════════════════════
+// INTERNAL QUERY: Fetch connected platform connections
+// ═══════════════════════════════════════════════════════════════════
+export const getConnectedConnections = internalQuery({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("platform_connections")
+      .collect();
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// INTERNAL MUTATION: Log a token refresh result
+// ═══════════════════════════════════════════════════════════════════
+export const logTokenRefresh = internalMutation({
+  args: {
+    platform: v.string(),
+    adminId: v.optional(v.string()),
+    status: v.union(v.literal("success"), v.literal("failed"), v.literal("skipped")),
+    error: v.optional(v.string()),
+    oldExpiresAt: v.optional(v.number()),
+    newExpiresAt: v.optional(v.number()),
+    timestamp: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.insert("token_refresh_logs", args);
+    return null;
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// INTERNAL MUTATION: Update connection tokens after refresh
+// ═══════════════════════════════════════════════════════════════════
+export const updateConnectionTokens = internalMutation({
+  args: {
+    connectionId: v.id("platform_connections"),
+    accessToken: v.string(),
+    refreshToken: v.string(),
+    expiresAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch("platform_connections", args.connectionId, {
+      accessToken: args.accessToken,
+      refreshToken: args.refreshToken,
+      expiresAt: args.expiresAt,
+      updatedAt: args.updatedAt,
+    });
+    return null;
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// INTERNAL MUTATION: Update connection follower count
+// ═══════════════════════════════════════════════════════════════════
+export const updateConnectionFollowers = internalMutation({
+  args: {
+    connectionId: v.id("platform_connections"),
+    followersCount: v.number(),
+    updatedAt: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch("platform_connections", args.connectionId, {
+      followersCount: args.followersCount,
+      updatedAt: args.updatedAt,
+    });
+    return null;
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// INTERNAL ACTION: Refresh tokens expiring soon
+// ═══════════════════════════════════════════════════════════════════
 export const refreshExpiredTokens = internalAction({
   args: {},
   returns: v.object({ refreshed: v.number(), failed: v.number(), skipped: v.number() }),
@@ -10,21 +89,20 @@ export const refreshExpiredTokens = internalAction({
     const now = Date.now();
     // Refresh tokens expiring within 7 days (not just 24 hours)
     const threshold = now + 7 * 24 * 60 * 60 * 1000;
-    const connections = await ctx.db.query("platform_connections")
-      .filter((q) => q.eq(q.field("isConnected"), true))
-      .collect();
+    const allConnections = await ctx.runQuery(internal["social/token_management"].getConnectedConnections, {});
+    const connections = allConnections.filter((c: any) => c.isConnected);
 
     let refreshed = 0;
     let failed = 0;
     let skipped = 0;
 
-    for (const conn of connections) {
+    for (const conn of connections as any[]) {
       // Skip if no expiry set or not expiring soon
       if (!conn.expiresAt || conn.expiresAt > threshold) { skipped++; continue; }
       // Skip if no refresh token available
       if (!conn.refreshToken) {
         failed++;
-        await ctx.db.insert("token_refresh_logs", {
+        await ctx.runMutation(internal["social/token_management"].logTokenRefresh, {
           platform: conn.platformId,
           adminId: conn.adminId,
           status: "failed",
@@ -43,7 +121,7 @@ export const refreshExpiredTokens = internalAction({
           // if the token is expired. Composio handles refresh on its own.
           if (conn.expiresAt <= now) {
             failed++;
-            await ctx.db.insert("token_refresh_logs", {
+            await ctx.runMutation(internal["social/token_management"].logTokenRefresh, {
               platform: conn.platformId,
               adminId: conn.adminId,
               status: "failed",
@@ -58,7 +136,7 @@ export const refreshExpiredTokens = internalAction({
           continue;
         } catch (error: any) {
           failed++;
-          await ctx.db.insert("token_refresh_logs", {
+          await ctx.runMutation(internal["social/token_management"].logTokenRefresh, {
             platform: conn.platformId,
             adminId: conn.adminId,
             status: "failed",
@@ -74,7 +152,7 @@ export const refreshExpiredTokens = internalAction({
         const config = PLATFORM_CONFIGS[conn.platformId];
         if (!config?.tokenUrl) {
           failed++;
-          await ctx.db.insert("token_refresh_logs", {
+          await ctx.runMutation(internal["social/token_management"].logTokenRefresh, {
             platform: conn.platformId,
             adminId: conn.adminId,
             status: "failed",
@@ -89,7 +167,7 @@ export const refreshExpiredTokens = internalAction({
         const clientSecret = getPlatformClientSecret(conn.platformId);
         if (!clientId || !clientSecret) {
           failed++;
-          await ctx.db.insert("token_refresh_logs", {
+          await ctx.runMutation(internal["social/token_management"].logTokenRefresh, {
             platform: conn.platformId,
             adminId: conn.adminId,
             status: "failed",
@@ -114,7 +192,7 @@ export const refreshExpiredTokens = internalAction({
         if (!res.ok) {
           const errorText = await res.text();
           failed++;
-          await ctx.db.insert("token_refresh_logs", {
+          await ctx.runMutation(internal["social/token_management"].logTokenRefresh, {
             platform: conn.platformId,
             adminId: conn.adminId,
             status: "failed",
@@ -128,7 +206,7 @@ export const refreshExpiredTokens = internalAction({
         const data = await res.json();
         if (!data.access_token) {
           failed++;
-          await ctx.db.insert("token_refresh_logs", {
+          await ctx.runMutation(internal["social/token_management"].logTokenRefresh, {
             platform: conn.platformId,
             adminId: conn.adminId,
             status: "failed",
@@ -141,14 +219,15 @@ export const refreshExpiredTokens = internalAction({
 
         const newExpiresAt = data.expires_in ? now + data.expires_in * 1000 : undefined;
 
-        await ctx.db.patch(conn._id, {
+        await ctx.runMutation(internal["social/token_management"].updateConnectionTokens, {
+          connectionId: conn._id,
           accessToken: data.access_token,
           refreshToken: data.refresh_token || conn.refreshToken,
           expiresAt: newExpiresAt,
           updatedAt: now,
         });
 
-        await ctx.db.insert("token_refresh_logs", {
+        await ctx.runMutation(internal["social/token_management"].logTokenRefresh, {
           platform: conn.platformId,
           adminId: conn.adminId,
           status: "success",
@@ -159,7 +238,7 @@ export const refreshExpiredTokens = internalAction({
         refreshed++;
       } catch (error: any) {
         failed++;
-        await ctx.db.insert("token_refresh_logs", {
+        await ctx.runMutation(internal["social/token_management"].logTokenRefresh, {
           platform: conn.platformId,
           adminId: conn.adminId,
           status: "failed",
@@ -181,14 +260,13 @@ export const refreshFollowerCounts = internalAction({
   args: {},
   returns: v.object({ updated: v.number(), failed: v.number() }),
   handler: async (ctx): Promise<{ updated: number; failed: number }> => {
-    const connections = await ctx.db.query("platform_connections")
-      .filter((q) => q.eq(q.field("isConnected"), true))
-      .collect();
+    const allConnections = await ctx.runQuery(internal["social/token_management"].getConnectedConnections, {});
+    const connections = allConnections.filter((c: any) => c.isConnected);
 
     let updated = 0;
     let failed = 0;
 
-    for (const conn of connections) {
+    for (const conn of connections as any[]) {
       if (!conn.accessToken || !conn.expiresAt || conn.expiresAt <= Date.now()) { failed++; continue; }
 
       try {
@@ -231,7 +309,8 @@ export const refreshFollowerCounts = internalAction({
         }
 
         if (followersCount > 0) {
-          await ctx.db.patch(conn._id, {
+          await ctx.runMutation(internal["social/token_management"].updateConnectionFollowers, {
+            connectionId: conn._id,
             followersCount,
             updatedAt: Date.now(),
           });
@@ -287,9 +366,9 @@ export const getTokenStatus = query({
         status = "unknown";
       } else if (expiresAt <= now) {
         status = "expired";
-      } else if (expiresIn <= oneDay) {
+      } else if (expiresIn !== null && expiresIn <= oneDay) {
         status = "critical";
-      } else if (expiresIn <= sevenDays) {
+      } else if (expiresIn !== null && expiresIn <= sevenDays) {
         status = "expiring_soon";
       }
 
@@ -311,6 +390,7 @@ export const getTokenStatus = query({
     // Get recent refresh logs
     const recentLogs = await ctx.db
       .query("token_refresh_logs")
+      .withIndex("by_timestamp")
       .order("desc")
       .take(20);
 
@@ -335,9 +415,9 @@ export const getTokenStatus = query({
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// MUTATION: Manual refresh a single platform token
+// ACTION: Manual refresh a single platform token
 // ═══════════════════════════════════════════════════════════════════
-export const manualRefreshToken = mutation({
+export const manualRefreshToken = action({
   args: {
     platform: v.string(),
     adminToken: v.optional(v.string()),
@@ -345,12 +425,10 @@ export const manualRefreshToken = mutation({
   returns: v.any(),
   handler: async (ctx, { platform, adminToken }) => {
     const now = Date.now();
-    const conn = await ctx.db
-      .query("platform_connections")
-      .filter((q) =>
-        q.eq(q.field("platformId"), platform).eq(q.field("isConnected"), true)
-      )
-      .first();
+    const allConnections = await ctx.runQuery(internal["social/token_management"].getConnectedConnections, {});
+    const conn = allConnections.find(
+      (c: any) => c.platformId === platform && c.isConnected
+    ) as any;
 
     if (!conn) {
       return { success: false, error: "Platform not connected" };
@@ -385,7 +463,7 @@ export const manualRefreshToken = mutation({
 
       if (!res.ok) {
         const errorText = await res.text();
-        await ctx.db.insert("token_refresh_logs", {
+        await ctx.runMutation(internal["social/token_management"].logTokenRefresh, {
           platform,
           adminId: conn.adminId,
           status: "failed",
@@ -403,14 +481,15 @@ export const manualRefreshToken = mutation({
 
       const newExpiresAt = data.expires_in ? now + data.expires_in * 1000 : undefined;
 
-      await ctx.db.patch(conn._id, {
+      await ctx.runMutation(internal["social/token_management"].updateConnectionTokens, {
+        connectionId: conn._id,
         accessToken: data.access_token,
         refreshToken: data.refresh_token || conn.refreshToken,
         expiresAt: newExpiresAt,
         updatedAt: now,
       });
 
-      await ctx.db.insert("token_refresh_logs", {
+      await ctx.runMutation(internal["social/token_management"].logTokenRefresh, {
         platform,
         adminId: conn.adminId,
         status: "success",
@@ -422,10 +501,10 @@ export const manualRefreshToken = mutation({
       return {
         success: true,
         expiresAt: newExpiresAt,
-        expiresInDays: data.expires_in ? Math.floor(data.expires_in / (24 * 60 * 60)) : null,
+        expiresInDays: data.expires_in ? Math.floor(data.expires_in / (24 * 60 * 60 * 1000)) : null,
       };
     } catch (error: any) {
-      await ctx.db.insert("token_refresh_logs", {
+      await ctx.runMutation(internal["social/token_management"].logTokenRefresh, {
         platform,
         adminId: conn.adminId,
         status: "failed",

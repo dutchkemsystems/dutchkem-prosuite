@@ -108,7 +108,7 @@ export const renewToken = internalAction({
 
       try {
         // Get fresh connection from Composio
-        const conn = await ctx.db.get(args.connectionId as Id<"platform_connections">);
+        const conn = await ctx.runQuery(internal.token_auto_renewal.getConnectionById, { connectionId: args.connectionId });
         if (!conn) return { success: false, error: "Connection not found" };
 
         const composioId = (conn).platformUserId || (conn).accessToken;
@@ -123,9 +123,9 @@ export const renewToken = internalAction({
         const freshToken = tokenData.access_token;
 
         if (freshToken && freshToken !== (conn).accessToken) {
-          await ctx.db.patch(args.connectionId as Id<"platform_connections">, {
+          await ctx.runMutation(internal.token_auto_renewal.updateComposioToken, {
+            connectionId: args.connectionId,
             accessToken: freshToken,
-            updatedAt: Date.now(),
           });
           return { success: true, platform: args.platform, source: "composio_sync" };
         }
@@ -224,6 +224,26 @@ export const getActiveConnections = internalQuery({
     return await ctx.db.query("platform_connections")
       .withIndex("by_isConnected", (q) => q.eq("isConnected", true))
       .collect();
+  },
+});
+
+export const getConnectionById = internalQuery({
+  args: { connectionId: v.id("platform_connections") },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    return await ctx.db.get("platform_connections", args.connectionId);
+  },
+});
+
+export const updateComposioToken = internalMutation({
+  args: { connectionId: v.id("platform_connections"), accessToken: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch("platform_connections", args.connectionId, {
+      accessToken: args.accessToken,
+      updatedAt: Date.now(),
+    });
+    return null;
   },
 });
 

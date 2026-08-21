@@ -239,15 +239,13 @@ export const getLeads = query({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    let q = ctx.db.query("leads");
-    
     if (args.status) {
-      q = q.withIndex("by_status", (i) => i.eq("status", args.status as any));
-    } else if (args.source) {
-      q = q.withIndex("by_source", (i) => i.eq("source", args.source));
+      return await ctx.db.query("leads").withIndex("by_status", (i) => i.eq("status", args.status as "new" | "contacted" | "qualified" | "proposal" | "negotiation" | "converted" | "closed_won" | "closed_lost" | "lost")).order("desc").take(args.limit || 50);
     }
-    
-    return await q.order("desc").take(args.limit || 50);
+    if (args.source) {
+      return await ctx.db.query("leads").withIndex("by_source", (i) => i.eq("source", args.source as string)).order("desc").take(args.limit || 50);
+    }
+    return await ctx.db.query("leads").order("desc").take(args.limit || 50);
   },
 });
 

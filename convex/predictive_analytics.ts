@@ -81,13 +81,13 @@ export const predictRevenue = query({
     const snapshots = await ctx.db.query("revenue_daily_snapshots").order("desc").take(90);
 
     const avgDailyRevenue = snapshots.length > 0
-      ? snapshots.reduce((sum, s) => sum + (s.revenue || 0), 0) / snapshots.length
+      ? snapshots.reduce((sum, s) => sum + (s.totalRevenueNgn || 0), 0) / snapshots.length
       : 0;
 
     const avgGrowthRate = snapshots.length > 7
       ? (() => {
-          const recent = snapshots.slice(0, 7).reduce((sum, s) => sum + (s.revenue || 0), 0) / 7;
-          const older = snapshots.slice(7, 14).reduce((sum, s) => sum + (s.revenue || 0), 0) / 7;
+          const recent = snapshots.slice(0, 7).reduce((sum, s) => sum + (s.totalRevenueNgn || 0), 0) / 7;
+          const older = snapshots.slice(7, 14).reduce((sum, s) => sum + (s.totalRevenueNgn || 0), 0) / 7;
           return older > 0 ? (recent - older) / older : 0.05;
         })()
       : 0.05;

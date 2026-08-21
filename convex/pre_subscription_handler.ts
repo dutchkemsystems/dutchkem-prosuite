@@ -732,7 +732,7 @@ export function getPreSubscriptionResponse(agentId: string, prompt: string, user
 export async function trackPreSubscriptionExchange(ctx: any, userId: string, agentId: string): Promise<number> {
   const existing = await ctx.db
     .query("pre_subscription_exchanges")
-    .withIndex("by_user_agent", (q) => q.eq("userId", userId).eq("agentId", agentId))
+    .withIndex("by_user_agent", (q: any) => q.eq("userId", userId).eq("agentId", agentId))
     .first();
 
   if (existing) {
@@ -755,7 +755,7 @@ export async function trackPreSubscriptionExchange(ctx: any, userId: string, age
 export async function getPreSubscriptionCount(ctx: any, userId: string, agentId: string): Promise<number> {
   const existing = await ctx.db
     .query("pre_subscription_exchanges")
-    .withIndex("by_user_agent", (q) => q.eq("userId", userId).eq("agentId", agentId))
+    .withIndex("by_user_agent", (q: any) => q.eq("userId", userId).eq("agentId", agentId))
     .first();
 
   return existing?.exchangeCount || 0;

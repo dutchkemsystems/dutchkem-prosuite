@@ -103,7 +103,7 @@ export const getAutoReply = action({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const hoursResult = await ctx.runAction(api.business_hours.checkBusinessHours, {
+    const hoursResult: any = await ctx.runAction(api.business_hours.checkBusinessHours, {
       timezone: args.timezone,
     });
 
@@ -116,7 +116,7 @@ export const getAutoReply = action({
     }
 
     const customReply = args.customMessage || "";
-    const autoReply = customReply
+    const autoReply: string = customReply
       ? `${customReply}\n\n${hoursResult.message}`
       : `Thank you for reaching out to ${args.businessName}!\n\nWe're currently outside business hours.\n\n${hoursResult.message}\n\nWe'll get back to you as soon as we're open.\n\nIn the meantime, you can:\n- Visit our website: https://dutchkem-prosuite-app.vercel.app\n- Leave a message and we'll respond promptly\n\nHave a great day!`;
 
@@ -195,7 +195,7 @@ export const generateHoursPage = action({
   },
   returns: v.any(),
   handler: async (ctx, args) => {
-    const statusResult = await ctx.runAction(api.business_hours.checkBusinessHours, {
+    const statusResult: any = await ctx.runAction(api.business_hours.checkBusinessHours, {
       timezone: args.timezone,
     });
 
@@ -209,7 +209,7 @@ export const generateHoursPage = action({
       </tr>`;
     }).join("");
 
-    const html = `<!DOCTYPE html>
+    const html: string = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">

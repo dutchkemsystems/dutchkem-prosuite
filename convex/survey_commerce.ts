@@ -49,7 +49,7 @@ export const submitResponse = mutation({
   returns: v.any(),
   handler: async (ctx, args) => {
     const responseId = await ctx.db.insert("survey_responses", {
-      surveyId: args.surveyId,
+      surveyId: args.surveyId as Id<"surveys">,
       respondentName: args.respondentName || "Anonymous",
       respondentEmail: args.respondentEmail || "",
       answers: args.answers,
@@ -79,11 +79,11 @@ export const getSurveyResults = query({
 
     const responses = await ctx.db
       .query("survey_responses")
-      .withIndex("by_survey", (q) => q.eq("surveyId", args.surveyId))
+      .withIndex("by_survey", (q) => q.eq("surveyId", args.surveyId as Id<"surveys">))
       .take(500);
 
     // NPS calculation
-    const ratings = responses.filter((r) => r.rating > 0).map((r) => r.rating);
+    const ratings = responses.filter((r): r is typeof r & { rating: number } => (r.rating ?? 0) > 0).map((r) => r.rating);
     const avgRating = ratings.length > 0 ? ratings.reduce((s: number, r: number) => s + r, 0) / ratings.length : 0;
     const promoters = ratings.filter((r: number) => r >= 9).length;
     const passives = ratings.filter((r: number) => r >= 7 && r < 9).length;
@@ -91,7 +91,7 @@ export const getSurveyResults = query({
     const nps = ratings.length > 0 ? Math.round(((promoters - detractors) / ratings.length) * 100) : 0;
 
     // CSAT (rating 1-5)
-    const csatRatings = responses.filter((r) => r.rating >= 1 && r.rating <= 5).map((r) => r.rating);
+    const csatRatings = responses.filter((r): r is typeof r & { rating: number } => (r.rating ?? 0) >= 1 && (r.rating ?? 0) <= 5).map((r) => r.rating);
     const csat = csatRatings.length > 0 ? (csatRatings.reduce((s: number, r: number) => s + r, 0) / csatRatings.length / 5 * 100).toFixed(1) : "0";
 
     // Testimonials
@@ -122,17 +122,25 @@ export const getActiveSurveys = query({
   },
 });
 
+export const getSurveyForPage = query({
+  args: { surveyId: v.string() },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.surveyId as Id<"surveys">);
+  },
+});
+
 export const generateSurveyPage = action({
   args: {
     surveyId: v.string(),
     businessName: v.string(),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
-    const survey = await ctx.runQuery(api.survey_commerce.getSurveyForPage, { surveyId: args.surveyId });
+  handler: async (ctx, args): Promise<any> => {
+    const survey: any = await ctx.runQuery(api.survey_commerce.getSurveyForPage, { surveyId: args.surveyId });
     if (!survey) return { success: false, error: "Survey not found" };
 
-    const questionsHtml = (survey.questions || []).map((q, i) => {
+    const questionsHtml = ((survey.questions as Array<{ question: string; type: string; required: boolean; options?: string[] }>) || []).map((q, i) => {
       if (q.type === "rating") {
         return `<div class="q"><p>${i + 1}. ${q.question}</p><div class="stars">${[1,2,3,4,5].map(s => `<button type="button" onclick="selectRating(${i},${s})" class="star" data-q="${i}" data-v="${s}">★</button>`).join("")}</div><input type="hidden" name="q${i}" id="q${i}"></div>`;
       }
@@ -146,7 +154,7 @@ export const generateSurveyPage = action({
       return `<div class="q"><p>${i + 1}. ${q.question}</p><textarea name="q${i}" rows="3" placeholder="Your answer..."></textarea></div>`;
     }).join("");
 
-    const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+    const html: string = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>${survey.name} — ${args.businessName}</title>
 <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f5f5;min-height:100vh;display:flex;justify-content:center;padding:20px}
 .card{background:#fff;border-radius:16px;padding:40px;max-width:500px;width:100%;box-shadow:0 4px 20px rgba(0,0,0,0.08)}

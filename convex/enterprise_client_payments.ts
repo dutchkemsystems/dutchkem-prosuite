@@ -101,7 +101,7 @@ export const initializeGatewayPayment = action({
     returnUrl: v.optional(v.string()),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const auth = await tryResolveEnterpriseAuth(ctx, { ...args, orgId: undefined });
     if (!auth) throw new Error("Not authenticated");
 
@@ -111,7 +111,7 @@ export const initializeGatewayPayment = action({
     if (!payment) throw new Error("Payment not found");
     if (payment.status !== "pending") throw new Error("Payment already processed");
 
-    const config = await ctx.runQuery(internal.enterprise_client_payments._getPaymentConfigForOrg, {
+    const config: any = await ctx.runQuery(internal.enterprise_client_payments._getPaymentConfigForOrg, {
       orgId: payment.orgId,
     });
 
@@ -126,7 +126,7 @@ export const initializeGatewayPayment = action({
       let gatewayRef = "";
 
       if (config.gateway === "kora") {
-        const res = await fetch("https://api.korapay.com/merchant/api/v1/charges/initialize", {
+        const res: Response = await fetch("https://api.korapay.com/merchant/api/v1/charges/initialize", {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${config.secretKey}`,
@@ -140,7 +140,7 @@ export const initializeGatewayPayment = action({
             redirect_url: returnUrl,
           }),
         });
-        const data = await res.json();
+        const data: any = await res.json();
         if (!data.status) return { error: data.message || "Kora Pay initialization failed" };
         checkoutUrl = data.data?.checkout_url || "";
         gatewayRef = data.data?.reference || payment.invoiceNumber || "";
@@ -163,7 +163,7 @@ export const initializeGatewayPayment = action({
             "metadata[invoice_number]": payment.invoiceNumber || "",
           }).toString(),
         });
-        const data = await res.json();
+        const data: any = await res.json();
         if (data.error) return { error: data.error.message };
         checkoutUrl = data.url || "";
         gatewayRef = data.id || "";

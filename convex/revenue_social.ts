@@ -242,7 +242,7 @@ export const logEngagement = mutation({
     platform: v.string(),
     postId: v.string(),
     commentText: v.string(),
-    buyingIntent: v.number(),
+    buyingIntent: v.boolean(),
     autoReplied: v.boolean(),
     replyText: v.optional(v.string()),
     converted: v.boolean(),

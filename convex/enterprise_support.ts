@@ -74,7 +74,7 @@ export const listTickets = query({
     let q: any;
     if (args.status && args.status !== "all") {
       q = ctx.db.query("enterprise_support_tickets")
-        .withIndex("by_company_status", (q2) => q2.eq("companyId", args.companyId).eq("status", args.status!));
+        .withIndex("by_company_status", (q2) => q2.eq("companyId", args.companyId).eq("status", args.status as "open" | "in_progress" | "waiting_customer" | "resolved" | "closed"));
     } else {
       q = ctx.db.query("enterprise_support_tickets")
         .withIndex("by_company", (q2) => q2.eq("companyId", args.companyId));

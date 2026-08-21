@@ -333,7 +333,6 @@ export const setUserCurrencyPreference = mutation({
     if (SUPPORTED_CURRENCIES.includes(args.currency as Currency)) {
       await ctx.db.patch(args.userId as any, {
         currency: args.currency,
-        currencyUpdatedAt: Date.now(),
       });
     }
     return null;

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { action, query, mutation, internalMutation, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -101,7 +102,7 @@ export const getAvailableSlots = query({
   handler: async (ctx, args) => {
     let slots;
     if (args.date) {
-      slots = await ctx.db.query("appointment_slots").withIndex("by_date", (q) => q.eq("date", args.date)).order("asc").take(50);
+      slots = await ctx.db.query("appointment_slots").withIndex("by_date", (q) => q.eq("date", args.date!)).order("asc").take(50);
       slots = slots.filter((s: any) => s.isActive && s.currentBookings < s.maxBookings);
     } else {
       slots = await ctx.db.query("appointment_slots").withIndex("by_active", (q) => q.eq("isActive", true)).order("asc").take(50);
@@ -233,7 +234,7 @@ export const createBooking = internalMutation({
   returns: v.string(),
   handler: async (ctx, args) => {
     return await ctx.db.insert("appointment_bookings", {
-      slotId: args.slotId,
+      slotId: args.slotId as Id<"appointment_slots">,
       clientName: args.clientName,
       clientEmail: args.clientEmail,
       clientPhone: args.clientPhone,

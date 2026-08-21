@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { action, query, internalQuery } from "./_generated/server";
+import { api } from "./_generated/api";
 
 // ═══════════════════════════════════════════════════════════════════
 // REPORTING & ANALYTICS
@@ -275,13 +276,13 @@ export const exportSalesReport = action({
     adminToken: v.optional(v.string()),
   },
   returns: v.any(),
-  handler: async (ctx, args) => {
-    const report = await ctx.runQuery("reporting:getSalesReport", {
+  handler: async (ctx, args): Promise<any> => {
+    const report: any = await ctx.runQuery(api.reporting.getSalesReport, {
       startDate: args.startDate,
       endDate: args.endDate,
     });
 
-    const html = `<!DOCTYPE html>
+    const html: string = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>Sales Report</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,sans-serif;padding:40px;color:#333}

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation } from "../_generated/server";
 import { tryGetAdminSession } from "../auth_helpers";
+import { COMPONENTS } from "./constants";
 
 /** Get or initialize Mimo core state */
 export const getCoreState = query({

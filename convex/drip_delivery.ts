@@ -390,7 +390,7 @@ export const getEnrollments = query({
     }
     if (args.status) {
       return await ctx.db.query("drip_enrollments")
-        .withIndex("by_status", (q) => q.eq("status", args.status!))
+        .withIndex("by_status", (q) => q.eq("status", args.status as "active" | "paused" | "completed" | "failed"))
         .collect();
     }
     return await ctx.db.query("drip_enrollments").order("desc").take(100);

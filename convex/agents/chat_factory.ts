@@ -211,7 +211,7 @@ export function createChatModule(agentKey: string) {
     handler: async (ctx, { threadId }) => {
       const messages = await ctx.db
         .query("agent_messages")
-        .filter((q) => q.eq(q.field("threadId"), threadId))
+        .withIndex("by_conversation", (q) => q.eq("conversationId", threadId as any))
         .order("asc")
         .collect();
 
@@ -223,7 +223,7 @@ export function createChatModule(agentKey: string) {
         messageCount: messages.length,
         messages: messages.map((m) => ({
           role: m.role || "user",
-          content: m.text || m.content || "",
+          content: m.content,
           timestamp: m._creationTime,
         })),
       };

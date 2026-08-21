@@ -223,13 +223,13 @@ export const getOrderStats = query({
 export const generateOrderInvoice = action({
   args: { orderId: v.string(), adminToken: v.optional(v.string()) },
   returns: v.any(),
-  handler: async (ctx, args) => {
-    const order = await ctx.runQuery(api.order_management.getOrder, { orderId: args.orderId });
+  handler: async (ctx, args): Promise<any> => {
+    const order: any = await ctx.runQuery(api.order_management.getOrder, { orderId: args.orderId });
     if (!order) return { success: false, error: "Order not found" };
 
     const fmt = (n: number) => `${order.currency} ${n.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
 
-    const html = `<!DOCTYPE html>
+    const html: string = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>Invoice ${order.orderNumber}</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',system-ui,sans-serif;padding:40px;color:#333}

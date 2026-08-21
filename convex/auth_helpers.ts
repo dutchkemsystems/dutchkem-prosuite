@@ -604,9 +604,7 @@ export const verifyAdminTOTP = mutation({
     if (totpCode.length === 6 && /^\d{6}$/.test(totpCode)) {
       const timeStep = Math.floor(Date.now() / 30000);
       for (let i = -1; i <= 1; i++) {
-        const computed = await ctx.runAction(internal.auth_helpers._computeTOTP, {
-          secret: twoFactor.secret, timeStep: timeStep + i,
-        });
+        const computed = await computeTOTP(twoFactor.secret, timeStep + i);
         if (computed === totpCode) return true;
       }
     }

@@ -22,7 +22,7 @@ export const executeSecurePayout = internalAction({
     },
     returns: v.any(),
     handler: async (ctx, args) => {
-        let accountNumberEnc, accountNameEnc, iv, tag, bankName;
+        let accountNumberEnc, accountNameEnc, iv, tag, bankName, bankCode;
 
         if (args.overrideDetails) {
             accountNumberEnc = args.overrideDetails.accountNumberEnc;
@@ -30,6 +30,7 @@ export const executeSecurePayout = internalAction({
             iv = args.overrideDetails.iv;
             tag = args.overrideDetails.tag;
             bankName = args.overrideDetails.bankName;
+            bankCode = args.overrideDetails.bankCode;
         } else if (args.beneficiaryId) {
             const beneficiary = await ctx.runQuery(internal.payouts.getBeneficiaryInternal, { id: args.beneficiaryId });
             if (!beneficiary) throw new Error("Beneficiary not found");
@@ -38,6 +39,7 @@ export const executeSecurePayout = internalAction({
             iv = beneficiary.encryptionIv;
             tag = beneficiary.encryptionTag;
             bankName = beneficiary.bankName;
+            bankCode = beneficiary.bankCode;
         } else {
             throw new Error("No payout destination provided");
         }
@@ -82,7 +84,7 @@ export const executeSecurePayout = internalAction({
                         type: "bank_account",
                         amount: args.amount,
                         currency: "NGN",
-                        narration: args.narration || "Dutchkem Ventures Sweep",
+                        narration: "Dutchkem Ventures Sweep",
                         bank_account: { bank: bankCode, account: accountNumber },
                         customer: { name: accountName || "Beneficiary", email: "dutchkemdeveloper@gmail.com" },
                     },

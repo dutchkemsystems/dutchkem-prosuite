@@ -119,9 +119,9 @@ export const createTemplate = mutation({
     const now = Date.now();
     const templateId = await ctx.db.insert("admin_workflow_templates", {
       name: args.name,
-      description: args.description,
+      description: args.description ?? "",
       category: args.category,
-      industry: args.industry,
+      industry: args.industry ?? "general",
       nodes: args.nodes,
       edges: args.edges,
       requiredAgents: args.requiredAgents,
