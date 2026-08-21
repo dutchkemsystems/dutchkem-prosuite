@@ -21,19 +21,19 @@ const AuditTrailPanel = React.lazy(() => import("~/components/admin/panels/admin
 const HolidayDiscountsPanel = React.lazy(() => import("~/components/admin/panels/admin-panels").then(m => ({ default: m.HolidayDiscountsPanel })));
 const AutoUpdatesPanel = React.lazy(() => import("~/components/admin/panels/admin-panels").then(m => ({ default: m.AutoUpdatesPanel })));
 const AdminProfileCard = React.lazy(() => import("~/components/admin/panels/admin-panels").then(m => ({ default: m.AdminProfileCard })));
-const ManualAgentTaskPanel = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.ManualAgentTaskPanel })));
-const StatsOverview = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.StatsOverview })));
-const RecentTransactions = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.RecentTransactions })));
-const FreelancerPanel = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.FreelancerPanel })));
-const CloudMemoryPanel = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.CloudMemoryPanel })));
-const VoiceROIPanel = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.VoiceROIPanel })));
-const LiveChatsPanel = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.LiveChatsPanel })));
-const APICostsPanel = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.APICostsPanel })));
-const PlatformAnalyticsPanel = React.lazy(() => import("~/components/admin/panels/ai-panels").then(m => ({ default: m.PlatformAnalyticsPanel })));
-const UserManagementPanel = React.lazy(() => import("~/components/admin/panels/ai-panels").then(m => ({ default: m.UserManagementPanel })));
-const UnifiedAnalyticsPanel = React.lazy(() => import("~/components/admin/panels/ai-panels").then(m => ({ default: m.UnifiedAnalyticsPanel })));
-const SyntheticIntelPanel = React.lazy(() => import("~/components/admin/panels/ai-panels").then(m => ({ default: m.SyntheticIntelPanel })));
-const AdEnginePanel = React.lazy(() => import("~/components/admin/panels/ai-panels").then(m => ({ default: m.AdEnginePanel })));
+const ManualAgentTaskPanel = React.lazy(() => import("~/components/admin/panels/general/ManualAgentTaskPanel").then(m => ({ default: m.ManualAgentTaskPanel })));
+const StatsOverview = React.lazy(() => import("~/components/admin/panels/general/StatsOverview").then(m => ({ default: m.StatsOverview })));
+const RecentTransactions = React.lazy(() => import("~/components/admin/panels/general/RecentTransactions").then(m => ({ default: m.RecentTransactions })));
+const FreelancerPanel = React.lazy(() => import("~/components/admin/panels/general/FreelancerPanel").then(m => ({ default: m.FreelancerPanel })));
+const CloudMemoryPanel = React.lazy(() => import("~/components/admin/panels/general/CloudMemoryPanel").then(m => ({ default: m.CloudMemoryPanel })));
+const VoiceROIPanel = React.lazy(() => import("~/components/admin/panels/general/VoiceROIPanel").then(m => ({ default: m.VoiceROIPanel })));
+const LiveChatsPanel = React.lazy(() => import("~/components/admin/panels/general/LiveChatsPanel").then(m => ({ default: m.LiveChatsPanel })));
+const APICostsPanel = React.lazy(() => import("~/components/admin/panels/general/APICostsPanel").then(m => ({ default: m.APICostsPanel })));
+const PlatformAnalyticsPanel = React.lazy(() => import("~/components/admin/panels/ai/PlatformAnalyticsPanel").then(m => ({ default: m.PlatformAnalyticsPanel })));
+const UserManagementPanel = React.lazy(() => import("~/components/admin/panels/ai/UserManagementPanel").then(m => ({ default: m.UserManagementPanel })));
+const UnifiedAnalyticsPanel = React.lazy(() => import("~/components/admin/panels/ai/UnifiedAnalyticsPanel").then(m => ({ default: m.UnifiedAnalyticsPanel })));
+const SyntheticIntelPanel = React.lazy(() => import("~/components/admin/panels/ai/SyntheticIntelPanel").then(m => ({ default: m.SyntheticIntelPanel })));
+const AdEnginePanel = React.lazy(() => import("~/components/admin/panels/ai/AdEnginePanel").then(m => ({ default: m.AdEnginePanel })));
 
 // Lazy-loaded external panels
 const LiveFeed = React.lazy(() => import("~/components/LiveFeed").then(m => ({ default: m.LiveFeed })));
@@ -42,8 +42,8 @@ const PaymentMonitor = React.lazy(() => import("~/components/PaymentMonitor").th
 const SupportDashboard = React.lazy(() => import("~/components/admin/SupportDashboard").then(m => ({ default: m.SupportDashboard })));
 const ComposioAdminHub = React.lazy(() => import("~/components/ComposioAdminHub").then(m => ({ default: m.ComposioAdminHub })));
 const RenewalsTithePanel = React.lazy(() => import("~/components/RenewalsTithePanel").then(m => ({ default: m.RenewalsTithePanel })));
-const ComposioObservability = React.lazy(() => import("~/components/ComposioObservability").then(m => ({ default: m.ComposioObservability })));
-const TryPostScheduler = React.lazy(() => import("~/components/TryPostScheduler").then(m => ({ default: m.TryPostScheduler })));
+const ComposioObservability = React.lazy(() => import("~/components/composio").then(m => ({ default: m.ComposioObservability })));
+const TryPostScheduler = React.lazy(() => import("~/components/trypost").then(m => ({ default: m.TryPostScheduler })));
 const AutoHealDashboard = React.lazy(() => import("~/components/AutoHealDashboard").then(m => ({ default: m.AutoHealDashboard })));
 const ComposioEnhancementPanel = React.lazy(() => import("~/components/ComposioEnhancementPanel").then(m => ({ default: m.ComposioEnhancementPanel })));
 const TaxCompliancePanel = React.lazy(() => import("~/components/TaxCompliancePanel").then(m => ({ default: m.TaxCompliancePanel })));
@@ -73,7 +73,7 @@ const RefundsPanel = React.lazy(() => import("~/components/admin/RefundsPanel").
 const InvoicesPanel = React.lazy(() => import("~/components/admin/InvoicesPanel").then(m => ({ default: m.InvoicesPanel })));
 const RecurringBillingPanel = React.lazy(() => import("~/components/admin/RecurringBillingPanel").then(m => ({ default: m.RecurringBillingPanel })));
 const ClientAnalyticsDashboard = React.lazy(() => import("~/components/ClientAnalyticsWidgets").then(m => ({ default: m.ClientAnalyticsDashboard })));
-const TaxDashboardPanel = React.lazy(() => import("~/components/admin/panels/general-panels").then(m => ({ default: m.TaxDashboardPanel })));
+const TaxDashboardPanel = React.lazy(() => import("~/components/admin/panels/general/TaxDashboardPanel").then(m => ({ default: m.TaxDashboardPanel })));
 
 // Orphan panels (previously built but unwired)
 const PredictiveAnalyticsPanel = React.lazy(() => import("~/components/admin/PredictiveAnalyticsPanel").then(m => ({ default: m.PredictiveAnalyticsPanel })));
@@ -318,7 +318,7 @@ function StatsOverviewLazy() {
 
 function AgentHealthMatrixLazy() {
   const { data } = useSuspenseQuery(convexQuery(api.admin.getAdminStats, {})) as { data: any };
-  const { AgentHealthMatrix } = require("~/components/admin/panels/general-panels");
+  const { AgentHealthMatrix } = require("~/components/admin/panels/general/AgentHealthMatrix");
   return <AgentHealthMatrix data={data} />;
 }
 
