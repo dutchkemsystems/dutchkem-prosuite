@@ -108,7 +108,7 @@ export const sendWhatsAppMessage = action({
 
     // Forward to existing integration
     const result: any = await ctx.runAction(
-      (await import("./_generated/api")).internal.whatsapp_integration.sendWhatsAppMessage as any,
+      (await import("../_generated/api")).internal.whatsapp_integration.sendWhatsAppMessage as any,
       {
         adminToken: args.adminToken || "",
         phoneNumber: args.phoneNumber,
