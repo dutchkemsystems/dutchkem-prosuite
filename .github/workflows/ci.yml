@@ -20,7 +20,7 @@ jobs:
         run: |
           npm audit --audit-level=high --omit=dev || echo "::warning::High severity vulnerabilities found"
       - name: Check environment variables
-        run: node scripts/check-env-vars.js
+        run: node scripts/check-env-vars.cjs
 
   lint:
     runs-on: ubuntu-latest

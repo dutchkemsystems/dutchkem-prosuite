@@ -9,7 +9,12 @@ import { tryGetAdminSession } from "./auth_helpers";
 
 export const runSelfHealingAction = action({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.object({
+    issues: v.array(v.string()),
+    fixes: v.array(v.string()),
+    healed: v.boolean(),
+    timestamp: v.number(),
+  }),
   handler: async (ctx, args): Promise<any> => {
     const identity: any = args.adminToken ? await ctx.runQuery(internal.cloud_memory._validateAdminSession, { adminToken: args.adminToken }) : null;
     if (!identity) return { issues: ["Not authenticated as admin"], fixes: [], healed: false, timestamp: Date.now() };
@@ -51,7 +56,10 @@ export const runSelfHealingAction = action({
 
 export const autoBackupAction = action({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ results: v.array(v.string()), timestamp: v.number() }),
+    v.object({ results: v.array(v.string()) })
+  ),
   handler: async (ctx, args): Promise<any> => {
     const identity: any = args.adminToken ? await ctx.runQuery(internal.cloud_memory._validateAdminSession, { adminToken: args.adminToken }) : null;
     if (!identity) return { results: ["Not authenticated as admin"] };
@@ -71,7 +79,7 @@ export const autoBackupAction = action({
 
 export const sendHealingReportAction = action({
   args: { report: v.any(), adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.null(),
   handler: async (ctx, args): Promise<any> => {
     if (!args.report) return null;
     try {
@@ -87,7 +95,7 @@ export const sendHealingReportAction = action({
 
 export const getHealingHistory = query({
   args: { limit: v.optional(v.number()) },
-  returns: v.any(),
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const logs = await ctx.db.query("system_config").collect();
     const healingLogs = logs
@@ -99,7 +107,13 @@ export const getHealingHistory = query({
 
 export const getSystemHealth = query({
   args: {},
-  returns: v.any(),
+  returns: v.object({
+    healthScore: v.number(),
+    status: v.string(),
+    isLive: v.boolean(),
+    social: v.object({ stuckPosts: v.number() }),
+    backups: v.number(),
+  }),
   handler: async (ctx) => {
     const backups = await ctx.db.query("system_backups").order("desc").take(5);
     const socialPosts: any[] = await ctx.db.query("social_posts").take(100);
@@ -130,7 +144,7 @@ export const createBackup = internalMutation({
 
 export const getLatestBackup = query({
   args: { backupType: v.string() },
-  returns: v.any(),
+  returns: v.union(v.null(), v.any()),
   handler: async (ctx, args) => {
     const backups = await ctx.db.query("system_backups")
       .withIndex("by_type_and_time", (q) => q.eq("backupType", args.backupType))
@@ -141,7 +155,7 @@ export const getLatestBackup = query({
 
 export const autoBackupSystem = internalAction({
   args: {},
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true), results: v.array(v.string()), timestamp: v.number() }),
   handler: async (ctx): Promise<any> => {
     const backupTypes = ["schema_config", "auth_config", "social_config", "payment_config"];
     const results: string[] = [];
@@ -159,7 +173,7 @@ export const autoBackupSystem = internalAction({
 
 export const runSelfHealing = internalAction({
   args: {},
-  returns: v.any(),
+  returns: v.object({ issues: v.array(v.string()), fixes: v.array(v.string()) }),
   handler: async (ctx): Promise<any> => {
     const issues: string[] = [];
     const fixes: string[] = [];
@@ -237,7 +251,12 @@ export const _logHealingAttempt = internalMutation({
 
 export const _validateAdminSession = internalQuery({
   args: { adminToken: v.string() },
-  returns: v.any(),
+  returns: v.union(v.null(), v.object({
+    _id: v.id("users"),
+    email: v.string(),
+    name: v.optional(v.string()),
+    role: v.literal("admin"),
+  })),
   handler: async (ctx, args) => {
     return await tryGetAdminSession(ctx, args.adminToken);
   },
@@ -245,7 +264,7 @@ export const _validateAdminSession = internalQuery({
 
 export const getAllBackups = query({
   args: { backupType: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     if (args.backupType) {
       return await ctx.db.query("system_backups").order("desc").take(20);
@@ -256,7 +275,7 @@ export const getAllBackups = query({
 
 export const restoreFromBackup = mutation({
   args: { backupId: v.id("system_backups") },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true), data: v.any() }),
   handler: async (ctx, args) => {
     const backup = await ctx.db.get(args.backupId);
     if (!backup) throw new Error("Backup not found");
@@ -270,7 +289,7 @@ export const restoreFromBackup = mutation({
 
 export const logCloudMemory = action({
   args: { checkType: v.string(), status: v.string(), issuesFound: v.string(), autoFixesApplied: v.string(), healingTimeMs: v.number() },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args): Promise<any> => {
     await ctx.runMutation(internal.cloud_memory._insertMemoryLog, args);
     return { success: true };
@@ -285,7 +304,7 @@ export const _insertMemoryLog = internalMutation({
 
 export const getRecentCloudMemory = query({
   args: { limit: v.optional(v.number()) },
-  returns: v.any(),
+  returns: v.array(v.any()),
   handler: async (ctx, { limit }) => {
     const n = limit ?? 50;
     return await ctx.db.query("cloud_memory_autonomy").order("desc").take(n);
@@ -294,7 +313,7 @@ export const getRecentCloudMemory = query({
 
 export const getCloudMemoryStats = query({
   args: {},
-  returns: v.any(),
+  returns: v.object({ total: v.number(), byStatus: v.any() }),
   handler: async (ctx) => {
     const logs = await ctx.db.query("cloud_memory_autonomy").take(200);
     const byStatus: Record<string, number> = {};
@@ -316,7 +335,7 @@ export const storeAgentSnapshot = internalMutation({
 
 export const consolidateMemory = internalAction({
   args: {},
-  returns: v.any(),
+  returns: v.object({ consolidated: v.literal(true), types: v.number() }),
   handler: async (ctx): Promise<any> => {
     const logs: any[] = await ctx.runQuery(internal.cloud_memory._getRecentForConsolidation);
     const byType: Record<string, number> = {};

@@ -30,8 +30,12 @@ export function registerAdminRoutes(http: HttpRouter) {
     method: "POST",
     handler: httpAction(async (ctx, req) => {
       const body = await req.json();
+      if (!body || typeof body !== "object") return new Response(JSON.stringify({ error: "Request body must be a JSON object" }), { status: 400, headers: { "Content-Type": "application/json" } });
       const { transactionId, clientId } = body;
-      if (!transactionId || !clientId) return new Response(JSON.stringify({ error: "Missing transactionId or clientId" }), { status: 400, headers: { "Content-Type": "application/json" } });
+      if (!transactionId || typeof transactionId !== "string") return new Response(JSON.stringify({ error: "Missing or invalid transactionId" }), { status: 400, headers: { "Content-Type": "application/json" } });
+      if (!clientId || typeof clientId !== "string") return new Response(JSON.stringify({ error: "Missing or invalid clientId" }), { status: 400, headers: { "Content-Type": "application/json" } });
+      if (transactionId.length > 200) return new Response(JSON.stringify({ error: "transactionId too long" }), { status: 400, headers: { "Content-Type": "application/json" } });
+      if (clientId.length > 200) return new Response(JSON.stringify({ error: "clientId too long" }), { status: 400, headers: { "Content-Type": "application/json" } });
       await ctx.runMutation(api.marketplace.approveJob, { transactionId, clientId });
       return new Response(JSON.stringify({ success: true, message: "Work approved. Payout scheduled for Friday 2 PM." }), { status: 200, headers: { "Content-Type": "application/json" } });
     }),
@@ -39,7 +43,7 @@ export function registerAdminRoutes(http: HttpRouter) {
 
   http.route({ path: "/api/admin/marketplace/escrow", method: "GET", handler: httpAction(async (ctx, req) => { const adminId = await verifyAdminToken(req); if (!adminId) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } }); const balance = await ctx.runQuery(api.marketplace.getEscrowBalance); return new Response(JSON.stringify(balance), { status: 200, headers: { "Content-Type": "application/json" } }); }) });
   http.route({ path: "/api/admin/marketplace/pending-payout", method: "GET", handler: httpAction(async (ctx, req) => { const adminId = await verifyAdminToken(req); if (!adminId) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } }); const pending = await ctx.runQuery(api.marketplace.getPendingFridayPayout); return new Response(JSON.stringify(pending), { status: 200, headers: { "Content-Type": "application/json" } }); }) });
-  http.route({ path: "/api/admin/marketplace/payouts", method: "GET", handler: httpAction(async (ctx, req) => { const adminId = await verifyAdminToken(req); if (!adminId) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } }); const url = new URL(req.url); const limit = Number(url.searchParams.get("limit")) || 50; const payouts = await ctx.runQuery(api.marketplace.getPayoutHistory, { limit }); return new Response(JSON.stringify(payouts), { status: 200, headers: { "Content-Type": "application/json" } }); }) });
+  http.route({ path: "/api/admin/marketplace/payouts", method: "GET", handler: httpAction(async (ctx, req) => { const adminId = await verifyAdminToken(req); if (!adminId) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } }); const url = new URL(req.url); const rawLimit = url.searchParams.get("limit"); const limit = rawLimit ? Math.min(Math.max(parseInt(rawLimit) || 50, 1), 500) : 50; const payouts = await ctx.runQuery(api.marketplace.getPayoutHistory, { limit }); return new Response(JSON.stringify(payouts), { status: 200, headers: { "Content-Type": "application/json" } }); }) });
   http.route({ path: "/api/admin/marketplace/stats", method: "GET", handler: httpAction(async (ctx, req) => { const adminId = await verifyAdminToken(req); if (!adminId) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } }); const stats = await ctx.runQuery(api.marketplace.getMarketplaceStats); return new Response(JSON.stringify(stats), { status: 200, headers: { "Content-Type": "application/json" } }); }) });
 
   http.route({
@@ -93,8 +97,10 @@ export function registerAdminRoutes(http: HttpRouter) {
     handler: httpAction(async (ctx, req) => {
       try {
         const body = await req.json();
+        if (!body || typeof body !== "object") return new Response(JSON.stringify({ error: "Request body must be a JSON object" }), { status: 400, headers: { "Content-Type": "application/json" } });
         const { adminToken, offset = 0 } = body;
-        if (!adminToken) return new Response(JSON.stringify({ error: "adminToken required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+        if (!adminToken || typeof adminToken !== "string") return new Response(JSON.stringify({ error: "adminToken required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+        if (typeof offset !== "number" || offset < 0 || !Number.isFinite(offset)) return new Response(JSON.stringify({ error: "offset must be a non-negative number" }), { status: 400, headers: { "Content-Type": "application/json" } });
 
         const session: any = await ctx.runQuery(internal.auth_helpers.validateAdminSession, { adminToken });
         if (!session) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
@@ -113,7 +119,8 @@ export function registerAdminRoutes(http: HttpRouter) {
     handler: httpAction(async (ctx, req) => {
       const url = new URL(req.url);
       const adminToken = url.searchParams.get("token");
-      const offset = parseInt(url.searchParams.get("offset") || "0");
+      const rawOffset = url.searchParams.get("offset") || "0";
+      const offset = Math.min(Math.max(parseInt(rawOffset) || 0, 0), 10000);
       if (!adminToken) return new Response(JSON.stringify({ error: "token required" }), { status: 400, headers: { "Content-Type": "application/json" } });
 
       const session: any = await ctx.runQuery(internal.auth_helpers.validateAdminSession, { adminToken });
@@ -130,8 +137,10 @@ export function registerAdminRoutes(http: HttpRouter) {
     handler: httpAction(async (ctx, req) => {
       try {
         const body = await req.json();
+        if (!body || typeof body !== "object") return new Response(JSON.stringify({ error: "Request body must be a JSON object" }), { status: 400, headers: { "Content-Type": "application/json" } });
         const { adminToken, offset = 0 } = body;
-        if (!adminToken) return new Response(JSON.stringify({ error: "adminToken required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+        if (!adminToken || typeof adminToken !== "string") return new Response(JSON.stringify({ error: "adminToken required" }), { status: 400, headers: { "Content-Type": "application/json" } });
+        if (typeof offset !== "number" || offset < 0 || !Number.isFinite(offset)) return new Response(JSON.stringify({ error: "offset must be a non-negative number" }), { status: 400, headers: { "Content-Type": "application/json" } });
 
         const session: any = await ctx.runQuery(internal.auth_helpers.validateAdminSession, { adminToken });
         if (!session) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });

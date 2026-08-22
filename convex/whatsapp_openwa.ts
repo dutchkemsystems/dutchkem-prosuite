@@ -15,7 +15,15 @@ const BUSINESS_NUMBER = "+2349113393525";
 
 export const getSessionStatus = query({
   args: { sessionType: v.union(v.literal("admin"), v.literal("enterprise")) },
-  returns: v.any(),
+  returns: v.object({
+    connected: v.boolean(),
+    status: v.union(v.literal("connected"), v.literal("disconnected"), v.literal("starting"), v.literal("stopping")),
+    sessionType: v.union(v.literal("admin"), v.literal("enterprise")),
+    qr: v.union(v.string(), v.null()),
+    connectedAt: v.optional(v.number()),
+    lastPingAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
     const session = await ctx.db
       .query("whatsapp_sessions")
@@ -42,7 +50,17 @@ export const getSessionStatus = query({
 
 export const checkServerHealth = query({
   args: { sessionType: v.union(v.literal("admin"), v.literal("enterprise")) },
-  returns: v.any(),
+  returns: v.object({
+    sessionType: v.union(v.literal("admin"), v.literal("enterprise")),
+    connected: v.boolean(),
+    status: v.string(),
+    isStale: v.boolean(),
+    lastPingAt: v.number(),
+    minutesSincePing: v.union(v.number(), v.null()),
+    qr: v.union(v.string(), v.null()),
+    error: v.optional(v.string()),
+    canSendMessages: v.boolean(),
+  }),
   handler: async (ctx, args) => {
     const session = await ctx.db
       .query("whatsapp_sessions")
@@ -71,7 +89,14 @@ export const checkServerHealth = query({
 
 export const getConfigByKey = internalQuery({
   args: { key: v.string() },
-  returns: v.any(),
+  returns: v.union(v.null(), v.object({
+    _id: v.id("system_config"),
+    _creationTime: v.number(),
+    key: v.string(),
+    value: v.any(),
+    description: v.optional(v.string()),
+    updatedAt: v.number(),
+  })),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("system_config")
@@ -101,7 +126,13 @@ export const startSession = mutation({
     sessionType: v.union(v.literal("admin"), v.literal("enterprise")),
     adminToken: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    message: v.optional(v.string()),
+    status: v.optional(v.string()),
+    sessionType: v.optional(v.union(v.literal("admin"), v.literal("enterprise"))),
+  }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return { success: false, error: "Unauthorized" };
@@ -149,7 +180,12 @@ export const stopSession = mutation({
     sessionType: v.union(v.literal("admin"), v.literal("enterprise")),
     adminToken: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    status: v.optional(v.string()),
+    sessionType: v.optional(v.union(v.literal("admin"), v.literal("enterprise"))),
+  }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return { success: false, error: "Unauthorized" };
@@ -228,7 +264,7 @@ export const reportSessionStatus = mutation({
 
 export const getPendingCommands = internalQuery({
   args: { sessionType: v.union(v.literal("admin"), v.literal("enterprise")) },
-  returns: v.any(),
+  returns: v.object({ command: v.union(v.literal("start"), v.literal("stop"), v.null()) }),
   handler: async (ctx, args) => {
     const session = await ctx.db
       .query("whatsapp_sessions")
@@ -338,7 +374,7 @@ export const getPendingMessages = internalQuery({
     sessionType: v.union(v.literal("admin"), v.literal("enterprise")),
     limit: v.optional(v.number()),
   },
-  returns: v.any(),
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const limit = args.limit || 10;
     return await ctx.db
@@ -410,7 +446,11 @@ export const sendText = action({
     message: v.string(),
     adminToken: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    queued: v.optional(v.boolean()),
+  }),
   handler: async (ctx, args) => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { success: false, error: "Unauthorized" };
@@ -445,7 +485,12 @@ export const sendImage = action({
     caption: v.optional(v.string()),
     adminToken: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    queued: v.optional(v.boolean()),
+    queueId: v.optional(v.id("whatsapp_message_queue")),
+  }),
   handler: async (ctx, args): Promise<any> => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { success: false, error: "Unauthorized" };
@@ -479,7 +524,12 @@ export const sendToGroup = action({
     message: v.string(),
     adminToken: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    queued: v.optional(v.boolean()),
+    queueId: v.optional(v.id("whatsapp_message_queue")),
+  }),
   handler: async (ctx, args): Promise<any> => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { success: false, error: "Unauthorized" };
@@ -507,7 +557,7 @@ export const sendToGroup = action({
 
 export const getContacts = query({
   args: { sessionType: v.union(v.literal("admin"), v.literal("enterprise")) },
-  returns: v.any(),
+  returns: v.object({ contacts: v.array(v.any()) }),
   handler: async () => {
     return { contacts: [] };
   },
@@ -517,7 +567,7 @@ export const getContacts = query({
 
 export const getGroups = query({
   args: { sessionType: v.union(v.literal("admin"), v.literal("enterprise")) },
-  returns: v.any(),
+  returns: v.object({ groups: v.array(v.any()) }),
   handler: async () => {
     return { groups: [] };
   },
@@ -533,7 +583,13 @@ export const bulkSendText = action({
     delayMs: v.optional(v.number()),
     adminToken: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    sent: v.number(),
+    failed: v.number(),
+    total: v.number(),
+  }),
   handler: async (ctx, args) => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { success: false, error: "Unauthorized" };
@@ -568,7 +624,13 @@ export const bulkSendImage = action({
     delayMs: v.optional(v.number()),
     adminToken: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    sent: v.number(),
+    failed: v.number(),
+    total: v.number(),
+  }),
   handler: async (ctx, args) => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { success: false, error: "Unauthorized" };
@@ -602,7 +664,12 @@ export const sendImageToGroup = action({
     caption: v.optional(v.string()),
     adminToken: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    queued: v.optional(v.boolean()),
+    queueId: v.optional(v.id("whatsapp_message_queue")),
+  }),
   handler: async (ctx, args) => {
     const session = await tryGetAdminSessionInAction(ctx, args.adminToken);
     if (!session) return { success: false, error: "Unauthorized" };
@@ -630,7 +697,7 @@ export const sendImageToGroup = action({
 
 export const checkSessionHealth = internalMutation({
   args: {},
-  returns: v.any(),
+  returns: v.object({ alerts: v.array(v.string()), checkedAt: v.number() }),
   handler: async (ctx) => {
     const now = Date.now();
     const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes without ping = stale
@@ -745,7 +812,7 @@ export const getFailedMessages = query({
     sessionType: v.optional(v.union(v.literal("admin"), v.literal("enterprise"))),
     limit: v.optional(v.number()),
   },
-  returns: v.any(),
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     let q = ctx.db
       .query("whatsapp_message_queue")
@@ -768,7 +835,11 @@ export const retryFailedMessage = mutation({
     messageId: v.id("whatsapp_message_queue"),
     adminToken: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    message: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return { success: false, error: "Unauthorized" };
@@ -795,7 +866,11 @@ export const deleteFailedMessage = mutation({
     messageId: v.id("whatsapp_message_queue"),
     adminToken: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    message: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return { success: false, error: "Unauthorized" };

@@ -21,6 +21,7 @@ export function registerTelegramRoutes(http: HttpRouter) {
 
       let update: any;
       try { update = await req.json(); } catch { return new Response(JSON.stringify({ ok: false, error: "invalid_json" }), { status: 200, headers: { "Content-Type": "application/json" } }); }
+      if (!update || typeof update !== "object") return new Response(JSON.stringify({ ok: false, error: "invalid_json" }), { status: 200, headers: { "Content-Type": "application/json" } });
 
       const message = update?.message;
       if (!message) return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
@@ -28,7 +29,9 @@ export function registerTelegramRoutes(http: HttpRouter) {
       const chatId: number = message.chat?.id;
       const text: string = (message.text || "").trim();
       const firstName: string = message.from?.first_name || "there";
-      if (!chatId || !text) return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+      if (!chatId || typeof chatId !== "number") return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+      if (!text || typeof text !== "string") return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+      if (text.length > 4000) return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
 
       const cmd = text.split(/\s+/)[0].toLowerCase();
       let reply = "";

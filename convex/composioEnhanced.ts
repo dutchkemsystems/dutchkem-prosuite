@@ -85,7 +85,24 @@ export const getPopularToolkits = query({
 
 export const getToolCatalogStats = query({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true) }),
+    v.object({
+      authError: v.literal(false),
+      totalToolkits: v.number(),
+      totalTools: v.number(),
+      totalConnectedAccounts: v.number(),
+      totalActiveTriggers: v.number(),
+      totalCustomTools: v.number(),
+      byCategory: v.any(),
+      last24h: v.object({
+        invocations: v.number(),
+        success: v.number(),
+        failed: v.number(),
+        successRate: v.number(),
+      }),
+    })
+  ),
   handler: async (ctx, { adminToken }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
     if (!identity) return { authError: true, totalToolkits: 0, totalTools: 0, byCategory: {} };
@@ -146,7 +163,10 @@ export const getToolCatalogStats = query({
 
 export const getToolkitDetails = query({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true), toolkits: v.array(v.any()) }),
+    v.object({ authError: v.literal(false), toolkits: v.array(v.any()) })
+  ),
   handler: async (ctx, { adminToken }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
     if (!identity) return { authError: true, toolkits: [] };
@@ -165,7 +185,21 @@ export const getToolkitDetails = query({
 
 export const getToolkitDetailByName = query({
   args: { adminToken: v.optional(v.string()), toolkit: v.string() },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true), toolkit: v.null() }),
+    v.object({
+      authError: v.literal(false),
+      toolkit: v.union(v.null(), v.object({
+        toolkit: v.string(),
+        name: v.string(),
+        icon: v.string(),
+        category: v.string(),
+        description: v.string(),
+        toolCount: v.number(),
+        tools: v.any(),
+      })),
+    })
+  ),
   handler: async (ctx, { adminToken, toolkit }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
     if (!identity) return { authError: true, toolkit: null };
@@ -188,7 +222,10 @@ export const getToolkitDetailByName = query({
 
 export const searchAllTools = query({
   args: { adminToken: v.optional(v.string()), query: v.string(), toolkitFilter: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true), results: v.array(v.any()) }),
+    v.object({ authError: v.literal(false), results: v.array(v.any()) })
+  ),
   handler: async (ctx, { adminToken, query, toolkitFilter }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
     if (!identity) return { authError: true, results: [] };
@@ -206,7 +243,14 @@ export const executeToolByName = action({
     agentId: v.optional(v.string()),
     clientId: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({
+    success: v.boolean(),
+    status: v.optional(v.number()),
+    data: v.optional(v.any()),
+    toolSlug: v.optional(v.string()),
+    error: v.optional(v.string()),
+    durationMs: v.number(),
+  }),
   handler: async (ctx, args) => {
     const start = Date.now();
     const apiKey = process.env.COMPOSIO_API_KEY;
@@ -264,7 +308,10 @@ export const executeToolByName = action({
 
 export const listTriggers = query({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true), triggers: v.array(v.any()) }),
+    v.object({ authError: v.literal(false), triggers: v.array(v.any()) })
+  ),
   handler: async (ctx, { adminToken }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
     if (!identity) return { authError: true, triggers: [] };
@@ -275,7 +322,10 @@ export const listTriggers = query({
 
 export const getTriggerEvents = query({
   args: { adminToken: v.optional(v.string()), limit: v.optional(v.number()) },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true), events: v.array(v.any()) }),
+    v.object({ authError: v.literal(false), events: v.array(v.any()) })
+  ),
   handler: async (ctx, { adminToken, limit }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
     if (!identity) return { authError: true, events: [] };
@@ -300,7 +350,7 @@ export const createTrigger = mutation({
     config: v.optional(v.any()),
     webhookUrl: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true), triggerId: v.id("composio_triggers") }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -334,7 +384,7 @@ export const createTrigger = mutation({
 
 export const toggleTrigger = mutation({
   args: { adminToken: v.string(), triggerDocId: v.id("composio_triggers"), enabled: v.boolean() },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -345,7 +395,7 @@ export const toggleTrigger = mutation({
 
 export const deleteTrigger = mutation({
   args: { adminToken: v.string(), triggerDocId: v.id("composio_triggers") },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -358,7 +408,10 @@ export const deleteTrigger = mutation({
 
 export const listWebhooks = query({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true), webhooks: v.array(v.any()) }),
+    v.object({ authError: v.literal(false), webhooks: v.array(v.any()) })
+  ),
   handler: async (ctx, { adminToken }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
     if (!identity) return { authError: true, webhooks: [] };
@@ -374,7 +427,7 @@ export const createWebhook = mutation({
     events: v.array(v.string()),
     secret: v.string(),
   },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true), webhookId: v.string(), id: v.id("composio_webhooks") }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -397,7 +450,7 @@ export const createWebhook = mutation({
 
 export const toggleWebhook = mutation({
   args: { adminToken: v.string(), webhookDocId: v.id("composio_webhooks"), enabled: v.boolean() },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -408,7 +461,7 @@ export const toggleWebhook = mutation({
 
 export const deleteWebhook = mutation({
   args: { adminToken: v.string(), webhookDocId: v.id("composio_webhooks") },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -421,7 +474,10 @@ export const deleteWebhook = mutation({
 
 export const listCustomTools = query({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true), tools: v.array(v.any()) }),
+    v.object({ authError: v.literal(false), tools: v.array(v.any()) })
+  ),
   handler: async (ctx, { adminToken }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
     if (!identity) return { authError: true, tools: [] };
@@ -440,7 +496,7 @@ export const createCustomTool = mutation({
     outputSchema: v.optional(v.any()),
     handler: v.string(),
   },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true), id: v.id("composio_custom_tools") }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -472,7 +528,7 @@ export const createCustomTool = mutation({
 
 export const toggleCustomTool = mutation({
   args: { adminToken: v.string(), toolDocId: v.id("composio_custom_tools"), enabled: v.boolean() },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -483,7 +539,7 @@ export const toggleCustomTool = mutation({
 
 export const deleteCustomTool = mutation({
   args: { adminToken: v.string(), toolDocId: v.id("composio_custom_tools") },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -496,7 +552,10 @@ export const deleteCustomTool = mutation({
 
 export const listSessions = query({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true), sessions: v.array(v.any()) }),
+    v.object({ authError: v.literal(false), sessions: v.array(v.any()) })
+  ),
   handler: async (ctx, { adminToken }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
     if (!identity) return { authError: true, sessions: [] };
@@ -517,7 +576,7 @@ export const createSession = mutation({
     toolkits: v.array(v.string()),
     durationHours: v.optional(v.number()),
   },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true), sessionId: v.string(), id: v.id("composio_sessions") }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -546,7 +605,29 @@ export const createSession = mutation({
 
 export const getObservability = query({
   args: { adminToken: v.optional(v.string()), period: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true) }),
+    v.object({
+      authError: v.literal(false),
+      period: v.string(),
+      windowMs: v.number(),
+      summary: v.object({
+        totalInvocations: v.number(),
+        successCount: v.number(),
+        failedCount: v.number(),
+        successRate: v.number(),
+        uniquePlatforms: v.number(),
+      }),
+      byPlatform: v.any(),
+      hourlyBuckets: v.array(v.object({
+        hour: v.string(),
+        total: v.number(),
+        success: v.number(),
+        failed: v.number(),
+      })),
+      topTools: v.array(v.object({ action: v.string(), count: v.number() })),
+    })
+  ),
   handler: async (ctx, { adminToken, period }) => {
     const identity = await tryGetAdminSession(ctx, adminToken);
     if (!identity) return { authError: true };
@@ -627,7 +708,12 @@ export const getObservability = query({
 
 export const refreshToolCatalog = internalAction({
   args: {},
-  returns: v.any(),
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    refreshedAt: v.optional(v.number()),
+    toolkitsFound: v.optional(v.number()),
+  }),
   handler: async (ctx) => {
     const apiKey = process.env.COMPOSIO_API_KEY;
     if (!apiKey) return { success: false, error: "COMPOSIO_API_KEY not configured" };
@@ -666,7 +752,7 @@ export const refreshToolCatalog = internalAction({
 
 export const cleanupExpiredSessions = internalAction({
   args: {},
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true), deleted: v.number() }),
   handler: async (ctx) => {
     const now = Date.now();
     // Use raw db access via runQuery
@@ -683,7 +769,19 @@ export const cleanupExpiredSessions = internalAction({
 
 export const _getExpiredSessions = internalQuery({
   args: { now: v.number() },
-  returns: v.array(v.any()),
+  returns: v.array(v.object({
+    _id: v.id("composio_sessions"),
+    _creationTime: v.number(),
+    sessionId: v.string(),
+    userId: v.string(),
+    agentId: v.optional(v.string()),
+    toolkits: v.array(v.string()),
+    activeTools: v.number(),
+    toolCallCount: v.number(),
+    startedAt: v.number(),
+    lastActivityAt: v.number(),
+    expiresAt: v.number(),
+  })),
   handler: async (ctx, { now }) => {
     return await ctx.db
       .query("composio_sessions")
@@ -735,7 +833,7 @@ export const recordTriggerEvent = mutation({
     payload: v.any(),
     agentId: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     await ctx.db.insert("composio_trigger_events", {
       triggerId: args.triggerId,
@@ -773,7 +871,11 @@ export const executeTool = action({
     params: v.any(),
     connectedAccountId: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({
+    success: v.literal(true),
+    result: v.any(),
+    duration: v.number(),
+  }),
   handler: async (ctx, args) => {
     const identity = await ctx.runQuery(internal.composioEnhanced._verifyAdmin, {
       adminToken: args.adminToken,
@@ -837,7 +939,12 @@ export const executeTool = action({
 
 export const _verifyAdmin = internalQuery({
   args: { adminToken: v.string() },
-  returns: v.any(),
+  returns: v.union(v.null(), v.object({
+    _id: v.id("users"),
+    email: v.string(),
+    name: v.optional(v.string()),
+    role: v.literal("admin"),
+  })),
   handler: async (ctx, { adminToken }) => {
     return await tryGetAdminSession(ctx, adminToken);
   },

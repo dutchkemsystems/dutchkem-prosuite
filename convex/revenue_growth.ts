@@ -12,7 +12,13 @@ import { tryGetAdminSession } from "./auth_helpers";
 
 export const getCreditExpiryConfig = query({
   args: {},
-  returns: v.any(),
+  returns: v.object({
+    enabled: v.boolean(),
+    expiryDays: v.number(),
+    warningDays: v.number(),
+    createdAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
+  }),
   handler: async (ctx) => {
     const config = await ctx.db
       .query("credit_expiry_config")
@@ -29,7 +35,7 @@ export const updateCreditExpiryConfig = mutation({
     warningDays: v.number(),
     adminToken: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -61,7 +67,7 @@ export const updateCreditExpiryConfig = mutation({
 
 export const getExpiringCredits = query({
   args: { userId: v.string() },
-  returns: v.any(),
+  returns: v.object({ expiring: v.array(v.any()), totalExpiring: v.number() }),
   handler: async (ctx, args) => {
     const config = await ctx.runQuery(internal.revenue_growth.getCreditExpiryConfigInternal);
     if (!config.enabled) return { expiring: [], totalExpiring: 0 };
@@ -86,7 +92,13 @@ export const getExpiringCredits = query({
 
 export const getCreditExpiryConfigInternal = internalQuery({
   args: {},
-  returns: v.any(),
+  returns: v.object({
+    enabled: v.boolean(),
+    expiryDays: v.number(),
+    warningDays: v.number(),
+    createdAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
+  }),
   handler: async (ctx) => {
     const config = await ctx.db
       .query("credit_expiry_config")
@@ -100,7 +112,22 @@ export const getCreditExpiryConfigInternal = internalQuery({
 
 export const getSubscriptionPlans = query({
   args: {},
-  returns: v.any(),
+  returns: v.array(v.object({
+    _id: v.id("subscription_plans"),
+    _creationTime: v.number(),
+    planId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    monthlyPriceNgn: v.number(),
+    annualPriceNgn: v.number(),
+    annualDiscountPercent: v.number(),
+    creditsIncluded: v.number(),
+    messageLimitMonthly: v.number(),
+    features: v.array(v.string()),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })),
   handler: async (ctx) => {
     return await ctx.db
       .query("subscription_plans")
@@ -112,7 +139,7 @@ export const getSubscriptionPlans = query({
 
 export const seedSubscriptionPlans = mutation({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true), inserted: v.number() }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -186,7 +213,7 @@ export const updateSubscriptionPlan = mutation({
     features: v.optional(v.array(v.string())),
     adminToken: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -214,7 +241,19 @@ export const updateSubscriptionPlan = mutation({
 
 export const getAgentPricingTiers = query({
   args: { agentId: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.array(v.object({
+    _id: v.id("agent_pricing_tiers"),
+    _creationTime: v.number(),
+    agentId: v.string(),
+    agentName: v.string(),
+    tier: v.union(v.literal("standard"), v.literal("premium"), v.literal("enterprise")),
+    monthlyPriceNgn: v.number(),
+    creditsPerMessage: v.number(),
+    features: v.array(v.string()),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })),
   handler: async (ctx, args) => {
     if (args.agentId) {
       return await ctx.db
@@ -231,7 +270,7 @@ export const getAgentPricingTiers = query({
 
 export const seedAgentPricingTiers = mutation({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true), inserted: v.number() }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -293,7 +332,19 @@ export const seedAgentPricingTiers = mutation({
 
 export const getEnterpriseAddons = query({
   args: { category: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.array(v.object({
+    _id: v.id("enterprise_addons"),
+    _creationTime: v.number(),
+    addonId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    category: v.union(v.literal("api_access"), v.literal("custom_training"), v.literal("white_label"), v.literal("dedicated_support"), v.literal("custom_integration")),
+    priceNgn: v.number(),
+    billingCycle: v.union(v.literal("one_time"), v.literal("monthly"), v.literal("annual")),
+    features: v.array(v.string()),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+  })),
   handler: async (ctx, args) => {
     let q = ctx.db
       .query("enterprise_addons")
@@ -308,7 +359,7 @@ export const getEnterpriseAddons = query({
 
 export const seedEnterpriseAddons = mutation({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true), inserted: v.number() }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -391,7 +442,7 @@ export const subscribeToAddon = mutation({
     token: v.optional(v.string()),
     adminToken: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true), subscriptionId: v.id("enterprise_addon_subscriptions"), amount: v.number() }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -449,7 +500,7 @@ export const cancelAddonSubscription = mutation({
     addonId: v.string(),
     adminToken: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");
@@ -471,7 +522,19 @@ export const cancelAddonSubscription = mutation({
 
 export const getUsageTracking = query({
   args: { userId: v.string(), period: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.object({
+    userId: v.string(),
+    period: v.string(),
+    agentMessagesUsed: v.number(),
+    documentUploadsUsed: v.number(),
+    voiceMinutesUsed: v.number(),
+    flyerGenerationsUsed: v.number(),
+    socialPostsUsed: v.number(),
+    researchTasksUsed: v.number(),
+    overageCharges: v.number(),
+    createdAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
+  }),
   handler: async (ctx, args) => {
     const period = args.period || new Date().toISOString().slice(0, 7); // "YYYY-MM"
     const tracking = await ctx.db
@@ -498,7 +561,7 @@ export const recordUsage = internalMutation({
     usageType: v.string(), // "agent_messages", "document_uploads", etc.
     quantity: v.number(),
   },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     const period = new Date().toISOString().slice(0, 7);
     const now = Date.now();
@@ -540,7 +603,16 @@ export const recordUsage = internalMutation({
 
 export const calculateOverage = query({
   args: { userId: v.string(), period: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.object({
+    overages: v.array(v.object({
+      type: v.string(),
+      used: v.number(),
+      limit: v.number(),
+      overage: v.number(),
+      charge: v.number(),
+    })),
+    totalOverage: v.number(),
+  }),
   handler: async (ctx, args) => {
     const period = args.period || new Date().toISOString().slice(0, 7);
 
@@ -604,7 +676,7 @@ export const trackConversionEvent = mutation({
     ),
     metadata: v.optional(v.any()),
   },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true), eventId: v.id("freemium_conversion_events") }),
   handler: async (ctx, args) => {
     const now = Date.now();
     const eventId = await ctx.db.insert("freemium_conversion_events", {
@@ -619,7 +691,25 @@ export const trackConversionEvent = mutation({
 
 export const getConversionStats = query({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true) }),
+    v.object({
+      authError: v.literal(false),
+      totalEvents: v.number(),
+      recentEvents: v.number(),
+      eventCounts: v.any(),
+      metrics: v.object({
+        freeCreditsGranted: v.number(),
+        freeLimitReached: v.number(),
+        upgradePromptsShown: v.number(),
+        upgradePromptsClicked: v.number(),
+        conversionsCompleted: v.number(),
+        promptToClickRate: v.number(),
+        clickToConversionRate: v.number(),
+        overallConversionRate: v.number(),
+      }),
+    })
+  ),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return { authError: true };
@@ -673,7 +763,20 @@ export const getConversionStats = query({
 
 export const getRevenueDashboard = query({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true) }),
+    v.object({
+      authError: v.literal(false),
+      today: v.any(),
+      last30Days: v.array(v.any()),
+      totalRevenue30d: v.number(),
+      mrr: v.number(),
+      arr: v.number(),
+      arpu: v.number(),
+      ltv: v.number(),
+      conversionRate: v.number(),
+    })
+  ),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return { authError: true };
@@ -755,7 +858,7 @@ export const recordDailySnapshot = internalMutation({
     ltv: v.number(),
     conversionRate: v.number(),
   },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true) }),
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("revenue_daily_snapshots")
@@ -790,7 +893,7 @@ export const trackSubscriptionChange = mutation({
     proratedAmount: v.number(),
     reason: v.optional(v.string()),
   },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true), changeId: v.id("subscription_changes") }),
   handler: async (ctx, args) => {
     const now = Date.now();
     const changeId = await ctx.db.insert("subscription_changes", {
@@ -804,7 +907,20 @@ export const trackSubscriptionChange = mutation({
 
 export const getSubscriptionChangeStats = query({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true) }),
+    v.object({
+      authError: v.literal(false),
+      totalChanges: v.number(),
+      upgrades: v.number(),
+      downgrades: v.number(),
+      cancellations: v.number(),
+      renewals: v.number(),
+      upgradeRevenue: v.number(),
+      downgradeLoss: v.number(),
+      netRevenueImpact: v.number(),
+    })
+  ),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return { authError: true };
@@ -840,7 +956,7 @@ export const getSubscriptionChangeStats = query({
 
 export const bulkSeedAllRevenueGrowth = mutation({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.object({ success: v.literal(true), message: v.string() }),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) throw new Error("Unauthorized");

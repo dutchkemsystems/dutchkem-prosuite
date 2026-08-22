@@ -28,9 +28,13 @@ export function registerOtpRoutes(http: HttpRouter) {
     handler: httpAction(async (ctx, req) => {
       try {
         const body = await req.json();
+        if (!body || typeof body !== "object") return new Response(JSON.stringify({ success: false, message: "Request body must be a JSON object" }), { status: 400, headers: { "Content-Type": "application/json" } });
         let { phone } = body;
-        if (!phone) return new Response(JSON.stringify({ success: false, message: 'Phone number is required' }), { status: 400, headers: { "Content-Type": "application/json" } });
+        if (!phone || typeof phone !== "string") return new Response(JSON.stringify({ success: false, message: 'Phone number is required' }), { status: 400, headers: { "Content-Type": "application/json" } });
+        phone = phone.trim();
+        if (phone.length > 20) return new Response(JSON.stringify({ success: false, message: 'Phone number too long' }), { status: 400, headers: { "Content-Type": "application/json" } });
         phone = phone.replace(/\D/g, '');
+        if (phone.length === 0) return new Response(JSON.stringify({ success: false, message: 'Phone number must contain digits' }), { status: 400, headers: { "Content-Type": "application/json" } });
         if (phone.startsWith('0')) phone = '234' + phone.substring(1);
         if (!phone.startsWith('234')) phone = '234' + phone;
         if (phone.length !== 13) return new Response(JSON.stringify({ success: false, message: 'Invalid phone number format. Use 080XXXXXXXX or 23480XXXXXXXX' }), { status: 400, headers: { "Content-Type": "application/json" } });
@@ -109,8 +113,13 @@ export function registerOtpRoutes(http: HttpRouter) {
     method: "POST",
     handler: httpAction(async (ctx, req) => {
       try {
-        const { pinId, pin } = await req.json();
-        if (!pinId || !pin) return new Response(JSON.stringify({ success: false, verified: false, message: 'Pin ID and PIN are required' }), { status: 400, headers: { "Content-Type": "application/json" } });
+        const body = await req.json();
+        if (!body || typeof body !== "object") return new Response(JSON.stringify({ success: false, verified: false, message: "Request body must be a JSON object" }), { status: 400, headers: { "Content-Type": "application/json" } });
+        const { pinId, pin } = body;
+        if (!pinId || typeof pinId !== "string") return new Response(JSON.stringify({ success: false, verified: false, message: 'Pin ID is required' }), { status: 400, headers: { "Content-Type": "application/json" } });
+        if (!pin || typeof pin !== "string") return new Response(JSON.stringify({ success: false, verified: false, message: 'PIN is required' }), { status: 400, headers: { "Content-Type": "application/json" } });
+        if (pinId.length > 100) return new Response(JSON.stringify({ success: false, verified: false, message: 'Pin ID too long' }), { status: 400, headers: { "Content-Type": "application/json" } });
+        if (!/^\d{4,8}$/.test(pin)) return new Response(JSON.stringify({ success: false, verified: false, message: 'PIN must be 4-8 digits' }), { status: 400, headers: { "Content-Type": "application/json" } });
 
         const otpRequest = await ctx.runQuery(internal.aws_otp.findValidOtp, {
           identifier: pinId,

@@ -51,7 +51,38 @@ async function _verifyAdminAccess(ctx: { db: import("./_generated/server").Query
  */
 export const getAdminStats = query({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true) }),
+    v.object({
+      stats: v.object({
+        revenue: v.object({
+          daily: v.number(),
+          weekly: v.number(),
+          monthly: v.number(),
+          yearly: v.number(),
+          total: v.number(),
+        }),
+        mrr: v.number(),
+        subscribers: v.number(),
+        activeAgents: v.number(),
+        platformFees: v.number(),
+        fraudStopped: v.number(),
+      }),
+      agentHealth: v.array(v.any()),
+      guardianStats: v.object({
+        todayTransactions: v.number(),
+        autoApproved: v.number(),
+        autoApprovedValue: v.number(),
+        autoRejected: v.number(),
+        autoRejectedValue: v.number(),
+        flagged: v.number(),
+        avgVerificationTime: v.number(),
+        fraudPreventedMonth: v.number(),
+        lastVerification: v.number(),
+        status: v.string(),
+      }),
+    })
+  ),
   handler: async (ctx, args) => {
     if (!args.adminToken) return { authError: true };
     const identity = await tryGetAdminSession(ctx, args.adminToken);
@@ -152,7 +183,16 @@ const monthAgo = now - (30 * 24 * 60 * 60 * 1000);
  */
 export const getEarningsSummary = query({
     args: { adminToken: v.optional(v.string()) },
-    returns: v.any(),
+    returns: v.union(
+        v.object({ authError: v.literal(true) }),
+        v.object({
+            today: v.object({ revenue: v.number(), fee: v.number(), share: v.number() }),
+            week: v.object({ revenue: v.number(), fee: v.number(), share: v.number() }),
+            month: v.object({ revenue: v.number(), fee: v.number(), share: v.number() }),
+            allTime: v.object({ revenue: v.number(), fee: v.number(), share: v.number() }),
+            walletBalance: v.number(),
+        })
+    ),
     handler: async (ctx, args) => {
         if (!args.adminToken) return { authError: true };
         const identity = await tryGetAdminSession(ctx, args.adminToken);
@@ -189,7 +229,21 @@ export const getEarningsSummary = query({
  */
 export const getSweepSettings = query({
     args: {},
-    returns: v.any(),
+    returns: v.object({
+        enabled: v.boolean(),
+        minimumAmount: v.number(),
+        time: v.string(),
+        sweepType: v.string(),
+        keepBalance: v.number(),
+        fixedAmount: v.number(),
+        maximumAmount: v.number(),
+        days: v.array(v.string()),
+        bankDetails: v.object({
+            bankName: v.string(),
+            accountNumber: v.string(),
+            accountName: v.string(),
+        }),
+    }),
     handler: async (ctx) => {
         return await fetchSweepSettings(ctx);
     }
@@ -197,7 +251,21 @@ export const getSweepSettings = query({
 
 export const getSweepSettingsInternal = internalQuery({
     args: {},
-    returns: v.any(),
+    returns: v.object({
+        enabled: v.boolean(),
+        minimumAmount: v.number(),
+        time: v.string(),
+        sweepType: v.string(),
+        keepBalance: v.number(),
+        fixedAmount: v.number(),
+        maximumAmount: v.number(),
+        days: v.array(v.string()),
+        bankDetails: v.object({
+            bankName: v.string(),
+            accountNumber: v.string(),
+            accountName: v.string(),
+        }),
+    }),
     handler: async (ctx) => {
         return await fetchSweepSettings(ctx);
     }
@@ -252,7 +320,14 @@ export const updateSweepSettings = mutation({
  */
 export const getSystemConfig = query({
     args: { adminToken: v.string() },
-    returns: v.any(),
+    returns: v.array(v.object({
+        _id: v.id("system_config"),
+        _creationTime: v.number(),
+        key: v.string(),
+        value: v.any(),
+        description: v.optional(v.string()),
+        updatedAt: v.number(),
+    })),
     handler: async (ctx, args) => {
         const isValid = await ctx.runQuery(internal.admin_helpers.validateAdminToken, { adminToken: args.adminToken });
         if (!isValid) return [];
@@ -377,7 +452,7 @@ export const manualPayout = mutation({
  */
 export const getFlaggedTransactions = query({
   args: {},
-  returns: v.any(),
+  returns: v.array(v.any()),
   handler: async (ctx) => {
     return await ctx.db
       .query("payment_verifications")
@@ -392,7 +467,7 @@ export const getFlaggedTransactions = query({
  */
 export const getDailySweeps = query({
     args: {},
-    returns: v.any(),
+    returns: v.array(v.any()),
     handler: async (ctx) => {
         return await ctx.db.query("daily_sweeps").order("desc").take(30);
     }
@@ -403,7 +478,7 @@ export const getDailySweeps = query({
  */
 export const getRecentTransactions = query({
   args: { adminToken: v.string() },
-  returns: v.any(),
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const isValid = await ctx.runQuery(internal.admin_helpers.validateAdminToken, { adminToken: args.adminToken });
     if (!isValid) return [];
@@ -419,7 +494,7 @@ export const getRecentTransactions = query({
  */
 export const getAuditLogs = query({
   args: { adminToken: v.string() },
-  returns: v.any(),
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     const isValid = await ctx.runQuery(internal.admin_helpers.validateAdminToken, { adminToken: args.adminToken });
     if (!isValid) return [];
@@ -435,7 +510,16 @@ export const getAuditLogs = query({
  */
 export const getFreelancerOverview = query({
   args: {},
-  returns: v.any(),
+  returns: v.object({
+    total: v.number(),
+    pendingApplications: v.number(),
+    autoApprovedWeek: v.number(),
+    autoRejectedWeek: v.number(),
+    totalPaidMonth: v.number(),
+    avgEarnings: v.number(),
+    pendingJobs: v.number(),
+    approvedJobs: v.number(),
+  }),
   handler: async (ctx) => {
     const freelancers = await ctx.db.query("users").withIndex("by_role", (q) => q.eq("role", "freelancer")).collect();
     const jobs = await ctx.db.query("jobs").collect();
@@ -459,7 +543,13 @@ export const getFreelancerOverview = query({
  */
 export const getReferralOverview = query({
   args: {},
-  returns: v.any(),
+  returns: v.object({
+    totalReferrers: v.number(),
+    totalPaidLifetime: v.number(),
+    pendingPayouts: v.number(),
+    avgCommission: v.number(),
+    topReferrer: v.null(),
+  }),
   handler: async (ctx) => {
         const users = await ctx.db.query("users").collect();
         const payouts = await ctx.db.query("payouts").collect();
@@ -505,7 +595,7 @@ export const logAdminAction = internalMutation({
  */
 export const listAllUsers = query({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     if (!args.adminToken) return [];
     const identity = await tryGetAdminSession(ctx, args.adminToken);
@@ -585,7 +675,7 @@ export const archiveBeneficiary = mutation({
 
 export const getAgentServices = query({
   args: { agentId: v.string() },
-  returns: v.any(),
+  returns: v.array(v.any()),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("agent_services")
@@ -596,7 +686,15 @@ export const getAgentServices = query({
 
 export const getTaxWalletStats = query({
     args: {},
-    returns: v.any(),
+    returns: v.object({
+        balance: v.number(),
+        interestEarned: v.number(),
+        history: v.array(v.object({
+            amount: v.number(),
+            type: v.string(),
+            date: v.string(),
+        })),
+    }),
     handler: async (ctx) => {
         const taxWallet = await ctx.db.query("system_wallets").withIndex("by_type", q => q.eq("type", "tax")).unique();
         const history = await ctx.db.query("tax_transactions").order("desc").take(10);
@@ -616,7 +714,7 @@ export const getTaxWalletStats = query({
 
 export const rotateEncryptionKeys = mutation({
     args: { adminEmail: v.string(), sessionId: v.id("user_sessions") },
-    returns: v.any(),
+    returns: v.object({ success: v.literal(true), nextRotation: v.number() }),
     handler: async (ctx, args) => {
         const session = await ctx.db.get("user_sessions", args.sessionId);
         if (!session || !session.isCurrent || !session.isTwoFactorVerified) {
@@ -638,7 +736,14 @@ export const rotateEncryptionKeys = mutation({
 
 export const getAdminProfile = query({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.object({
+    _id: v.string(),
+    name: v.string(),
+    email: v.string(),
+    role: v.string(),
+    lastLogin: v.union(v.string(), v.null()),
+    loginCount: v.number(),
+  }),
   handler: async (ctx, args) => {
     // Use admin session to identify the correct admin user
     let adminUser: any = null;
@@ -681,7 +786,11 @@ export const getAdminProfile = query({
 
 export const getUpgradeStatus = query({
   args: {},
-  returns: v.any(),
+  returns: v.object({
+    autoUpgradeEnabled: v.boolean(),
+    currentStatus: v.string(),
+    statusIndicator: v.string(),
+  }),
   handler: async (ctx) => {
     const flag = await ctx.db.query("feature_flags")
       .withIndex("by_key", q => q.eq("key", "auto_upgrade_enabled"))
@@ -701,7 +810,10 @@ export const getUpgradeStatus = query({
 
 export const listSubscriptions = query({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true), data: v.array(v.any()) }),
+    v.object({ authError: v.literal(false), data: v.array(v.any()) })
+  ),
   handler: async (ctx, args) => {
     if (!args.adminToken) return { authError: true, data: [] };
     const identity = await tryGetAdminSession(ctx, args.adminToken);
@@ -728,7 +840,10 @@ export const updateSubscription = mutation({
     plan: v.optional(v.union(v.literal("weekly"), v.literal("monthly"), v.literal("quarterly"), v.literal("yearly"))),
     autoRenew: v.optional(v.boolean()),
   },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true) }),
+    v.object({ success: v.literal(true) })
+  ),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return { authError: true };
@@ -753,7 +868,10 @@ export const updateSubscription = mutation({
 
 export const cancelSubscription = mutation({
   args: { adminToken: v.string(), subscriptionId: v.id("subscriptions") },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true) }),
+    v.object({ success: v.literal(true) })
+  ),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return { authError: true };
@@ -780,7 +898,11 @@ export const extendSubscription = mutation({
     subscriptionId: v.id("subscriptions"),
     days: v.number(),
   },
-  returns: v.any(),
+  returns: v.union(
+    v.object({ authError: v.literal(true) }),
+    v.object({ error: v.string() }),
+    v.object({ success: v.literal(true), newEndsAt: v.number() })
+  ),
   handler: async (ctx, args) => {
     const identity = await tryGetAdminSession(ctx, args.adminToken);
     if (!identity) return { authError: true };
@@ -807,7 +929,16 @@ export const extendSubscription = mutation({
 
 export const getSubscriptionStats = query({
   args: { adminToken: v.optional(v.string()) },
-  returns: v.any(),
+  returns: v.object({
+    total: v.number(),
+    active: v.number(),
+    pending: v.number(),
+    canceled: v.number(),
+    expired: v.number(),
+    suspended: v.number(),
+    byPlan: v.any(),
+    mrr: v.number(),
+  }),
   handler: async (ctx) => {
     const subs = await ctx.db.query("subscriptions").collect();
     const active = subs.filter((s: any) => s.status === "active").length;

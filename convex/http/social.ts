@@ -45,6 +45,11 @@ export function registerSocialRoutes(http: HttpRouter) {
       const state = url.searchParams.get("state");
       const error = url.searchParams.get("error");
 
+      const SUPPORTED_PLATFORMS = ["x", "linkedin", "facebook", "instagram", "tiktok", "youtube", "pinterest", "reddit", "threads", "telegram", "discord", "bluesky"];
+      if (!platform || !SUPPORTED_PLATFORMS.includes(platform)) return new Response(errorHtml(`Unsupported platform: ${platform || "(empty)"}`), { status: 200, headers: { "Content-Type": "text/html" } });
+      if (code && code.length > 2000) return new Response(errorHtml("OAuth code too long"), { status: 200, headers: { "Content-Type": "text/html" } });
+      if (state && state.length > 500) return new Response(errorHtml("OAuth state too long"), { status: 200, headers: { "Content-Type": "text/html" } });
+
       const platformNames: Record<string, string> = { x: "X (Twitter)", linkedin: "LinkedIn", facebook: "Facebook", instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube", pinterest: "Pinterest", reddit: "Reddit", threads: "Threads", telegram: "Telegram", discord: "Discord", bluesky: "Bluesky" };
       const platformName = platformNames[platform] || platform;
 
@@ -137,9 +142,12 @@ export function registerSocialRoutes(http: HttpRouter) {
     handler: httpAction(async (_ctx, req) => {
       const url = new URL(req.url);
       const platform = url.searchParams.get("platform") || "x";
+      const SUPPORTED_PLATFORMS = ["x", "linkedin", "facebook", "instagram", "tiktok", "youtube", "pinterest", "reddit", "threads", "telegram", "discord", "bluesky"];
+      if (!SUPPORTED_PLATFORMS.includes(platform)) return new Response("Unsupported platform", { status: 400, headers: { "Content-Type": "text/plain" } });
       const code = url.searchParams.get("code") || "";
       const state = url.searchParams.get("state") || "";
       const error = url.searchParams.get("error") || "";
+      if (code.length > 2000 || state.length > 500) return new Response("OAuth parameters too long", { status: 400, headers: { "Content-Type": "text/plain" } });
       const newUrl = `/api/social/callback/${platform}?code=${code}&state=${state}${error ? `&error=${error}` : ""}`;
       return new Response(null, { status: 302, headers: { Location: newUrl } });
     }),
@@ -153,6 +161,8 @@ export function registerSocialRoutes(http: HttpRouter) {
       const connectedAccountId = url.searchParams.get("connected_account_id") || url.searchParams.get("id") || "";
       const status = url.searchParams.get("status") || "INITIATED";
       const platform = url.searchParams.get("platform") || url.searchParams.get("toolkit") || "";
+      if (connectedAccountId.length > 500) return new Response("connected_account_id too long", { status: 400, headers: { "Content-Type": "text/plain" } });
+      if (platform.length > 100) return new Response("platform too long", { status: 400, headers: { "Content-Type": "text/plain" } });
 
       const html = (ok: boolean, title: string, msg: string, badge?: string) => {
         const safeTitle = escapeHtml(title);

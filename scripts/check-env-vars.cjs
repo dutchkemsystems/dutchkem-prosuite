@@ -47,6 +47,7 @@ const allRefs = new Set([...findRefs(path.join(ROOT, 'src')), ...findRefs(path.j
 const exclude = new Set([
   'NODE_ENV',
   'CONVEX_DEPLOYMENT',
+  'CONVEX_DEPLOY_KEY',
 ]);
 
 const missing = [...allRefs].filter((v) => !definedVars.has(v) && !exclude.has(v));

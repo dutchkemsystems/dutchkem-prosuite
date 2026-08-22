@@ -11,6 +11,9 @@ export function registerWebhookRoutes(http: HttpRouter) {
     handler: httpAction(async (ctx, req) => {
       const signature = req.headers.get("x-kora-signature") || "";
       const body = await req.json();
+      if (!body || typeof body !== "object") return new Response(JSON.stringify({ error: "Request body must be a JSON object" }), { status: 400, headers: { "Content-Type": "application/json" } });
+      if (!body.reference || typeof body.reference !== "string") return new Response(JSON.stringify({ error: "Missing or invalid 'reference'" }), { status: 400, headers: { "Content-Type": "application/json" } });
+      if (typeof body.amount !== "number" || body.amount <= 0) return new Response(JSON.stringify({ error: "Missing or invalid 'amount'" }), { status: 400, headers: { "Content-Type": "application/json" } });
       const ip = req.headers.get("x-forwarded-for") || "unknown";
       const userId = body.metadata?.userId || body.userId;
       const verification = await ctx.runMutation(internal.guardian.verifyPayment, { reference: body.reference, amount: body.amount, currency: body.currency, ip, userId, signature, agentId: body.metadata?.agentId, service: body.metadata?.service });
@@ -63,6 +66,9 @@ export function registerWebhookRoutes(http: HttpRouter) {
     handler: httpAction(async (ctx, req) => {
       try {
         const body = await req.json();
+        if (!body || typeof body !== "object") return new Response(JSON.stringify({ ok: false, error: "Request body must be a JSON object" }), { status: 400, headers: { "Content-Type": "application/json" } });
+        const hasKnownEvent = body.event || body.type;
+        if (typeof hasKnownEvent !== "string") return new Response(JSON.stringify({ ok: false, error: "Missing 'event' or 'type' field" }), { status: 400, headers: { "Content-Type": "application/json" } });
 
         if (body.event === "charge.success") {
           const invoiceNumber = body.data?.reference || body.data?.metadata?.invoice_number;
@@ -120,7 +126,10 @@ export function registerWebhookRoutes(http: HttpRouter) {
     handler: httpAction(async (ctx, req) => {
       try {
         const body = await req.json();
+        if (!body || typeof body !== "object") return new Response(JSON.stringify({ ok: false, error: "Request body must be a JSON object" }), { status: 400, headers: { "Content-Type": "application/json" } });
         const { reference, status, amount } = body;
+        if (reference && typeof reference !== "string") return new Response(JSON.stringify({ ok: false, error: "'reference' must be a string" }), { status: 400, headers: { "Content-Type": "application/json" } });
+        if (amount !== undefined && (typeof amount !== "number" || amount < 0)) return new Response(JSON.stringify({ ok: false, error: "'amount' must be a non-negative number" }), { status: 400, headers: { "Content-Type": "application/json" } });
         if (reference) {
           await ctx.runMutation(internal.kora_pay.logWebhookEvent, {
             eventType: status === "success" ? "transfer.completed" : "transfer.failed",
