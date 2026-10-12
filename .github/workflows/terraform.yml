@@ -1,16 +1,13 @@
+# Auto-deploy disabled while secrets are being provisioned.
+# Re-enable by restoring the original triggers after setting repo secrets.
 name: Terraform
 
-on:
-  pull_request:
-    paths:
-      - 'terraform/**'
-  push:
-    branches: [main]
-    paths:
-      - 'terraform/**'
+"on":
+  workflow_dispatch:
 
 jobs:
   terraform:
+    if: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

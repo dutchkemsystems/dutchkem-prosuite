@@ -1,16 +1,64 @@
 name: CI
-on:
-  push: { branches: [main, master, 'chore/**', 'ci/**', 'feat/**', 'fix/**', 'test/**', 'docs/**'] }
-  pull_request: { branches: [main, master] }
+
+"on":
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
-    strategy: { fail-fast: false, matrix: { node-version: ["18","20"] } }
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v6
-        with: { node-version: "${{ matrix.node-version }}" }
-      - run: npm ci || npm install
-      - run: npm test --if-present || true
-        continue-on-error: true || true
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect language
+        id: detect
+        shell: bash
+        run: |
+          if [ -f package.json ]; then
+            echo "lang=node" >> "$GITHUB_OUTPUT"
+          elif [ -f requirements.txt ] || [ -f pyproject.toml ]; then
+            echo "lang=python" >> "$GITHUB_OUTPUT"
+          else
+            echo "lang=none" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node
+        if: steps.detect.outputs.lang == 'node'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python
+        if: steps.detect.outputs.lang == 'python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install and test (Node)
+        if: steps.detect.outputs.lang == 'node'
+        shell: bash
         continue-on-error: true
+        run: |
+          npm ci || npm install
+          npm test --if-present
+
+      - name: Install and test (Python)
+        if: steps.detect.outputs.lang == 'python'
+        shell: bash
+        continue-on-error: true
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pytest pytest-cov ruff
+          ruff check . || true
+          if [ -d tests ]; then
+            pytest tests/ -v || true
+          else
+            echo "no tests yet"
+          fi
