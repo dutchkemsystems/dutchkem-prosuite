@@ -82,3 +82,5 @@ flyctl.zip
 
 # Generated marketing output
 promotional-content/output/
+.agents/
+.agents
