@@ -62,7 +62,7 @@
     "devDependencies": {
         "@convex-dev/eslint-plugin": "^1.2.2",
         "@edge-runtime/vm": "^5.0.0",
-        "@tailwindcss/vite": "^4.3.0",
+        "@tailwindcss/vite": "^4.3.3",
         "@tanstack/eslint-config": "^0.4.0",
         "@testing-library/dom": "^10.4.1",
         "@testing-library/jest-dom": "^6.9.1",
