@@ -1,10 +1,10 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { useEffect, useState } from "react";
 import { api } from "../../convex/_generated/api";
 
 export function HolidayBanner() {
-  const { data: discount } = useSuspenseQuery(convexQuery(api.holidays.getActiveDiscount, {})) as any;
+  const { data: discount } = useQuery(convexQuery(api.holidays.getActiveDiscount, {})) as any;
   const [isVisible, setIsVisible] = useState(true);
   const [timeLeft, setTimeLeft] = useState("");
 

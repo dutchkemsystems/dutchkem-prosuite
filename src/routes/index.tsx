@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { convexQuery } from "@convex-dev/react-query";
 import { api } from "../../convex/_generated/api";
 import { JoinCounter, SuccessStoriesRotator } from '~/components/SuccessStoriesRotator';
@@ -61,7 +61,7 @@ function ProcessStep({ step, title, desc }: { step: string, title: string, desc:
 }
 
 function PriceCard({ title, price, features, isFeatured, savings }: { title: string, price: string, features: Array<string>, isFeatured?: boolean, savings?: string }) {
-  const { data: discount } = useSuspenseQuery(convexQuery(api.holidays.getActiveDiscount, {}));
+  const { data: discount } = useQuery(convexQuery(api.holidays.getActiveDiscount, {}));
   
   const originalPrice = parseInt(price.replace(/,/g, ''));
   const discountPercent = (discount as any)?.percent || 0;

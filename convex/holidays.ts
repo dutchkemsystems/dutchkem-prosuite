@@ -86,19 +86,64 @@ export const refreshActiveDiscounts = mutation({
   }
 });
 
+const activeDiscountValidator = v.union(
+  v.null(),
+  v.object({
+    id: v.id("holiday_discounts"),
+    percent: v.number(),
+    code: v.string(),
+    banner_text: v.string(),
+    banner_icon: v.string(),
+    ends_at: v.number(),
+  })
+);
+
+const holidayValidator = v.object({
+  _id: v.id("holiday_discounts"),
+  _creationTime: v.number(),
+  name: v.string(),
+  code: v.string(),
+  percent: v.number(),
+  banner_icon: v.string(),
+  banner_text: v.string(),
+  start_date: v.number(),
+  end_date: v.number(),
+  is_active: v.boolean(),
+  type: v.union(v.literal("holiday"), v.literal("seasonal")),
+});
+
+// Reads the source of truth (holiday_discounts) instead of the cached
+// system_config blob, so a stale or malformed cache can never break the
+// landing page. The table is tiny (one row per holiday), so a scan is cheap.
 export const getActiveDiscount = query({
   args: {},
-  returns: v.any(),
+  returns: activeDiscountValidator,
   handler: async (ctx) => {
-    const config = await ctx.db.query("system_config").withIndex("by_key", q => q.eq("key", "ACTIVE_DISCOUNT")).first();
-    return config?.value || null;
+    const now = Date.now();
+    const holidays = await ctx.db.query("holiday_discounts").collect();
+
+    let best: (typeof holidays)[number] | null = null;
+    for (const h of holidays) {
+      if (now < h.start_date || now > h.end_date) continue;
+      if (!best || h.percent > best.percent) best = h;
+    }
+
+    if (!best) return null;
+    return {
+      id: best._id,
+      percent: best.percent,
+      code: best.code,
+      banner_text: best.banner_text,
+      banner_icon: best.banner_icon,
+      ends_at: best.end_date,
+    };
   }
 });
 
 export const listHolidays = query({
   args: {},
-  returns: v.any(),
+  returns: v.array(holidayValidator),
   handler: async (ctx) => {
-    return await ctx.db.query("holiday_discounts").order("asc").collect();
+    return await ctx.db.query("holiday_discounts").collect();
   }
 });
