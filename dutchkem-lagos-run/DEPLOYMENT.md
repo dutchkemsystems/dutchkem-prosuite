@@ -337,19 +337,25 @@ Caveats on serverless:
 
 ### 7.2 Render (recommended — a real process and a persistent disk)
 
-**Blueprint (fastest).** The repository-root `render.yaml` carries the whole service as a second entry
-beside ProSuite's existing `dutchkem-api` (that service is untouched): node runtime,
-`rootDir: dutchkem-lagos-run/backend`, `NODE_ENV=production`, a 1 GB disk mounted at `/var/data` with
-`DB_PATH=/var/data/lagosrun.db`, Render-generated session/score/receipt secrets, and the Kora
-variables prompted at apply time.
+**Blueprint (fastest).** `dutchkem-lagos-run/render.yaml` is a **single-service** Blueprint for this
+project only, so applying it cannot create, modify or delete any ProSuite resource: node runtime,
+`rootDir: dutchkem-lagos-run/backend` (resolved from the repository root, not from the file's folder),
+`NODE_ENV=production`, a 1 GB disk mounted at `/var/data` with `DB_PATH=/var/data/lagosrun.db`,
+Render-generated session/score/receipt secrets, and the Kora variables prompted at apply time.
 
-1. Dashboard → **New → Blueprint** → select the repository → **Apply**.
-2. When prompted, paste `ALLOWED_ORIGINS` (the exact Vercel origin and the production domain,
+1. Dashboard → **New → Blueprint** → connect `dutchkemsystems/dutchkem-prosuite` → pick the branch.
+2. Set **Blueprint Path** to `dutchkem-lagos-run/render.yaml`. Render defaults to `render.yaml` at the
+   repository root — that file is ProSuite's and must not be applied here. (If you ever do point a
+   Blueprint at the root file, it declares both services and would try to reconcile `dutchkem-api`.)
+3. Review the plan before applying: it must show **one** new resource, `dutchkem-lagos-run-api`, and no
+   changes to `dutchkem-api`. Cancel rather than apply if `dutchkem-api` appears.
+4. When prompted, paste `ALLOWED_ORIGINS` (the exact Vercel origin and the production domain,
    comma-separated, no trailing slash, no wildcards) and the four `KORAPAY_*` live values from the
    Kora dashboard. Never commit them.
-3. Note the assigned URL — `https://dutchkem-lagos-run-api.onrender.com` for the service name in
-   `render.yaml`. That host is both the client's `API_BASE_URL` and the Kora webhook host.
-4. `starter` is not optional: a free instance has no disk, so wallet balances would reset on every
+5. Note the assigned URL — `https://dutchkem-lagos-run-api.onrender.com` for the service name in
+   `render.yaml`. That host is both the client's `API_BASE_URL` and the Kora webhook host. If the name
+   was taken and Render appended a suffix, update `KORA_WEBHOOK_URL` and rebuild the client.
+6. `starter` is not optional: a free instance has no disk, so wallet balances would reset on every
    deploy and a paid top-up would vanish.
 
 **Manual dashboard path.**

@@ -1,0 +1,69 @@
+# © 2026 Dutchkem Ventures. Proprietary and confidential. Unauthorized copying, modification, or distribution is strictly prohibited.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# Dutchkem Ventures Presents: Lagos Run — Hustle Empire
+# Render Blueprint — THIS PROJECT ONLY.
+#
+# This file is deliberately standalone so applying it cannot touch ProSuite's
+# `dutchkem-api` service or any other service in the account. Point Render's
+# Blueprint at this path; do not apply the repository-root render.yaml.
+#
+# plan: starter is required — a free instance has no persistent disk, so the
+# wallet file would reset on every deploy and a paid Kobo balance would
+# vanish. `generateValue: true` lets Render mint the signing secrets.
+# `sync: false` variables are prompted at apply time and never stored in git.
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  - type: web
+    name: dutchkem-lagos-run-api
+    runtime: node
+    plan: starter
+    region: frankfurt
+    # rootDir resolves from the REPOSITORY ROOT, not from this file's folder.
+    rootDir: dutchkem-lagos-run/backend
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    disk:
+      name: lagosrun-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_PATH
+        value: /var/data/lagosrun.db
+      # Exact client origins, comma-separated, no trailing slash, no wildcards.
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: SESSION_SIGNING_SECRET
+        generateValue: true
+      - key: SCORE_SIGNING_SECRET
+        generateValue: true
+      - key: RECEIPT_SIGNING_SECRET
+        generateValue: true
+      # Kora signs webhooks with the secret key; the webhook secret is an
+      # optional rotation override — leave KORAPAY_WEBHOOK_SECRET blank.
+      - key: KORAPAY_PUBLIC_KEY
+        sync: false
+      - key: KORAPAY_SECRET_KEY
+        sync: false
+      - key: KORAPAY_ENCRYPTION_KEY
+        sync: false
+      - key: KORAPAY_WEBHOOK_SECRET
+        sync: false
+      - key: KORAPAY_BASE_URL
+        value: https://api.korapay.com/merchant/api/v1
+      - key: KORA_REDIRECT_URL
+        sync: false
+      - key: KORA_WEBHOOK_URL
+        value: https://dutchkem-lagos-run-api.onrender.com/api/purchases/kora/webhook
+      - key: ADMIN_WEBHOOK_URL
+        sync: false
+      - key: GOOGLE_PLAY_PACKAGE_NAME
+        value: com.dutchkem.lagosrun
+      - key: GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: APPLE_SHARED_SECRET
+        sync: false

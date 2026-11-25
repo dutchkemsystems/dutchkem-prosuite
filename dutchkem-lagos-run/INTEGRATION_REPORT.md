@@ -54,7 +54,7 @@ Line counts are physical lines (`wc -l`) measured **after** this phase's fixes. 
 | `SECURITY.md` | Threat model, auth flow, secret inventory, anti-cheat rules, NDPR/GDPR/COPPA matrix, incident playbook, pen-test checklist | 450 | ✅ |
 | `DEPLOYMENT.md` | Hosting topology, environment matrix, Kora and AdMob setup, migration path, rollback, launch runbook | 789 | ✅ |
 | `INTEGRATION_REPORT.md` | **This document** — Phase 13 verified report | see footer | ✅ |
-| `render.yaml` *(additive block)* | **Not a new file** — the repository root already has ProSuite's Render Blueprint. A second service (`dutchkem-lagos-run-api`) was appended: node runtime, `rootDir: dutchkem-lagos-run/backend`, generated signing secrets, Kora variables, 1 GB disk at `/var/data`. The existing `dutchkem-api` service is untouched (diff: 62 insertions, 0 deletions; parsed back as 2 services) | +62 | ✅ |
+| `render.yaml` | **Standalone single-service Render Blueprint** for this project only. Declares `dutchkem-lagos-run-api` and nothing else, so applying it cannot create, modify or delete ProSuite's `dutchkem-api`. Nodes: node runtime, `rootDir: dutchkem-lagos-run/backend`, generated signing secrets, Kora variables, 1 GB disk at `/var/data`; parses as 1 service with 17 env vars | 69 | ✅ |
 | `.env.example` | Public client variables only (baked into `client/config.js`); no secrets | 10 | ✅ |
 | `.gitignore` | Ignores `node_modules/`, `.env*` (except `*.example`), `dist/`, `secrets/`, logs | 10 | ✅ |
 
@@ -116,10 +116,10 @@ Line counts are physical lines (`wc -l`) measured **after** this phase's fixes. 
 | `backend/data/remote-config.json` | Brand, features, ads, economy and events toggles | 22 | ✅ |
 | `backend/data/rules.json` | Published anti-cheat ceilings, rewarded-ad caps, SKU grants | 17 | ✅ |
 
-**File count: 56 delivered files** (5 binaries, 2 generated lockfiles, 4 placeholder
-`.gitkeep` markers, and the rest source/documentation). **9,602 lines** of source and
-documentation (14,007 including the two generated lockfiles), plus 62 additive lines in the
-repository-root `render.yaml`.
+**File count: 57 delivered files** (5 binaries, 2 generated lockfiles, 4 placeholder
+`.gitkeep` markers, and the rest source/documentation). **9,671 lines** of source and
+documentation (14,069 including the two generated lockfiles). The repository-root `render.yaml` is
+**unchanged**: this project's Blueprint lives at `dutchkem-lagos-run/render.yaml`.
 
 > Two file kinds deliberately carry no `© 2026 Dutchkem Ventures` comment line: `.png` binaries and
 > the three `backend/data/*.json` payloads, because JSON has no comment syntax. Adding a key would
@@ -639,11 +639,11 @@ Everything that can be produced without an account has been produced and tested:
 
 | Deliverable | State |
 |-------------|-------|
-| `render.yaml` (repository root, additive) | ✅ Appended as a second service (`dutchkem-lagos-run-api`) beside ProSuite's existing `dutchkem-api`, which is untouched. Describes the API completely: `rootDir: dutchkem-lagos-run/backend`, `buildCommand: npm ci --omit=dev`, `startCommand: npm start`, `healthCheckPath: /health`, `NODE_ENV=production`, Render-generated `SESSION/SCORE/RECEIPT_SIGNING_SECRET`, Kora variables prompted at apply time, 1 GB disk at `/var/data` with `DB_PATH=/var/data/lagosrun.db` |
+| `render.yaml` (inside this project) | ✅ A **single-service** Blueprint, so applying it cannot touch ProSuite's `dutchkem-api`; Render is pointed at it by setting **Blueprint Path** to `dutchkem-lagos-run/render.yaml`. Parses as one service, `dutchkem-lagos-run-api`. Describes the API completely: `rootDir: dutchkem-lagos-run/backend`, `buildCommand: npm ci --omit=dev`, `startCommand: npm start`, `healthCheckPath: /health`, `NODE_ENV=production`, Render-generated `SESSION/SCORE/RECEIPT_SIGNING_SECRET`, Kora variables prompted at apply time, 1 GB disk at `/var/data` with `DB_PATH=/var/data/lagosrun.db` |
 | Production boot on a Render-shaped environment | ✅ `NODE_ENV=production PORT=<injected> DB_PATH=/tmp/… node server.js` → `/health` `200`, `/api/config` `200`, `POST /api/session` → `GET /api/user/me` `200` with balances, foreign-Origin request got **no** `Access-Control-Allow-Origin`, allowed Origin echoed exactly, datastore created at the configured `DB_PATH` |
 | `client/vercel.json` | ✅ Ships inside `dist/`; static deploy with `no-store` on `sw.js`, `config.js` and `index.html`, immutable icons, HSTS/nosniff/frame/referrer/permissions headers |
 | Client build pointing at the API | ✅ `npm run icons && node build.js --prod` → `dist/config.js` carries `"API_BASE_URL": "https://dutchkem-lagos-run-api.onrender.com"`; 17 files, 367.1 KB, obfuscated, secret scan clean, SW cache `dutchkem-v1.0.0-e3ec70d8` |
-| Kora webhook host | ✅ `https://dutchkem-lagos-run-api.onrender.com/api/purchases/kora/webhook` (set in `render.yaml` *and* the dashboard) |
+| Kora webhook host | ✅ `https://dutchkem-lagos-run-api.onrender.com/api/purchases/kora/webhook` (set in `dutchkem-lagos-run/render.yaml` *and* the dashboard) |
 
 What this environment **cannot** do, and why the rows below stay ❌: creating the Render service and the
 Vercel project requires signing in to those accounts; Kora live keys, webhook registration, redirect
@@ -652,7 +652,7 @@ credential for any of them exists here, and none may be pasted into a build.
 
 | Layer | Target | Configuration | Status |
 |-------|--------|---------------|:------:|
-| Backend API | Render — `https://dutchkem-lagos-run-api.onrender.com` | Blueprint `render.yaml`; `NODE_ENV=production`, generated signing secrets, Kora live keys, `ALLOWED_ORIGINS` locked to the Vercel origin(s) | ❌ config ready, service not created (no Render account access here) |
+| Backend API | Render — `https://dutchkem-lagos-run-api.onrender.com` | Blueprint `dutchkem-lagos-run/render.yaml` (Blueprint Path); `NODE_ENV=production`, generated signing secrets, Kora live keys, `ALLOWED_ORIGINS` locked to the Vercel origin(s) | ❌ config ready, service not created (no Render account access here) |
 | Client PWA | Vercel — static `dist/` | `cd dist && npx vercel --prod`; `API_BASE_URL` baked to the Render host, SW cache versioned per build | ❌ config ready, project not created (no Vercel account access here) |
 | Domain DNS | `dutchkem.com` zone | apex/`www` + `api` → Vercel, TLS auto-issued | ❌ operator |
 | Kora webhook | Kora dashboard | `https://api.lagosrun.dutchkem.com/api/purchases/kora/webhook`, `charge.success`, live mode | ❌ operator |
@@ -696,13 +696,13 @@ Operator gates (Kora, AdMob, stores, DNS) cleared by: __________________________
 
 ## 9. BUILD COMPLETE
 
-**Total files created:** 56, all inside `dutchkem-lagos-run/` (including 5 icon binaries and 2
-lockfiles; `node_modules/` and `dist/` are reproducible and gitignored). The deployment change at the
-repository root is **additive, not a new file**: 62 lines appended to the existing `render.yaml` as a
-second service, leaving ProSuite's `dutchkem-api` definition byte-for-byte unchanged.
+**Total files created:** 57, **all inside `dutchkem-lagos-run/`** (including 5 icon binaries and 2
+lockfiles; `node_modules/` and `dist/` are reproducible and gitignored). Nothing outside this folder
+changed: the backend deploy is a standalone single-service `render.yaml`, so ProSuite's own
+`render.yaml` and its `dutchkem-api` service are untouched.
 
-**Total lines of code:** 9,602 across HTML, CSS, JavaScript, JSON data, Markdown and configuration. The
-two generated lockfiles add 4,405 more, for 14,007 physical lines on disk.
+**Total lines of code:** 9,671 across HTML, CSS, JavaScript, JSON data, Markdown and configuration. The
+two generated lockfiles add 4,405 more, for 14,076 physical lines on disk.
 
 **Composition**
 
@@ -712,11 +712,10 @@ two generated lockfiles add 4,405 more, for 14,007 physical lines on disk.
 | Backend API (`backend/` — 15 modules, 3 data files, 2 manifests, env template) | 28 | 2,505 |
 | Build tooling (`build.js`, `scripts/generate-icons.js`) | 2 | 437 |
 | Documentation (`README`, `SECURITY`, `DEPLOYMENT`, this report) | 4 | 2,100 |
-| Root manifests and config (`package.json`, `.env.example`, `.gitignore`, lockfile) | 4 | 2,787 |
+| Root manifests and config (`package.json`, `.env.example`, `.gitignore`, `render.yaml`, lockfile) | 5 | 2,856 |
 | Backend lockfile | 1 | 1,660 |
 
-*(+62 lines appended to the repository-root `render.yaml` for the Render service; not counted as a
-package file.)*
+*(`render.yaml` is the standalone single-service Blueprint and is counted in the root manifests row.)*
 
 **All TODOs remaining for production hardening:** section 6 — 1 × P0 code gap (score-submission
 signing model), 5 × P0/P1 operator gates, 5 × P2, 2 × P3.
