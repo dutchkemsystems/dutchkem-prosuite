@@ -1,0 +1,17 @@
+{
+  "antiCheat": {
+    "maxScorePerRun": 500000,
+    "maxCoinsPerDay": 100000,
+    "minHumanReactionMs": 150
+  },
+  "rewardedAdCaps": {
+    "perDay": 5
+  },
+  "skuGrants": {
+    "kobo_100": 100,
+    "kobo_500": 500,
+    "kobo_1200": 1200,
+    "kobo_2500": 2500,
+    "kobo_6500": 6500
+  }
+}

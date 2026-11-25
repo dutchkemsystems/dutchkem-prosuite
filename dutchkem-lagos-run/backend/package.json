@@ -1,0 +1,29 @@
+{
+  "name": "dutchkem-lagos-run-backend",
+  "version": "1.0.0",
+  "private": true,
+  "main": "server.js",
+  "description": "Dutchkem Ventures Presents: Lagos Run — Hustle Empire backend. © 2026 Dutchkem Ventures. All rights reserved.",
+  "author": "Dutchkem Ventures",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "googleapis": "^144.0.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

@@ -1,0 +1,10 @@
+# © 2026 Dutchkem Ventures. Proprietary and confidential.
+
+node_modules/
+.env
+.env.*
+!.env.example
+dist/
+secrets/
+*.log
+.DS_Store

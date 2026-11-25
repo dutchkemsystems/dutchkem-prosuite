@@ -1,0 +1,53 @@
+{
+  "_copyright": "© 2026 Dutchkem Ventures. All rights reserved.",
+  "name": "Dutchkem Ventures Presents: Lagos Run — Hustle Empire",
+  "short_name": "Dutchkem Lagos Run",
+  "description": "Drive a danfo through Lagos, board passengers, dodge traffic and build your fleet. © 2026 Dutchkem Ventures. All rights reserved.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#0d0d0d",
+  "theme_color": "#FFC72C",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Endless Run",
+      "short_name": "Endless",
+      "description": "Jump straight into an endless run.",
+      "url": "/?mode=endless",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Hustle Mode",
+      "short_name": "Hustle",
+      "description": "Continue your hustle campaign.",
+      "url": "/?mode=hustle",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

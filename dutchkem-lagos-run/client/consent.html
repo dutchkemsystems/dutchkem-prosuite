@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<!-- © 2026 Dutchkem Ventures. Proprietary and confidential. Unauthorized copying, modification, or distribution is strictly prohibited. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#FFC72C" />
+  <title>Consent Settings — Lagos Run — Hustle Empire | Dutchkem Ventures</title>
+  <meta name="description" content="Manage analytics and personalized advertising consent for Lagos Run — Hustle Empire by Dutchkem Ventures." />
+  <meta name="robots" content="noindex,follow" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Bungee&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    body.legal-page { overflow: auto; display: block; padding: 0; }
+    .consent-wrap { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+    .legal-brand { font-family: var(--font-display); color: var(--brand-yellow); font-size: 12px; letter-spacing: 1.5px; text-align: center; }
+  </style>
+</head>
+<body class="legal-page">
+  <main class="consent-wrap">
+    <div class="panel">
+      <div class="legal-brand">DUTCHKEM VENTURES · DRIVING THE CULTURE</div>
+      <h1 class="panel-title">Your Privacy Choices</h1>
+      <p class="panel-copy">
+        Choose how Lagos Run — Hustle Empire may use anonymous gameplay data and how ads are shown.
+        You can change these choices at any time from this page or from Settings in the game.
+      </p>
+
+      <label class="check">
+        <input type="checkbox" id="consentAnalytics" checked />
+        <span>Share anonymous gameplay analytics to help improve the game.</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="consentAds" checked />
+        <span>Show personalized ads. Unchecked, you will still see non-personalized ads.</span>
+      </label>
+
+      <button type="button" class="btn btn-primary" id="saveConsent">Save &amp; Continue</button>
+
+      <p class="fineprint">
+        Stored on this device only, under <code>dutchkem_consent</code>.
+        See our <a href="/privacy.html">Privacy Policy</a> and <a href="/terms.html">Terms of Service</a>.<br />
+        © 2026 Dutchkem Ventures. All rights reserved.
+      </p>
+    </div>
+  </main>
+
+  <script>
+    /* © 2026 Dutchkem Ventures. Proprietary and confidential. */
+    (function () {
+      var KEY = "dutchkem_consent";
+      var analytics = document.getElementById("consentAnalytics");
+      var ads = document.getElementById("consentAds");
+
+      try {
+        var saved = JSON.parse(localStorage.getItem(KEY) || "null");
+        if (saved) {
+          analytics.checked = saved.analytics !== false;
+          ads.checked = saved.ads !== false;
+        }
+      } catch (e) {
+        /* corrupted or unavailable storage: keep defaults */
+      }
+
+      document.getElementById("saveConsent").addEventListener("click", function () {
+        var record = {
+          analytics: analytics.checked,
+          ads: ads.checked,
+          updatedAt: new Date().toISOString(),
+          version: 1
+        };
+        try {
+          localStorage.setItem(KEY, JSON.stringify(record));
+        } catch (e) {
+          /* storage full or blocked: consent still applies for this session */
+        }
+        window.location.href = "/";
+      });
+    })();
+  </script>
+</body>
+</html>

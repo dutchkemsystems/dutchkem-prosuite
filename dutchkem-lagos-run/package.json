@@ -1,0 +1,22 @@
+{
+  "name": "dutchkem-lagos-run",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dutchkem Ventures Presents: Lagos Run — Hustle Empire. © 2026 Dutchkem Ventures. All rights reserved.",
+  "author": "Dutchkem Ventures",
+  "license": "UNLICENSED",
+  "type": "commonjs",
+  "scripts": {
+    "icons": "node scripts/generate-icons.js",
+    "build": "node build.js",
+    "dev-backend": "node backend/server.js",
+    "dev-client": "serve client -l 5173"
+  },
+  "devDependencies": {
+    "sharp": "^0.33.5",
+    "terser": "^5.36.0",
+    "javascript-obfuscator": "^4.1.1",
+    "dotenv": "^16.4.7",
+    "serve": "^14.2.4"
+  }
+}

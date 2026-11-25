@@ -1,0 +1,7 @@
+# © 2026 Dutchkem Ventures. Proprietary and confidential.
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+
+Sitemap: https://lagosrun.dutchkem.com/sitemap.xml

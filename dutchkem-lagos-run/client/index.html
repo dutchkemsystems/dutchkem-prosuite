@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<!-- © 2026 Dutchkem Ventures. Proprietary and confidential. Unauthorized copying, modification, or distribution is strictly prohibited. -->
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#FFC72C" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Dutchkem Lagos Run" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+
+  <!-- SEO -->
+  <title>Dutchkem Ventures Presents: Lagos Run — Hustle Empire</title>
+  <meta name="description" content="Play Lagos Run — Hustle Empire free in your browser. Drive a danfo, pick up passengers, dodge traffic, and build your fleet. No download. Mobile-friendly. © 2026 Dutchkem Ventures." />
+  <meta name="robots" content="index,follow,max-image-preview:large" />
+  <link rel="canonical" href="https://lagosrun.dutchkem.com/" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Dutchkem Ventures Presents: Lagos Run — Hustle Empire" />
+  <meta property="og:description" content="Drive a danfo through Lagos, board passengers, dodge traffic and build your fleet. Free in your browser. © 2026 Dutchkem Ventures." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/icons/icon-512.png" />
+  <meta property="og:url" content="https://lagosrun.dutchkem.com/" />
+  <meta property="og:site_name" content="Dutchkem Ventures" />
+  <meta property="og:locale" content="en_NG" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Dutchkem Ventures Presents: Lagos Run — Hustle Empire" />
+  <meta name="twitter:description" content="Drive a danfo through Lagos, board passengers, dodge traffic and build your fleet. Free in your browser. © 2026 Dutchkem Ventures." />
+  <meta name="twitter:image" content="/icons/icon-512.png" />
+
+  <!-- VideoGame structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    "name": "Dutchkem Ventures Presents: Lagos Run — Hustle Empire",
+    "description": "Play Lagos Run — Hustle Empire free in your browser. Drive a danfo, pick up passengers, dodge traffic, and build your fleet. No download. Mobile-friendly.",
+    "url": "https://lagosrun.dutchkem.com/",
+    "image": "https://lagosrun.dutchkem.com/icons/icon-512.png",
+    "genre": ["Racing", "Endless Runner", "Casual"],
+    "gamePlatform": ["Web browser", "Mobile web", "Android", "iOS"],
+    "applicationCategory": "Game",
+    "operatingSystem": "Any",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD",
+      "availability": "https://schema.org/InStock"
+    },
+    "author": { "@type": "Organization", "name": "Dutchkem Ventures" },
+    "publisher": { "@type": "Organization", "name": "Dutchkem Ventures" },
+    "datePublished": "2026-11-22",
+    "inLanguage": "en"
+  }
+  </script>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Bungee&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/config.js" defer></script>
+  <script src="/game.js" defer></script>
+</head>
+<body>
+
+  <!-- ═══════════════ SPLASH ═══════════════ -->
+  <section id="splash" class="screen active" aria-label="Loading">
+    <div class="splash-inner">
+      <div class="splash-logo" aria-hidden="true">
+        <svg viewBox="0 0 120 90" width="120" height="90" role="img" aria-label="Dutchkem Ventures danfo bus logo">
+          <rect x="6" y="20" width="108" height="46" rx="10" fill="#FFC72C" stroke="#111" stroke-width="4" />
+          <rect x="14" y="28" width="26" height="16" rx="4" fill="#111" />
+          <rect x="46" y="28" width="26" height="16" rx="4" fill="#111" />
+          <rect x="78" y="28" width="28" height="16" rx="4" fill="#111" />
+          <rect x="14" y="50" width="92" height="6" rx="3" fill="#111" opacity="0.55" />
+          <circle cx="30" cy="68" r="11" fill="#111" stroke="#FFC72C" stroke-width="4" />
+          <circle cx="90" cy="68" r="11" fill="#111" stroke="#FFC72C" stroke-width="4" />
+          <rect x="96" y="14" width="10" height="6" rx="2" fill="#00A651" />
+        </svg>
+      </div>
+      <h1 class="brand-title">DUTCHKEM VENTURES</h1>
+      <p class="brand-tagline">Driving the Culture</p>
+      <p class="game-subtitle">Presents: Lagos Run — Hustle Empire</p>
+      <div class="loader" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+      <p class="splash-status" id="splashStatus" role="status" aria-live="polite">Loading Lagos…</p>
+      <p class="splash-legal">© 2026 Dutchkem Ventures. All rights reserved.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════════ CONSENT ═══════════════ -->
+  <section id="consent" class="screen" aria-label="Consent and privacy choices">
+    <div class="panel">
+      <h2 class="panel-title">Welcome to Dutchkem Ventures</h2>
+      <p class="panel-copy">
+        Lagos Run — Hustle Empire is free to play. Choose how we may use anonymous gameplay
+        data and how we show ads. You can change these choices any time in Settings.
+      </p>
+      <label class="check">
+        <input type="checkbox" id="consentAnalytics" checked />
+        <span>Share anonymous gameplay analytics to help improve the game.</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="consentAds" checked />
+        <span>Show personalized ads. Unchecked, you will still see non-personalized ads.</span>
+      </label>
+      <div class="btn-col">
+        <button type="button" class="btn btn-primary" id="consentAccept">Accept &amp; Play</button>
+        <button type="button" class="btn btn-secondary" id="consentReject">Essential Only</button>
+      </div>
+      <p class="fineprint">
+        Read our <a href="/privacy.html">Privacy Policy</a> and <a href="/terms.html">Terms of Service</a>,
+        or change these choices any time on the <a href="/consent.html">consent settings</a> page.
+        Questions: privacy@dutchkem.com. © 2026 Dutchkem Ventures.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══════════════ MENU ═══════════════ -->
+  <section id="menu" class="screen" aria-label="Main menu">
+    <header class="topbar">
+      <div class="brand-mini" aria-label="Dutchkem Ventures">
+        <span class="brand-dot" aria-hidden="true"></span>
+        <span>DUTCHKEM VENTURES</span>
+      </div>
+      <div class="currency-bar">
+        <span class="pill" id="hudCoins" aria-label="Coins">🪙 <b>0</b></span>
+        <span class="pill" id="hudKobo" aria-label="Kobo gems">💎 <b>0</b></span>
+        <button type="button" class="hud-btn" id="btnSettings" aria-label="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <main class="menu-main">
+      <div class="logo-wrap">
+        <div class="game-logo">LAGOS RUN</div>
+        <div class="game-logo-sub">HUSTLE EMPIRE</div>
+      </div>
+
+      <div class="mode-grid">
+        <button type="button" class="mode-card" data-mode="endless">
+          <span class="mode-emoji" aria-hidden="true">🏁</span>
+          <span class="mode-title">Endless Run</span>
+          <span class="mode-desc">Drive forever. Chase the high score.</span>
+        </button>
+        <button type="button" class="mode-card" data-mode="hustle">
+          <span class="mode-emoji" aria-hidden="true">💼</span>
+          <span class="mode-title">Hustle Mode</span>
+          <span class="mode-desc">Pay daily expenses. Build your fleet.</span>
+        </button>
+        <button type="button" class="mode-card" data-mode="crew">
+          <span class="mode-emoji" aria-hidden="true">👥</span>
+          <span class="mode-title">Crew Race</span>
+          <span class="mode-desc">Race your crew's ghost runs.</span>
+        </button>
+      </div>
+
+      <div class="menu-actions">
+        <button type="button" class="btn btn-primary" id="btnShop">DUTCHKEM PREMIUM · SHOP</button>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary" id="btnGarage">🚌 Garage</button>
+          <button type="button" class="btn btn-secondary" id="btnDaily">🎁 Daily</button>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>© 2026 Dutchkem Ventures. All rights reserved.</p>
+      <nav class="footer-links" aria-label="Legal and support">
+        <a href="/privacy.html">Privacy</a>
+        <a href="/terms.html">Terms</a>
+        <button type="button" class="linklike" id="btnReportBug">Report Bug</button>
+      </nav>
+    </footer>
+  </section>
+
+  <!-- ═══════════════ GAME ═══════════════ -->
+  <section id="game" class="screen" aria-label="Gameplay">
+    <canvas id="gameCanvas" aria-label="Lagos Run gameplay canvas"></canvas>
+
+    <div class="hud" aria-live="off">
+      <div class="hud-left">
+        <span class="hud-item" id="inGameCoins">🪙 <b>0</b></span>
+        <span class="hud-item" id="inGameFuel">⛽ <b>100%</b></span>
+        <span class="hud-item" id="inGamePax">👥 <b>0</b></span>
+      </div>
+      <div class="hud-right">
+        <span class="hud-item" id="hudWeather">☀️</span>
+        <span class="hud-item" id="hudTime">06:00</span>
+        <button type="button" class="hud-btn" id="btnPause" aria-label="Pause game">⏸️</button>
+      </div>
+    </div>
+
+    <div class="radio-bar" role="group" aria-label="Radio station">
+      <button type="button" class="station" data-station="fuji">Fuji</button>
+      <button type="button" class="station" data-station="afrobeats">Afrobeats</button>
+      <button type="button" class="station" data-station="gospel">Gospel</button>
+      <button type="button" class="station" data-station="news">News</button>
+      <button type="button" class="station" data-station="sports">Sports</button>
+      <button type="button" class="station" data-station="danfofm">Danfo FM</button>
+    </div>
+
+    <button type="button" class="conductor" id="btnConductor" aria-label="Conductor view">👁️</button>
+
+    <div class="controls">
+      <button type="button" class="ctrl" id="ctrlLeft" data-ctrl="left" aria-label="Steer left">◀</button>
+      <button type="button" class="ctrl ctrl-brake" id="ctrlBrake" data-ctrl="brake" aria-label="Brake">BRAKE</button>
+      <button type="button" class="ctrl" id="ctrlRight" data-ctrl="right" aria-label="Steer right">▶</button>
+    </div>
+  </section>
+
+  <!-- ═══════════════ PAUSE ═══════════════ -->
+  <div id="pause" class="overlay" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+    <div class="panel">
+      <h2 class="panel-title" id="pauseTitle">Paused</h2>
+      <div class="btn-col">
+        <button type="button" class="btn btn-primary" id="btnResume">Resume</button>
+        <button type="button" class="btn btn-secondary" id="btnRestart">Restart</button>
+        <button type="button" class="btn btn-ghost" id="btnQuit">Quit to Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ GAME OVER ═══════════════ -->
+  <div id="gameover" class="overlay" role="dialog" aria-modal="true" aria-labelledby="goTitle">
+    <div class="panel">
+      <h2 class="panel-title" id="goTitle">Run Complete</h2>
+      <div class="results-grid">
+        <div><span class="res-label">Fares</span><span class="res-val" id="resFares">₦0</span></div>
+        <div><span class="res-label">Passengers</span><span class="res-val" id="resPax">0</span></div>
+        <div><span class="res-label">Distance</span><span class="res-val" id="resDist">0 km</span></div>
+        <div><span class="res-label">Reputation</span><span class="res-val" id="resRep">0</span></div>
+      </div>
+      <div class="btn-col">
+        <button type="button" class="btn btn-primary" id="btnDoubleReward">▶️ Watch Ad — 2× Fares</button>
+        <button type="button" class="btn btn-secondary" id="btnRetry">Retry</button>
+        <button type="button" class="btn btn-ghost" id="btnMenu">Main Menu</button>
+      </div>
+      <p class="go-ad-note" id="goAdNote">Rewarded ads are optional. © 2026 Dutchkem Ventures.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════ SETTINGS ═══════════════ -->
+  <div id="settings" class="overlay" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <div class="panel">
+      <h2 class="panel-title" id="setTitle">Settings</h2>
+      <label class="check">
+        <input type="checkbox" id="setColorblind" />
+        <span>Colourblind-friendly palette</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="setReducedMotion" />
+        <span>Reduced motion</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="setSound" checked />
+        <span>Sound effects</span>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="setHaptics" checked />
+        <span>Haptics</span>
+      </label>
+      <div class="range-row">
+        <label for="setSpeed">Game speed</label>
+        <input type="range" id="setSpeed" min="0.8" max="1.2" step="0.1" value="1" />
+      </div>
+      <div class="btn-col">
+        <button type="button" class="btn btn-secondary" id="setExportData">Export My Data</button>
+        <button type="button" class="btn btn-danger" id="setDeleteData">Delete My Data</button>
+        <button type="button" class="btn btn-ghost" id="setClose">Close</button>
+      </div>
+      <p class="fineprint">© 2026 Dutchkem Ventures. All rights reserved.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════ SYSTEM BANNERS ═══════════════ -->
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <div id="updateBanner">
+    <span>A new version of Lagos Run is ready.</span>
+    <button type="button" class="btn btn-sm btn-primary" id="btnReload">Reload</button>
+  </div>
+
+  <div id="offlineBanner">
+    <span>You are offline. Your run is saved and will sync when you reconnect.</span>
+  </div>
+
+  <!-- ═══════════════ SEO CONTENT ═══════════════ -->
+  <section id="seo-content" aria-hidden="true">
+    <h1>Lagos Run — Hustle Empire: Free Danfo Driving Game</h1>
+    <p>
+      Lagos Run — Hustle Empire is a free browser game from Dutchkem Ventures in which you drive a
+      yellow danfo bus through the streets of Lagos. Board passengers in yellow pickup zones, carry
+      them safely to their drop-off, and earn fares that grow with distance, passenger count and
+      smooth driving. No download and no installation are required — the game runs in Chrome, Safari,
+      Firefox, Edge, Samsung Internet and Opera on phones, tablets and desktops.
+    </p>
+    <h2>How to Play</h2>
+    <ul>
+      <li>Tap or hold the left and right arrows, or use the arrow keys, to steer the danfo.</li>
+      <li>Slow down at yellow pickup zones so passengers can board without losing patience.</li>
+      <li>Dodge traffic, potholes and LASTMA checkpoints to protect your passengers and your bus.</li>
+      <li>Refuel at filling stations before the tank empties, then deliver everyone to earn your fare.</li>
+    </ul>
+    <h2>Frequently Asked Questions</h2>
+    <h3>Is Lagos Run free to play?</h3>
+    <p>Yes. Lagos Run — Hustle Empire is free to play. Optional cosmetics, the Dutchkem Season Pass and the Dutchkem Chairman's Club are available, and optional rewarded ads can double a run's fares.</p>
+    <h3>Can I play on my phone?</h3>
+    <p>Yes. The game is mobile-first and designed for 60fps on mid-range Android devices. It can be installed to your home screen as a Progressive Web App.</p>
+    <h3>Do I need to download anything?</h3>
+    <p>No download is needed. The game loads in your browser, and the optional home-screen install adds offline play.</p>
+    <p>© 2026 Dutchkem Ventures. All rights reserved.</p>
+  </section>
+
+</body>
+</html>

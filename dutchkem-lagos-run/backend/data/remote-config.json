@@ -1,0 +1,22 @@
+{
+  "brand": "Dutchkem Ventures",
+  "features": {
+    "crews": true,
+    "battlePass": true,
+    "fleetInvestment": true,
+    "ghostRacing": true
+  },
+  "ads": {
+    "interstitialEveryRuns": 3,
+    "rewardedPerDay": 5,
+    "adFreeAfterPurchase": true,
+    "ssvEnabled": true,
+    "rewardAmountCoins": 50
+  },
+  "economy": {
+    "fareMultiplier": 1.0,
+    "offlineFleetCapHours": 8,
+    "dailyRemittanceTarget": 2000
+  },
+  "events": []
+}
